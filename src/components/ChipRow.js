@@ -9,7 +9,10 @@ export default function ChipRow({ items, active, onSelect, isActive }) {
   const checkActive = isActive || ((item) => item === active);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    // ÖNEMLİ (Android düzeltmesi): Bu, Ana Sayfa'nın kendisi gibi DIŞ bir dikey liste/scroll
+    // içine yerleştiriliyor — Android'de, iç içe scroll'larda dış olan iç olanın yatay
+    // kaydırma jestini "çalabiliyor" (iOS'ta bu sorun yok). nestedScrollEnabled bunu engelliyor.
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={styles.row}>
       {items.map((item) => {
         const on = checkActive(item);
         return (

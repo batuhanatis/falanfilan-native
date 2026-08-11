@@ -1,39 +1,89 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Heart, X, Star } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useWS } from "../context/WSContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
-import { GENRE_FILTERS } from "../theme/theme";
+import { emitLocalEvent } from "../utils/localEvents";
+import RetryImage from "../components/RetryImage";
+import { recommendationReason } from "../utils/recommend";
+import { GENRE_FILTERS, COMMON_PLATFORMS } from "../theme/theme";
 import ChipRow from "../components/ChipRow";
 import SwipeableCard from "../components/SwipeableCard";
+import ShareCardModal from "../components/ShareCardModal";
+import MatchShareCard from "../components/MatchShareCard";
+import MatchCelebration from "../components/MatchCelebration";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const SWIPE_THRESHOLD = 110;
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
+const STOCK_TARGET = 10; // Discover'daki gibi: kuyrukta her zaman en az bu kadar film kalsın
+const YEAR_OPTIONS = [
+  ["1990 öncesi", "before1990"],
+  ["1990'lar", "1990s"],
+  ["2000'ler", "2000s"],
+  ["2010'lar", "2010s"],
+  ["2020 ve sonrası", "2020s"],
+];
 
 export default function MatchPartyScreen({ route, navigation }) {
   const { friend, sessionId: initialSessionId } = route.params || {};
   const { c } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { auth } = useAuth();
   const { subscribe } = useWS();
   const styles = makeStyles(c);
 
   const [stage, setStage] = useState(initialSessionId ? "loading" : "setup");
   const [sessionId, setSessionId] = useState(initialSessionId || null);
+  // Paylaşım kartında güncel profil fotoğrafımın görünmesi için — aynı düzeltme BlendScreen'de de yapıldı.
+  const [myAvatarUrl, setMyAvatarUrl] = useState(null);
+  useEffect(() => {
+    api.me(auth.token).then((me) => setMyAvatarUrl(me.avatarUrl || null)).catch(() => {});
+  }, [auth.token]);
   const [typePref, setTypePref] = useState("Hepsi");
   const [genrePref, setGenrePref] = useState(null);
   const [minImdb, setMinImdb] = useState(6.5);
+  const [yearLabels, setYearLabels] = useState(new Set());
+  const [platformPrefs, setPlatformPrefs] = useState(new Set());
 
   const [queue, setQueue] = useState([]);
   const [cursor, setCursor] = useState(0);
   const [matches, setMatches] = useState([]);
-  const [flash, setFlash] = useState(null);
+  const [showShareCard, setShowShareCard] = useState(false);
+  // Oturumdaki HER eşleşmede (ilk ya da sonraki fark etmeksizin) tam ekran, kaydırmayı durduran
+  // bir kutlama gösteriyoruz — MatchCelebration, kullanıcı "Devam Et"/"Oturumu Bitir" demeden kapanmaz.
+  const [celebration, setCelebration] = useState(null); // { movie } | null
   const [members, setMembers] = useState(friend ? [{ id: friend.id, name: friend.name, avatarUrl: friend.avatarUrl, progress: 0 }] : []);
   const [declinedBy, setDeclinedBy] = useState(null);
+  const extendingRef = useRef(false); // aynı anda birden fazla extend isteği gitmesin
+  const [likedMovies, setLikedMovies] = useState([]);
+  // Devam eden bir oturumdan (aktif kaydırma ya da davet bekleniyorken) uygulama içinde başka bir
+  // yere geçmeye çalışınca (header geri tuşu, Android donanım geri tuşu, sekme değişimi) oturum
+  // sessizce arkada kalıp bir daha bulunamıyordu — artık "beforeRemove" ile bu geçişi yakalayıp
+  // kullanıcıya sorduk: ya oturumu bitirip çıksın ya da MatchParty'e devam etsin.
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [endingToLeave, setEndingToLeave] = useState(false);
+  const pendingLeaveAction = useRef(null);
+  const [creatingWatchlist, setCreatingWatchlist] = useState(false);
+  const [watchlistCreated, setWatchlistCreated] = useState(false);
+
+  useEffect(() => {
+    api.userProfile(auth.token, auth.id).then((data) => setLikedMovies(data.likedMovies || [])).catch(() => {});
+  }, []);
+  const likedIds = new Set(likedMovies.map((m) => m.id));
+
+  function toggleYear(label) {
+    setYearLabels((prev) => { const n = new Set(prev); n.has(label) ? n.delete(label) : n.add(label); return n; });
+  }
+  function togglePlatform(name) {
+    setPlatformPrefs((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  }
 
   const cardRef = useRef(null);
 
@@ -43,7 +93,17 @@ export default function MatchPartyScreen({ route, navigation }) {
       setQueue(data.movies || []);
       if (data.members) setMembers(data.members.filter((m) => m.id !== auth.id));
       setCursor(data.myProgress || 0);
-      setStage("active");
+      // ÖNEMLİ DÜZELTME: eskiden oturum ne durumda olursa olsun doğrudan "active" yapılıyordu.
+      // Bu, grup daveti oluşturduktan hemen sonra (henüz kimse kabul etmemişken) bu ekrana
+      // gelindiğinde yanlışlıkla "aktif" gösteriyordu. Artık gerçek durumu yansıtıyor.
+      if (data.status === "waiting") setStage("waiting");
+      else if (data.status === "ended") {
+        const matchesData = await api.partyMatches(auth.token, id).catch(() => ({ results: [] }));
+        setMatches(matchesData.results || []);
+        setStage("summary");
+      } else {
+        setStage("active");
+      }
     } catch { navigation.goBack(); }
   }
 
@@ -58,18 +118,61 @@ export default function MatchPartyScreen({ route, navigation }) {
         setDeclinedBy(msg.by?.name || "Arkadaşın");
         setStage("declined");
       } else if (msg.type === "party_match") {
-        setMatches((m) => (m.some((x) => x.id === msg.movie.id) ? m : [...m, msg.movie]));
-        setFlash(msg.movie);
-        setTimeout(() => setFlash(null), 1200);
+        setMatches((m) => {
+          if (m.some((x) => x.id === msg.movie.id)) return m;
+          setCelebration({ movie: msg.movie });
+          return [...m, msg.movie];
+        });
+      } else if (msg.type === "party_partner_swiped") {
+        // Canlı ilerleme güncellemesi — "arkadaşın kaçıncı içerikte" bilgisini anlık gösterebilmek için.
+        setMembers((prev) => prev.map((mem) => (mem.id === msg.user_id ? { ...mem, progress: msg.progress } : mem)));
+      } else if (msg.type === "party_session_ended") {
+        // Oturumu SEN değil, diğer üye bitirdi — sen hâlâ kaydırıyor olsan bile ekranın anında
+        // final özet ekranına geçiyor, backend'in gönderdiği kesin eşleşme listesiyle.
+        setMatches(msg.matches || []);
+        setStage("summary");
       }
     });
     return unsub;
   }, [subscribe, sessionId, stage]);
 
+  // Oturum aktifken ya da (henüz kabul edilmemiş) davet bekleniyorken ekrandan çıkılmaya
+  // çalışılırsa (geri tuşu, kaydırma jesti, Android donanım geri tuşu — hepsi "beforeRemove"
+  // olarak gelir) geçişi durdurup kullanıcıya soruyoruz. Kurulum (setup) ya da zaten bitmiş
+  // (özet/reddedildi) ekranlardan çıkış serbest.
+  useEffect(() => {
+    const unsub = navigation.addListener("beforeRemove", (e) => {
+      if (stage !== "active" && stage !== "waiting") return;
+      e.preventDefault();
+      pendingLeaveAction.current = e.data.action;
+      setLeaveConfirm(true);
+    });
+    return unsub;
+  }, [navigation, stage]);
+
+  function cancelLeave() {
+    pendingLeaveAction.current = null;
+    setLeaveConfirm(false);
+  }
+
+  async function confirmEndAndLeave() {
+    setEndingToLeave(true);
+    try { await api.endParty(auth.token, sessionId); } catch { /* sessizce geç */ }
+    setEndingToLeave(false);
+    setLeaveConfirm(false);
+    const action = pendingLeaveAction.current;
+    pendingLeaveAction.current = null;
+    if (action) navigation.dispatch(action);
+  }
+
   async function startInvite() {
     if (!friend) return;
     try {
-      const data = await api.createParty(auth.token, { to_user_ids: [friend.id], filters: { type: typePref, genre: genrePref || "Hepsi", minImdb } });
+      const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
+      const data = await api.createParty(auth.token, {
+        to_user_ids: [friend.id],
+        filters: { type: typePref, genre: genrePref || "Hepsi", minImdb, years, platforms: [...platformPrefs] },
+      });
       setSessionId(data.id);
       setStage("waiting");
     } catch { /* sessizce geç */ }
@@ -77,17 +180,30 @@ export default function MatchPartyScreen({ route, navigation }) {
 
   function advance() { setCursor((i) => i + 1); }
 
+  async function maybeExtendQueue(nextCursor) {
+    // Discover'daki gibi: kalan film sayısı STOCK_TARGET'ın altına düşünce arkadan yeni film ekle,
+    // kullanıcı hiç "kuyruk bitti" ekranına düşmesin.
+    if (extendingRef.current) return;
+    if (queue.length - nextCursor >= STOCK_TARGET) return;
+    extendingRef.current = true;
+    try {
+      const data = await api.extendParty(auth.token, sessionId);
+      if (data.added?.length > 0) setQueue((prev) => [...prev, ...data.added]);
+    } catch { /* sessizce geç, bir sonraki kaydırmada tekrar denenir */ }
+    extendingRef.current = false;
+  }
+
   async function decide(userLiked) {
     const movie = queue[cursor];
     if (!movie) return;
     advance();
+    maybeExtendQueue(cursor + 1);
     try {
-      const data = await api.swipeParty(auth.token, sessionId, movie.id, userLiked);
-      if (data.match) {
-        setMatches((m) => (m.some((x) => x.id === movie.id) ? m : [...m, movie]));
-        setFlash(movie);
-        setTimeout(() => setFlash(null), 1200);
-      }
+      // ÖNEMLİ: Backend, eşleşme olduğunda "party_match" WS olayını TÜM üyelere (kaydıran dahil)
+      // gönderiyor — bu yüzden burada, API yanıtındaki "data.match" bilgisine göre AYRICA bir
+      // kutlama tetiklemiyoruz, aksi halde kaydıran kişi için eşleşme iki kez (hem anlık API
+      // yanıtından hem WS yankısından) tetiklenirdi. WS handler'ı (yukarıda) tek, güvenilir kaynak.
+      await api.swipeParty(auth.token, sessionId, movie.id, userLiked);
     } catch { /* sessizce geç */ }
   }
 
@@ -96,6 +212,24 @@ export default function MatchPartyScreen({ route, navigation }) {
   async function endSession() {
     try { await api.endParty(auth.token, sessionId); } catch {}
     setStage("summary");
+  }
+
+  // Özet ekranındaki "Listeye Kaydet" butonu — tek dokunuşla, tüm ortak eşleşmeleri içeren
+  // yeni bir izleme listesi oluşturuyor, ayrıca liste adı sormuyoruz (NewListModal'daki gibi) çünkü
+  // buradaki amaç hız: "otomatik" bir liste.
+  async function createWatchlistFromMatches() {
+    if (matches.length === 0 || creatingWatchlist || watchlistCreated) return;
+    setCreatingWatchlist(true);
+    try {
+      const listName = `${displayName} ile MatchParty`;
+      const list = await api.createWatchlist(auth.token, listName);
+      await Promise.all(matches.map((m) => api.addToWatchlist(auth.token, list.id, m.id).catch(() => {})));
+      setWatchlistCreated(true);
+      emitLocalEvent({ type: "toast", title: "✅ Liste oluşturuldu", message: `"${listName}" listesine ${matches.length} içerik eklendi` });
+    } catch {
+      emitLocalEvent({ type: "toast", title: "Bir şeyler ters gitti", message: "Liste oluşturulamadı, tekrar dene" });
+    }
+    setCreatingWatchlist(false);
   }
 
   const current = queue[cursor];
@@ -126,6 +260,10 @@ export default function MatchPartyScreen({ route, navigation }) {
           <ChipRow items={GENRE_FILTERS} active={genrePref} onSelect={(v) => setGenrePref(v === genrePref ? null : v)} />
           <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
           <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
+          <Text style={styles.label}>YAPIM YILI (opsiyonel, birden fazla seçilebilir)</Text>
+          <ChipRow items={YEAR_OPTIONS.map(([label]) => label)} isActive={(label) => yearLabels.has(label)} onSelect={toggleYear} />
+          <Text style={styles.label}>PLATFORM (opsiyonel, birden fazla seçilebilir)</Text>
+          <ChipRow items={COMMON_PLATFORMS} isActive={(name) => platformPrefs.has(name)} onSelect={togglePlatform} />
           <TouchableOpacity style={styles.primaryBtn} onPress={startInvite}>
             <Text style={styles.primaryBtnText}>{displayName}'e Davet Gönder</Text>
           </TouchableOpacity>
@@ -153,14 +291,38 @@ export default function MatchPartyScreen({ route, navigation }) {
 
       {stage === "active" && (
         <View style={{ flex: 1, padding: 16 }}>
-          <View style={styles.progressRow}>
-            {members.map((m) => (
-              <View key={m.id} style={styles.memberPill}>
-                <Image source={{ uri: avatarOr(m.avatarUrl, m.id) }} style={styles.memberAvatar} />
-                <Text style={styles.memberProgress}>{m.progress || 0}</Text>
+          {/* ÖNEMLİ (canlı, karşılaştırmalı ilerleme göstergesi): Eskiden sadece ham bir sayı
+              gösteriliyordu ve bu sayı CANLI güncellenmiyordu (sadece oturuma girişte bir kez
+              çekiliyordu) — "arkadaşım kaçıncı içerikte" sorusuna gerçek bir cevap vermiyordu.
+              Artık backend'in zaten gönderdiği ama hiç dinlenmeyen "party_partner_swiped" olayını
+              kullanarak canlı güncelliyoruz, ve ham sayı yerine BENİM ile HERKESİN ilerlemesini
+              aynı ölçekte gösteren bir çubuk çiziyoruz — kim önde/geride net görünüyor.
+              Ölçek (maxProgress), o an en önde olanın ilerlemesi — sabit/tahmini bir "toplam"
+              olmadığı için en anlamlı kıyaslama bu.
+          */}
+          {(() => {
+            const maxProgress = Math.max(cursor, ...members.map((m) => m.progress || 0), 1);
+            return (
+              <View style={styles.progressBlock}>
+                <View style={styles.progressBarRow}>
+                  <Text style={styles.progressLabel} numberOfLines={1}>Sen</Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.min(100, (cursor / maxProgress) * 100)}%`, backgroundColor: c.accent }]} />
+                  </View>
+                  <Text style={styles.progressCount}>{cursor}</Text>
+                </View>
+                {members.map((m) => (
+                  <View key={m.id} style={styles.progressBarRow}>
+                    <RetryImage source={{ uri: avatarOr(m.avatarUrl, m.id) }} style={styles.progressAvatar} />
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${Math.min(100, ((m.progress || 0) / maxProgress) * 100)}%`, backgroundColor: c.accent2 }]} />
+                    </View>
+                    <Text style={styles.progressCount}>{m.progress || 0}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            );
+          })()}
           <Text style={styles.matchesLabel}>Herkes sağa kaydırırsa eşleşme listesine eklenir · {matches.length} ortak eşleşme</Text>
 
           <View style={{ flex: 1, position: "relative" }}>
@@ -178,6 +340,15 @@ export default function MatchPartyScreen({ route, navigation }) {
               >
                 {current.poster ? <Image source={{ uri: current.poster }} style={StyleSheet.absoluteFillObject} /> : <View style={[StyleSheet.absoluteFillObject, { backgroundColor: c.surface2 }]} />}
                 <LinearGradient colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0)"]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0.45 }} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
+                {(() => {
+                  const reason = recommendationReason(current, likedIds, likedMovies);
+                  return reason ? (
+                    <View style={styles.reasonBadge} pointerEvents="none">
+                      <Sparkles size={9} color={c.accent2} />
+                      <Text style={styles.reasonText} numberOfLines={1}>{reason}</Text>
+                    </View>
+                  ) : null;
+                })()}
                 <View style={styles.cardInfo} pointerEvents="none">
                   <Text style={styles.cardTitle} numberOfLines={1}>{current.title}</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
@@ -185,27 +356,28 @@ export default function MatchPartyScreen({ route, navigation }) {
                     <Text style={styles.cardMeta}>{current.imdb} · {current.year} · {current.genre}</Text>
                   </View>
                 </View>
-                {flash && (
-                  <View style={styles.flashOverlay}>
-                    <Text style={{ fontSize: 34 }}>🎉</Text>
-                    <Text style={styles.flashTitle}>MATCH!</Text>
-                    <Text style={styles.flashSubtitle}>{flash.title}</Text>
-                  </View>
-                )}
               </SwipeableCard>
             )}
           </View>
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]} onPress={() => cardRef.current?.swipeLeft()} disabled={!current}>
+            <TouchableOpacity
+              style={[styles.actionCircle, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]}
+              onPress={() => cardRef.current?.swipeLeft()}
+              disabled={!current || !!celebration}
+            >
               <X size={22} color={c.danger} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.accent2 }]} onPress={() => cardRef.current?.swipeRight()} disabled={!current}>
+            <TouchableOpacity
+              style={[styles.actionCircle, { backgroundColor: c.accent2 }]}
+              onPress={() => cardRef.current?.swipeRight()}
+              disabled={!current || !!celebration}
+            >
               <Heart size={22} color="#fff" fill="#fff" />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.endBtn} onPress={endSession}>
+          <TouchableOpacity style={[styles.endBtn, { marginBottom: insets.bottom }]} onPress={endSession}>
             <Text style={styles.endBtnText}>Oturumu Bitir</Text>
           </TouchableOpacity>
         </View>
@@ -218,20 +390,95 @@ export default function MatchPartyScreen({ route, navigation }) {
           {matches.length === 0 ? (
             <Text style={styles.hintText}>Bu oturumda ortak bir eşleşme olmadı.</Text>
           ) : (
-            matches.map((m) => (
-              <TouchableOpacity key={m.id} style={styles.matchRow} onPress={() => navigation.navigate("Detail", { movie: m })}>
-                {m.poster ? <Image source={{ uri: m.poster }} style={styles.matchPoster} /> : <View style={[styles.matchPoster, { backgroundColor: c.surface2 }]} />}
-                <View>
-                  <Text style={styles.matchTitle}>{m.title}</Text>
-                  <Text style={styles.matchMeta}>{m.year} · ⭐ {m.imdb}</Text>
-                </View>
+            <>
+              <TouchableOpacity style={styles.shareResultBtn} onPress={() => setShowShareCard(true)}>
+                <Sparkles size={13} color="#fff" />
+                <Text style={styles.shareResultBtnText}>Eşleşmeyi Paylaş</Text>
               </TouchableOpacity>
-            ))
+              <TouchableOpacity
+                style={[styles.watchlistBtn, watchlistCreated && { opacity: 0.6 }]}
+                onPress={createWatchlistFromMatches}
+                disabled={creatingWatchlist || watchlistCreated}
+              >
+                {creatingWatchlist ? (
+                  <ActivityIndicator size="small" color={c.text} />
+                ) : watchlistCreated ? (
+                  <>
+                    <Check size={13} color={c.text} />
+                    <Text style={styles.watchlistBtnText}>Listeye Eklendi</Text>
+                  </>
+                ) : (
+                  <>
+                    <BookmarkPlus size={13} color={c.text} />
+                    <Text style={styles.watchlistBtnText}>Listeye Kaydet</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              {matches.map((m) => (
+                <TouchableOpacity key={m.id} style={styles.matchRow} onPress={() => navigation.navigate("Detail", { movie: m })}>
+                  {m.poster ? <Image source={{ uri: m.poster }} style={styles.matchPoster} /> : <View style={[styles.matchPoster, { backgroundColor: c.surface2 }]} />}
+                  <View>
+                    <Text style={styles.matchTitle}>{m.title}</Text>
+                    <Text style={styles.matchMeta}>{m.year} · ⭐ {m.imdb}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
           )}
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.secondaryBtnText}>Kapat</Text>
           </TouchableOpacity>
         </ScrollView>
+      )}
+
+      {showShareCard && matches.length > 0 && (
+        <ShareCardModal onClose={() => setShowShareCard(false)}>
+          <MatchShareCard
+            myAvatar={myAvatarUrl}
+            myId={auth.id}
+            myName={auth.name}
+            friendAvatar={members[0]?.avatarUrl || friend?.avatarUrl}
+            friendId={members[0]?.id || friend?.id}
+            friendName={displayName}
+            matchCount={matches.length}
+            topMovie={matches[0]}
+          />
+        </ShareCardModal>
+      )}
+
+      {/* Her eşleşmede, tüm ekranı kaplayan, kaydırmayı durduran tam kutlama — en üst seviyede
+          (header dahil her şeyin üstünde) render ediliyor, kullanıcı bir seçim yapana kadar kapanmaz. */}
+      {celebration && (
+        <MatchCelebration
+          movie={celebration.movie}
+          myAvatar={myAvatarUrl}
+          myId={auth.id}
+          partnerAvatar={members[0]?.avatarUrl || friend?.avatarUrl}
+          partnerId={members[0]?.id || friend?.id}
+          partnerName={displayName}
+          onContinue={() => setCelebration(null)}
+          onEndSession={() => { setCelebration(null); endSession(); }}
+        />
+      )}
+
+      {/* Oturum aktifken/davet beklenirken ekrandan çıkılmaya çalışılınca (bkz. "beforeRemove"
+          dinleyicisi) — kullanıcı ya oturumu bitirip çıkar ya da MatchParty'e devam eder,
+          hiçbir seçim yapmadan bu popup kapanmaz. */}
+      {leaveConfirm && (
+        <View style={styles.leaveOverlay}>
+          <View style={styles.leaveCard}>
+            <Text style={styles.leaveTitle}>MatchParty'den çıkmak üzeresin</Text>
+            <Text style={styles.leaveSubtitle}>Şimdi çıkarsan bu oturuma geri dönemezsin. Devam mı etmek istersin, yoksa oturumu bitirip mi çıkmak istersin?</Text>
+            <View style={styles.leaveBtnRow}>
+              <TouchableOpacity style={styles.leaveStayBtn} onPress={cancelLeave} disabled={endingToLeave}>
+                <Text style={styles.leaveStayBtnText}>MatchParty'e Devam Et</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.leaveEndBtn} onPress={confirmEndAndLeave} disabled={endingToLeave}>
+                {endingToLeave ? <ActivityIndicator size="small" color={c.dim} /> : <Text style={styles.leaveEndBtnText}>Oturumu Bitir ve Çık</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -254,27 +501,52 @@ function makeStyles(c) {
     waitSubtitle: { fontSize: 12, color: c.dim, marginTop: 6, textAlign: "center" },
     secondaryBtn: { marginTop: 16, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
     secondaryBtnText: { color: c.text, fontWeight: "700", fontSize: 12 },
-    progressRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 8 },
-    memberPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-    memberAvatar: { width: 16, height: 16, borderRadius: 999 },
-    memberProgress: { fontSize: 10, color: c.dim },
+    progressBlock: { gap: 6, marginBottom: 10 },
+    progressBarRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    progressLabel: { fontSize: 10.5, fontWeight: "700", color: c.dim, width: 34 },
+    progressAvatar: { width: 18, height: 18, borderRadius: 999 },
+    progressTrack: { flex: 1, height: 6, borderRadius: 999, backgroundColor: c.surface2, overflow: "hidden" },
+    progressFill: { height: "100%", borderRadius: 999 },
+    progressCount: { fontSize: 10.5, fontWeight: "700", color: c.dim, width: 20, textAlign: "right" },
     matchesLabel: { fontSize: 11, color: c.dim, textAlign: "center", marginBottom: 10 },
     card: { flex: 1, borderRadius: 22, overflow: "hidden", backgroundColor: c.surface2 },
     cardInfo: { position: "absolute", left: 16, right: 16, bottom: 14 },
+    reasonBadge: {
+      position: "absolute", top: 12, right: 12, maxWidth: "60%",
+      flexDirection: "row", alignItems: "center", gap: 4,
+      backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+    },
+    reasonText: { fontSize: 9, fontWeight: "700", color: "#fff" },
     cardTitle: { color: "#fff", fontSize: 19, fontWeight: "700" },
     cardMeta: { color: "rgba(255,255,255,0.85)", fontSize: 12 },
-    flashOverlay: {
-      position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.55)",
-      alignItems: "center", justifyContent: "center", borderRadius: 22,
-    },
-    flashTitle: { color: "#fff", fontWeight: "800", fontSize: 16 },
-    flashSubtitle: { color: "#fff", fontSize: 12, opacity: 0.85 },
     actionsRow: { flexDirection: "row", justifyContent: "center", gap: 26, marginTop: 16 },
     actionCircle: { width: 54, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center" },
     endBtn: { marginTop: 14, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 10, alignItems: "center" },
     endBtnText: { color: c.dim, fontWeight: "700", fontSize: 12 },
     summaryTitle: { fontSize: 20, fontWeight: "700", color: c.text, textAlign: "center" },
     summarySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 4, marginBottom: 16 },
+    shareResultBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      backgroundColor: "#DB2777", borderRadius: 14, paddingVertical: 13, marginBottom: 16,
+    },
+    shareResultBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    watchlistBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginBottom: 16,
+    },
+    watchlistBtnText: { color: c.text, fontWeight: "800", fontSize: 13 },
+    leaveOverlay: {
+      ...StyleSheet.absoluteFillObject, zIndex: 60, backgroundColor: "rgba(10,9,14,0.85)",
+      alignItems: "center", justifyContent: "center", padding: 24,
+    },
+    leaveCard: { width: "100%", maxWidth: 340, backgroundColor: c.surface, borderRadius: 18, padding: 20 },
+    leaveTitle: { fontSize: 15, fontWeight: "800", color: c.text, textAlign: "center" },
+    leaveSubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 6, marginBottom: 18 },
+    leaveBtnRow: { gap: 10 },
+    leaveStayBtn: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+    leaveStayBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    leaveEndBtn: { borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+    leaveEndBtnText: { color: c.dim, fontWeight: "700", fontSize: 13 },
     matchRow: { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 10, marginBottom: 10 },
     matchPoster: { width: 46, height: 64, borderRadius: 8 },
     matchTitle: { fontSize: 13, fontWeight: "700", color: c.text },

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, TouchableWithoutFeedback } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { X, Camera, Image as ImageIcon, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import DismissableSheet from "./DismissableSheet";
 
 export default function PhotoIdentifyModal({ onClose, navigation }) {
   const { c } = useAppTheme();
@@ -27,7 +28,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
 
     const launch = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
     const result = await launch({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.5,
       base64: true,
       allowsEditing: true,
@@ -51,6 +52,12 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
       }
     } catch (e) {
       setError(e.message || "Tanımlama başarısız, tekrar dener misin?");
+      if (e.limitReached) {
+        Alert.alert("Günlük hakkın doldu", e.message, [
+          { text: "Tamam", style: "cancel" },
+          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium"); } },
+        ]);
+      }
     }
     setLoading(false);
   }
@@ -62,8 +69,10 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <LinearGradient colors={["#f7971e", "#ffd200", "#f857a6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
             <View style={styles.header}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -114,8 +123,10 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
               </TouchableOpacity>
             ))}
           </View>
+        </DismissableSheet>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }

@@ -37,7 +37,16 @@ export function WSProvider({ children }) {
     return () => listenersRef.current.delete(fn);
   }
 
-  return <WSContext.Provider value={{ subscribe }}>{children}</WSContext.Provider>;
+  // "Yazıyor..." göstergesi gibi client'tan sunucuya gönderilmesi gereken olaylar için —
+  // bağlantı o an açık değilse (nadiren olur, sorun değil, sadece o anlık gösterge iletilmez)
+  // sessizce hiçbir şey yapmıyoruz.
+  function send(payload) {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(payload));
+    }
+  }
+
+  return <WSContext.Provider value={{ subscribe, send }}>{children}</WSContext.Provider>;
 }
 
 export function useWS() {

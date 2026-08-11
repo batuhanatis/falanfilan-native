@@ -1,25 +1,77 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from "react-native";
-import { Heart } from "lucide-react-native";
+import { Heart, ChevronLeft } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import TasteSurveyStep from "../components/TasteSurveyStep";
 
+// ÖNEMLİ (mimari): Onboarding artık İKİ ADIM — 1) kısa bir zevk anketi (türler + en sevdiğin
+// film/dizi), 2) mevcut "en az 5 içerik beğen" akışı. Bu ekran react-navigation yığınının
+// PARÇASI değil (App.js'in Gate bileşeni tarafından doğrudan render ediliyor, bkz.
+// !auth.onboardingCompleted), bu yüzden adımlar arası geçiş react-navigation DEĞİL, basit bir
+// yerel "step" state'i ile yönetiliyor.
 export default function OnboardingScreen() {
   const { c } = useAppTheme();
   const { auth, markOnboardingComplete } = useAuth();
+  const styles = makeStyles(c);
+  const [step, setStep] = useState(1);
+
+  async function finishOnboarding() {
+    await markOnboardingComplete();
+  }
+
+  if (step === 1) {
+    return (
+      <TasteSurveyStep
+        title={`Zevkini tanıyalım, ${auth?.name?.split(" ")[0] || ""}`}
+        subtitle="Birkaç soru, sana çok daha isabetli öneriler sunmamızı sağlıyor."
+        topExtra={<StepDots c={c} activeStep={1} />}
+        onSkip={finishOnboarding}
+        onContinue={() => setStep(2)}
+      />
+    );
+  }
+
+  return (
+    <LikePicksStep
+      c={c}
+      styles={styles}
+      auth={auth}
+      onBack={() => setStep(1)}
+      onSkip={finishOnboarding}
+      onFinish={finishOnboarding}
+    />
+  );
+}
+
+// ---- Adım 2: en az 5 içerik beğen (mevcut akış, aynen korunuyor) ----
+function LikePicksStep({ c, styles, auth, onBack, onSkip, onFinish }) {
   const [movies, setMovies] = useState([]);
   const [picked, setPicked] = useState(new Set());
   const [loading, setLoading] = useState(true);
-  const styles = makeStyles(c);
 
   useEffect(() => {
     (async () => {
-      const [movieRes, tvRes] = await Promise.all([
-        api.movies(auth.token, "movie", 1).catch(() => ({ results: [] })),
-        api.movies(auth.token, "tv", 1).catch(() => ({ results: [] })),
+      // Tek sayfa (film+dizi ~40 ham sonuç) yetersiz kalıyordu — kalite filtresi (IMDB≥6,
+      // 100binden fazla oy) bazılarını elediği için elde kalan çok azdı. 6 sayfa (film+dizi
+      // için toplam 12 istek) çekip birleştiriyoruz, bu genelde 100+ içerik sağlıyor.
+      // ÖNEMLİ (tanıdıklık düzeltmesi): Eskiden Discover ile AYNI rastgele sıralamayı
+      // kullanıyorduk — yeni kullanıcılar ilk açılışta hiç duymadıkları, niş içeriklerle
+      // karşılaşıyordu. "sort=popular" ile, Discover'ın kendi rastgele akışına HİÇ dokunmadan,
+      // sadece bu ekrana özel olarak en çok oy alan (en tanınan) içerikleri en üste çekiyoruz —
+      // sayfa/limit yapısı aynen koruyor, sadece backend'de o sayfanın karşılığı artık popülerlik
+      // sırasına göre "kaydırılıyor" (offset), rastgele değil.
+      const pageNumbers = [1, 2, 3, 4, 5, 6];
+      const requests = pageNumbers.flatMap((page) => [
+        api.movies(auth.token, "movie", page, "popular").catch(() => ({ results: [] })),
+        api.movies(auth.token, "tv", page, "popular").catch(() => ({ results: [] })),
       ]);
-      setMovies([...(movieRes.results || []), ...(tvRes.results || [])].slice(0, 24));
+      const responses = await Promise.all(requests);
+      const all = responses.flatMap((r) => r.results || []);
+      const byId = new Map();
+      all.forEach((m) => byId.set(m.id, m));
+      setMovies([...byId.values()]);
       setLoading(false);
     })();
   }, []);
@@ -36,10 +88,6 @@ export default function OnboardingScreen() {
   const count = picked.size;
   const done = count >= 5;
 
-  async function finish() {
-    await markOnboardingComplete();
-  }
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -51,7 +99,13 @@ export default function OnboardingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 60 }}>
       <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-        <Text style={styles.title}>Zevkini tanıyalım, {auth?.name?.split(" ")[0] || ""}</Text>
+        <View style={styles.stepHeaderRow}>
+          <TouchableOpacity onPress={onBack} style={{ padding: 2, marginLeft: -2 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <ChevronLeft size={18} color={c.dim} />
+          </TouchableOpacity>
+          <StepDots c={c} activeStep={2} />
+        </View>
+        <Text style={styles.title}>Son bir adım</Text>
         <Text style={styles.subtitle}>Sana özel öneriler üretebilmemiz için en az 5 film/dizi beğen.</Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${Math.min(count / 5, 1) * 100}%` }]} />
@@ -82,10 +136,10 @@ export default function OnboardingScreen() {
       />
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.skipBtn} onPress={finish}>
+        <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
           <Text style={styles.skipText}>Atla</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={finish}>
+        <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={onFinish}>
           <Text style={[styles.continueText, !done && { color: c.dim }]}>
             {done ? "Devam Et" : `${5 - count} beğeni daha`}
           </Text>
@@ -95,11 +149,48 @@ export default function OnboardingScreen() {
   );
 }
 
+// İki noktalı adım göstergesi — hangi adımda olduğumuzu gösteren minimal bir ilerleme çubuğu.
+function StepDots({ c, activeStep }) {
+  return (
+    <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
+      {[1, 2].map((step) => (
+        <View
+          key={step}
+          style={{
+            flex: 1, height: 4, borderRadius: 999,
+            backgroundColor: step <= activeStep ? c.accent : c.surface2,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 function makeStyles(c) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg },
-    title: { color: c.text, fontSize: 19, fontWeight: "700" },
-    subtitle: { color: c.dim, fontSize: 12, marginTop: 4 },
+    title: { color: c.text, fontSize: 20, fontWeight: "800" },
+    subtitle: { color: c.dim, fontSize: 12.5, marginTop: 5, lineHeight: 18 },
+    stepHeaderRow: { flexDirection: "row", alignItems: "flex-start" },
+
+    sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    sectionIconWrap: {
+      width: 24, height: 24, borderRadius: 999, backgroundColor: c.surface2,
+      alignItems: "center", justifyContent: "center",
+    },
+    sectionTitle: { fontSize: 14.5, fontWeight: "800", color: c.text },
+    sectionHint: { fontSize: 11, color: c.dim, marginTop: 4, marginLeft: 32 },
+
+    genreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+    genreChip: {
+      flexDirection: "row", alignItems: "center",
+      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999,
+      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
+    },
+    genreChipActive: { backgroundColor: c.accent, borderColor: c.accent },
+    genreChipText: { fontSize: 12.5, fontWeight: "700", color: c.text },
+    genreChipTextActive: { color: c.bg },
+
     progressTrack: { height: 6, borderRadius: 999, backgroundColor: c.surface2, marginTop: 12, overflow: "hidden" },
     progressFill: { height: "100%", backgroundColor: c.accent },
     progressLabel: { color: c.dim, fontSize: 11, marginTop: 4, textAlign: "right" },

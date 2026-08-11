@@ -1,15 +1,25 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image, TextInput } from "react-native";
-import { X, Search, Check, Users, Send } from "lucide-react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image, TextInput, Share, TouchableWithoutFeedback } from "react-native";
+import { X, Search, Check, Users, Send, Share2, ListVideo } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
+import RetryImage from "./RetryImage";
 import { encodeMovieShare } from "../utils/movieShare";
+import { encodeListShare } from "../utils/listShare";
+import { getStoreLink } from "../utils/appLinks";
+import DismissableSheet from "./DismissableSheet";
 
-export default function SendToFriendModal({ movie, onClose, onSent }) {
+// ÖNEMLİ: Bu modal artık hem FİLM hem LİSTE paylaşımı için kullanılıyor — "movie" veya "list"
+// prop'larından SADECE biri verilir. İki ayrı, neredeyse birebir aynı dosya oluşturmak yerine
+// tek bir yerde tutmak, gelecekte yapılacak değişikliklerin (ör. tasarım güncellemesi) iki
+// dosyada da tekrarlanması gerekmesin diye.
+export default function SendToFriendModal({ movie, list, onClose, onSent }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -38,7 +48,10 @@ export default function SendToFriendModal({ movie, onClose, onSent }) {
     setSending(true);
     try {
       const { chat_id } = await api.chatWith(auth.token, selectedFriend.id);
-      await api.sendMessage(auth.token, chat_id, encodeMovieShare(movie));
+      const body = list
+        ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
+        : encodeMovieShare(movie);
+      await api.sendMessage(auth.token, chat_id, body);
       setSent(true);
       onSent?.(selectedFriend);
       setTimeout(onClose, 700); // kısa bir onay animasyonu görünsün, sonra kapansın
@@ -47,21 +60,51 @@ export default function SendToFriendModal({ movie, onClose, onSent }) {
     }
   }
 
+  // WhatsApp, mesajlar, Instagram vb. — SADECE film paylaşımında var, listeler için (henüz bir
+  // web sayfası olmadığı, gizlilik ayarına bağlı olduğu için) sadece uygulama içi paylaşım var.
+  async function handleExternalShare() {
+    const movieLink = `https://www.pellix.app/film/${movie.id}`;
+    const storeLink = getStoreLink();
+    const downloadLine = storeLink
+      ? `Sen de pellix'i indir (${storeLink}), kayıt olurken "${auth.username}" davet kodunu kullan.`
+      : `Sen de pellix'i indir, kayıt olurken "${auth.username}" davet kodunu kullan.`;
+    const message = `${auth.name} pellix'te "${movie.title}"yi önerdi 🎬\n\n${downloadLine}`;
+    try {
+      await Share.share({ message, url: movieLink });
+    } catch { /* kullanıcı paylaşımı iptal etmiş olabilir, sorun değil */ }
+  }
+
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <DismissableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} handleOnly>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Arkadaşına Gönder</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color={c.text} /></TouchableOpacity>
           </View>
 
           <View style={styles.moviePreview}>
-            {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.moviePoster} /> : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.movieTitle} numberOfLines={1}>{movie.title}</Text>
-              <Text style={styles.movieMeta}>{movie.year} · {movie.type}</Text>
-            </View>
+            {list ? (
+              <>
+                {list.previewPoster
+                  ? <Image source={{ uri: list.previewPoster }} style={styles.moviePoster} />
+                  : <View style={[styles.moviePoster, { backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }]}><ListVideo size={18} color={c.dim} /></View>}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.movieTitle} numberOfLines={1}>{list.name}</Text>
+                  <Text style={styles.movieMeta}>{list.count} içerik</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.moviePoster} /> : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.movieTitle} numberOfLines={1}>{movie.title}</Text>
+                  <Text style={styles.movieMeta}>{movie.year} · {movie.type}</Text>
+                </View>
+              </>
+            )}
           </View>
 
           {friends.length > 0 && (
@@ -100,7 +143,7 @@ export default function SendToFriendModal({ movie, onClose, onSent }) {
                       onPress={() => setSelectedId(item.id)}
                       activeOpacity={0.7}
                     >
-                      <Image source={{ uri: avatarOr(item.avatar_url, item.id) }} style={styles.avatar} />
+                      <RetryImage source={{ uri: avatarOr(item.avatar_url, item.id) }} style={styles.avatar} />
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.name}>{item.name}</Text>
                         {!!item.username && <Text style={styles.username}>@{item.username}</Text>}
@@ -139,8 +182,26 @@ export default function SendToFriendModal({ movie, onClose, onSent }) {
               )}
             </>
           )}
+
+          {/* Dış paylaşım (WhatsApp vb.) sadece FİLM paylaşımında var — listeler gizlilik
+              ayarına bağlı olduğu ve henüz bir web sayfası olmadığı için sadece uygulama içi. */}
+          {!list && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>ya da</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <TouchableOpacity style={styles.externalShareBtn} onPress={handleExternalShare}>
+                <Share2 size={15} color={c.text} />
+                <Text style={styles.externalShareBtnText}>Diğer Uygulamalarla Paylaş (WhatsApp vb.)</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </DismissableSheet>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }
@@ -177,5 +238,13 @@ function makeStyles(c) {
       backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, marginTop: 8,
     },
     sendBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    divider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 10 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
+    dividerText: { fontSize: 11, color: c.dim, fontWeight: "600" },
+    externalShareBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      backgroundColor: c.surface2, borderRadius: 14, paddingVertical: 13, borderWidth: 1, borderColor: c.border,
+    },
+    externalShareBtnText: { color: c.text, fontWeight: "700", fontSize: 12.5 },
   });
 }

@@ -4,9 +4,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Heart, X, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import SwipeableCard from "../components/SwipeableCard";
+import RetryImage from "../components/RetryImage";
 
 export default function TasteMateScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -15,30 +17,77 @@ export default function TasteMateScreen({ navigation }) {
 
   const [loading, setLoading] = useState(true);
   const [mates, setMates] = useState([]);
+  const [limitReached, setLimitReached] = useState(false);
   const [index, setIndex] = useState(0);
   const cardRef = useRef(null);
+  // Uygulama açılır açılmaz arka planda çekilmiş bir sonuç varsa (bkz. PrefetchContext),
+  // ağa hiç istek atmadan direkt onu kullan.
+  const prefetched = useRef(usePrefetch().tasteMates).current;
 
   useEffect(() => {
+    if (prefetched) {
+      setMates(prefetched.results || []);
+      setLoading(false);
+      return;
+    }
     api.tastemates(auth.token)
-      .then((data) => setMates(data.results || []))
+      .then((data) => { setMates(data.results || []); })
       .catch(() => setMates([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // ÖNEMLİ: Kullanıcı günlük hakkı dolup Premium'a geçtikten sonra bu ekrana geri dönünce,
+  // eskiden "limitReached" state'i hâlâ true kaldığı için uygulamayı kapatıp açması
+  // gerekiyordu. Artık ekran her odaklandığında (ör. Premium'dan geri dönünce) tazeden bir
+  // parti kullanıcı çekip devam ediyor — artık premium olduysa kaydırma limitsiz devam eder.
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", () => {
+      if (!limitReached) return;
+      api.tastemates(auth.token)
+        .then((data) => {
+          setMates(data.results || []);
+          setIndex(0);
+          setLimitReached(false);
+        })
+        .catch(() => {});
+    });
+    return unsub;
+  }, [navigation, limitReached, auth.token]);
 
   function advance() {
     setIndex((i) => i + 1);
   }
 
-  async function handleSwipe(direction) {
-    const current = mates[index];
-    if (!current) return;
-    if (direction === "right") {
-      try { await api.friendRequest(auth.token, current.id); } catch { /* zaten istek gönderilmiş olabilir */ }
-    }
-    advance();
+  // ÖNEMLİ DÜZELTME: "Baştan Göster" eskiden sadece index'i sıfırlıyordu — AYNI eski listeyi
+  // (o oturumda zaten sağa kaydırıp arkadaşlık isteği gönderdiğin kişiler dahil) tekrar
+  // gösteriyordu, sunucudan hiç taze veri çekmiyordu. Backend zaten arkadaşlık isteği
+  // gönderdiğin (ya da zaten arkadaşın olan) kişileri otomatik hariç tutuyor — ama bu ancak
+  // TAZE bir sorguyla işe yarıyor, elimizdeki eski diziyi tekrar göstermekle değil.
+  function restart() {
+    setLoading(true);
+    api.tastemates(auth.token)
+      .then((data) => { setMates(data.results || []); setIndex(0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }
 
-  const current = mates[index];
+  async function handleSwipe(direction) {
+    const swiped = mates[index];
+    if (!swiped) return;
+    if (direction === "right") {
+      try { await api.friendRequest(auth.token, swiped.id); } catch { /* zaten istek gönderilmiş olabilir */ }
+    }
+    // Hakkı GERÇEK kaydırma anında düşürüyoruz — ekrana gelen toplu listeye göre değil.
+    try {
+      await api.tastemateSwipe(auth.token);
+      advance();
+    } catch (e) {
+      if (e.limitReached) setLimitReached(true);
+      else advance();
+    }
+  }
+
+  const current = limitReached ? null : mates[index];
 
   if (loading) {
     return (
@@ -66,9 +115,18 @@ export default function TasteMateScreen({ navigation }) {
         {!current ? (
           <View style={styles.center}>
             <Text style={styles.emptyTitle}>Hepsine baktın</Text>
-            <TouchableOpacity onPress={() => setIndex(0)} style={styles.restartBtn}>
-              <Text style={styles.restartText}>Baştan Göster</Text>
-            </TouchableOpacity>
+            {limitReached ? (
+              <>
+                <Text style={styles.emptySubtitle}>Bugünkü ücretsiz TasteMate hakkın doldu. Premium ile sınırsız kaydırabilirsin.</Text>
+                <TouchableOpacity onPress={() => navigation.navigate("Premium", { autoPurchase: true })} style={styles.premiumBtn}>
+                  <Text style={styles.premiumBtnText}>Premium'a Geç</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity onPress={restart} style={styles.restartBtn}>
+                <Text style={styles.restartText}>Baştan Göster</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <>
@@ -125,7 +183,7 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
           activeOpacity={0.9}
           style={StyleSheet.absoluteFillObject}
         >
-          <Image source={{ uri: avatarOr(mate.avatarUrl, mate.id) }} style={StyleSheet.absoluteFillObject} />
+          <RetryImage source={{ uri: avatarOr(mate.avatarUrl, mate.id) }} style={StyleSheet.absoluteFillObject} />
         </TouchableOpacity>
         <LinearGradient colors={["rgba(0,0,0,0.55)", "rgba(0,0,0,0)"]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0.55 }} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
       </View>
@@ -165,6 +223,8 @@ function makeStyles(c) {
     emptySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 8, lineHeight: 18 },
     restartBtn: { marginTop: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
     restartText: { color: c.text, fontSize: 12, fontWeight: "700" },
+    premiumBtn: { marginTop: 14, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 },
+    premiumBtnText: { color: c.bg, fontSize: 12, fontWeight: "800" },
     stage: { flex: 1, paddingHorizontal: 16 },
     card: {
       position: "absolute", top: 0, bottom: 0, left: 16, right: 16,

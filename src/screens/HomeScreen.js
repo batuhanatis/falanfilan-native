@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Switch } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Search, Filter, Sparkles, MessageSquareText, Wand2, Image as ImageIcon, ChevronDown } from "lucide-react-native";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Dimensions, Animated, Alert, Keyboard } from "react-native";
+import { Search, Filter, Sparkles, Flame, Clock, X, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -9,22 +8,37 @@ import { GENRE_FILTERS } from "../theme/theme";
 import MovieCard from "../components/MovieCard";
 import ChipRow from "../components/ChipRow";
 import PlatformChipRow from "../components/PlatformChipRow";
+import PopularNowRow from "../components/PopularNowRow";
 import { platformName, platformLogo } from "../utils/platform";
 import { recommendationReason } from "../utils/recommend";
 import TopBar from "../components/TopBar";
 import SendToFriendModal from "../components/SendToFriendModal";
-import TasteRecommendModal from "../components/TasteRecommendModal";
-import PhotoIdentifyModal from "../components/PhotoIdentifyModal";
+import ListPickerModal from "../components/ListPickerModal";
+import AIZone from "../components/AIZone";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const FEED_TABS = [
+  { icon: Sparkles, label: "Sana Özel" },
+  { icon: Flame, label: "Şu An Gösterimde" }, // NOT: eskiden "Yeni Çıkanlar" — ama TMDB'nin
+  // now_playing/on_the_air listeleri gerçekten "yeni çıkan" değil, hâlâ vizyonda/yayında olan
+  // (bazen yıllar önce çıkmış) içerikleri de kapsıyor. İsim, gerçekte gösterdiği şeyle uyuşsun diye düzeltildi.
+  { icon: Clock, label: "Yakında Gelecekler" },
+];
 
 export default function HomeScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
+  const pagerRef = useRef(null);
+  const mainListRef = useRef(null);
+  const newReleasesListRef = useRef(null);
+  const upcomingListRef = useRef(null);
 
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [liked, setLiked] = useState(new Set());
   const [disliked, setDisliked] = useState(new Set());
   const [watchlist, setWatchlist] = useState(new Set());
@@ -32,26 +46,91 @@ export default function HomeScreen({ navigation }) {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState(null); // null = arama aktif değil
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const [showFilters, setShowFilters] = useState(false);
   const [typeFilter, setTypeFilter] = useState("Hepsi");
   const [genreFilter, setGenreFilter] = useState(null);
   const [platformFilters, setPlatformFilters] = useState(new Set());
-  const [hideRated, setHideRated] = useState(false);
 
-  // "Yapay Zeka Köşesi" — üç alt özellik tek renkli bir buton değil, renkli bir alan.
-  const [aiOpen, setAiOpen] = useState(false);
-  const [describeOpen, setDescribeOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
+  // "Şu An Popüler" şeridi — kişiselleştirilmiş akıştan TAMAMEN bağımsız, sadece TÜR filtresine
+  // göre değişiyor (kategori/platform filtrelerinden etkilenmiyor, kasıtlı olarak). ÖNEMLİ:
+  // eskiden /api/movies?sort=popular kullanıyorduk — bu, kendi kataloğumuzdaki TÜM ZAMANLARIN
+  // en çok oy alan içeriklerini gösteriyordu (eski kült klasikler öne çıkıyordu, "güncel popüler"
+  // değil). api.trending, TMDB'nin GERÇEK haftalık trend verisini kullanıyor.
+  const [popularNow, setPopularNow] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (typeFilter === "Film") {
+          const data = await api.trending(auth.token, "movie");
+          if (!cancelled) setPopularNow((data.results || []).slice(0, 10));
+        } else if (typeFilter === "Dizi") {
+          const data = await api.trending(auth.token, "tv");
+          if (!cancelled) setPopularNow((data.results || []).slice(0, 10));
+        } else {
+          const [mRes, tRes] = await Promise.all([
+            api.trending(auth.token, "movie").catch(() => ({ results: [] })),
+            api.trending(auth.token, "tv").catch(() => ({ results: [] })),
+          ]);
+          const merged = dedupe([...(mRes.results || []), ...(tRes.results || [])])
+            .sort((a, b) => (b.votes || 0) - (a.votes || 0));
+          if (!cancelled) setPopularNow(merged.slice(0, 10));
+        }
+      } catch { if (!cancelled) setPopularNow([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [typeFilter, auth.token]);
+
+  // "Yapay Zeka Köşesi" ARTIK ayrı, izole bir bileşen (AIZone.js) — sadece sonuçların besleme
+  // akışını etkileyen kısmı burada kalıyor (panel aç/kapa gibi salt-görsel state artık orada,
+  // açıp kapatmak Ana Sayfa'nın tamamını yeniden render etmiyor).
   const [describeResults, setDescribeResults] = useState(null);
   const [describeCount, setDescribeCount] = useState(8);
-  const [describeLoading, setDescribeLoading] = useState(false);
-  const [describeError, setDescribeError] = useState("");
-  const [tasteModalOpen, setTasteModalOpen] = useState(false);
-  const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [aiResultsLabel, setAiResultsLabel] = useState("");
 
+  function handleAiResults(results, label) {
+    setDescribeResults(results);
+    setAiResultsLabel(label);
+    setDescribeCount(8);
+  }
+  function handleClearAiResults() {
+    setDescribeResults(null);
+    setAiResultsLabel("");
+  }
+
   const [sendMovie, setSendMovie] = useState(null); // gönderilecek film
+  const [pickerMovie, setPickerMovie] = useState(null); // liste seçici popup'ı için
+  const [spotlight, setSpotlight] = useState({ upcoming: [], newReleases: [] });
+  const [notifySubs, setNotifySubs] = useState(new Set());
+  const [socialStats, setSocialStats] = useState({}); // movieId -> {likes, comments, watchlist, friendName}
+  const statsFetchedRef = useRef(new Set());
+
+  // Sana Özel / Şu An Gösterimde / Yakında Gelecekler — aynı alanda YATAY kaydırarak geçiliyor.
+  const [activePage, setActivePage] = useState(0);
+  function goToPage(i) {
+    setActivePage(i);
+    pagerRef.current?.scrollTo({ x: i * SCREEN_W, animated: true });
+  }
+  // AI sonucu geldiğinde otomatik olarak Önerilenler sayfasına dön — arama artık ayrı bir
+  // dropdown olduğu için (bkz. headerContent) hangi sayfada olursan ol açılabiliyor, sayfa
+  // değiştirmeye gerek yok.
+  useEffect(() => {
+    if (describeResults && activePage !== 0) goToPage(0);
+  }, [describeResults]);
+
+
+  // Ana Sayfa sekmesine, zaten o sekmedeyken tekrar basılırsa aktif listeyi en yukarı kaydır
+  // (Instagram/Twitter'daki gibi tanıdık bir davranış).
+  useEffect(() => {
+    const unsub = navigation.addListener("tabPress", () => {
+      if (!navigation.isFocused()) return;
+      const refs = [mainListRef, newReleasesListRef, upcomingListRef];
+      refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: true });
+    });
+    return unsub;
+  }, [navigation, activePage]);
 
   const loadInteractions = useCallback(async () => {
     try {
@@ -74,6 +153,15 @@ export default function HomeScreen({ navigation }) {
     return [...(movieRes.results || []), ...(tvRes.results || [])];
   }, [auth.token]);
 
+  // Kullanıcı mevcut partiyi (sayfayı) bitirmeden BİR SONRAKİNİ arka planda önceden yüklemeye
+  // başlıyoruz — böylece kaydırıp sona geldiğinde çoğu zaman veri zaten hazır bekliyor, yeni
+  // bir istek başlatıp beklemek yerine anında gösterebiliyoruz.
+  const prefetchedPageRef = useRef(null); // { page, promise }
+  const prefetchNextPage = useCallback((afterPage) => {
+    const nextPage = afterPage + 1;
+    prefetchedPageRef.current = { page: nextPage, promise: loadPage(nextPage) };
+  }, [loadPage]);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -81,10 +169,15 @@ export default function HomeScreen({ navigation }) {
       const items = await loadPage(1);
       setMovies(dedupe(items));
       setLoading(false);
+      prefetchNextPage(1);
     })();
+    api.spotlight(auth.token).then((data) => setSpotlight({ upcoming: data.upcoming || [], newReleases: data.newReleases || [] })).catch(() => {});
+    api.notifySubscriptions(auth.token).then((data) => setNotifySubs(new Set(data.movieIds || []))).catch(() => {});
   }, []);
 
-  // Film/dizi arama — 500ms bekleyip backend'e sorar.
+  // Film/dizi arama — 250ms bekleyip backend'e sorar (artık backend önce kendi kataloğunu
+  // ANINDA sorguladığı için — bkz. /api/search — daha kısa bir debounce da makul, sonuç
+  // neredeyse hep tek bir hızlı yerel sorguyla geliyor).
   useEffect(() => {
     if (!query.trim()) { setSearchResults(null); return; }
     setSearchLoading(true);
@@ -99,18 +192,36 @@ export default function HomeScreen({ navigation }) {
           setSearchResults(merged);
         })
         .finally(() => setSearchLoading(false));
-    }, 500);
+    }, 250);
     return () => clearTimeout(timer);
   }, [query]);
 
   async function handleLoadMore() {
-    if (loadingMore || searchResults !== null || describeResults) return;
+    if (loadingMore || describeResults) return;
     setLoadingMore(true);
     const nextPage = page + 1;
-    const items = await loadPage(nextPage);
+    // Bu sayfa daha önceden (kullanıcı hâlâ öncekini kaydırırken) arka planda başlatılmışsa,
+    // burada yeni bir istek atmadan sadece o sonucu bekliyoruz — çoğu zaman zaten hazırdır.
+    const prefetched = prefetchedPageRef.current;
+    const items = (prefetched && prefetched.page === nextPage) ? await prefetched.promise : await loadPage(nextPage);
     setMovies((prev) => dedupe([...prev, ...items]));
     setPage(nextPage);
     setLoadingMore(false);
+    prefetchNextPage(nextPage); // ...ve bir sonraki partiyi de şimdiden hazırlamaya başla
+  }
+
+  // Kullanıcı Önerilenler sayfasının en üstündeyken aşağı doğru daha fazla çekince (pull-to-
+  // refresh) — listeyi baştan, güncel/yeniden sıralanmış haliyle getiriyor.
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await loadInteractions();
+      const items = await loadPage(1);
+      setMovies(dedupe(items));
+      setPage(1);
+      prefetchNextPage(1);
+    } catch { /* sessizce geç */ }
+    setRefreshing(false);
   }
 
   function toggle(setFn, otherSetFn, id) {
@@ -147,71 +258,145 @@ export default function HomeScreen({ navigation }) {
     return [...byName.values()];
   }, [movies]);
 
-  const baseList = searchResults !== null ? searchResults : movies;
+  // ÖNEMLİ: Arama artık ana listeyi DEĞİŞTİRMİYOR — sadece arama kutusunun altında ayrı bir
+  // dropdown olarak gösteriliyor (bkz. headerContent). Kişiselleştirilmiş öneriler alanı, arama
+  // yazılırken/aktifken bile aynı kalıyor.
   const filteredList = useMemo(() => {
-    let list = baseList;
+    let list = movies;
     if (typeFilter !== "Hepsi") list = list.filter((m) => m.type === typeFilter);
-    if (genreFilter) list = list.filter((m) => m.genre === genreFilter);
+    // ÖNEMLİ: "genre" (tekil) sadece bir filmin İLK türünü tutuyor — Bilim Kurgu gibi ikincil
+    // bir tür seçildiğinde, o türde olup da başka bir tür birincil olarak kaydedilmiş filmler
+    // yanlışlıkla dışarıda kalıyordu. "genres" (çoğul, TÜM türleri içeren dizi) kullanıyoruz.
+    if (genreFilter) list = list.filter((m) => (Array.isArray(m.genres) && m.genres.length > 0 ? m.genres.includes(genreFilter) : m.genre === genreFilter));
     if (platformFilters.size > 0) list = list.filter((m) => (m.platforms || []).some((p) => platformFilters.has(platformName(p))));
-    if (hideRated) list = list.filter((m) => !liked.has(m.id) && !disliked.has(m.id));
     return list;
-  }, [baseList, typeFilter, genreFilter, platformFilters, hideRated, liked, disliked]);
+  }, [movies, typeFilter, genreFilter, platformFilters]);
 
-  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0 || hideRated;
-  function clearFilters() { setTypeFilter("Hepsi"); setGenreFilter(null); setPlatformFilters(new Set()); setHideRated(false); }
+  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0;
+  function clearFilters() { setTypeFilter("Hepsi"); setGenreFilter(null); setPlatformFilters(new Set()); }
   function togglePlatform(name) {
     setPlatformFilters((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   }
 
-  async function runDescribe() {
-    if (!prompt.trim() || describeLoading) return;
-    setDescribeLoading(true);
-    setDescribeError("");
-    try {
-      const data = await api.describe(auth.token, prompt.trim());
-      const matched = data.results || [];
-      if (matched.length === 0) setDescribeError("Bu tanıma uyan bir şey bulamadım, farklı bir şekilde anlatmayı dener misin?");
-      setDescribeResults(matched);
-      setAiResultsLabel(`"${prompt.trim()}" için önerilerin`);
-      setDescribeCount(8);
-    } catch (e) {
-      setDescribeError(e.message || "Öneri alınamadı, tekrar dener misin?");
-    }
-    setDescribeLoading(false);
-  }
-  function clearDescribe() { setDescribeResults(null); setPrompt(""); setDescribeOpen(false); setDescribeError(""); setAiResultsLabel(""); }
-
-  function applyTasteResults(results) {
-    setDescribeResults(results);
-    setAiResultsLabel("Zevkine göre önerilerin");
-    setDescribeCount(8);
-  }
-
   const list = describeResults ? describeResults.slice(0, describeCount) : filteredList;
 
-  const listHeader = (
-    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
-      <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
-          <Search size={16} color={c.dim} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Film veya dizi ara"
-            placeholderTextColor={c.dim}
-            value={query}
-            onChangeText={setQuery}
-          />
-        </View>
-        <TouchableOpacity
-          style={[styles.filterBtn, showFilters && { backgroundColor: c.accent }]}
-          onPress={() => setShowFilters((v) => !v)}
-        >
-          <Filter size={16} color={showFilters ? c.bg : c.text} />
-          {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
-        </TouchableOpacity>
-      </View>
-      {searchLoading && <Text style={styles.searchingText}>Aranıyor...</Text>}
+  // Ekranda görünen filmlerin beğeni/yorum/liste sayılarını toplu çekiyoruz — her kart için
+  // ayrı istek atmak yerine, henüz bilinmeyen ID'leri tek seferde topluyoruz.
+  const fetchStatsFor = useCallback(async (movieIds) => {
+    const newIds = movieIds.filter((id) => !statsFetchedRef.current.has(id));
+    if (newIds.length === 0) return;
+    newIds.forEach((id) => statsFetchedRef.current.add(id));
+    try {
+      const data = await api.socialStats(auth.token, newIds);
+      setSocialStats((prev) => ({ ...prev, ...data.results }));
+    } catch { /* sessizce geç */ }
+  }, [auth.token]);
 
+  useEffect(() => {
+    const ids = list.map((m) => m.id);
+    if (ids.length > 0) fetchStatsFor(ids);
+  }, [list, fetchStatsFor]);
+
+  useEffect(() => {
+    const ids = [...spotlight.newReleases, ...spotlight.upcoming].map((m) => m.id);
+    if (ids.length > 0) fetchStatsFor(ids);
+  }, [spotlight, fetchStatsFor]);
+
+  // Ana Sayfa'nın kişiselleştirilmiş 2 sütunlu ızgarası için — sadece poster + beğen butonu.
+  // Beğenmeme/listeye ekleme/gönderme/yorum gibi diğer aksiyonlar artık sadece Detay sayfasında.
+  function renderCompactCard({ item, index }) {
+    return (
+      <MovieCard
+        movie={item}
+        liked={liked.has(item.id)}
+        onLike={like}
+        onPress={(m) => navigation.navigate("Detail", { movie: m })}
+        reason={!describeResults && index < 8 ? recommendationReason(item, liked, movies) : null}
+        compact
+      />
+    );
+  }
+
+  function renderMovieCard({ item, index }) {
+    return (
+      <MovieCard
+        movie={item}
+        liked={liked.has(item.id)}
+        disliked={disliked.has(item.id)}
+        watchlisted={watchlist.has(item.id)}
+        onLike={like}
+        onDislike={dislike}
+        onAddToList={setPickerMovie}
+        onSend={setSendMovie}
+        onPress={(m) => navigation.navigate("Detail", { movie: m })}
+        reason={!describeResults && index < 8 ? recommendationReason(item, liked, movies) : null}
+        stats={socialStats[item.id]}
+      />
+    );
+  }
+
+  // Bir içerik için "Beni Bilgilendir" aboneliğini açar/kapatır — sunucuya gitmeden önce
+  // arayüzü hemen güncelliyoruz (optimistic update), sorun çıkarsa geri alıyoruz.
+  async function toggleNotify(movieId) {
+    const wasSubscribed = notifySubs.has(movieId);
+    setNotifySubs((prev) => {
+      const next = new Set(prev);
+      wasSubscribed ? next.delete(movieId) : next.add(movieId);
+      return next;
+    });
+    try {
+      await api.notifyMe(auth.token, movieId);
+    } catch {
+      setNotifySubs((prev) => {
+        const next = new Set(prev);
+        wasSubscribed ? next.add(movieId) : next.delete(movieId);
+        return next;
+      });
+    }
+  }
+
+  // "Yakında Çıkacaklar" sayfasına özel — diğer kartlardan farklı olarak bir zil/bildirim
+  // butonu gösteriyor, henüz yayınlanmamış içerikler için beğeni/beğenmeme anlamsız olduğundan.
+  function renderUpcomingCard({ item, index }) {
+    return (
+      <MovieCard
+        movie={item}
+        liked={liked.has(item.id)}
+        disliked={disliked.has(item.id)}
+        watchlisted={watchlist.has(item.id)}
+        onLike={like}
+        onDislike={dislike}
+        onAddToList={setPickerMovie}
+        onSend={setSendMovie}
+        onPress={(m) => navigation.navigate("Detail", { movie: m })}
+        stats={socialStats[item.id]}
+        showNotify
+        notifySubscribed={notifySubs.has(item.id)}
+        onNotify={toggleNotify}
+      />
+    );
+  }
+
+  function selectSearchResult(m) {
+    setQuery("");
+    setSearchFocused(false);
+    Keyboard.dismiss();
+    navigation.navigate("Detail", { movie: m });
+  }
+
+  // ÖNEMLİ (dropdown'un dokunulamaması/kaydırılamaması düzeltmesi): Bu, eskiden arama kutusuyla
+  // birlikte FlatList'in ListHeaderComponent'i İÇİNDE, "position: absolute" ile render ediliyordu.
+  // Bu iç içe (FlatList içinde kaydırılabilir bir ScrollView) yapı, dokunma/kaydırma jestlerinin
+  // hangi bileşene ait olduğu konusunda React Native'in jest çözümleyicisini karıştırıyordu —
+  // dropdown'daki satırlara dokunmak Detay'a gitmiyordu, listenin kendisi de kaydırılamıyordu.
+  // Çözüm: arama kutusu + dropdown'ı TAMAMEN dışarı, sayfalar arası kaydırılan pager'ın ÜSTÜNE,
+  // sabit (kaydırılmayan) bir satıra taşıdık — artık FlatList'in hiç İÇİNDE değil, onun bir
+  // KARDEŞİ. Aynı zamanda arama artık hangi sekmede olursan ol her zaman görünür/erişilebilir.
+  const dropdownOpen = searchFocused && query.trim().length > 0;
+  const dropdownResults = (searchResults || []).slice(0, 8);
+
+  const headerContent = (
+    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
       {showFilters && (
         <View style={styles.filterPanel}>
           <View style={styles.filterHeaderRow}>
@@ -235,101 +420,23 @@ export default function HomeScreen({ navigation }) {
               <PlatformChipRow items={availablePlatformObjs} activeSet={platformFilters} onToggle={togglePlatform} />
             </>
           )}
-
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Oy verilenleri gizle</Text>
-              <Text style={styles.toggleSubtitle}>Beğendiğin/beğenmediğin içerikler listede görünmesin</Text>
-            </View>
-            <Switch value={hideRated} onValueChange={setHideRated} trackColor={{ true: c.accent }} />
-          </View>
         </View>
       )}
 
-      {/* Yapay Zeka Köşesi — renkli, eğlenceli, üç alt özellik */}
-      <TouchableOpacity activeOpacity={0.9} onPress={() => setAiOpen((v) => !v)}>
-        <LinearGradient
-          colors={["#ff6b6b", "#f7b733", "#48dbfb", "#7367f0"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.aiZone}
-        >
-          <View style={styles.aiZoneHeader}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Sparkles size={18} color="#fff" />
-              <Text style={styles.aiZoneTitle}>Yapay Zeka Köşesi</Text>
-            </View>
-            <ChevronDown size={18} color="#fff" style={{ transform: [{ rotate: aiOpen ? "180deg" : "0deg" }] }} />
-          </View>
-          <Text style={styles.aiZoneSubtitle}>Ne izleyeceğine karar veremiyorsan bize bırak</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {aiOpen && (
-        <View style={styles.aiPanel}>
-          <TouchableOpacity style={styles.aiRow} onPress={() => setDescribeOpen((v) => !v)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#ff6b6b" }]}>
-              <MessageSquareText size={16} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Anlat, Bulalım</Text>
-              <Text style={styles.aiRowSubtitle}>Ne tür bir şey istediğini kendi cümlelerinle anlat</Text>
-            </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: describeOpen ? "180deg" : "0deg" }] }} />
-          </TouchableOpacity>
-
-          {describeOpen && (
-            <View style={styles.describePanel}>
-              <TextInput
-                style={styles.describeInput}
-                placeholder="Örn: kapalı havada geçen klostrofobik atmosferli hayatta kalma filmleri"
-                placeholderTextColor={c.dim}
-                value={prompt}
-                onChangeText={setPrompt}
-                multiline
-                numberOfLines={2}
-              />
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                <TouchableOpacity style={[styles.describeGoBtn, describeLoading && { opacity: 0.6 }]} onPress={runDescribe} disabled={describeLoading}>
-                  {describeLoading ? <ActivityIndicator size="small" color="#14121a" /> : <Text style={styles.describeGoText}>Öneri al</Text>}
-                </TouchableOpacity>
-                {describeResults && (
-                  <TouchableOpacity onPress={clearDescribe} style={{ justifyContent: "center" }}>
-                    <Text style={styles.clearDescribeText}>Aramayı temizle</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {!!describeError && <Text style={styles.describeErrorText}>{describeError}</Text>}
-            </View>
-          )}
-
-          <TouchableOpacity style={styles.aiRow} onPress={() => setTasteModalOpen(true)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#7367f0" }]}>
-              <Wand2 size={16} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Zevkime Göre Öner</Text>
-              <Text style={styles.aiRowSubtitle}>Beğendiklerine bakıp sana özel bir şey bulur</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.aiRow, { borderBottomWidth: 0 }]} onPress={() => setPhotoModalOpen(true)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#f7b733" }]}>
-              <ImageIcon size={16} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Fotoğraftan Bul</Text>
-              <Text style={styles.aiRowSubtitle}>Bir sahne yükle, hangi film/diziden olduğunu bulalım</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Yapay Zeka Köşesi — artık izole bir bileşen (AIZone.js), Ana Sayfa'nın geri kalanını
+          yeniden render etmeden kendi içinde açılıp kapanıyor. */}
+      <AIZone
+        navigation={navigation}
+        hasResults={!!describeResults}
+        onResults={handleAiResults}
+        onClear={handleClearAiResults}
+      />
 
       {describeResults && !!aiResultsLabel && (
         <View style={styles.aiResultsBanner}>
           <Sparkles size={13} color={c.accent} />
           <Text style={styles.aiResultsBannerText} numberOfLines={1}>{aiResultsLabel}</Text>
-          <TouchableOpacity onPress={clearDescribe}><Text style={styles.clearDescribeText}>Temizle</Text></TouchableOpacity>
+          <TouchableOpacity onPress={handleClearAiResults}><Text style={styles.clearDescribeText}>Temizle</Text></TouchableOpacity>
         </View>
       )}
     </View>
@@ -338,7 +445,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <TopBar />
+        <TopBar centerLabel={FEED_TABS[0].label} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={c.accent} />
           <Text style={{ color: c.dim, marginTop: 10, fontSize: 12 }}>İçerikler hazırlanıyor...</Text>
@@ -349,33 +456,143 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <TopBar />
-      <FlatList
-        data={list}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16, paddingTop: 0 }}
-        ListHeaderComponent={listHeader}
-        renderItem={({ item, index }) => (
-          <MovieCard
-            movie={item}
-            liked={liked.has(item.id)}
-            disliked={disliked.has(item.id)}
-            watchlisted={watchlist.has(item.id)}
-            onLike={like}
-            onDislike={dislike}
-            onWatchlist={watch}
-            onSend={setSendMovie}
-            onPress={(m) => navigation.navigate("Detail", { movie: m })}
-            reason={!describeResults && searchResults === null && index < 8 ? recommendationReason(item, liked, movies) : null}
-          />
+      <TopBar centerLabel={FEED_TABS[activePage].label} />
+
+      {/* Sana Özel / Şu An Gösterimde / Yakında Gelecekler sembolleri — tek ve sabit, kaydırılabilir
+          alanın dışında, satırın tamamına eşit üçe bölünmüş (flex:1 her biri). */}
+      <View style={styles.feedTabRow}>
+        {FEED_TABS.map(({ icon: Icon, label }, i) => (
+          <TouchableOpacity key={label} onPress={() => goToPage(i)} style={styles.feedTabBtn}>
+            <Icon size={20} color={activePage === i ? c.accent : c.dim} />
+            {activePage === i && <View style={styles.feedTabUnderline} />}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Arama kutusu + dropdown — artık sabit, hiçbir FlatList'in İÇİNDE değil (bkz. yukarıdaki
+          not). "zIndex" bu bloğun altındaki pager'ın ÜSTÜNDE boyanmasını garanti ediyor. */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, zIndex: 30 }}>
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
+            <Search size={16} color={searchFocused ? c.accent : c.dim} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Film veya dizi ara"
+              placeholderTextColor={c.dim}
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={15} color={c.dim} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[styles.filterBtn, showFilters && { backgroundColor: c.accent }]}
+            onPress={() => setShowFilters((v) => !v)}
+          >
+            <Filter size={16} color={showFilters ? c.bg : c.text} />
+            {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
+          </TouchableOpacity>
+        </View>
+
+        {dropdownOpen && (
+          <View style={styles.dropdown}>
+            {searchLoading ? (
+              <ActivityIndicator style={{ paddingVertical: 22 }} color={c.accent} />
+            ) : dropdownResults.length === 0 ? (
+              <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
+            ) : (
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 340 }}>
+                {dropdownResults.map((m) => (
+                  <TouchableOpacity key={m.id} style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
+                    {m.poster ? (
+                      <Image source={{ uri: m.poster }} style={styles.dropdownPoster} />
+                    ) : (
+                      <View style={[styles.dropdownPoster, { backgroundColor: c.surface2 }]} />
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.dropdownTitle} numberOfLines={1}>{m.title}</Text>
+                      <Text style={styles.dropdownMeta} numberOfLines={1}>{m.year} · {m.type}</Text>
+                    </View>
+                    <View style={styles.dropdownRating}>
+                      <Star size={10} color={c.accent} fill={c.accent} />
+                      <Text style={styles.dropdownRatingText}>{m.imdb}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         )}
-        onEndReachedThreshold={0.4}
-        onEndReached={describeResults ? () => setDescribeCount((v) => v + 8) : handleLoadMore}
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={c.accent} /> : null}
-      />
+      </View>
+
+      <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setActivePage(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
+        style={{ flex: 1 }}
+      >
+        {/* Sayfa 1: Önerilenler — kişiselleştirilmiş 2 sütunlu ızgara, sonsuz kaydırma destekli.
+            AI sonuçları da (describeResults) aynı ızgarada gösteriliyor. Arama artık burayı hiç
+            etkilemiyor, kendi dropdown'unda (headerContent içinde) kalıyor. */}
+        <View style={{ width: SCREEN_W, flex: 1 }}>
+          <FlatList
+            ref={mainListRef}
+            data={list}
+            keyExtractor={(item) => String(item.id)}
+            numColumns={2}
+            columnWrapperStyle={{ gap: 12 }}
+            contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            ListHeaderComponent={
+              <>
+                {headerContent}
+                <PopularNowRow items={popularNow} onPress={(m) => navigation.navigate("Detail", { movie: m })} />
+              </>
+            }
+            renderItem={renderCompactCard}
+            onEndReachedThreshold={0.4}
+            onEndReached={describeResults ? () => setDescribeCount((v) => v + 8) : handleLoadMore}
+            ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={c.accent} /> : null}
+            refreshing={refreshing}
+            onRefresh={describeResults ? undefined : handleRefresh}
+          />
+        </View>
+
+        {/* Sayfa 2: Şu An Gösterimde */}
+        <View style={{ width: SCREEN_W, flex: 1 }}>
+          <FlatList
+            ref={newReleasesListRef}
+            data={spotlight.newReleases}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            ListHeaderComponent={headerContent}
+            renderItem={renderMovieCard}
+            ListEmptyComponent={<Text style={styles.emptyPageText}>Şu an yeni çıkan bir şey bulunamadı.</Text>}
+          />
+        </View>
+
+        {/* Sayfa 3: Yakında Çıkacaklar */}
+        <View style={{ width: SCREEN_W, flex: 1 }}>
+          <FlatList
+            ref={upcomingListRef}
+            data={spotlight.upcoming}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            ListHeaderComponent={headerContent}
+            renderItem={renderUpcomingCard}
+            ListEmptyComponent={<Text style={styles.emptyPageText}>Şu an yakında çıkacak bir şey bulunamadı.</Text>}
+          />
+        </View>
+      </ScrollView>
+
       {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}
-      {tasteModalOpen && <TasteRecommendModal onClose={() => setTasteModalOpen(false)} onResults={applyTasteResults} />}
-      {photoModalOpen && <PhotoIdentifyModal onClose={() => setPhotoModalOpen(false)} navigation={navigation} />}
+      {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}
     </View>
   );
 }
@@ -395,12 +612,30 @@ function makeStyles(c) {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12,
     },
     searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 10 },
+    searchBoxFocused: { borderColor: c.accent },
     filterBtn: {
       width: 42, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       alignItems: "center", justifyContent: "center",
     },
     filterDot: { position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2 },
-    searchingText: { fontSize: 11, color: c.dim, marginTop: 8 },
+
+    // Arama dropdown'u — kutunun hemen altında, listeye hiç dokunmadan açılıp kapanıyor.
+    dropdown: {
+      position: "absolute", top: "100%", left: 0, right: 0, marginTop: 8,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 16, elevation: 12,
+      overflow: "hidden",
+    },
+    dropdownEmpty: { fontSize: 12, color: c.dim, textAlign: "center", paddingVertical: 22, paddingHorizontal: 16 },
+    dropdownRow: {
+      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10,
+      borderBottomWidth: 1, borderBottomColor: c.border,
+    },
+    dropdownPoster: { width: 36, height: 52, borderRadius: 7 },
+    dropdownTitle: { fontSize: 13, fontWeight: "700", color: c.text },
+    dropdownMeta: { fontSize: 11, color: c.dim, marginTop: 2 },
+    dropdownRating: { flexDirection: "row", alignItems: "center", gap: 3 },
+    dropdownRatingText: { fontSize: 11, fontWeight: "800", color: c.text },
     filterPanel: {
       marginTop: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16,
     },
@@ -415,31 +650,18 @@ function makeStyles(c) {
     toggleTitle: { fontSize: 13, fontWeight: "600", color: c.text },
     toggleSubtitle: { fontSize: 11, color: c.dim, marginTop: 2 },
 
-    aiZone: { marginTop: 14, borderRadius: 18, padding: 16 },
-    aiZoneHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    aiZoneTitle: { color: "#fff", fontWeight: "800", fontSize: 15 },
-    aiZoneSubtitle: { color: "rgba(255,255,255,0.9)", fontSize: 11, marginTop: 6 },
-
-    aiPanel: { marginTop: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 14 },
-    aiRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border },
-    aiRowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-    aiRowTitle: { fontSize: 13, fontWeight: "700", color: c.text },
-    aiRowSubtitle: { fontSize: 11, color: c.dim, marginTop: 2 },
-
-    describePanel: { paddingBottom: 14 },
-    describeInput: {
-      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 10,
-      padding: 10, color: c.text, fontSize: 13, minHeight: 50, textAlignVertical: "top",
-    },
-    describeGoBtn: { backgroundColor: c.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-    describeGoText: { color: "#14121a", fontWeight: "700", fontSize: 12 },
+    // aiZone/aiPanel/describe* stilleri artık AIZone.js'de yaşıyor — burada sadece Ana Sayfa'nın
+    // KENDİ render ettiği "aktif AI sonucu" şeridi için gerekenler kaldı.
     clearDescribeText: { color: c.dim, fontSize: 11, textDecorationLine: "underline" },
-    describeErrorText: { color: c.danger, fontSize: 11, marginTop: 8 },
-
     aiResultsBanner: {
       flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10,
       backgroundColor: c.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
     },
     aiResultsBannerText: { flex: 1, fontSize: 12, fontWeight: "600", color: c.text },
+
+    feedTabRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg },
+    feedTabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
+    feedTabUnderline: { height: 2, width: 28, backgroundColor: c.accent, borderRadius: 999, marginTop: 8 },
+    emptyPageText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 30 },
   });
 }

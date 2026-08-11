@@ -1,4 +1,4 @@
-// Web uygulamasındaki (FalanFilan.jsx) renk paletiyle birebir aynı — tutarlılık için.
+// Web uygulamasındaki (pellix.jsx) renk paletiyle birebir aynı — tutarlılık için.
 export const THEMES = {
   dark: {
     bg: "#14121a",
@@ -27,3 +27,5 @@ export const THEMES = {
 };
 
 export const GENRE_FILTERS = ["Aksiyon", "Dram", "Komedi", "Bilim Kurgu", "Gerilim", "Romantik", "Belgesel", "Suç", "Fantastik", "Korku"];
+// TasteRecommendModal ve MatchParty davet filtresinde kullanılan, TR'de yaygın platformlar.
+export const COMMON_PLATFORMS = ["Netflix", "Amazon Prime Video", "Disney Plus", "BluTV", "Exxen", "Gain", "MUBI", "Apple TV Plus", "HBO Max"];

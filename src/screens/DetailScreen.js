@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, ListVideo } from "lucide-react-native";
+import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { platformName, platformLogo } from "../utils/platform";
+import { avatarOr } from "../utils/avatar";
+import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
 
@@ -32,7 +34,6 @@ export default function DetailScreen({ route, navigation }) {
 
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [inWatchlist, setInWatchlist] = useState(false);
   const [favMovieId, setFavMovieId] = useState(null);
   const [favShowId, setFavShowId] = useState(null);
   const [favBusy, setFavBusy] = useState(false);
@@ -40,7 +41,27 @@ export default function DetailScreen({ route, navigation }) {
   const [sendOpen, setSendOpen] = useState(false);
 
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState([{ user: "Elif Kaya", text: "Finali gerçekten çok etkileyiciydi." }]);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [extra, setExtra] = useState({ director: null, cast: [], similar: [] });
+  const scrollRef = useRef(null);
+
+  // Yorum kutusu panelin en altında olduğu için klavye açılınca gizleniyordu. Çözüm: klavyenin
+  // yüksekliğini takip edip hem panele o kadar EKSTRA boşluk bırakıyoruz (kutu gerçekten
+  // kaydırılıp görülebilsin diye) hem de yorum kutusuna dokununca paneli tam açıp en alta kaydırıyoruz.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => setKeyboardHeight(e.endCoordinates?.height || 0));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+
+  function focusCommentInput() {
+    snapTo(0); // paneli tam aç — yorum kutusuna en fazla yer bu konumda ayrılıyor
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  }
 
   // Panelin konumu — TEK bir transform (translateY) değeri, hem sürüklemede hem
   // yapışma animasyonunda kullanılıyor.
@@ -119,13 +140,14 @@ export default function DetailScreen({ route, navigation }) {
         if (row.movie_id !== movie.id) return;
         if (row.action === "like") setLiked(true);
         else if (row.action === "dislike") setDisliked(true);
-        else if (row.action === "watchlist") setInWatchlist(true);
       });
     }).catch(() => {});
     api.me(auth.token).then((me) => {
       setFavMovieId(me.favoriteMovie?.id || null);
       setFavShowId(me.favoriteShow?.id || null);
     }).catch(() => {});
+    api.comments(auth.token, movie.id).then((data) => setComments(data.results || [])).catch(() => {}).finally(() => setCommentsLoading(false));
+    api.movieExtra(auth.token, movie.id).then((data) => setExtra(data)).catch(() => {});
   }, []);
 
   const isFavorite = movie.type === "Film" ? favMovieId === movie.id : favShowId === movie.id;
@@ -142,12 +164,6 @@ export default function DetailScreen({ route, navigation }) {
     if (wasDisliked) api.removeInteraction(auth.token, movie.id, "dislike").catch(() => {});
     else api.recordInteraction(auth.token, movie.id, "dislike").catch(() => {});
   }
-  function watch() {
-    const wasInWatchlist = inWatchlist;
-    setInWatchlist((v) => !v);
-    if (wasInWatchlist) api.removeInteraction(auth.token, movie.id, "watchlist").catch(() => {});
-    else api.recordInteraction(auth.token, movie.id, "watchlist").catch(() => {});
-  }
 
   async function toggleFavorite() {
     if (favBusy) return;
@@ -156,14 +172,31 @@ export default function DetailScreen({ route, navigation }) {
       await api.updateFavorite(auth.token, isFavorite ? { movie_id: null, type: movie.type } : { movie_id: movie.id });
       if (movie.type === "Film") setFavMovieId(isFavorite ? null : movie.id);
       else setFavShowId(isFavorite ? null : movie.id);
+      // Bir içeriği "favorim" olarak seçmek, onu zaten beğenmiş olman demek — otomatik like say.
+      if (!isFavorite && !liked) {
+        setLiked(true); setDisliked(false);
+        api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
+      }
     } catch { /* sessizce geç */ }
     setFavBusy(false);
   }
 
-  function addComment() {
-    if (!comment.trim()) return;
-    setComments((cs) => [...cs, { user: auth.name, text: comment.trim() }]);
+  async function addComment() {
+    const text = comment.trim();
+    if (!text) return;
     setComment("");
+    // İyimser ekleme: hemen ekranda göster.
+    const tempId = `temp-${Date.now()}`;
+    setComments((cs) => [...cs, { id: tempId, name: auth.name, avatar_url: null, body: text, created_at: new Date().toISOString() }]);
+    try {
+      await api.addComment(auth.token, movie.id, text);
+      // Geçici eşleştirme yerine listeyi doğrudan sunucudan tazeliyoruz — daha güvenilir.
+      const fresh = await api.comments(auth.token, movie.id);
+      setComments(fresh.results || []);
+    } catch (e) {
+      setComments((cs) => cs.filter((c) => c.id !== tempId)); // başarısız olursa geri al
+      console.warn("Yorum eklenemedi:", e.message);
+    }
   }
 
   return (
@@ -220,7 +253,11 @@ export default function DetailScreen({ route, navigation }) {
           </View>
 
           <Animated.View style={{ height: scrollAreaHeight }}>
-          <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={[styles.body, { paddingBottom: 30 + keyboardHeight }]}
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               {movie.type === "Film" ? <Film size={13} color={c.dim} /> : <Tv size={13} color={c.dim} />}
@@ -253,6 +290,47 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
+          {(extra.director || extra.cast.length > 0) && (
+            <View style={{ marginTop: 18 }}>
+              {extra.director && (
+                <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={{ color: c.text, fontWeight: "700" }}>{extra.director.name}</Text></Text>
+              )}
+              {extra.cast.length > 0 && (
+                <>
+                  <Text style={[styles.castSectionLabel, { marginTop: 10 }]}>OYUNCULAR</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, marginTop: 8 }}>
+                    {extra.cast.map((p, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={{ width: 62, alignItems: "center" }}
+                        activeOpacity={p.id ? 0.7 : 1}
+                        onPress={() => p.id && navigation.navigate("Person", { personId: p.id, name: p.name, photo: p.photo })}
+                      >
+                        {p.photo ? <Image source={{ uri: p.photo }} style={styles.castPhoto} /> : <View style={[styles.castPhoto, { backgroundColor: c.surface2 }]} />}
+                        <Text style={styles.castName} numberOfLines={1}>{p.name}</Text>
+                        {!!p.character && <Text style={styles.castCharacter} numberOfLines={1}>{p.character}</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+            </View>
+          )}
+
+          {extra.similar.length > 0 && (
+            <View style={{ marginTop: 18 }}>
+              <Text style={styles.castSectionLabel}>BUNA BENZER İÇERİKLER</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 8 }}>
+                {extra.similar.map((m) => (
+                  <TouchableOpacity key={m.id} style={{ width: 90 }} onPress={() => navigation.replace("Detail", { movie: m })}>
+                    {m.poster ? <Image source={{ uri: m.poster }} style={styles.similarPoster} /> : <View style={[styles.similarPoster, { backgroundColor: c.surface2 }]} />}
+                    <Text style={styles.castName} numberOfLines={1}>{m.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.divider} />
 
           <View style={styles.actionsRow}>
@@ -264,8 +342,8 @@ export default function DetailScreen({ route, navigation }) {
               <X size={16} color={disliked ? "#fff" : c.text} />
               <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Dislike</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionSquare, inWatchlist && { backgroundColor: c.accent, borderColor: c.accent }]} onPress={watch}>
-              <Bookmark size={16} color={inWatchlist ? c.bg : c.text} fill={inWatchlist ? c.bg : "none"} />
+            <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
+              <Bookmark size={16} color={c.text} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
               <Send size={16} color={c.text} />
@@ -285,19 +363,18 @@ export default function DetailScreen({ route, navigation }) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.listBtn} onPress={() => setShowListPicker(true)}>
-            <ListVideo size={15} color={c.text} />
-            <Text style={styles.listBtnText}>Bir Listeye Ekle</Text>
-          </TouchableOpacity>
-
           <View style={{ marginTop: 22 }}>
             <Text style={styles.commentsTitle}>Yorumlar</Text>
-            {comments.map((cm, i) => (
-              <View key={i} style={styles.commentRow}>
-                <View style={styles.commentAvatar} />
+            {commentsLoading ? (
+              <ActivityIndicator color={c.accent} style={{ marginVertical: 10 }} />
+            ) : comments.length === 0 ? (
+              <Text style={styles.noCommentsText}>Henüz yorum yok, ilk yorumu sen yaz.</Text>
+            ) : comments.map((cm) => (
+              <View key={cm.id} style={styles.commentRow}>
+                <RetryImage source={{ uri: avatarOr(cm.avatar_url, cm.user_id || cm.id) }} style={styles.commentAvatar} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.commentUser}>{cm.user}</Text>
-                  <Text style={styles.commentText}>{cm.text}</Text>
+                  <Text style={styles.commentUser}>{cm.name}</Text>
+                  <Text style={styles.commentText}>{cm.body}</Text>
                 </View>
               </View>
             ))}
@@ -309,6 +386,7 @@ export default function DetailScreen({ route, navigation }) {
                 value={comment}
                 onChangeText={setComment}
                 onSubmitEditing={addComment}
+                onFocus={focusCommentInput}
               />
               <TouchableOpacity style={styles.commentSendBtn} onPress={addComment}>
                 <Send size={14} color={c.bg} />
@@ -349,6 +427,11 @@ function makeStyles(c) {
     platformPillLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     platformPillText: { fontSize: 11, color: c.text },
     divider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: c.border, marginVertical: 18 },
+    castSectionLabel: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5 },
+    castPhoto: { width: 56, height: 56, borderRadius: 999 },
+    castName: { fontSize: 10, fontWeight: "700", color: c.text, marginTop: 5, textAlign: "center" },
+    castCharacter: { fontSize: 9, color: c.dim, marginTop: 1, textAlign: "center" },
+    similarPoster: { width: 90, height: 132, borderRadius: 10, marginBottom: 5 },
     actionsRow: { flexDirection: "row", gap: 10 },
     actionMain: {
       flex: 1, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 12,
@@ -374,6 +457,7 @@ function makeStyles(c) {
     commentAvatar: { width: 26, height: 26, borderRadius: 999, backgroundColor: c.surface2 },
     commentUser: { fontSize: 11, fontWeight: "700", color: c.text },
     commentText: { fontSize: 12, color: c.dim, marginTop: 1 },
+    noCommentsText: { fontSize: 12, color: c.dim, paddingVertical: 8 },
     commentInputRow: { flexDirection: "row", gap: 8, marginTop: 8 },
     commentInput: { flex: 1, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, color: c.text, fontSize: 12 },
     commentSendBtn: { width: 36, height: 36, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },

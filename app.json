@@ -1,27 +1,109 @@
 {
   "expo": {
-    "name": "falanfilan-native",
+    "name": "pellix",
     "slug": "falanfilan-native",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "scheme": "pellix",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.batuhanatis.pellix",
+      "usesAppleSignIn": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": ["applinks:open.pellix.app"],
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Profil fotoğrafı, kapak fotoğrafı ve sohbetlerde paylaşmak için fotoğraflarına erişim izni istiyoruz.",
+        "NSCameraUsageDescription": "Bir fotoğraf çekip o filmi/diziyi bulabilmen için kameranı kullanmamıza izin ver.",
+        "NSPhotoLibraryAddUsageDescription": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor.",
+        "LSApplicationQueriesSchemes": [
+          "instagram-stories",
+          "instagram"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.batuhanatis.pellix",
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/u" },
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/blend" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      
-    ]
+      "expo-web-browser",
+      "expo-font",
+      "./plugins/withAndroidInstagramQueries",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Profil fotoğrafı, kapak fotoğrafı ve sohbetlerde paylaşmak için fotoğraflarına erişim izni istiyoruz.",
+          "cameraPermission": "Bir fotoğraf çekip o filmi/diziyi bulabilmen için kameranı kullanmamıza izin ver."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor.",
+          "savePhotosPermission": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#c9a44c"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-logo.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#14121a",
+          "dark": {
+            "image": "./assets/splash-logo.png",
+            "backgroundColor": "#14121a"
+          }
+        }
+      ],
+      "@react-native-google-signin/google-signin",
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "409c97e3-29fb-41d4-a231-5cb5f7f8b833"
+      }
+    },
+    "owner": "batuhanatis"
   }
 }

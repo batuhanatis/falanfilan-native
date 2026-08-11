@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "941982415538",
+    "project_id": "falanfilan-503015",
+    "storage_bucket": "falanfilan-503015.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:941982415538:android:a0754a5afc2e2511e1e7ab",
+        "android_client_info": {
+          "package_name": "com.batuhanatis.pellix"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "941982415538-0tl4dpm89sr1fsfbpqpg6kgfhdr1ad8s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.batuhanatis.pellix",
+            "certificate_hash": "4455afd280b8db8890f586ce1ef1a2a16e17cc86"
+          }
+        },
+        {
+          "client_id": "941982415538-1bvpit3r8ds9vc673tbt6opk5hoo9din.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.batuhanatis.pellix",
+            "certificate_hash": "f2ae3d048c18106da0f3be58ff289dc145958f4a"
+          }
+        },
+        {
+          "client_id": "941982415538-r9bcpdqrots2i23l607fm261gfudngaq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.batuhanatis.pellix",
+            "certificate_hash": "fa43c1687f2faa13edbbbf317b09a72c7030b215"
+          }
+        },
+        {
+          "client_id": "941982415538-nj7jd2uq41f58gkh02enu9is4q60ifuh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtoEQ2ewXf9N1E6tkIiUGWxvCc8FQSPRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "941982415538-nj7jd2uq41f58gkh02enu9is4q60ifuh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

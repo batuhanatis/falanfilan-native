@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TouchableWithoutFeedback } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { X, Wand2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import DismissableSheet from "./DismissableSheet";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
-import { GENRE_FILTERS } from "../theme/theme";
+import { GENRE_FILTERS, COMMON_PLATFORMS } from "../theme/theme";
 import ChipRow from "./ChipRow";
 
 // Görünen etiket -> backend'in beklediği anahtar eşlemesi.
@@ -17,12 +18,13 @@ const YEAR_OPTIONS = [
   ["2020 ve sonrası", "2020s"],
 ];
 
-export default function TasteRecommendModal({ onClose, onResults }) {
+export default function TasteRecommendModal({ onClose, onResults, navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const [genre, setGenre] = useState(null);
   const [type, setType] = useState(null);
   const [yearLabels, setYearLabels] = useState(new Set()); // görünen etiketler tutuluyor
+  const [platforms, setPlatforms] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const styles = makeStyles(c);
@@ -35,12 +37,20 @@ export default function TasteRecommendModal({ onClose, onResults }) {
     });
   }
 
+  function togglePlatform(name) {
+    setPlatforms((prev) => {
+      const n = new Set(prev);
+      n.has(name) ? n.delete(name) : n.add(name);
+      return n;
+    });
+  }
+
   async function getRecommendation() {
     setLoading(true);
     setError("");
     try {
       const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
-      const data = await api.aiTaste(auth.token, { genre, type, years });
+      const data = await api.aiTaste(auth.token, { genre, type, years, platforms: [...platforms] });
       if ((data.results || []).length === 0) {
         setError("Bu kritere uyan bir şey bulamadım, farklı bir seçim deneyebilir misin?");
       } else {
@@ -49,14 +59,22 @@ export default function TasteRecommendModal({ onClose, onResults }) {
       }
     } catch (e) {
       setError(e.message || "Öneri alınamadı, tekrar dener misin?");
+      if (e.limitReached && navigation) {
+        Alert.alert("Günlük hakkın doldu", e.message, [
+          { text: "Tamam", style: "cancel" },
+          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium"); } },
+        ]);
+      }
     }
     setLoading(false);
   }
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <LinearGradient colors={["#8e2de2", "#4a00e0", "#00c9ff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
             <View style={styles.header}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -82,14 +100,23 @@ export default function TasteRecommendModal({ onClose, onResults }) {
               onSelect={toggleYear}
             />
 
+            <Text style={styles.label}>PLATFORM (opsiyonel, birden fazla seçilebilir)</Text>
+            <ChipRow
+              items={COMMON_PLATFORMS}
+              isActive={(name) => platforms.has(name)}
+              onSelect={togglePlatform}
+            />
+
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
             <TouchableOpacity style={styles.goBtn} onPress={getRecommendation} disabled={loading}>
               {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.goBtnText}>Bana Bir Şey Öner</Text>}
             </TouchableOpacity>
           </View>
+        </DismissableSheet>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }

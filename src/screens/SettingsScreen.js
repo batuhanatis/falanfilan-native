@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from "react-native";
 import { ChevronLeft, Check } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +11,7 @@ export default function SettingsScreen({ navigation }) {
   const styles = makeStyles(c);
 
   const [privacy, setPrivacy] = useState("everyone");
+  const [tastemateVisible, setTastemateVisibleState] = useState(true);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [pwError, setPwError] = useState("");
@@ -21,8 +22,17 @@ export default function SettingsScreen({ navigation }) {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    api.me(auth.token).then((me) => setPrivacy(me.privacy || "everyone")).catch(() => {});
+    api.me(auth.token).then((me) => {
+      setPrivacy(me.privacy || "everyone");
+      setTastemateVisibleState(me.tastemateVisible !== false);
+    }).catch(() => {});
   }, []);
+
+  async function toggleTastemateVisible() {
+    const next = !tastemateVisible;
+    setTastemateVisibleState(next); // anında yansısın
+    try { await api.setTastemateVisibility(auth.token, next); } catch { setTastemateVisibleState(!next); }
+  }
 
   async function savePrivacy(next) {
     setPrivacy(next);
@@ -74,6 +84,19 @@ export default function SettingsScreen({ navigation }) {
           ))}
         </View>
 
+        <Text style={styles.sectionLabel}>YENİ İNSANLARLA EŞLEŞME</Text>
+        <View style={styles.card}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.cardTitle}>TasteMate'te Görünür Ol</Text>
+              <Text style={styles.cardSubtitle}>
+                Kapatırsan, arkadaş olmadığın kullanıcıların "yeni insanlarla eşleş" havuzunda artık sana rastlamazlar.
+              </Text>
+            </View>
+            <Switch value={tastemateVisible} onValueChange={toggleTastemateVisible} trackColor={{ true: c.accent }} />
+          </View>
+        </View>
+
         <Text style={styles.sectionLabel}>GÜVENLİK</Text>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Şifre Değiştir</Text>
@@ -87,6 +110,16 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.secondaryBtnText}>{pwSaving ? "Kaydediliyor..." : "Şifreyi Güncelle"}</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("InviteFriend")}>
+          <Text style={styles.cardTitle}>Arkadaşını Davet Et</Text>
+          <Text style={styles.cardSubtitle}>Davet kodunu paylaş, eşleşince ödül kazan.</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("BlockedUsers")}>
+          <Text style={styles.cardTitle}>Engellenen Kullanıcılar</Text>
+          <Text style={styles.cardSubtitle}>Kimleri engellediğini gör, istersen engeli kaldır.</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
           <Text style={styles.logoutText}>Çıkış Yap</Text>
@@ -127,6 +160,7 @@ function makeStyles(c) {
     cardSubtitle: { fontSize: 11, color: c.dim, marginBottom: 10, lineHeight: 16 },
     privacyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border },
     privacyLabel: { fontSize: 13, color: c.text },
+    switchRow: { flexDirection: "row", alignItems: "center" },
     fieldLabel: { fontSize: 10, fontWeight: "700", color: c.dim, marginTop: 8, marginBottom: 4 },
     input: {
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 10,

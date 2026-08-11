@@ -2,6 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Home, Compass, Users, MessageCircle, User } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { useUnread } from "../context/UnreadContext";
 import HomeScreen from "../screens/HomeScreen";
 import DiscoverScreen from "../screens/DiscoverScreen";
 import TasteMateScreen from "../screens/TasteMateScreen";
@@ -12,6 +13,7 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
   const { c } = useAppTheme();
+  const { totalUnread } = useUnread();
 
   return (
     <Tab.Navigator
@@ -29,7 +31,12 @@ export default function MainTabs() {
       <Tab.Screen name="TasteMate" component={TasteMateScreen}
         options={{ title: "TasteMate", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen name="Chat" component={ChatStack}
-        options={{ title: "Chat", tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} /> }} />
+        options={{
+          title: "Chat",
+          tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
+          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
+          tabBarBadgeStyle: { backgroundColor: c.danger },
+        }} />
       <Tab.Screen name="Profile" component={ProfileScreen}
         options={{ title: "Profil", tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
     </Tab.Navigator>

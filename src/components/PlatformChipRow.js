@@ -12,7 +12,9 @@ export default function PlatformChipRow({ items, activeSet, onToggle }) {
   if (items.length === 0) return null;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    // ÖNEMLİ (Android düzeltmesi): ChipRow.js'deki AYNI sebep — dış dikey listenin, iç yatay
+    // kaydırmayı çalmasını nestedScrollEnabled ile engelliyoruz.
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={styles.row}>
       {items.map((p, i) => {
         const name = platformName(p);
         const logo = platformLogo(p);
