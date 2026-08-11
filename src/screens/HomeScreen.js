@@ -57,7 +57,7 @@ export default function HomeScreen({ navigation }) {
   // göre değişiyor (kategori/platform filtrelerinden etkilenmiyor, kasıtlı olarak). ÖNEMLİ:
   // eskiden /api/movies?sort=popular kullanıyorduk — bu, kendi kataloğumuzdaki TÜM ZAMANLARIN
   // en çok oy alan içeriklerini gösteriyordu (eski kült klasikler öne çıkıyordu, "güncel popüler"
-  // değil). api.trending, TMDB'nin GERÇEK haftalık trend verisini kullanıyor.
+  // değil). api.trending, Trakt'ın GERÇEK, o an izlenen içeriklere dayanan trend verisini kullanıyor.
   const [popularNow, setPopularNow] = useState([]);
   useEffect(() => {
     let cancelled = false;
@@ -70,13 +70,25 @@ export default function HomeScreen({ navigation }) {
           const data = await api.trending(auth.token, "tv");
           if (!cancelled) setPopularNow((data.results || []).slice(0, 10));
         } else {
+          // ÖNEMLİ (oy sayısına göre sıralama düzeltmesi): Eskiden film+dizi birleştirilip
+          // "imdb oy sayısı"na göre YENİDEN sıralanıyordu — bu, backend'in zaten doğru sırayla
+          // (Trakt trending) verdiği taze ama henüz az oy almış içerikleri (ör. yeni çıkan bir
+          // film), eski/çok oylu klasiklerin gerisine düşürüyordu. Artık iki listeyi de kendi
+          // sırasında (Trakt trending sırası) bırakıp sadece SIRAYLA iç içe geçiriyoruz:
+          // 1. film, 1. dizi, 2. film, 2. dizi, ...
           const [mRes, tRes] = await Promise.all([
             api.trending(auth.token, "movie").catch(() => ({ results: [] })),
             api.trending(auth.token, "tv").catch(() => ({ results: [] })),
           ]);
-          const merged = dedupe([...(mRes.results || []), ...(tRes.results || [])])
-            .sort((a, b) => (b.votes || 0) - (a.votes || 0));
-          if (!cancelled) setPopularNow(merged.slice(0, 10));
+          const movieResults = mRes.results || [];
+          const showResults = tRes.results || [];
+          const merged = [];
+          const maxLen = Math.max(movieResults.length, showResults.length);
+          for (let i = 0; i < maxLen; i++) {
+            if (movieResults[i]) merged.push(movieResults[i]);
+            if (showResults[i]) merged.push(showResults[i]);
+          }
+          if (!cancelled) setPopularNow(dedupe(merged).slice(0, 10));
         }
       } catch { if (!cancelled) setPopularNow([]); }
     })();
@@ -549,6 +561,10 @@ export default function HomeScreen({ navigation }) {
             numColumns={2}
             columnWrapperStyle={{ gap: 12 }}
             contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            // Android, header'daki yatay PopularNowRow (ScrollView) gibi iç içe scroll'ları
+            // varsayılan olarak dış dikey listeye kaptırıyor, iOS'ta bu sorun yok — bu prop
+            // sadece Android'de etkili, iOS'ta no-op.
+            nestedScrollEnabled
             ListHeaderComponent={
               <>
                 {headerContent}
