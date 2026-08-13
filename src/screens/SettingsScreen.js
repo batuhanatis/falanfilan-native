@@ -42,11 +42,18 @@ export default function SettingsScreen({ navigation }) {
   }
 
   async function savePrivacy(next) {
+    const previous = privacy; // başarısız olursa geri dönmek için
     setPrivacy(next);
     try {
       const me = await api.me(auth.token);
       await api.updateMe(auth.token, { name: me.name, username: me.username, bio: me.bio, privacy: next });
-    } catch { Alert.alert("Hata", "Kaydedilemedi, tekrar dene."); }
+    } catch {
+      // ÖNEMLİ DÜZELTME: Eskiden hata alınca UI yeni değerde takılı kalıyordu — kullanıcı
+      // ekranda "gizli" görüp aslında sunucuda hâlâ "herkese açık" olabiliyordu. Gizlilik
+      // ayarında bu tutarsızlık özellikle riskli, bu yüzden başarısızlıkta eski değere dönüyoruz.
+      setPrivacy(previous);
+      Alert.alert("Hata", "Kaydedilemedi, tekrar dene.");
+    }
   }
 
   async function changePassword() {
@@ -131,6 +138,16 @@ export default function SettingsScreen({ navigation }) {
               </Text>
             </View>
             <Switch value={tastemateVisible} onValueChange={toggleTastemateVisible} trackColor={{ true: c.accent }} />
+          </View>
+        </View>
+
+        {/* ÖNEMLİ: E-posta artık profil ekranında değil burada gösteriliyor — profil, herkese
+            açık sosyal bir ekran, e-posta ise hesap bilgisi (bkz. ProfileScreen düzeltmesi). */}
+        <Text style={styles.sectionLabel}>HESAP</Text>
+        <View style={styles.card}>
+          <View style={styles.linkRow}>
+            <Mail size={15} color={c.dim} />
+            <Text style={styles.linkRowText}>{auth.email}</Text>
           </View>
         </View>
 

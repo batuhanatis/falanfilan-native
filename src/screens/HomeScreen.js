@@ -359,7 +359,13 @@ export default function HomeScreen({ navigation }) {
     try {
       const data = await api.socialStats(auth.token, newIds);
       setSocialStats((prev) => ({ ...prev, ...data.results }));
-    } catch { /* sessizce geç */ }
+    } catch {
+      // ÖNEMLİ DÜZELTME: İstek bir kez ağ hatasıyla başarısız olursa ID'ler "çekildi" olarak
+      // işaretli kalıyordu — o film o oturumda BİR DAHA hiç social stats çekmiyordu (kart
+      // sonsuza kadar 0 beğeni/yorum gösteriyordu). Başarısız ID'leri geri çıkarıyoruz ki bir
+      // sonraki görünme anında (ör. tekrar kaydırılınca) yeniden denensin.
+      newIds.forEach((id) => statsFetchedRef.current.delete(id));
+    }
   }, [auth.token]);
 
   useEffect(() => {

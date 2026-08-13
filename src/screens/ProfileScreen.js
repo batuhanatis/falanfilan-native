@@ -218,7 +218,10 @@ export default function ProfileScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.name}>{profile.name}</Text>
-        <Text style={styles.username}>{profile.username ? `@${profile.username} · ` : ""}{profile.email}</Text>
+        {/* ÖNEMLİ DÜZELTME: E-posta burada gösteriliyordu — kullanıcının kendi profilinde
+            e-posta görmek "account/admin" hissi veriyor, sosyal bir profil ekranına ait değil.
+            E-posta zaten Ayarlar'da mevcut; burada sadece kullanıcı adı kalsın. */}
+        {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
         <Text style={styles.bio}>{profile.bio || "Henüz bir biyografi eklemedin."}</Text>
 
         {/* Instagram'daki "Profili Düzenle" tam genişlik butonunun aynısı — yanına Paylaş

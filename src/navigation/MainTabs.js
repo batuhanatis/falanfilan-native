@@ -26,13 +26,15 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen}
         options={{ title: "Ana Sayfa", tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
+      {/* ÖNEMLİ: Sekme başlıkları Türkçe/İngilizce karışıktı ("Discover", "Chat" ama "Ana Sayfa",
+          "Profil") — TasteMate marka/özellik adı olduğu için İngilizce kalıyor, diğerleri Türkçe. */}
       <Tab.Screen name="Discover" component={DiscoverScreen}
-        options={{ title: "Discover", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
+        options={{ title: "Keşfet", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
       <Tab.Screen name="TasteMate" component={TasteMateScreen}
         options={{ title: "TasteMate", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen name="Chat" component={ChatStack}
         options={{
-          title: "Chat",
+          title: "Sohbet",
           tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
           tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
           tabBarBadgeStyle: { backgroundColor: c.danger },

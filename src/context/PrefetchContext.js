@@ -39,9 +39,14 @@ export function PrefetchProvider({ children }) {
     setFriends(null);
     setActivity(null);
 
-    api.tastemates(token).then(setTasteMates).catch(() => setTasteMates({ results: [] }));
-    api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => setFriends([]));
-    api.activityFeed(token).then((d) => setActivity(d.results || [])).catch(() => setActivity([]));
+    // ÖNEMLİ DÜZELTME: Eskiden bir prefetch isteği BAŞARISIZ olduğunda da "gerçekten boş" ile
+    // aynı şekilde ([]) işaretleniyordu — tüketen ekranlar (ör. ChatListScreen) bunu "veri hazır,
+    // kullanılabilir" sanıp gerçek/taze bir istek hiç atmıyor, kullanıcıya olduğu gibi "arkadaşın
+    // yok"/"aktivite yok" gösteriyordu; oysa sadece prefetch başarısız olmuştu. Hata durumunda
+    // state'i null'da (yani "henüz hazır değil") bırakıyoruz ki ekran kendi gerçek isteğini atsın.
+    api.tastemates(token).then(setTasteMates).catch(() => {});
+    api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => {});
+    api.activityFeed(token).then((d) => setActivity(d.results || [])).catch(() => {});
 
     // Discover: DiscoverScreen'in kendi kuyruk oluşturma mantığının aynısı — daha önce oy
     // verilmiş içerikleri dışlayarak, varsayılan "Hepsi" filtresi için rastgele bir başlangıç
@@ -69,7 +74,8 @@ export function PrefetchProvider({ children }) {
         }
         setDiscoverQueue(gathered);
       } catch {
-        setDiscoverQueue([]);
+        // Aynı düzeltme: başarısızlığı "boş kuyruk" gibi işaretlemiyoruz, null bırakıyoruz ki
+        // DiscoverScreen kendi gerçek kuyruk oluşturma mantığına (growQueue) düşsün.
       }
     })();
   }, [auth?.token]);

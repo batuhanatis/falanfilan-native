@@ -6,15 +6,35 @@
 export const API_BASE = "https://api.pellix.app";
 export const WS_BASE = API_BASE.replace(/^http/, "ws") + "/ws";
 
+// ÖNEMLİ: Öncesinde hiçbir istek zaman aşımına uğramıyordu — zayıf/kesik bir şebekede fetch
+// süresiz pending kalabiliyor, ekran sonsuza kadar spinner'da takılı kalabiliyordu. 20 saniye
+// sonra isteği kendimiz iptal edip anlamlı bir hata fırlatıyoruz.
+const REQUEST_TIMEOUT_MS = 20000;
+
 async function request(path, { method = "GET", token, body } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e.name === "AbortError") {
+      const timeoutErr = new Error("Bağlantı zaman aşımına uğradı.");
+      timeoutErr.isTimeout = true;
+      throw timeoutErr;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || "Bir şeyler ters gitti.");

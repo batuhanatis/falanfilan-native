@@ -162,8 +162,15 @@ function Gate() {
       const isChatTarget = data.screen === "MainTabs" && data.params?.screen === "Chat" && data.params?.params?.screen === "ChatConversation";
       if (isChatTarget) {
         if (!(await waitForNavReady())) return;
+        // ÖNEMLİ DÜZELTME: Sabit 300ms bekleme cihaz hızına göre değişen, güvenilmez bir tahmindi
+        // (yavaş bir cihazda ilk navigasyon henüz commit olmadan ikincisi tetiklenebiliyordu).
+        // Bunun yerine navigasyon state'inin GERÇEKTEN değiştiğini dinleyip ancak o zaman ikinci
+        // adımı tetikliyoruz — cihaz hızından bağımsız, deterministik.
         navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
-        setTimeout(() => navigationRef.navigate("MainTabs", data.params), 300);
+        const unsub = navigationRef.addListener("state", () => {
+          unsub();
+          navigationRef.navigate("MainTabs", data.params);
+        });
         return;
       }
 

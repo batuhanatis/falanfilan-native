@@ -99,7 +99,13 @@ export default function DiscoverScreen({ navigation }) {
     if (nextFilter === "All" && prefetchedDiscoverRef.current && prefetchedDiscoverRef.current.length > 0) {
       const preloaded = prefetchedDiscoverRef.current;
       prefetchedDiscoverRef.current = null;
-      setQueue(preloaded);
+      // ÖNEMLİ DÜZELTME: Bu kuyruk uygulama açılışında, kullanıcı henüz hiçbir şey
+      // beğenmemişken önceden hazırlanmış olabilir — Discover'a gelmeden önce Home'da bir film
+      // beğenmişse, o film hâlâ bu bayat kuyrukta kalıp "az önce beğendim, neden yine çıktı?"
+      // hissi yaratıyordu. Göstermeden hemen önce GÜNCEL oy verilenler listesiyle bir kez daha filtreliyoruz.
+      const votedIds = await getVotedIds();
+      const fresh = preloaded.filter((m) => !votedIds.has(m.id));
+      setQueue(fresh);
       setStockReady(true);
       return;
     }

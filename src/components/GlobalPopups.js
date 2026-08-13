@@ -166,10 +166,14 @@ export default function GlobalPopups() {
                   // App.js'teki push-bildirimi akışıyla AYNI düzeltme: Sohbetler sekmesi bu
                   // oturumda hiç ziyaret edilmediyse, ChatList'i temel olarak kurmadan doğrudan
                   // ChatConversation'a atlamak, geri tuşunun Ana Sayfa'ya düşmesine yol açıyordu.
+                  // ÖNEMLİ DÜZELTME: Sabit 300ms yerine, navigasyon state'inin GERÇEKTEN
+                  // değiştiğini dinleyip ikinci adımı ancak o zaman tetikliyoruz — cihaz
+                  // hızından bağımsız, deterministik (bkz. App.js'teki aynı düzeltme).
                   navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
-                  setTimeout(() => {
+                  const unsub = navigationRef.addListener("state", () => {
+                    unsub();
                     navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: { chatId: banner.chatId } } });
-                  }, 300);
+                  });
                 }
                 setBanner(null);
               }}

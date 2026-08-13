@@ -91,10 +91,13 @@ export default function OtherProfileScreen({ route, navigation }) {
       // buradaki de birebir aynı kök neden). Önce ChatList'i temel olarak kuruyoruz, hemen
       // ardından (liste artık temelde dururken) sohbeti ÜSTÜNE ekliyoruz.
       const friendParams = { chatId: chat_id, friendId: userId, friendName: profile.name, friendAvatar: avatarOr(profile.avatarUrl, userId) };
+      // ÖNEMLİ DÜZELTME: Sabit 300ms yerine, navigasyon state'inin GERÇEKTEN değiştiğini
+      // dinleyip ikinci adımı ancak o zaman tetikliyoruz — cihaz hızından bağımsız, deterministik.
       navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
-      setTimeout(() => {
+      const unsub = navigation.addListener("state", () => {
+        unsub();
         navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: friendParams } });
-      }, 300);
+      });
     } catch {}
   }
 

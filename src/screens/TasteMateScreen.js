@@ -87,6 +87,18 @@ export default function TasteMateScreen({ navigation }) {
   async function handleSwipe(direction) {
     const swiped = mates[index];
     if (!swiped) return;
+    // ÖNEMLİ DÜZELTME (atomik hak kontrolü): Eskiden ÖNCE arkadaşlık isteği gönderilip SONRA
+    // günlük hak düşürülüyordu — kullanıcı aslında hakkı bitmişken bile istek gönderebiliyordu,
+    // limit kontrolü ancak bir adım sonra fail ediyordu. /api/tastemates/swipe zaten sunucuda
+    // atomik "kontrol et + düş" yapıyor (tryConsumeTastemateSwipe) — bunu ÖNCE çağırıp, sadece
+    // başarılıysa arkadaşlık isteğini gönderiyoruz.
+    try {
+      await api.tastemateSwipe(auth.token);
+    } catch (e) {
+      if (e.limitReached) { setLimitReached(true); return; }
+      advance();
+      return;
+    }
     if (direction === "right") {
       try {
         const data = await api.friendRequest(auth.token, swiped.id);
@@ -99,16 +111,15 @@ export default function TasteMateScreen({ navigation }) {
           // TM2 — eskiden istek gönderilince hiçbir görsel onay yoktu, sadece bir sonraki karta geçiliyordu.
           emitLocalEvent({ type: "toast", title: "İstek gönderildi ✅", message: `${swiped.name}'e arkadaşlık isteği gönderildi` });
         }
-      } catch { /* zaten istek gönderilmiş olabilir */ }
+      } catch {
+        // ÖNEMLİ DÜZELTME: Backend zaten-gönderilmiş bir isteği sessizce no-op (ON CONFLICT DO
+        // NOTHING, 200 OK) olarak ele alıyor — yani buraya düşen HER hata gerçek bir başarısızlık
+        // (ağ/500/engellenmiş kullanıcı). Kullanıcı "gönderdim" sanıp bir sonraki karta geçmesin
+        // diye artık açıkça bilgilendiriliyor.
+        emitLocalEvent({ type: "toast", title: "Gönderilemedi", message: "İstek gönderilirken bir sorun oluştu, tekrar dener misin?" });
+      }
     }
-    // Hakkı GERÇEK kaydırma anında düşürüyoruz — ekrana gelen toplu listeye göre değil.
-    try {
-      await api.tastemateSwipe(auth.token);
-      advance();
-    } catch (e) {
-      if (e.limitReached) setLimitReached(true);
-      else advance();
-    }
+    advance();
   }
 
   const current = limitReached ? null : mates[index];

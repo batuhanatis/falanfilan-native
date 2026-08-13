@@ -30,7 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — ÖNEMLİ: eskiden sadece .env*.local yakalanıyordu, düz .env/.env.production/
+# .env.development gibi varyantlar açıkça ignore edilmiyordu.
+.env
+.env.local
+.env.development
+.env.production
 .env*.local
 
 # typescript

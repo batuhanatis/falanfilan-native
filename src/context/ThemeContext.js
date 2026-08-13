@@ -9,7 +9,12 @@ export function ThemeProvider({ children }) {
   // ÖNEMLİ: Eskiden tema sadece bellekte (useState) tutuluyordu — uygulama kapanıp
   // açıldığında hep "light" ile başlıyordu, kullanıcının seçimi hiç hatırlanmıyordu.
   // Artık AsyncStorage'a yazılıp okunuyor.
-  const [mode, setModeState] = useState("light");
+  // ÖNEMLİ DÜZELTME (açılış flash'ı): Native splash ekranı userInterfaceStyle: "dark" ile
+  // koyu geliyor, ama başlangıç state'i "light" olduğu için AsyncStorage'daki gerçek seçim
+  // (çoğu kullanıcı için hâlâ "dark", uygulamanın varsayılan/çekirdek teması) okunana kadar bir
+  // anlığına açık temaya geçip tekrar koyuya dönüyordu. Varsayılanı native splash'le aynı yapıp
+  // bu flash'ı ortadan kaldırıyoruz.
+  const [mode, setModeState] = useState("dark");
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((saved) => {
