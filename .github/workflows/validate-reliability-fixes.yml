@@ -28,14 +28,16 @@ jobs:
               const p=path.join(dir,entry.name);
               if(entry.isDirectory()) walk(p);
               else if(/\.(js|jsx)$/.test(entry.name)) {
-                const s=fs.readFileSync(p,'utf8');
-                for(const m of s.matchAll(/\bapi\.([A-Za-z_$][\w$]*)/g)) if(!defined.has(m[1])) missing.add(m[1]);
+                let s=fs.readFileSync(p,'utf8');
+                // URL içindeki "api.pellix.app" gibi stringler method çağrısı değildir.
+                s = s.replace(/https?:\/\/[^\s"'`]+/g, '');
+                for(const m of s.matchAll(/\bapi\.([A-Za-z_$][\w$]*)\s*\(/g)) if(!defined.has(m[1])) missing.add(m[1]);
               }
             }
           }
           walk('src');
           if(missing.size){ console.error('Missing api methods:', [...missing]); process.exit(1); }
-          console.log('All api.* references are defined.');
+          console.log('All api.* call references are defined.');
           NODE
       - name: Expo iOS bundle check
         env:
