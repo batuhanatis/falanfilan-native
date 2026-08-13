@@ -27,13 +27,15 @@ export function configurePurchases(userId) {
   configured = true;
 }
 
-// ÖNEMLİ: configurePurchases hiçbir zaman bir karşılığı (logOut) olmadan sadece logIn
-// çağırıyordu — hesap değiştirildiğinde RevenueCat SDK'sının cihazda önbellekte tuttuğu bir
-// önceki kullanıcının entitlement bilgisi kısa süreliğine yeni kullanıcıya sızabiliyordu.
-// Logout sırasında çağrılır.
-export function logoutPurchases() {
+// Hesap değiştirirken eski RevenueCat kimliğinin/entitlement önbelleğinin yeni kullanıcıya
+// kısa süreliğine taşınmaması için logout'un gerçekten tamamlanmasını bekleyebiliyoruz.
+export async function logoutPurchases() {
   if (!configured) return;
-  Purchases.logOut().catch(() => {});
+  try {
+    await Purchases.logOut();
+  } catch {
+    // Satın alma SDK'sındaki temizlik hatası, uygulamanın çıkış yapmasını engellememeli.
+  }
 }
 
 export async function getCurrentOffering() {
