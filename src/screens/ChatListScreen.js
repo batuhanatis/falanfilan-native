@@ -73,18 +73,7 @@ export default function ChatListScreen({ navigation }) {
   const styles = makeStyles(c);
 
   const [sub, setSub] = useState("chats"); // "chats" | "activity"
-  // Aşağı çekince yenileme (pull-to-refresh) — iki sekme de kendi verisini tazeliyor, hangi
-  // sekmedeysek onu çekiyoruz.
   const [refreshing, setRefreshing] = useState(false);
-  const onPullRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      if (sub === "chats") await refreshUnread();
-      else await loadActivity();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [sub, refreshUnread, loadActivity]);
   const [friends, setFriends] = useState([]);
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +115,21 @@ export default function ChatListScreen({ navigation }) {
     // veri gelene kadar bekleyebilsin diye.
     return api.activityFeed(auth.token).then((data) => setActivity(data.results || [])).catch(() => {}).finally(() => setActivityLoading(false));
   }, [auth.token, prefetch.activity]);
+
+  // ÖNEMLİ DÜZELTME: Bu, daha önce loadActivity'den YUKARIDA tanımlıydı ama dependency array'i
+  // loadActivity'ye referans veriyordu — const'ların temporal dead zone'u yüzünden bu, HER
+  // render'da "Cannot access 'loadActivity' before initialization" fırlatıp ekranı çökertiyordu.
+  // Aşağı çekince yenileme (pull-to-refresh) — iki sekme de kendi verisini tazeliyor, hangi
+  // sekmedeysek onu çekiyoruz.
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (sub === "chats") await refreshUnread();
+      else await loadActivity();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [sub, refreshUnread, loadActivity]);
 
   useEffect(() => { loadFriends(); loadActivity(); }, [loadFriends, loadActivity]);
   useEffect(() => {

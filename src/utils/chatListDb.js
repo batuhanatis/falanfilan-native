@@ -61,3 +61,13 @@ export async function saveChatList(chats) {
     [JSON.stringify(chats || [])]
   );
 }
+
+// ÖNEMLİ (privacy — hesap değiştirme sızıntısı düzeltmesi): Bu tablo user_id içermiyor, cihazda
+// TEK global satır olarak tutuluyor — bkz. chatDb.js'teki clearAllLocalMessages ile aynı sorun.
+// Logout sırasında çağrılıp yerel sohbet listesi önbelleğini siliyor.
+export async function clearLocalChatList() {
+  await ensureInit();
+  const db = await getDb();
+  await db.runAsync(`DELETE FROM chat_list_cache`);
+  eagerChatListResult = null;
+}

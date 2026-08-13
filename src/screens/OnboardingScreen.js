@@ -119,12 +119,17 @@ function LikePicksStep({ c, styles, auth, onBack, onSkip, onFinish }) {
       hapticSuccess();
       emitLocalEvent({ type: "toast", title: "Zevkini öğrendik! 🎬", message: "Artık sana özel öneriler hazırlayabiliriz." });
     }
+    // ÖNEMLİ DÜZELTME: Eskiden hem seçerken hem seçimi kaldırırken aynı recordInteraction("like")
+    // çağrılıyordu — yani bir posteri seçip vazgeçmek backend'deki like'ı hiç silmiyordu. Bu,
+    // Taste Engine'e daha ilk dakikadan yanlış tercih verisi besliyordu.
+    const wasPicked = picked.has(id);
     setPicked((prev) => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
-    api.recordInteraction(auth.token, id, "like").catch(() => {});
+    if (wasPicked) api.removeInteraction(auth.token, id, "like").catch(() => {});
+    else api.recordInteraction(auth.token, id, "like").catch(() => {});
   }
 
   const count = picked.size;

@@ -28,6 +28,14 @@ export function UnreadProvider({ children }) {
     }
   }, []);
 
+  // ÖNEMLİ (privacy — hesap değiştirme sızıntısı düzeltmesi): SQLite/prefetch önbellekleri
+  // logout'ta temizleniyor (bkz. AuthContext.logout) ama bu state hafızada kalıyordu — yeni bir
+  // hesapla giriş yapıldığında refresh() tamamlanana kadar ChatListScreen bir önceki hesabın
+  // sohbet listesini göstermeye devam edebiliyordu. auth çıkınca anında boşaltıyoruz.
+  useEffect(() => {
+    if (!auth?.token) setChats([]);
+  }, [auth?.token]);
+
   const refresh = useCallback(() => {
     if (!auth?.token) return Promise.resolve();
     // ÖNEMLİ: Promise'i DÖNDÜRÜYORUZ — bu sayede çağıran taraf (ör. sohbet listesindeki

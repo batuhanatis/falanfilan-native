@@ -223,20 +223,28 @@ export default function HomeScreen({ navigation }) {
   // Film/dizi arama — 250ms bekleyip backend'e sorar (artık backend önce kendi kataloğunu
   // ANINDA sorguladığı için — bkz. /api/search — daha kısa bir debounce da makul, sonuç
   // neredeyse hep tek bir hızlı yerel sorguyla geliyor).
+  // ÖNEMLİ DÜZELTME (race condition): Debounce sadece TETİKLEMEYİ geciktiriyordu — havada
+  // kalan ESKİ bir istek (ör. yavaş şebekede "int" araması), sonradan tetiklenip HIZLI dönen
+  // yeni bir isteğin ("interstellar") sonucunu ezip üzerine yazabiliyordu. Her isteğe artan bir
+  // sıra numarası veriyoruz; yanıt geldiğinde hâlâ EN SON tetiklenen istek mi diye kontrol edip
+  // değilse (bayatsa) sessizce yok sayıyoruz.
+  const searchSeqRef = useRef(0);
   useEffect(() => {
     if (!query.trim()) { setSearchResults(null); return; }
     setSearchLoading(true);
     const timer = setTimeout(() => {
+      const seq = ++searchSeqRef.current;
       Promise.all([
         api.search(auth.token, query, "movie").catch(() => ({ results: [] })),
         api.search(auth.token, query, "tv").catch(() => ({ results: [] })),
       ])
         .then(([mRes, tRes]) => {
+          if (searchSeqRef.current !== seq) return; // bayat yanıt, daha yeni bir arama zaten başladı
           const merged = dedupe([...(mRes.results || []), ...(tRes.results || [])])
             .sort((a, b) => (b.votes || 0) - (a.votes || 0));
           setSearchResults(merged);
         })
-        .finally(() => setSearchLoading(false));
+        .finally(() => { if (searchSeqRef.current === seq) setSearchLoading(false); });
     }, 250);
     return () => clearTimeout(timer);
   }, [query]);

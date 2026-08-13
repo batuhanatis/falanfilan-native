@@ -11,6 +11,8 @@ import { encodeMovieShare } from "../utils/movieShare";
 import { encodeListShare } from "../utils/listShare";
 import { getStoreLink } from "../utils/appLinks";
 import DismissableSheet from "./DismissableSheet";
+import { updateLocalMessage } from "../utils/chatDb";
+import { appendPrefetchedMessage } from "../utils/chatMessagesPrefetch";
 
 // ÖNEMLİ: Bu modal artık hem FİLM hem LİSTE paylaşımı için kullanılıyor — "movie" veya "list"
 // prop'larından SADECE biri verilir. İki ayrı, neredeyse birebir aynı dosya oluşturmak yerine
@@ -51,7 +53,18 @@ export default function SendToFriendModal({ movie, list, onClose, onSent }) {
       const body = list
         ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
         : encodeMovieShare(movie);
-      await api.sendMessage(auth.token, chat_id, body);
+      const msg = await api.sendMessage(auth.token, chat_id, body);
+      // ÖNEMLİ: Bu ekran ChatConversationScreen'in DIŞINDA gönderim yapıyor — bu yüzden o
+      // ekranın normal gönderim akışının (attemptSend) otomatik yaptığı yerel önbellek
+      // güncellemesi burada hiç olmuyordu. Backend, yeni mesaj WS bildirimini SADECE alıcıya
+      // gönderiyor (gönderene değil) — yani kendi gönderdiğin mesaj için "canlı" bir sinyal
+      // hiç almıyorsun. Sonuç: bu sohbeti daha önce açtıysan hem SQLite hem hafızadaki
+      // (prefetchCache) önbellek bayat kalıyor, sohbete girince az önce gönderdiğin öneri ilk
+      // anda görünmüyordu (server'dan gelen delta senkronu bitene kadar). API zaten oluşturulan
+      // mesajı geri döndürdüğü için, ChatConversationScreen'in kullandığı AYNI iki yardımcıyla
+      // önbelleği burada da anında güncelliyoruz.
+      updateLocalMessage(chat_id, msg).catch(() => {});
+      appendPrefetchedMessage(chat_id, msg);
       setSent(true);
       onSent?.(selectedFriend);
       setTimeout(onClose, 700); // kısa bir onay animasyonu görünsün, sonra kapansın

@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../api/client";
 import { clearPrefetchCache } from "../utils/chatMessagesPrefetch";
+import { clearAllLocalMessages } from "../utils/chatDb";
+import { clearLocalChatList } from "../utils/chatListDb";
+import { logoutPurchases } from "../utils/purchases";
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = "ff_token";
@@ -17,8 +20,15 @@ export function AuthProvider({ children }) {
         if (!token) { setChecking(false); return; }
         const me = await api.me(token);
         setAuth({ token, id: me.id, name: me.name, username: me.username, email: me.email, likeCount: me.likeCount, onboardingCompleted: me.onboardingCompleted, tutorialSeen: me.tutorialSeen, tasteSurveySeen: me.tasteSurveySeen });
-      } catch {
-        await AsyncStorage.removeItem(TOKEN_KEY);
+      } catch (e) {
+        // ÖNEMLİ DÜZELTME: Eskiden api.me() HANGİ sebeple hata verirse versin (network hatası,
+        // 500, timeout, telefon internetsiz açıldı) token siliniyordu — yani geçici bir bağlantı
+        // sorununda bile kullanıcı sessizce logout oluyordu. Token'ı SADECE backend açıkça
+        // 401/403 (geçersiz/süresi dolmuş session) dediğinde siliyoruz; diğer tüm hatalarda
+        // token'a dokunmuyoruz, kullanıcı bağlantı düzelince aynı oturumda kalmaya devam ediyor.
+        if (e?.status === 401 || e?.status === 403) {
+          await AsyncStorage.removeItem(TOKEN_KEY);
+        }
       } finally {
         setChecking(false);
       }
@@ -34,6 +44,13 @@ export function AuthProvider({ children }) {
     setAuth(null);
     await AsyncStorage.removeItem(TOKEN_KEY);
     clearPrefetchCache(); // önceki hesabın hafızadaki sohbet ön yükleme verisi kalmasın
+    // ÖNEMLİ (privacy — hesap değiştirme sızıntısı düzeltmesi): Yerel sohbet SQLite'ları
+    // (mesajlar + sohbet listesi önbelleği) user_id namespace'i taşımıyor — aynı cihazda başka
+    // bir hesapla girildiğinde ağ isteği tamamlanana kadar bu hesabın sohbetleri kısa süreliğine
+    // görünebiliyordu. Logout'ta tamamen temizliyoruz.
+    clearAllLocalMessages().catch(() => {});
+    clearLocalChatList().catch(() => {});
+    logoutPurchases(); // RevenueCat'in cihazda önbelleklediği entitlement bilgisi de sıfırlansın
   }
 
   // Backend, onboarding tamamlanırken taste_survey_seen'i de true yapıyor (2 adımlı onboarding

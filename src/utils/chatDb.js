@@ -140,3 +140,13 @@ export async function getLastSyncedMessageId(chatId) {
   const row = await db.getFirstAsync(`SELECT last_message_id FROM chat_sync WHERE chat_id = ?`, [chatId]);
   return row?.last_message_id || null;
 }
+
+// ÖNEMLİ (privacy — hesap değiştirme sızıntısı düzeltmesi): Bu tablolarda user_id/account
+// namespace'i yok — cihazdaki TEK bir sohbet geçmişi olarak tutuluyorlar. Aynı cihazda A
+// hesabından çıkıp B hesabıyla girildiğinde, B'nin sohbet ekranı ağ isteği tamamlanana kadar
+// A'nın yerel mesajlarını gösterebiliyordu. Logout sırasında çağrılıp tüm yerel geçmişi siliyor.
+export async function clearAllLocalMessages() {
+  await ensureInit();
+  const db = await getDb();
+  await db.execAsync(`DELETE FROM messages; DELETE FROM chat_sync;`);
+}

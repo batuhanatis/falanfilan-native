@@ -27,6 +27,15 @@ export function configurePurchases(userId) {
   configured = true;
 }
 
+// ÖNEMLİ: configurePurchases hiçbir zaman bir karşılığı (logOut) olmadan sadece logIn
+// çağırıyordu — hesap değiştirildiğinde RevenueCat SDK'sının cihazda önbellekte tuttuğu bir
+// önceki kullanıcının entitlement bilgisi kısa süreliğine yeni kullanıcıya sızabiliyordu.
+// Logout sırasında çağrılır.
+export function logoutPurchases() {
+  if (!configured) return;
+  Purchases.logOut().catch(() => {});
+}
+
 export async function getCurrentOffering() {
   const offerings = await Purchases.getOfferings();
   return offerings.current || null;

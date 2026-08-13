@@ -19,6 +19,10 @@ async function request(path, { method = "GET", token, body } = {}) {
   if (!res.ok) {
     const err = new Error(data.error || "Bir şeyler ters gitti.");
     if (data.limitReached) err.limitReached = true;
+    // ÖNEMLİ: status kodu burada taşınmazsa, çağıran taraf (ör. AuthContext) bir 401/403
+    // "geçersiz session" hatasını ağ hatası/500'den ayırt edemiyor — bu da geçici bir bağlantı
+    // sorununda bile kullanıcının hesaptan atılmasına yol açıyordu.
+    err.status = res.status;
     throw err;
   }
   return data;

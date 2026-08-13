@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, Text, Image, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Heart, X, Bookmark, Star, Send, Sparkles, MessageCircle, Bell, BellRing } from "lucide-react-native";
@@ -37,6 +37,13 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
   const styles = makeStyles(c);
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState(stats?.comments || 0);
+  // ÖNEMLİ DÜZELTME: useState'in başlangıç değeri sadece İLK render'da okunuyor — Home, social
+  // stats'ı (yorum sayısı dahil) async olarak SONRADAN getirdiği için, stats prop'u ilk boş/0
+  // halinden gerçek değerine güncellense bile commentCount hiç yenilenmiyordu (kart hep 0
+  // yorumla açılıp öyle kalıyordu). Prop değiştiğinde local state'i senkron tutuyoruz.
+  useEffect(() => {
+    if (stats?.comments != null) setCommentCount(stats.comments);
+  }, [stats?.comments]);
 
   const likeCount = stats?.likes || 0;
   const friendName = stats?.friendName || null;
