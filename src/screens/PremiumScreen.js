@@ -1,17 +1,36 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap, Gift, Minus } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../api/client";
+import { api, API_BASE } from "../api/client";
 import { getCurrentOffering, purchasePackage, restorePurchases, hasActivePremiumEntitlement } from "../utils/purchases";
 
+// PM1 — üç fayda artık salt limit kaldırmakla sınırlı değil, profilde görünen bir KİMLİK de
+// içeriyor (altın çerçeve — bkz. ProfileScreen/OtherProfileScreen avatarPremiumRing).
 const BENEFITS = [
   { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Zevkine Göre Öner, Fotoğraftan Bul)" },
   { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
+  { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
   { icon: Zap, text: "Yeni özelliklere öncelikli erişim" },
 ];
+
+// PM2 — ücretsiz/premium farkı artık iki ayrı kartı zihinde karşılaştırmaya bırakılmıyor, tek
+// bir tabloda yan yana.
+const COMPARISON_ROWS = [
+  { label: "AI önerisi (günlük)", free: "Sınırlı", premium: "Sınırsız" },
+  { label: "TasteMate kaydırma", free: "Sınırlı", premium: "Sınırsız" },
+  { label: "Profil çerçevesi", free: false, premium: true },
+  { label: "Yeni özelliklere öncelik", free: false, premium: true },
+];
+
+// PM4 — kullanıcı buraya BOŞ yere değil, bir limite takıldığı için geldiyse, bunu bağlama
+// duyarlı bir başlıkla karşılıyoruz.
+const REASON_COPY = {
+  ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Zevkine Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
+  tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp zevk uyumu yüksek kişileri keşfetmeye devam et." },
+};
 
 export default function PremiumScreen({ navigation, route }) {
   const { c } = useAppTheme();
@@ -39,19 +58,20 @@ export default function PremiumScreen({ navigation, route }) {
   // RevenueCat'ten GERÇEK teklifi (ürün, fiyat, süre) çekiyoruz — App Store Connect'te
   // tanımladığımız aboneliğin şu anki gerçek fiyatı, kullanıcının kendi bölgesine/para birimine
   // göre burada otomatik doğru geliyor (kodda sabit bir fiyat yazmıyoruz).
-  const [offeringErrorDetail, setOfferingErrorDetail] = useState(""); // GEÇİCİ — sorun bulunca kaldırılacak
-
   useEffect(() => {
     getCurrentOffering()
       .then((offering) => {
         const pkg = offering?.availablePackages?.[0] || null;
         setOfferingPkg(pkg);
+        // ÖNEMLİ: Ham RevenueCat hata/tanı metnini kullanıcıya HİÇBİR ZAMAN göstermiyoruz —
+        // sadece konsola logluyoruz, arayüzde offeringError bayrağı üzerinden nazik bir
+        // "şu an kullanılamıyor" mesajına dönüşüyor (bkz. purchaseBtnText).
         if (!pkg) {
           setOfferingError(true);
-          setOfferingErrorDetail(offering ? "offering var ama içinde paket yok" : "offering hiç gelmedi (current=null)");
+          console.warn("[Premium] offering paketi yok:", offering ? "offering var ama içinde paket yok" : "offering hiç gelmedi (current=null)");
         }
       })
-      .catch((e) => { setOfferingError(true); setOfferingErrorDetail(e.message || String(e)); });
+      .catch((e) => { setOfferingError(true); console.warn("[Premium] offering yüklenemedi:", e.message || e); });
   }, []);
 
   // ÖNEMLİ: TasteMate/AI gibi yerlerde günlük hakkı dolan kullanıcı "Premium'a Geç" dediğinde,
@@ -117,6 +137,7 @@ export default function PremiumScreen({ navigation, route }) {
   }
 
   const isPremium = status?.isPremium;
+  const reasonCopy = !isPremium ? REASON_COPY[route?.params?.reason] : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -130,13 +151,13 @@ export default function PremiumScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <Crown size={32} color="#fff" />
-          <Text style={styles.heroTitle}>{isPremium ? "Premium Aktif" : "pellix Premium"}</Text>
+          <Text style={styles.heroTitle}>{isPremium ? "Premium Aktif" : reasonCopy?.title || "pellix Premium"}</Text>
           {isPremium ? (
             <Text style={styles.heroSubtitle}>
               {new Date(status.premiumUntil).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} tarihine kadar sınırsız kullan.
             </Text>
           ) : (
-            <Text style={styles.heroSubtitle}>Sınırsız AI önerisi ve TasteMate — haftalık</Text>
+            <Text style={styles.heroSubtitle}>{reasonCopy?.subtitle || "Sınırsız AI önerisi ve TasteMate — haftalık"}</Text>
           )}
         </LinearGradient>
 
@@ -173,7 +194,7 @@ export default function PremiumScreen({ navigation, route }) {
             <Text style={styles.referralHint}>
               {referrals.totalCompleted > 0
                 ? `${referrals.totalCompleted} arkadaşınla eşleştin, ödülünü kazandın 🎉`
-                : "Kodunu paylaş, MatchParty'de eşleşince +5 AI hakkı kazan."}
+                : "Kodunu paylaş, MatchParty'de eşleşince ikiniz de AI hakkı kazanın."}
             </Text>
             <View style={styles.limitRow}>
               <Text style={styles.limitLabel}>Davet edilen</Text>
@@ -196,6 +217,32 @@ export default function PremiumScreen({ navigation, route }) {
           ))}
         </View>
 
+        {/* PM2 — ücretsiz/premium farkını iki ayrı karttan çıkarmak yerine tek tabloda gösteriyoruz. */}
+        {!isPremium && (
+          <View style={styles.compareCard}>
+            <View style={styles.compareHeaderRow}>
+              <Text style={[styles.compareHeaderCell, { flex: 1.4, textAlign: "left" }]}> </Text>
+              <Text style={styles.compareHeaderCell}>Ücretsiz</Text>
+              <Text style={[styles.compareHeaderCell, { color: "#F59E0B" }]}>Premium</Text>
+            </View>
+            {COMPARISON_ROWS.map((row, i) => (
+              <View key={i} style={[styles.compareRow, i === COMPARISON_ROWS.length - 1 && { borderBottomWidth: 0 }]}>
+                <Text style={[styles.compareLabel, { flex: 1.4 }]}>{row.label}</Text>
+                <View style={styles.compareCell}>
+                  {typeof row.free === "boolean" ? (
+                    row.free ? <Check size={14} color={c.dim} /> : <Minus size={14} color={c.dim} />
+                  ) : <Text style={styles.compareCellText}>{row.free}</Text>}
+                </View>
+                <View style={styles.compareCell}>
+                  {typeof row.premium === "boolean" ? (
+                    row.premium ? <Check size={14} color="#F59E0B" /> : <Minus size={14} color={c.dim} />
+                  ) : <Text style={[styles.compareCellText, { color: "#F59E0B", fontWeight: "800" }]}>{row.premium}</Text>}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {!isPremium && (
           <TouchableOpacity style={styles.purchaseBtn} onPress={handlePurchase} disabled={purchasing || !offeringPkg}>
             {purchasing ? (
@@ -208,22 +255,35 @@ export default function PremiumScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        {/* GEÇİCİ TANILAMA — sorun bulunca kaldırılacak */}
-        {!!offeringErrorDetail && (
-          <Text selectable style={{ color: c.danger, fontSize: 10, marginTop: 8, textAlign: "center" }}>
-            Tanı: {offeringErrorDetail}
-          </Text>
-        )}
-
         {!isPremium && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreLink}>
             <Text style={styles.restoreLinkText}>{restoring ? "Kontrol ediliyor..." : "Satın Almaları Geri Yükle"}</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity onPress={() => navigation.navigate("WeeklyQuests")} style={styles.questsLink}>
-          <Text style={styles.questsLinkText}>Haftalık görevleri tamamlayarak da 3 günlük Premium kazanabilirsin →</Text>
-        </TouchableOpacity>
+        {/* Otomatik yenilenen abonelik içeren ekranlarda Gizlilik Politikası/Kullanım
+            Şartları'na satın alma noktasına yakın bir bağlantı zorunlu (App Store Guideline 3.1.2). */}
+        {!isPremium && (
+          <View style={styles.legalLinksRow}>
+            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/privacy`)}>Gizlilik Politikası</Text>
+            <Text style={styles.legalLinksDot}>·</Text>
+            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/terms`)}>Kullanım Şartları</Text>
+          </View>
+        )}
+
+        {/* PM3 — eskiden alt bilgide tek satırlık bir bağlantıydı, şimdi kendi kartı var. */}
+        {!isPremium && (
+          <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate("WeeklyQuests")} style={styles.questsCardShadow}>
+            <LinearGradient colors={["#0EA5E9", "#6366F1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.questsCard}>
+              <View style={styles.questsIconWrap}><Gift size={20} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.questsCardTitle}>Ücretsiz de kazanabilirsin</Text>
+                <Text style={styles.questsCardSubtitle}>Haftalık görevleri tamamla, 3 günlük Premium kazan</Text>
+              </View>
+              <ChevronRight size={18} color="rgba(255,255,255,0.85)" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -260,7 +320,28 @@ function makeStyles(c) {
     purchaseBtnText: { color: c.bg, fontWeight: "800", fontSize: 15 },
     restoreLink: { marginTop: 14, alignItems: "center" },
     restoreLinkText: { fontSize: 12.5, color: c.dim, fontWeight: "600" },
-    questsLink: { marginTop: 16, alignItems: "center" },
-    questsLinkText: { fontSize: 12, color: c.accent, fontWeight: "600", textAlign: "center" },
+    legalLinksRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 10 },
+    legalLinkText: { fontSize: 11, color: c.dim, fontWeight: "600", textDecorationLine: "underline" },
+    legalLinksDot: { fontSize: 11, color: c.dim },
+
+    compareCard: {
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
+      padding: 14, marginTop: 16,
+    },
+    compareHeaderRow: { flexDirection: "row", paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+    compareHeaderCell: { flex: 1, fontSize: 10.5, fontWeight: "800", color: c.dim, textAlign: "center" },
+    compareRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
+    compareLabel: { fontSize: 12, color: c.text, fontWeight: "600" },
+    compareCell: { flex: 1, alignItems: "center", justifyContent: "center" },
+    compareCellText: { fontSize: 11.5, color: c.dim, fontWeight: "600" },
+
+    questsCardShadow: {
+      marginTop: 16, borderRadius: 16,
+      shadowColor: "#6366F1", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
+    },
+    questsCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, padding: 14 },
+    questsIconWrap: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+    questsCardTitle: { fontSize: 13, fontWeight: "800", color: "#fff" },
+    questsCardSubtitle: { fontSize: 10.5, color: "rgba(255,255,255,0.9)", marginTop: 2, lineHeight: 14 },
   });
 }

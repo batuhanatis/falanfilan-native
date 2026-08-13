@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Dimensions, Animated, Alert, Keyboard } from "react-native";
+import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Dimensions, Animated, Alert, Keyboard, Platform } from "react-native";
 import { Search, Filter, Sparkles, Flame, Clock, X, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { GENRE_FILTERS } from "../theme/theme";
 import MovieCard from "../components/MovieCard";
-import ChipRow from "../components/ChipRow";
-import PlatformChipRow from "../components/PlatformChipRow";
 import PopularNowRow from "../components/PopularNowRow";
 import { platformName, platformLogo } from "../utils/platform";
+import { yearMatchesLabel } from "../utils/filterYears";
 import { recommendationReason } from "../utils/recommend";
 import TopBar from "../components/TopBar";
 import SendToFriendModal from "../components/SendToFriendModal";
 import ListPickerModal from "../components/ListPickerModal";
 import AIZone from "../components/AIZone";
+import EmptyState from "../components/EmptyState";
+import FilterFields from "../components/FilterFields";
+import IslandModal from "../components/IslandModal";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const FEED_TABS = [
@@ -47,11 +49,14 @@ export default function HomeScreen({ navigation }) {
   const [searchResults, setSearchResults] = useState(null); // null = arama aktif değil
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const searchBoxRef = useRef(null);
+  const [dropdownTop, setDropdownTop] = useState(null);
 
   const [showFilters, setShowFilters] = useState(false);
   const [typeFilter, setTypeFilter] = useState("Hepsi");
   const [genreFilter, setGenreFilter] = useState(null);
   const [platformFilters, setPlatformFilters] = useState(new Set());
+  const [yearFilters, setYearFilters] = useState(new Set());
 
   // "Şu An Popüler" şeridi — kişiselleştirilmiş akıştan TAMAMEN bağımsız, sadece TÜR filtresine
   // göre değişiyor (kategori/platform filtrelerinden etkilenmiyor, kasıtlı olarak). ÖNEMLİ:
@@ -124,6 +129,34 @@ export default function HomeScreen({ navigation }) {
   function goToPage(i) {
     setActivePage(i);
     pagerRef.current?.scrollTo({ x: i * SCREEN_W, animated: true });
+  }
+
+  // ÖNEMLİ (HM1 — sekme çizgisi artık kaydırmayla birlikte kayıyor): Eskiden alt çizgi
+  // sadece onMomentumScrollEnd'de (kaydırma bitince) sekme değiştiriyordu — parmakla kaydırma
+  // sırasında hiç hareket etmiyordu, aniden zıplıyormuş gibi duruyordu. Artık pager'ın gerçek
+  // scroll pozisyonunu native sürücüyle (JS thread'i meşgul etmeden) izleyip çizgiyi sürekli
+  // interpole ediyoruz — parmakla birebir aynı hizada kayıyor.
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const TAB_W = SCREEN_W / FEED_TABS.length;
+  const UNDERLINE_W = 28;
+  const underlineTranslateX = scrollX.interpolate({
+    inputRange: FEED_TABS.map((_, i) => i * SCREEN_W),
+    outputRange: FEED_TABS.map((_, i) => i * TAB_W + TAB_W / 2 - UNDERLINE_W / 2),
+  });
+
+  // ÖNEMLİ (Android'de "Şu An Popüler" şeridinin kilitlenmesi düzeltmesi): PopularNowRow da bu
+  // pager gibi YATAY bir ScrollView. iOS, aynı eksende iç içe iki kaydırılabilir alanı touch'un
+  // hangisine ait olduğuna göre doğru çözüyor, Android'de ise dıştaki pager jesti kapıp Popüler
+  // şeridini kullanılamaz hale getiriyor. nestedScrollEnabled bunu çözmüyor (o dikey/yatay
+  // çakışması için, bkz. aşağıdaki FlatList). Çözüm: kullanıcı Popüler şeridine dokunduğu sürece
+  // pager'ı SADECE Android'de scrollEnabled=false yapıp bırakınca geri açıyoruz — iOS bu koddan
+  // hiç etkilenmiyor.
+  const [pagerScrollEnabled, setPagerScrollEnabled] = useState(true);
+  function handlePopularTouchStart() {
+    if (Platform.OS === "android") setPagerScrollEnabled(false);
+  }
+  function handlePopularTouchEnd() {
+    if (Platform.OS === "android") setPagerScrollEnabled(true);
   }
   // AI sonucu geldiğinde otomatik olarak Önerilenler sayfasına dön — arama artık ayrı bir
   // dropdown olduğu için (bkz. headerContent) hangi sayfada olursan ol açılabiliyor, sayfa
@@ -259,6 +292,11 @@ export default function HomeScreen({ navigation }) {
     else api.recordInteraction(auth.token, id, "watchlist").catch(() => {});
   }
 
+  // PERF — `recommendationReason` id->film aramasını Map ile O(1) yapabilsin diye (bkz.
+  // utils/recommend.js). movies büyüdükçe (loadMore) yeniden kuruluyor ama tek seferde O(n),
+  // her satır için değil.
+  const moviesById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);
+
   const availablePlatformObjs = useMemo(() => {
     const byName = new Map();
     movies.forEach((m) => (m.platforms || []).forEach((p) => {
@@ -281,13 +319,25 @@ export default function HomeScreen({ navigation }) {
     // yanlışlıkla dışarıda kalıyordu. "genres" (çoğul, TÜM türleri içeren dizi) kullanıyoruz.
     if (genreFilter) list = list.filter((m) => (Array.isArray(m.genres) && m.genres.length > 0 ? m.genres.includes(genreFilter) : m.genre === genreFilter));
     if (platformFilters.size > 0) list = list.filter((m) => (m.platforms || []).some((p) => platformFilters.has(platformName(p))));
+    if (yearFilters.size > 0) list = list.filter((m) => [...yearFilters].some((label) => yearMatchesLabel(m.year, label)));
     return list;
-  }, [movies, typeFilter, genreFilter, platformFilters]);
+  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters]);
 
-  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0;
-  function clearFilters() { setTypeFilter("Hepsi"); setGenreFilter(null); setPlatformFilters(new Set()); }
+  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0 || yearFilters.size > 0;
+  function clearFilters() {
+    setTypeFilter("Hepsi"); setGenreFilter(null); setPlatformFilters(new Set()); setYearFilters(new Set());
+  }
   function togglePlatform(name) {
     setPlatformFilters((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  }
+  function toggleYear(label) {
+    setYearFilters((prev) => { const n = new Set(prev); n.has(label) ? n.delete(label) : n.add(label); return n; });
+  }
+  // "Sürpriz Seç" — grup/kullanıcı ne izleyeceğine karar veremiyorsa rastgele bir tür seçip
+  // öneriyor (MatchParty daveti ve "Zevkine Göre Öner"deki AYNI buton, bkz. FilterFields).
+  function shuffleGenre() {
+    const next = GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)];
+    setGenreFilter(next);
   }
 
   const list = describeResults ? describeResults.slice(0, describeCount) : filteredList;
@@ -314,42 +364,9 @@ export default function HomeScreen({ navigation }) {
     if (ids.length > 0) fetchStatsFor(ids);
   }, [spotlight, fetchStatsFor]);
 
-  // Ana Sayfa'nın kişiselleştirilmiş 2 sütunlu ızgarası için — sadece poster + beğen butonu.
-  // Beğenmeme/listeye ekleme/gönderme/yorum gibi diğer aksiyonlar artık sadece Detay sayfasında.
-  function renderCompactCard({ item, index }) {
-    return (
-      <MovieCard
-        movie={item}
-        liked={liked.has(item.id)}
-        onLike={like}
-        onPress={(m) => navigation.navigate("Detail", { movie: m })}
-        reason={!describeResults && index < 8 ? recommendationReason(item, liked, movies) : null}
-        compact
-      />
-    );
-  }
-
-  function renderMovieCard({ item, index }) {
-    return (
-      <MovieCard
-        movie={item}
-        liked={liked.has(item.id)}
-        disliked={disliked.has(item.id)}
-        watchlisted={watchlist.has(item.id)}
-        onLike={like}
-        onDislike={dislike}
-        onAddToList={setPickerMovie}
-        onSend={setSendMovie}
-        onPress={(m) => navigation.navigate("Detail", { movie: m })}
-        reason={!describeResults && index < 8 ? recommendationReason(item, liked, movies) : null}
-        stats={socialStats[item.id]}
-      />
-    );
-  }
-
   // Bir içerik için "Beni Bilgilendir" aboneliğini açar/kapatır — sunucuya gitmeden önce
   // arayüzü hemen güncelliyoruz (optimistic update), sorun çıkarsa geri alıyoruz.
-  async function toggleNotify(movieId) {
+  const toggleNotify = useCallback(async (movieId) => {
     const wasSubscribed = notifySubs.has(movieId);
     setNotifySubs((prev) => {
       const next = new Set(prev);
@@ -365,29 +382,74 @@ export default function HomeScreen({ navigation }) {
         return next;
       });
     }
-  }
+  }, [notifySubs, auth.token]);
+
+  // PERF — MovieCard artık React.memo'lu (bkz. components/MovieCard.js); bunun işe yaraması
+  // için ona geçirdiğimiz onLike/onDislike/onPress gibi callback'lerin referansı HİÇ
+  // değişmemeli. like/dislike/navigation gibi değerler her render'da yeniden kurulduğundan,
+  // bunları doğrudan prop olarak geçmek yerine sabit sarmalayıcılar üzerinden, en güncel
+  // halini bir ref'ten okuyarak veriyoruz — sarmalayıcının kendisi hiç değişmiyor.
+  const latestRef = useRef({});
+  latestRef.current = { like, dislike, toggleNotify, setPickerMovie, setSendMovie, navigation };
+  const stableActions = useRef({
+    onLike: (id) => latestRef.current.like(id),
+    onDislike: (id) => latestRef.current.dislike(id),
+    onAddToList: (m) => latestRef.current.setPickerMovie(m),
+    onSend: (m) => latestRef.current.setSendMovie(m),
+    onPress: (m) => latestRef.current.navigation.navigate("Detail", { movie: m }),
+    onNotify: (id) => latestRef.current.toggleNotify(id),
+  }).current;
+
+  // Ana Sayfa'nın kişiselleştirilmiş 2 sütunlu ızgarası için — sadece poster + beğen butonu.
+  // Beğenmeme/listeye ekleme/gönderme/yorum gibi diğer aksiyonlar artık sadece Detay sayfasında.
+  const renderCompactCard = useCallback(({ item, index }) => (
+    <MovieCard
+      movie={item}
+      liked={liked.has(item.id)}
+      disliked={disliked.has(item.id)}
+      onLike={stableActions.onLike}
+      onDislike={stableActions.onDislike}
+      onPress={stableActions.onPress}
+      reason={!describeResults && index < 8 ? recommendationReason(item, liked, moviesById) : null}
+      compact
+    />
+  ), [liked, disliked, describeResults, moviesById, stableActions]);
+
+  const renderMovieCard = useCallback(({ item, index }) => (
+    <MovieCard
+      movie={item}
+      liked={liked.has(item.id)}
+      disliked={disliked.has(item.id)}
+      watchlisted={watchlist.has(item.id)}
+      onLike={stableActions.onLike}
+      onDislike={stableActions.onDislike}
+      onAddToList={stableActions.onAddToList}
+      onSend={stableActions.onSend}
+      onPress={stableActions.onPress}
+      reason={!describeResults && index < 8 ? recommendationReason(item, liked, moviesById) : null}
+      stats={socialStats[item.id]}
+    />
+  ), [liked, disliked, watchlist, describeResults, moviesById, socialStats, stableActions]);
 
   // "Yakında Çıkacaklar" sayfasına özel — diğer kartlardan farklı olarak bir zil/bildirim
   // butonu gösteriyor, henüz yayınlanmamış içerikler için beğeni/beğenmeme anlamsız olduğundan.
-  function renderUpcomingCard({ item, index }) {
-    return (
-      <MovieCard
-        movie={item}
-        liked={liked.has(item.id)}
-        disliked={disliked.has(item.id)}
-        watchlisted={watchlist.has(item.id)}
-        onLike={like}
-        onDislike={dislike}
-        onAddToList={setPickerMovie}
-        onSend={setSendMovie}
-        onPress={(m) => navigation.navigate("Detail", { movie: m })}
-        stats={socialStats[item.id]}
-        showNotify
-        notifySubscribed={notifySubs.has(item.id)}
-        onNotify={toggleNotify}
-      />
-    );
-  }
+  const renderUpcomingCard = useCallback(({ item }) => (
+    <MovieCard
+      movie={item}
+      liked={liked.has(item.id)}
+      disliked={disliked.has(item.id)}
+      watchlisted={watchlist.has(item.id)}
+      onLike={stableActions.onLike}
+      onDislike={stableActions.onDislike}
+      onAddToList={stableActions.onAddToList}
+      onSend={stableActions.onSend}
+      onPress={stableActions.onPress}
+      stats={socialStats[item.id]}
+      showNotify
+      notifySubscribed={notifySubs.has(item.id)}
+      onNotify={stableActions.onNotify}
+    />
+  ), [liked, disliked, watchlist, socialStats, notifySubs, stableActions]);
 
   function selectSearchResult(m) {
     setQuery("");
@@ -396,44 +458,93 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate("Detail", { movie: m });
   }
 
-  // ÖNEMLİ (dropdown'un dokunulamaması/kaydırılamaması düzeltmesi): Bu, eskiden arama kutusuyla
-  // birlikte FlatList'in ListHeaderComponent'i İÇİNDE, "position: absolute" ile render ediliyordu.
-  // Bu iç içe (FlatList içinde kaydırılabilir bir ScrollView) yapı, dokunma/kaydırma jestlerinin
-  // hangi bileşene ait olduğu konusunda React Native'in jest çözümleyicisini karıştırıyordu —
-  // dropdown'daki satırlara dokunmak Detay'a gitmiyordu, listenin kendisi de kaydırılamıyordu.
-  // Çözüm: arama kutusu + dropdown'ı TAMAMEN dışarı, sayfalar arası kaydırılan pager'ın ÜSTÜNE,
-  // sabit (kaydırılmayan) bir satıra taşıdık — artık FlatList'in hiç İÇİNDE değil, onun bir
-  // KARDEŞİ. Aynı zamanda arama artık hangi sekmede olursan ol her zaman görünür/erişilebilir.
+  // ÖNEMLİ (geçmiş — İKİNCİ düzeltme): Dropdown önce FlatList'in TAMAMEN dışına, pager'ın ÜSTÜNE
+  // sabit bir satır olarak taşınmıştı — "aşağı kaydırınca hep ekranda asılı kalıyor" şikayetine
+  // yol açtı. Sonra header'ın normal, kayan bir parçası (düz View, kendi scroll'u yok) yapıldı —
+  // ama bu sefer satırlara dokunma güvenilir çalışmadı: dropdown, yatay SAYFALAMALI (pagingEnabled)
+  // pager ScrollView'ının İÇİNDEKİ bir FlatList'in header'ında yaşıyordu, dokunuşlar bu dış
+  // ScrollView'ın jest tanıma katmanından geçmek zorunda kalıyordu. Şimdi: arama KUTUSU hâlâ
+  // header'ın normal, kayan bir parçası (aşağı kaydırınca donuk kalmasın diye) — ama SONUÇLAR artık
+  // pager'ın TAMAMEN DIŞINDA, bağımsız bir overlay (bkz. aşağıdaki dropdownTop ölçümü + return
+  // içindeki mutlak konumlu render). Böylece dropdown satırlarına dokunmak hiçbir ScrollView/
+  // FlatList jest ağacından geçmiyor, çakışma ihtimali kalmıyor.
   const dropdownOpen = searchFocused && query.trim().length > 0;
   const dropdownResults = (searchResults || []).slice(0, 8);
 
+  // Dropdown açılırken: aktif listeyi en üste kaydırıp arama kutusunun ekrandaki konumunu SABİT
+  // hale getiriyoruz, sonra gerçek konumunu ölçüp overlay'i tam altına yerleştiriyoruz.
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const refs = [mainListRef, newReleasesListRef, upcomingListRef];
+    refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: false });
+    const raf = requestAnimationFrame(() => {
+      searchBoxRef.current?.measureInWindow((x, y, width, height) => {
+        setDropdownTop(y + height + 8);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [dropdownOpen, activePage]);
+
   const headerContent = (
     <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
-      {showFilters && (
-        <View style={styles.filterPanel}>
-          <View style={styles.filterHeaderRow}>
-            <Text style={styles.filterTitle}>Filtrele</Text>
-            {anyFilterActive && (
-              <TouchableOpacity onPress={clearFilters}><Text style={styles.clearText}>Temizle</Text></TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.filterLabel}>TÜR</Text>
-          <ChipRow items={["Film", "Dizi"]} active={typeFilter === "Hepsi" ? null : typeFilter}
-            onSelect={(v) => setTypeFilter(v === typeFilter ? "Hepsi" : v)} />
-
-          <Text style={styles.filterLabel}>KATEGORİ</Text>
-          <ChipRow items={GENRE_FILTERS} active={genreFilter}
-            onSelect={(v) => setGenreFilter(v === genreFilter ? null : v)} />
-
-          {availablePlatformObjs.length > 0 && (
-            <>
-              <Text style={styles.filterLabel}>PLATFORM</Text>
-              <PlatformChipRow items={availablePlatformObjs} activeSet={platformFilters} onToggle={togglePlatform} />
-            </>
+      <View style={styles.searchRow}>
+        <View ref={searchBoxRef} style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
+          <Search size={16} color={searchFocused ? c.accent : c.dim} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Film veya dizi ara"
+            placeholderTextColor={c.dim}
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => setSearchFocused(true)}
+            // ÖNEMLİ: Dropdown'daki bir satıra dokunulduğunda TextInput önce odağını kaybediyor —
+            // onBlur BURADA senkron çalışsaydı dropdown, satırın onPress'i tetiklenmeden ÖNCE
+            // kaybolur, bu da hem dokunmayı hem kaydırma jestini "yutardı". Kısa bir gecikme,
+            // dokunmanın tamamlanmasına yetecek kadar zaman tanıyor.
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <X size={15} color={c.dim} />
+            </TouchableOpacity>
           )}
         </View>
-      )}
+        <TouchableOpacity
+          style={[styles.filterBtn, showFilters && { backgroundColor: c.accent }]}
+          onPress={() => setShowFilters((v) => !v)}
+        >
+          <Filter size={16} color={showFilters ? c.bg : c.text} />
+          {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
+        </TouchableOpacity>
+      </View>
+
+      {/* ÖNEMLİ: Eskiden sayfaya gömülü, açılınca altındaki her şeyi aşağı iten bir akordeon
+          paneldi — artık ekranın ortasında kendi başına beliren bir "ada" (IslandModal), ne
+          alttan ne üstten kayıyor. Aynı bileşen (FilterFields) MatchParty davetinde ve "Zevkine
+          Göre Öner"de de kullanılıyor — üç ayrı filtre implementasyonu yerine tek kaynak. */}
+      <IslandModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        title="Filtrele"
+        icon={Filter}
+        gradientColors={["#7C3AED", "#DB2777", "#F97316"]}
+        subtitle="Ana sayfa akışını daralt"
+      >
+        <FilterFields
+          typeValue={typeFilter}
+          onTypeChange={setTypeFilter}
+          genreValue={genreFilter}
+          onGenreChange={setGenreFilter}
+          yearSet={yearFilters}
+          onToggleYear={toggleYear}
+          platformSet={platformFilters}
+          onTogglePlatform={togglePlatform}
+          platforms={availablePlatformObjs}
+          onShuffleGenre={shuffleGenre}
+          anyActive={anyFilterActive}
+          onClear={clearFilters}
+        />
+      </IslandModal>
 
       {/* Yapay Zeka Köşesi — artık izole bir bileşen (AIZone.js), Ana Sayfa'nın geri kalanını
           yeniden render etmeden kendi içinde açılıp kapanıyor. */}
@@ -476,77 +587,22 @@ export default function HomeScreen({ navigation }) {
         {FEED_TABS.map(({ icon: Icon, label }, i) => (
           <TouchableOpacity key={label} onPress={() => goToPage(i)} style={styles.feedTabBtn}>
             <Icon size={20} color={activePage === i ? c.accent : c.dim} />
-            {activePage === i && <View style={styles.feedTabUnderline} />}
           </TouchableOpacity>
         ))}
+        <Animated.View
+          style={[styles.feedTabUnderline, { transform: [{ translateX: underlineTranslateX }] }]}
+          pointerEvents="none"
+        />
       </View>
 
-      {/* Arama kutusu + dropdown — artık sabit, hiçbir FlatList'in İÇİNDE değil (bkz. yukarıdaki
-          not). "zIndex" bu bloğun altındaki pager'ın ÜSTÜNDE boyanmasını garanti ediyor. */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, zIndex: 30 }}>
-        <View style={styles.searchRow}>
-          <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
-            <Search size={16} color={searchFocused ? c.accent : c.dim} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Film veya dizi ara"
-              placeholderTextColor={c.dim}
-              value={query}
-              onChangeText={setQuery}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={15} color={c.dim} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[styles.filterBtn, showFilters && { backgroundColor: c.accent }]}
-            onPress={() => setShowFilters((v) => !v)}
-          >
-            <Filter size={16} color={showFilters ? c.bg : c.text} />
-            {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
-          </TouchableOpacity>
-        </View>
-
-        {dropdownOpen && (
-          <View style={styles.dropdown}>
-            {searchLoading ? (
-              <ActivityIndicator style={{ paddingVertical: 22 }} color={c.accent} />
-            ) : dropdownResults.length === 0 ? (
-              <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
-            ) : (
-              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 340 }}>
-                {dropdownResults.map((m) => (
-                  <TouchableOpacity key={m.id} style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
-                    {m.poster ? (
-                      <Image source={{ uri: m.poster }} style={styles.dropdownPoster} />
-                    ) : (
-                      <View style={[styles.dropdownPoster, { backgroundColor: c.surface2 }]} />
-                    )}
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.dropdownTitle} numberOfLines={1}>{m.title}</Text>
-                      <Text style={styles.dropdownMeta} numberOfLines={1}>{m.year} · {m.type}</Text>
-                    </View>
-                    <View style={styles.dropdownRating}>
-                      <Star size={10} color={c.accent} fill={c.accent} />
-                      <Text style={styles.dropdownRatingText}>{m.imdb}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        )}
-      </View>
-
-      <ScrollView
+      <Animated.ScrollView
         ref={pagerRef}
         horizontal
         pagingEnabled
+        scrollEnabled={pagerScrollEnabled}
         showsHorizontalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={(e) => setActivePage(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
         style={{ flex: 1 }}
       >
@@ -565,10 +621,18 @@ export default function HomeScreen({ navigation }) {
             // varsayılan olarak dış dikey listeye kaptırıyor, iOS'ta bu sorun yok — bu prop
             // sadece Android'de etkili, iOS'ta no-op.
             nestedScrollEnabled
+            // Arama kutusu header'a taşındığı için: klavye açıkken dropdown satırına dokunmak
+            // artık önce klavyeyi kapatıp tıklamayı yutmasın diye.
+            keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <>
                 {headerContent}
-                <PopularNowRow items={popularNow} onPress={(m) => navigation.navigate("Detail", { movie: m })} />
+                <PopularNowRow
+                  items={popularNow}
+                  onPress={(m) => navigation.navigate("Detail", { movie: m })}
+                  onTouchStart={handlePopularTouchStart}
+                  onTouchEnd={handlePopularTouchEnd}
+                />
               </>
             }
             renderItem={renderCompactCard}
@@ -587,9 +651,16 @@ export default function HomeScreen({ navigation }) {
             data={spotlight.newReleases}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            keyboardShouldPersistTaps="handled"
             ListHeaderComponent={headerContent}
             renderItem={renderMovieCard}
-            ListEmptyComponent={<Text style={styles.emptyPageText}>Şu an yeni çıkan bir şey bulunamadı.</Text>}
+            ListEmptyComponent={
+              <EmptyState
+                icon={Flame}
+                title="Şu an gösterimde bir şey yok"
+                text="Vizyondaki/yayındaki içerikler burada toplanır — yakında yenileri eklenecek."
+              />
+            }
           />
         </View>
 
@@ -600,12 +671,52 @@ export default function HomeScreen({ navigation }) {
             data={spotlight.upcoming}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            keyboardShouldPersistTaps="handled"
             ListHeaderComponent={headerContent}
             renderItem={renderUpcomingCard}
-            ListEmptyComponent={<Text style={styles.emptyPageText}>Şu an yakında çıkacak bir şey bulunamadı.</Text>}
+            ListEmptyComponent={
+              <EmptyState
+                icon={Clock}
+                title="Yakında çıkacak bir şey görünmüyor"
+                text="Bir şey duyurulduğunda burada göreceksin — o zamana kadar 'Beni Bilgilendir' ile abone olduklarını takip edebilirsin."
+              />
+            }
           />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+
+      {/* Arama sonuçları — pager/FlatList'lerin TAMAMEN DIŞINDA, bağımsız bir overlay (bkz.
+          dropdownTop ölçümü). Hiçbir ScrollView'ın jest ağacına dahil olmadığı için satırlara
+          dokunma her zaman güvenilir çalışıyor. */}
+      {dropdownOpen && dropdownTop != null && (
+        <View style={[styles.dropdown, styles.dropdownOverlay, { top: dropdownTop }]}>
+          {searchLoading ? (
+            <ActivityIndicator style={{ paddingVertical: 22 }} color={c.accent} />
+          ) : dropdownResults.length === 0 ? (
+            <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
+          ) : (
+            <View>
+              {dropdownResults.map((m) => (
+                <TouchableOpacity key={m.id} style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
+                  {m.poster ? (
+                    <Image source={{ uri: m.poster }} style={styles.dropdownPoster} />
+                  ) : (
+                    <View style={[styles.dropdownPoster, { backgroundColor: c.surface2 }]} />
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.dropdownTitle} numberOfLines={1}>{m.title}</Text>
+                    <Text style={styles.dropdownMeta} numberOfLines={1}>{m.year} · {m.type}</Text>
+                  </View>
+                  <View style={styles.dropdownRating}>
+                    <Star size={10} color={c.accent} fill={c.accent} />
+                    <Text style={styles.dropdownRatingText}>{m.imdb}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}
       {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}
@@ -636,12 +747,20 @@ function makeStyles(c) {
     filterDot: { position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2 },
 
     // Arama dropdown'u — kutunun hemen altında, listeye hiç dokunmadan açılıp kapanıyor.
+    // ÖNEMLİ: Eskiden "position: absolute" ile arama kutusunun ÜZERİNDE yüzen, altındaki içeriği
+    // itmeyen bir panel olarak tasarlanmıştı (o zamanlar arama kutusu sabit/"frozen" bir satırdı,
+    // pager'ın hiç etkilenmemesi gerekiyordu). Artık dropdown header'ın normal, kayan bir parçası
+    // — akışın İÇİNDE, altındaki filtre/AI köşesini/listeyi doğal olarak aşağı itiyor. Bu, "aşağı
+    // kaydırdıkça sabit kalmasın" isteğiyle zaten tutarlı: her şey birlikte kayıyor.
     dropdown: {
-      position: "absolute", top: "100%", left: 0, right: 0, marginTop: 8,
+      marginTop: 8,
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
       shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 16, elevation: 12,
       overflow: "hidden",
     },
+    // dropdownTop ölçümü zaten arama kutusunun altına +8 boşluk bırakıyor, o yüzden marginTop
+    // burada sıfırlanıyor (yoksa çift boşluk olurdu).
+    dropdownOverlay: { position: "absolute", left: 16, right: 16, marginTop: 0, zIndex: 50, elevation: 20 },
     dropdownEmpty: { fontSize: 12, color: c.dim, textAlign: "center", paddingVertical: 22, paddingHorizontal: 16 },
     dropdownRow: {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10,
@@ -652,13 +771,6 @@ function makeStyles(c) {
     dropdownMeta: { fontSize: 11, color: c.dim, marginTop: 2 },
     dropdownRating: { flexDirection: "row", alignItems: "center", gap: 3 },
     dropdownRatingText: { fontSize: 11, fontWeight: "800", color: c.text },
-    filterPanel: {
-      marginTop: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16,
-    },
-    filterHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-    filterTitle: { fontWeight: "800", fontSize: 14, color: c.text },
-    clearText: { color: c.accent, fontSize: 11, fontWeight: "700" },
-    filterLabel: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 4 },
     toggleRow: {
       flexDirection: "row", alignItems: "center", marginTop: 16, paddingTop: 14,
       borderTopWidth: 1, borderTopColor: c.border, gap: 10,
@@ -677,7 +789,8 @@ function makeStyles(c) {
 
     feedTabRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg },
     feedTabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
-    feedTabUnderline: { height: 2, width: 28, backgroundColor: c.accent, borderRadius: 999, marginTop: 8 },
-    emptyPageText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 30 },
+    // Artık tek, kayan bir çizgi (bkz. underlineTranslateX) — sabit alt kenara oturuyor, üç
+    // sekmenin de ortak sınırında (feedTabRow'un borderBottomWidth'iyle aynı hizada).
+    feedTabUnderline: { position: "absolute", bottom: 0, left: 0, height: 2, width: 28, backgroundColor: c.accent, borderRadius: 999 },
   });
 }

@@ -26,7 +26,7 @@ export default function InviteFriendScreen({ navigation }) {
   useEffect(() => { load(); }, [load]);
 
   const storeLink = getStoreLink();
-  const inviteMessage = `${auth.name} seni pellix'e davet ediyor! 🎬\n\nArkadaşlarınla birlikte kaydırıp saniyeler içinde ne izleyeceğinize karar verin.\n\nKayıt olurken "Davet Kodu" alanına şunu yaz: ${auth.username}${storeLink ? `\n\n${storeLink}` : ""}`;
+  const inviteMessage = `${auth.name} seni pellix'e davet ediyor! 🎬\n\nArkadaşlarınla birlikte kaydırıp saniyeler içinde ne izleyeceğinize karar verin. Kayıt olup MatchParty'de eşleştiğinizde SEN de +3 ekstra AI önerisi hakkı kazanırsın 🎁\n\nKayıt olurken "Davet Kodu" alanına şunu yaz: ${auth.username}${storeLink ? `\n\n${storeLink}` : ""}`;
 
   async function copyCode() {
     await Clipboard.setStringAsync(auth.username);
@@ -60,11 +60,34 @@ export default function InviteFriendScreen({ navigation }) {
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <PartyPopper size={30} color="#fff" />
-          <Text style={styles.heroTitle}>Arkadaşını getir, ödül kazan</Text>
-          <Text style={styles.heroSubtitle}>
-            Davet ettiğin arkadaşınla MatchParty'de bir filmde eşleştiğinizde +5 ekstra AI önerisi hakkı kazanırsın.
-          </Text>
+          <Text style={styles.heroTitle}>Arkadaşını getir, ikiniz de kazanın</Text>
+          {/* RF1 — ödül artık düz bir cümle içine gömülü değil, kendi görsel ağırlığı olan
+              bir çift rozet: sen +5, arkadaşın +3 AI hakkı kazanıyor. */}
+          <View style={styles.rewardPillRow}>
+            <View style={styles.rewardPill}>
+              <Text style={styles.rewardPillEmoji}>🎁</Text>
+              <Text style={styles.rewardPillText}>Sana +5 AI</Text>
+            </View>
+            <View style={styles.rewardPill}>
+              <Text style={styles.rewardPillEmoji}>🎉</Text>
+              <Text style={styles.rewardPillText}>Ona +3 AI</Text>
+            </View>
+          </View>
         </LinearGradient>
+
+        {/* RF2 — ödül koşulu artık tek bir cümlede gizli değil, adım adım açık. */}
+        <View style={styles.stepsCard}>
+          {[
+            "Davet kodunu arkadaşınla paylaş",
+            "Arkadaşın kayıt olurken kodu girsin",
+            "MatchParty'de bir filmde eşleşin — ikiniz de ödülü anında alır",
+          ].map((step, i) => (
+            <View key={i} style={styles.stepRow}>
+              <View style={styles.stepNumWrap}><Text style={styles.stepNum}>{i + 1}</Text></View>
+              <Text style={styles.stepText}>{step}</Text>
+            </View>
+          ))}
+        </View>
 
         <Text style={styles.sectionLabel}>DAVET KODUN</Text>
         <View style={styles.codeCard}>
@@ -130,6 +153,24 @@ function makeStyles(c) {
     heroCard: { borderRadius: 22, padding: 24, alignItems: "center" },
     heroTitle: { fontSize: 18, fontWeight: "800", color: "#fff", marginTop: 10, textAlign: "center" },
     heroSubtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.92)", marginTop: 8, textAlign: "center", lineHeight: 18 },
+    rewardPillRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+    rewardPill: {
+      flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.2)",
+      borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
+    },
+    rewardPillEmoji: { fontSize: 13 },
+    rewardPillText: { fontSize: 11.5, fontWeight: "800", color: "#fff" },
+    stepsCard: {
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
+      padding: 14, marginTop: 14, gap: 12,
+    },
+    stepRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    stepNumWrap: {
+      width: 22, height: 22, borderRadius: 999, backgroundColor: c.surface2,
+      alignItems: "center", justifyContent: "center", flexShrink: 0,
+    },
+    stepNum: { fontSize: 11, fontWeight: "800", color: c.dim },
+    stepText: { flex: 1, fontSize: 12, color: c.text, lineHeight: 17 },
     sectionLabel: { fontSize: 11, fontWeight: "800", color: c.dim, letterSpacing: 1, marginTop: 26, marginBottom: 10 },
     codeCard: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",

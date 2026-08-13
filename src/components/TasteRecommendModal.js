@@ -1,29 +1,35 @@
 import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TouchableWithoutFeedback } from "react-native";
+import { Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { X, Wand2 } from "lucide-react-native";
+import { Wand2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
-import DismissableSheet from "./DismissableSheet";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
-import { GENRE_FILTERS, COMMON_PLATFORMS } from "../theme/theme";
-import ChipRow from "./ChipRow";
+import { YEAR_OPTIONS } from "../utils/filterYears";
+import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
+import IslandModal from "./IslandModal";
+import FilterFields from "./FilterFields";
+import LoadingLines from "./LoadingLines";
 
-// Görünen etiket -> backend'in beklediği anahtar eşlemesi.
-const YEAR_OPTIONS = [
-  ["1990 öncesi", "before1990"],
-  ["1990'lar", "1990s"],
-  ["2000'ler", "2000s"],
-  ["2010'lar", "2010s"],
-  ["2020 ve sonrası", "2020s"],
-];
+// AI2 — "Bana Bir Şey Öner" tıklanınca ne olduğunu hissettiren, dönen mikro-metin — sıradan bir
+// spinnerden farklı olsun diye (bkz. G2).
+const TASTE_LOADING_LINES = ["Zevkini analiz ediyorum…", "Kataloğu tarıyorum…", "Uygun olanları eliyorum…"];
 
+// Hem başlık şeridinde hem alttaki CTA'da kullanılan AYNI gradyan — buton artık başlıktan
+// kopuk, düz altın bir renk değil, aynı "Zevkine Göre Öner" kimliğini taşıyor.
+const BRAND_GRADIENT = ["#8e2de2", "#4a00e0", "#00c9ff"];
+
+// ÖNEMLİ: Eskiden bu kendi bottom-sheet'i olan, Ana Sayfa'nın filtre paneli ve MatchParty
+// davetiyle hiç ilgisi olmayan üçüncü bir filtre implementasyonuydu. Artık ikisiyle AYNI
+// paylaşılan FilterFields + IslandModal ("adacık" — ortada beliren, ne alttan ne üstten kayan
+// modal) çiftini kullanıyor — sadece kendi API çağrısı/yükleniyor durumu farklı.
 export default function TasteRecommendModal({ onClose, onResults, navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const commonPlatforms = useCommonPlatforms();
   const [genre, setGenre] = useState(null);
   const [type, setType] = useState(null);
-  const [yearLabels, setYearLabels] = useState(new Set()); // görünen etiketler tutuluyor
+  const [yearLabels, setYearLabels] = useState(new Set());
   const [platforms, setPlatforms] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,7 +68,7 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
       if (e.limitReached && navigation) {
         Alert.alert("Günlük hakkın doldu", e.message, [
           { text: "Tamam", style: "cancel" },
-          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium"); } },
+          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium", { reason: "ai_limit" }); } },
         ]);
       }
     }
@@ -70,69 +76,52 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
   }
 
   return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
-          <LinearGradient colors={["#8e2de2", "#4a00e0", "#00c9ff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
-            <View style={styles.header}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Wand2 size={18} color="#fff" />
-                <Text style={styles.headerTitle}>Zevkine Göre Öner</Text>
-              </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color="#fff" /></TouchableOpacity>
-            </View>
-            <Text style={styles.headerSubtitle}>Geçmişte beğendiklerine bakıp sana özel bir liste buluruz</Text>
-          </LinearGradient>
+    <IslandModal
+      visible
+      onClose={onClose}
+      title="Zevkine Göre Öner"
+      icon={Wand2}
+      gradientColors={BRAND_GRADIENT}
+      subtitle="Geçmişte beğendiklerine bakıp sana özel bir liste buluruz"
+    >
+      <FilterFields
+        typeValue={type || "Hepsi"}
+        onTypeChange={(v) => setType(v === "Hepsi" ? null : v)}
+        genreValue={genre}
+        onGenreChange={setGenre}
+        yearSet={yearLabels}
+        onToggleYear={toggleYear}
+        platformSet={platforms}
+        onTogglePlatform={togglePlatform}
+        platforms={commonPlatforms}
+      />
 
-          <View style={{ padding: 20 }}>
-            <Text style={styles.label}>TÜR (opsiyonel)</Text>
-            <ChipRow items={GENRE_FILTERS} active={genre} onSelect={(v) => setGenre(v === genre ? null : v)} />
+      {/* AI2 — filtrelerin hepsi boşken sonucun nereden geleceği belirsizdi ("kara kutu"
+          hissi); artık ne olacağını açıkça söylüyoruz. */}
+      {!genre && !type && yearLabels.size === 0 && platforms.size === 0 && (
+        <Text style={styles.helperText}>Boş bırakırsan geçmiş beğenilerine göre öneririz.</Text>
+      )}
 
-            <Text style={styles.label}>İÇERİK TİPİ (opsiyonel)</Text>
-            <ChipRow items={["Film", "Dizi"]} active={type} onSelect={(v) => setType(v === type ? null : v)} />
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-            <Text style={styles.label}>YAPIM YILI (opsiyonel, birden fazla seçilebilir)</Text>
-            <ChipRow
-              items={YEAR_OPTIONS.map(([label]) => label)}
-              isActive={(label) => yearLabels.has(label)}
-              onSelect={toggleYear}
-            />
-
-            <Text style={styles.label}>PLATFORM (opsiyonel, birden fazla seçilebilir)</Text>
-            <ChipRow
-              items={COMMON_PLATFORMS}
-              isActive={(name) => platforms.has(name)}
-              onSelect={togglePlatform}
-            />
-
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-            <TouchableOpacity style={styles.goBtn} onPress={getRecommendation} disabled={loading}>
-              {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.goBtnText}>Bana Bir Şey Öner</Text>}
-            </TouchableOpacity>
-          </View>
-        </DismissableSheet>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      <TouchableOpacity activeOpacity={0.88} onPress={getRecommendation} disabled={loading}>
+        <LinearGradient colors={BRAND_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
+          {loading ? (
+            <LoadingLines lines={TASTE_LOADING_LINES} style={styles.goBtnText} />
+          ) : (
+            <Text style={styles.goBtnText}>Bana Bir Şey Öner</Text>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    </IslandModal>
   );
 }
 
 function makeStyles(c) {
   return StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-    sheet: { backgroundColor: c.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden" },
-    headerGradient: { padding: 20 },
-    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-    headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 6 },
-    closeBtn: { width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-    label: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 14 },
+    helperText: { color: c.dim, fontSize: 11, marginTop: 16, fontStyle: "italic" },
     errorText: { color: c.danger, fontSize: 11, marginTop: 12 },
-    goBtn: { marginTop: 20, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    goBtnText: { color: "#14121a", fontWeight: "800", fontSize: 13 },
+    goBtn: { marginTop: 20, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+    goBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   });
 }

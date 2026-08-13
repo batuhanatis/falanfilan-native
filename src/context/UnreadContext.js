@@ -3,7 +3,7 @@ import { useAuth } from "./AuthContext";
 import { useWS } from "./WSContext";
 import { api } from "../api/client";
 import { saveChatList, eagerChatListResult, eagerChatListPromise } from "../utils/chatListDb";
-import { prefetchAllChats } from "../utils/chatMessagesPrefetch";
+import { prefetchAllChats, appendPrefetchedMessage } from "../utils/chatMessagesPrefetch";
 
 const UnreadContext = createContext(null);
 
@@ -42,7 +42,14 @@ export function UnreadProvider({ children }) {
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const unsub = subscribe((msg) => { if (msg.type === "message") refresh(); });
+    const unsub = subscribe((msg) => {
+      if (msg.type !== "message") return;
+      refresh();
+      // Bu sohbet önceden önbelleğe alınmışsa (bkz. prefetchAllChats), önbelleği de canlı
+      // tutuyoruz — yoksa o sohbete tıklayınca ilk karede az önce gelen bu mesaj eksik görünüp
+      // bir an sonra beliriyordu.
+      if (msg.chat_id != null && msg.message) appendPrefetchedMessage(msg.chat_id, msg.message);
+    });
     return unsub;
   }, [subscribe, refresh]);
 

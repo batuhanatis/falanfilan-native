@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles } from "lucide-react-native";
+import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
+import { hexToRgba } from "../utils/color";
+import { backgroundBlurAndDim } from "../utils/profileBackground";
 import RetryImage from "../components/RetryImage";
 import ReportUserModal from "../components/ReportUserModal";
+import ImageLightbox from "../components/ImageLightbox";
 
 export default function OtherProfileScreen({ route, navigation }) {
   const { c } = useAppTheme();
@@ -45,6 +48,7 @@ export default function OtherProfileScreen({ route, navigation }) {
   const [busy, setBusy] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showAvatarLightbox, setShowAvatarLightbox] = useState(false);
 
   const load = useCallback(() => {
     if (!userId) return; // henüz kullanıcı adı çözülmediyse (dış bağlantı akışı) bekle
@@ -75,7 +79,22 @@ export default function OtherProfileScreen({ route, navigation }) {
   async function startChat() {
     try {
       const { chat_id } = await api.chatWith(auth.token, userId);
-      navigation.navigate("Chat", { screen: "ChatConversation", params: { chatId: chat_id, friendId: userId, friendName: profile.name, friendAvatar: avatarOr(profile.avatarUrl, userId) } });
+      // ÖNEMLİ: OtherProfile, kök stack'te MainTabs'ın KARDEŞİ (içinde değil) — "Chat" adı
+      // sadece MainTabs'ın bir sekmesi olarak var. Doğrudan navigation.navigate("Chat", ...)
+      // kök stack'te böyle bir rota bulamadığı için sessizce hiçbir şey yapmıyordu (boş ekran
+      // gibi görünüyordu). Önce MainTabs'a, sonra onun içindeki Chat sekmesine iniyoruz.
+      //
+      // ÖNEMLİ DÜZELTME (2): Sohbetler sekmesi bu oturumda hiç ziyaret edilmediyse, doğrudan
+      // "ChatConversation"a atlamak ChatList'i hiç OLUŞTURMADAN o sekmenin TEK rotası yapıyordu
+      // — geri tuşu Ana Sayfa'ya düşüyordu, alt sekmeden tekrar Sohbetler'e basınca da hep AYNI
+      // sohbet açılıyordu (App.js'teki push bildirimi akışında AYNI hatayı zaten çözmüştük,
+      // buradaki de birebir aynı kök neden). Önce ChatList'i temel olarak kuruyoruz, hemen
+      // ardından (liste artık temelde dururken) sohbeti ÜSTÜNE ekliyoruz.
+      const friendParams = { chatId: chat_id, friendId: userId, friendName: profile.name, friendAvatar: avatarOr(profile.avatarUrl, userId) };
+      navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
+      setTimeout(() => {
+        navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: friendParams } });
+      }, 300);
     } catch {}
   }
 
@@ -114,9 +133,24 @@ export default function OtherProfileScreen({ route, navigation }) {
     );
   }
 
+  // Arkadaşının profil teması da (Premium'sa, bir tane üretmişse) kendi profilindeki AYNI
+  // muameleyi görüyor — kapak fotoğrafından bağımsız, sayfanın kaydırılan içeriğinin ARKASINDA
+  // sabit duran, ağır karartılmış/bulanık bir "duvar kağıdı" (bkz. ProfileScreen.js'deki aynı
+  // yaklaşımın gerekçesi).
+  const showPremiumBackground = !!(profile.isPremium && profile.profileBackgroundUrl);
+  // Belirginlik profil sahibinin kendi tercihi — bkz. GET /api/users/:id'deki
+  // profileBackgroundIntensity, utils/profileBackground.js.
+  const { blurRadius: bgBlurRadius, dim: bgDim } = backgroundBlurAndDim(profile.profileBackgroundIntensity);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
+      {showPremiumBackground && (
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <Image source={{ uri: profile.profileBackgroundUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={bgBlurRadius} />
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: hexToRgba(c.bg, bgDim) }]} />
+        </View>
+      )}
+      <View style={[styles.header, showPremiumBackground && { backgroundColor: "transparent", borderBottomColor: "transparent" }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
@@ -136,19 +170,31 @@ export default function OtherProfileScreen({ route, navigation }) {
         </View>
       )}
 
-      <ScrollView>
-        <View
-          style={[
-            styles.cover,
-            profile.coverUrl ? { backgroundColor: c.surface2 } : { backgroundColor: c.accent },
-          ]}
-        >
+      <ScrollView style={showPremiumBackground && { backgroundColor: "transparent" }}>
+        <View style={[styles.cover, { backgroundColor: profile.coverUrl ? c.surface2 : c.accent }]}>
           {profile.coverUrl && <RetryImage source={{ uri: profile.coverUrl }} style={StyleSheet.absoluteFillObject} />}
         </View>
 
         <View style={{ padding: 20 }}>
           <View style={styles.topRow}>
-            <RetryImage source={{ uri: avatarOr(profile.avatarUrl, profile.id) }} style={styles.avatar} />
+            {/* PM1 — Premium artık profilde de görünen bir kimlik: altın çerçeve + taç rozeti.
+                Gerçek bir fotoğrafı varsa dokununca tam boyutta görülebiliyor — yoksa (bkz.
+                utils/avatar.js, artık sahte/rastgele bir fotoğraf üretmiyor) gösterecek gerçek
+                bir şey olmadığı için dokunma etkisiz. */}
+            <TouchableOpacity
+              activeOpacity={profile.avatarUrl ? 0.85 : 1}
+              onPress={() => profile.avatarUrl && setShowAvatarLightbox(true)}
+            >
+              <RetryImage
+                source={{ uri: avatarOr(profile.avatarUrl, profile.id) }}
+                style={[styles.avatar, profile.isPremium && styles.avatarPremiumRing]}
+              />
+              {profile.isPremium && (
+                <View style={styles.premiumCrownBadge}>
+                  <Crown size={11} color="#111" fill="#111" />
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{profile.friendCount}</Text>
@@ -301,6 +347,9 @@ export default function OtherProfileScreen({ route, navigation }) {
       )}
 
       {showReport && <ReportUserModal userId={userId} userName={profile.name} onClose={() => setShowReport(false)} />}
+      {showAvatarLightbox && profile.avatarUrl && (
+        <ImageLightbox uri={profile.avatarUrl} onClose={() => setShowAvatarLightbox(false)} />
+      )}
     </View>
   );
 }
@@ -358,6 +407,11 @@ function makeStyles(c) {
     cover: { height: 90 },
     topRow: { flexDirection: "row", alignItems: "center", gap: 16 },
     avatar: { width: 76, height: 76, borderRadius: 999, marginTop: -40, borderWidth: 4, borderColor: c.bg },
+    avatarPremiumRing: { borderColor: "#F5C518" },
+    premiumCrownBadge: {
+      position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: 999,
+      backgroundColor: "#F5C518", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg,
+    },
     statsRow: { flex: 1, flexDirection: "row", justifyContent: "space-evenly" },
     statBox: { alignItems: "center" },
     statNum: { fontSize: 18, fontWeight: "800", color: c.text },

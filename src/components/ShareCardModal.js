@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share } from "react-native";
+import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated } from "react-native";
 import ViewShot from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
 import { X, Share2, Download, Check } from "lucide-react-native";
@@ -17,7 +17,17 @@ const APP_LINK = "https://www.pellix.app";
 // özel formatta yazmak/algılatmak tutarlı sonuç vermedi). "Diğer Uygulamalarla Paylaş" (gerçek
 // link+metin paylaşımı) hâlâ duruyor, WhatsApp/Mesajlar/Instagram'ın kendi genel paylaşım
 // menüsü üzerinden çalışıyor.
-export default function ShareCardModal({ onClose, children, shareMessage, shareUrl = APP_LINK }) {
+//
+// PR6 — `pages` (opsiyonel, React node dizisi): Profil kartı gibi BİRDEN FAZLA görsel varyantı
+// olan durumlar için — ör. Premium'un AI temalı kartı VE varsayılan (temasız) kartı. Verilirse,
+// karta HER DOKUNUŞ bir sonraki varyanta geçiyor (baştan sona döngü) — o an EKRANDA GÖRÜNEN
+// varyant hangisiyse Kaydet/Paylaş onu yakalıyor. ÖNEMLİ (geçmiş): Bu ÖNCE yatay bir kaydırma
+// jestiydi (PanResponder) — ama DismissableSheet'in "aşağı çekince kapat" jestiyle SÜREKLİ
+// çakıştı (handleOnly ve hatta DismissableSheet'i tamamen devre dışı bırakmak bile yetmedi,
+// muhtemelen üstteki TouchableWithoutFeedback katmanlarıyla ilişkiliydi). Basit bir dokunuş,
+// hiçbir gesture-negotiation riski taşımadığı için kesin çalışıyor — ayrıca DismissableSheet'in
+// aşağı-çekerek-kapatması da artık HİÇBİR kullanımda (Blend/MatchParty/Profil) engellenmiyor.
+export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK }) {
   const { c } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = makeStyles(c);
@@ -25,6 +35,22 @@ export default function ShareCardModal({ onClose, children, shareMessage, shareU
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const items = pages && pages.length > 0 ? pages : null;
+  const isMultiPage = !!(items && items.length > 1);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  function cycleCard() {
+    if (!isMultiPage) return;
+    const nextIndex = (activeIndexRef.current + 1) % items.length;
+    activeIndexRef.current = nextIndex;
+    Animated.timing(fadeAnim, { toValue: 0, duration: 90, useNativeDriver: true }).start(() => {
+      setActiveIndex(nextIndex);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    });
+  }
 
   // ÖNEMLİ DÜZELTME: Önceki halinde bu buton expo-sharing kullanıyordu — o SADECE dosya (PNG)
   // paylaşabiliyor, metin+link birlikte paylaşamıyor. "Link olarak açılsın" isteği için, film
@@ -65,9 +91,24 @@ export default function ShareCardModal({ onClose, children, shareMessage, shareU
 
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={{}} showGrabber={false}>
-              <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>
-                {children}
-              </ViewShot>
+              <TouchableWithoutFeedback onPress={cycleCard} disabled={!isMultiPage}>
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>
+                    {items ? items[activeIndex] : children}
+                  </ViewShot>
+                </Animated.View>
+              </TouchableWithoutFeedback>
+
+              {isMultiPage && (
+                <>
+                  <View style={styles.dotsRow}>
+                    {items.map((_, i) => (
+                      <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+                    ))}
+                  </View>
+                  <Text style={styles.swipeHint}>Farklı bir görünüm için karta dokun</Text>
+                </>
+              )}
 
               <View style={[styles.btnRow, { marginBottom: insets.bottom }]}>
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
@@ -96,6 +137,10 @@ function makeStyles(c) {
   return StyleSheet.create({
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
     closeBtn: { position: "absolute", top: Platform.OS === "ios" ? 56 : 30, right: 20, zIndex: 10, padding: 8 },
+    dotsRow: { flexDirection: "row", gap: 6, alignSelf: "center", marginTop: 14 },
+    dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)" },
+    dotActive: { backgroundColor: "#fff", width: 16 },
+    swipeHint: { color: "rgba(255,255,255,0.55)", fontSize: 11, textAlign: "center", marginTop: 8 },
     btnRow: { flexDirection: "row", gap: 14, marginTop: 18, alignItems: "center" },
     saveBtn: {
       width: 46, height: 46, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)",

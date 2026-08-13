@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { View, Text, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { UserPlus, Bell } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -15,12 +15,14 @@ export default function TopBar({ centerLabel }) {
   const { auth } = useAuth();
   const { subscribe } = useWS();
   const navigation = useNavigation();
-  const [hasUnread, setHasUnread] = useState(false);
+  // HM6 — eskiden ikisi de sadece "var/yok" gösteren düz bir nokta idi, 3 bekleyen istekle
+  // 12 bekleyen istek aynı görünüyordu. Artık gerçek sayı taşınıyor (bkz. BadgeDot altında).
+  const [unreadCount, setUnreadCount] = useState(0);
   const [pendingRequests, setPendingRequests] = useState(0);
   const styles = makeStyles(c);
 
   const refresh = useCallback(() => {
-    api.notifications(auth.token).then((data) => setHasUnread((data.results || []).some((n) => !n.read))).catch(() => {});
+    api.notifications(auth.token).then((data) => setUnreadCount((data.results || []).filter((n) => !n.read).length)).catch(() => {});
     api.friends(auth.token).then((data) => setPendingRequests((data.requests || []).length)).catch(() => {});
   }, [auth.token]);
 
@@ -56,15 +58,38 @@ export default function TopBar({ centerLabel }) {
         <View style={styles.actions}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate("FriendSearch")}>
             <UserPlus size={16} color={c.text} />
-            {pendingRequests > 0 && <View style={styles.badge} />}
+            <BadgeCount count={pendingRequests} styles={styles} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate("Notifications")}>
             <Bell size={16} color={c.text} />
-            {hasUnread && <View style={styles.badge} />}
+            <BadgeCount count={unreadCount} styles={styles} />
           </TouchableOpacity>
         </View>
       </View>
     </View>
+  );
+}
+
+// HM6 — 0'dan >0'a geçerken küçük bir sıçramayla beliriyor, sessizce pat diye çıkmıyor.
+function BadgeCount({ count, styles }) {
+  const scale = useRef(new Animated.Value(count > 0 ? 1 : 0)).current;
+  const prevPositive = useRef(count > 0);
+  useEffect(() => {
+    const isPositive = count > 0;
+    if (isPositive && !prevPositive.current) {
+      scale.setValue(0);
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 16 }).start();
+    } else {
+      scale.setValue(isPositive ? 1 : 0);
+    }
+    prevPositive.current = isPositive;
+  }, [count > 0]);
+
+  if (count <= 0) return null;
+  return (
+    <Animated.View style={[styles.badge, count > 9 ? styles.badgeWide : null, { transform: [{ scale }] }]}>
+      <Text style={styles.badgeText}>{count > 9 ? "9+" : count}</Text>
+    </Animated.View>
   );
 }
 
@@ -92,8 +117,11 @@ function makeStyles(c) {
       borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center",
     },
     badge: {
-      position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 999,
+      position: "absolute", top: -4, right: -4, minWidth: 15, height: 15, borderRadius: 999,
       backgroundColor: c.danger, borderWidth: 1.5, borderColor: c.bg,
+      alignItems: "center", justifyContent: "center", paddingHorizontal: 2,
     },
+    badgeWide: { minWidth: 18, paddingHorizontal: 3 },
+    badgeText: { fontSize: 9, fontWeight: "800", color: "#fff", includeFontPadding: false },
   });
 }

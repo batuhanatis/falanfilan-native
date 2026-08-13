@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -7,9 +8,12 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { platformName, platformLogo } from "../utils/platform";
 import { avatarOr } from "../utils/avatar";
+import { hapticLight, hapticSuccess } from "../utils/haptics";
 import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
+
+const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 // Poster ARTIK sabit boyutta — sadece panel, TRANSFORM (translateY) ile üstüne kayıyor/açılıyor.
@@ -45,6 +49,48 @@ export default function DetailScreen({ route, navigation }) {
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [extra, setExtra] = useState({ director: null, cast: [], similar: [] });
   const scrollRef = useRef(null);
+
+  // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
+  const likeScale = useRef(new Animated.Value(1)).current;
+  function popLike() {
+    Animated.sequence([
+      Animated.spring(likeScale, { toValue: 1.3, useNativeDriver: true, speed: 40, bounciness: 16 }),
+      Animated.spring(likeScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }),
+    ]).start();
+  }
+
+  // DT2 — favori yıldızına basınca kısa bir parıltı sıçraması.
+  const favScale = useRef(new Animated.Value(1)).current;
+
+  // DT4 — favori işaretlenince (sessizce de beğeni sayan bir birleşik aksiyon) kısa bir onay.
+  const [favToast, setFavToast] = useState(false);
+  const favToastOpacity = useRef(new Animated.Value(0)).current;
+  function showFavToast() {
+    setFavToast(true);
+    Animated.sequence([
+      Animated.timing(favToastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(favToastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => setFavToast(false));
+  }
+
+  // DT3 — sürüklenebilir poster-panel mekaniği ilk kez görülüyorsa tutamacı bir kere
+  // hafifçe zıplatıp "buradan sürükleyebilirsin" ipucu veriyoruz; bir daha gösterilmiyor.
+  const handleBounce = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    AsyncStorage.getItem(DETAIL_HINT_KEY).then((seen) => {
+      if (seen) return;
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.timing(handleBounce, { toValue: -10, duration: 260, useNativeDriver: true }),
+        Animated.spring(handleBounce, { toValue: 0, useNativeDriver: true, bounciness: 18 }),
+        Animated.delay(150),
+        Animated.timing(handleBounce, { toValue: -6, duration: 220, useNativeDriver: true }),
+        Animated.spring(handleBounce, { toValue: 0, useNativeDriver: true, bounciness: 18 }),
+      ]).start();
+      AsyncStorage.setItem(DETAIL_HINT_KEY, "1").catch(() => {});
+    }).catch(() => {});
+  }, []);
 
   // Yorum kutusu panelin en altında olduğu için klavye açılınca gizleniyordu. Çözüm: klavyenin
   // yüksekliğini takip edip hem panele o kadar EKSTRA boşluk bırakıyoruz (kutu gerçekten
@@ -154,12 +200,15 @@ export default function DetailScreen({ route, navigation }) {
 
   function like() {
     const wasLiked = liked;
+    hapticLight();
+    if (!wasLiked) popLike();
     setLiked((v) => !v); setDisliked(false);
     if (wasLiked) api.removeInteraction(auth.token, movie.id, "like").catch(() => {});
     else api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
   }
   function dislike() {
     const wasDisliked = disliked;
+    hapticLight();
     setDisliked((v) => !v); setLiked(false);
     if (wasDisliked) api.removeInteraction(auth.token, movie.id, "dislike").catch(() => {});
     else api.recordInteraction(auth.token, movie.id, "dislike").catch(() => {});
@@ -168,6 +217,7 @@ export default function DetailScreen({ route, navigation }) {
   async function toggleFavorite() {
     if (favBusy) return;
     setFavBusy(true);
+    const becomingFavorite = !isFavorite;
     try {
       await api.updateFavorite(auth.token, isFavorite ? { movie_id: null, type: movie.type } : { movie_id: movie.id });
       if (movie.type === "Film") setFavMovieId(isFavorite ? null : movie.id);
@@ -176,6 +226,16 @@ export default function DetailScreen({ route, navigation }) {
       if (!isFavorite && !liked) {
         setLiked(true); setDisliked(false);
         api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
+      }
+      if (becomingFavorite) {
+        // DT2/DT4 — özel, tek kişilik bir slota bir şey atarken sadece renk değişmesin diye
+        // kısa bir parıltı sıçraması + "favorin oldu" onayı.
+        hapticSuccess();
+        Animated.sequence([
+          Animated.spring(favScale, { toValue: 1.08, useNativeDriver: true, speed: 30, bounciness: 10 }),
+          Animated.spring(favScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }),
+        ]).start();
+        showFavToast();
       }
     } catch { /* sessizce geç */ }
     setFavBusy(false);
@@ -241,7 +301,9 @@ export default function DetailScreen({ route, navigation }) {
 
         <View style={[styles.sheetBg, { backgroundColor: c.bg, flex: 1 }]}>
           <View {...panResponder.panHandlers} style={styles.handleWrap}>
-            <View style={[styles.handle, { backgroundColor: c.dim }]} />
+            <Animated.View style={{ transform: [{ translateY: handleBounce }] }}>
+              <View style={[styles.handle, { backgroundColor: c.dim }]} />
+            </Animated.View>
             <View style={styles.peek}>
               <Text style={styles.title} numberOfLines={1}>{movie.title}</Text>
               <View style={styles.ratingRow}>
@@ -290,6 +352,65 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
+          {/* Aksiyon butonları (like/dislike/paylaş/favorile) — eskiden oyuncular ve benzer
+              içeriklerin ALTINDA, yorumların hemen üstünde duruyordu; kullanıcı içeriği
+              beğenmek/kaydetmek için önce cast+benzer içerikleri geçmek zorunda kalıyordu.
+              Artık platform bilgisinin hemen altında, oyuncular/benzer içeriklerin hemen
+              üzerinde — ilk bakışta görülüyor. */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={[styles.actionMain, liked && { backgroundColor: c.accent2, borderColor: c.accent2 }]} onPress={like}>
+              <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+                <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
+              </Animated.View>
+              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Like</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
+              <X size={16} color={disliked ? "#fff" : c.text} />
+              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Dislike</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
+              <Bookmark size={16} color={c.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
+              <Send size={16} color={c.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* DT2 — favori tek kişilik, özel bir slot; artık diğer aksiyon kareleriyle aynı düz
+              ağırlıkta değil, aktifken altın bir gradyan + basınca kısa bir parıltı sıçraması var. */}
+          <Animated.View style={{ transform: [{ scale: favScale }] }}>
+            <TouchableOpacity onPress={toggleFavorite} disabled={favBusy} activeOpacity={0.85}>
+              {isFavorite ? (
+                <LinearGradient
+                  colors={["#FFD76A", "#c9a44c", "#9c7530"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[styles.favBtn, { borderColor: "transparent" }]}
+                >
+                  <Star size={15} color="#14121a" fill="#14121a" />
+                  <Text style={[styles.favBtnText, { color: "#14121a" }]}>
+                    {movie.type === "Film" ? "Favori Filmin — kaldırmak için dokun" : "Favori Dizin — kaldırmak için dokun"}
+                  </Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.favBtn}>
+                  <Star size={15} color={c.text} fill="none" />
+                  <Text style={styles.favBtnText}>
+                    {movie.type === "Film" ? "Favori Filmin Yap" : "Favori Dizin Yap"}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+
+          {favToast && (
+            <Animated.View style={[styles.favToast, { opacity: favToastOpacity }]}>
+              <Star size={12} color="#14121a" fill="#14121a" />
+              <Text style={styles.favToastText}>Favorin oldu!</Text>
+            </Animated.View>
+          )}
+
+          <View style={styles.divider} />
+
           {(extra.director || extra.cast.length > 0) && (
             <View style={{ marginTop: 18 }}>
               {extra.director && (
@@ -330,38 +451,6 @@ export default function DetailScreen({ route, navigation }) {
               </ScrollView>
             </View>
           )}
-
-          <View style={styles.divider} />
-
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.actionMain, liked && { backgroundColor: c.accent2, borderColor: c.accent2 }]} onPress={like}>
-              <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
-              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Like</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
-              <X size={16} color={disliked ? "#fff" : c.text} />
-              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Dislike</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
-              <Bookmark size={16} color={c.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
-              <Send size={16} color={c.text} />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.favBtn, isFavorite && { backgroundColor: c.accent, borderColor: "transparent" }]}
-            onPress={toggleFavorite}
-            disabled={favBusy}
-          >
-            <Star size={15} color={isFavorite ? "#14121a" : c.text} fill={isFavorite ? "#14121a" : "none"} />
-            <Text style={[styles.favBtnText, isFavorite && { color: "#14121a" }]}>
-              {isFavorite
-                ? (movie.type === "Film" ? "Favori Filmin — kaldırmak için dokun" : "Favori Dizin — kaldırmak için dokun")
-                : (movie.type === "Film" ? "Favori Filmin Yap" : "Favori Dizin Yap")}
-            </Text>
-          </TouchableOpacity>
 
           <View style={{ marginTop: 22 }}>
             <Text style={styles.commentsTitle}>Yorumlar</Text>
@@ -432,7 +521,7 @@ function makeStyles(c) {
     castName: { fontSize: 10, fontWeight: "700", color: c.text, marginTop: 5, textAlign: "center" },
     castCharacter: { fontSize: 9, color: c.dim, marginTop: 1, textAlign: "center" },
     similarPoster: { width: 90, height: 132, borderRadius: 10, marginBottom: 5 },
-    actionsRow: { flexDirection: "row", gap: 10 },
+    actionsRow: { flexDirection: "row", gap: 10, marginTop: 18 },
     actionMain: {
       flex: 1, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 12,
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
@@ -447,6 +536,11 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
     },
     favBtnText: { fontWeight: "700", fontSize: 12, color: c.text },
+    favToast: {
+      flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center", marginTop: 8,
+      backgroundColor: "#FFD76A", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    },
+    favToastText: { fontSize: 11, fontWeight: "800", color: "#14121a" },
     listBtn: {
       marginTop: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 11,
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,

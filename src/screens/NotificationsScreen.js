@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { ChevronLeft, Trash2 } from "lucide-react-native";
+import {
+  ChevronLeft, Trash2, UserPlus, UserCheck, Film, PartyPopper, Gift, ListVideo, Bell,
+} from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { avatarOr } from "../utils/avatar";
+import RetryImage from "../components/RetryImage";
 
 function notificationText(n) {
   const p = n.payload || {};
@@ -15,7 +19,29 @@ function notificationText(n) {
     case "party_accepted": return `${p.by?.name} MatchParty davetini kabul etti — başlıyor!`;
     case "party_declined": return `${p.by?.name} MatchParty davetini reddetti`;
     case "party_match": return `MatchParty'de bir eşleşme buldun: ${p.movie?.title} 🎉`;
+    case "referral_completed": return "Davet tamamlandı — 5 ekstra AI önerisi hakkı kazandın 🎁";
+    case "referral_bonus_received": return "Hoş geldin bonusu — 3 ekstra AI önerisi hakkı kazandın 🎁";
+    case "watchlist_collaborator_added": return `${p.by?.name} seni "${p.listName}" listesine ortak düzenleyici ekledi`;
     default: return "Yeni bildirim";
+  }
+}
+
+// NT1/NT2 — eskiden her bildirim tipi (bir MatchParty eşleşmesi bile) aynı düz gri satırdı,
+// avatar/ikon/renk yoktu — uygulamanın geri kalanında zaten her yerde olan bu dili buraya da
+// taşıyoruz: kimden geldiği (varsa avatarı) + türe özgü renkli bir ikon rozeti.
+function notificationMeta(n) {
+  const p = n.payload || {};
+  switch (n.type) {
+    case "friend_request": return { person: p.from, icon: UserPlus, color: "#c9a44c" };
+    case "friend_accepted": return { person: p.by, icon: UserCheck, color: "#c9a44c" };
+    case "party_invite": return { person: p.from, icon: Film, color: "#DB2777" };
+    case "party_accepted": return { person: p.by, icon: PartyPopper, color: "#7C3AED" };
+    case "party_declined": return { person: p.by, icon: Film, color: "#8f8a9c" };
+    case "party_match": return { person: null, icon: PartyPopper, color: "#F97316", moviePoster: p.movie?.poster };
+    case "referral_completed": return { person: null, icon: Gift, color: "#c9a44c" };
+    case "referral_bonus_received": return { person: null, icon: Gift, color: "#14B8A6" };
+    case "watchlist_collaborator_added": return { person: p.by, icon: ListVideo, color: "#14B8A6" };
+    default: return { person: null, icon: Bell, color: "#8f8a9c" };
   }
 }
 
@@ -104,6 +130,8 @@ export default function NotificationsScreen({ navigation }) {
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
             const clickable = item.type === "party_accepted" || item.type === "party_match";
+            const meta = notificationMeta(item);
+            const Icon = meta.icon;
             return (
               <Swipeable
                 renderRightActions={(progress, dragX) => renderRightActions(item, progress, dragX)}
@@ -114,18 +142,36 @@ export default function NotificationsScreen({ navigation }) {
                   onPress={clickable ? () => handleTap(item) : undefined}
                   activeOpacity={clickable ? 0.7 : 1}
                 >
-                  <Text style={styles.text}>{notificationText(item)}</Text>
-                  {isPartyInvite && (
-                    <View style={styles.actionsRow}>
-                      <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespond(item, true)}>
-                        <Text style={styles.acceptText}>Kabul Et</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespond(item, false)}>
-                        <Text style={styles.declineText}>Reddet</Text>
-                      </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+                    {meta.person ? (
+                      <View>
+                        <RetryImage source={{ uri: avatarOr(meta.person.avatarUrl, meta.person.id) }} style={styles.avatar} />
+                        <View style={[styles.avatarIconBadge, { backgroundColor: meta.color }]}>
+                          <Icon size={9} color="#fff" />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={[styles.typeIconWrap, { backgroundColor: `${meta.color}26` }]}>
+                        <Icon size={16} color={meta.color} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.text}>{notificationText(item)}</Text>
+                      {isPartyInvite && (
+                        <View style={styles.actionsRow}>
+                          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespond(item, true)}>
+                            <Text style={styles.acceptText}>Kabul Et</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespond(item, false)}>
+                            <Text style={styles.declineText}>Reddet</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {busyIds.has(item.id) && item.type === "party_invite" && <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 6 }} />}
                     </View>
-                  )}
-                  {busyIds.has(item.id) && item.type === "party_invite" && <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 6 }} />}
+                    {/* NT3 — party_match bildirimlerinde film posteri veri olarak zaten geliyordu, hiç gösterilmiyordu. */}
+                    {!!meta.moviePoster && <Image source={{ uri: meta.moviePoster }} style={styles.moviePoster} />}
+                  </View>
                 </TouchableOpacity>
               </Swipeable>
             );
@@ -147,6 +193,13 @@ function makeStyles(c) {
     clearAllText: { fontSize: 11, fontWeight: "700", color: c.danger },
     hint: { fontSize: 10, color: c.dim, marginBottom: 10 },
     row: { padding: 12, borderRadius: 10, marginBottom: 4, backgroundColor: c.surface },
+    avatar: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },
+    avatarIconBadge: {
+      position: "absolute", bottom: -3, right: -3, width: 16, height: 16, borderRadius: 999,
+      alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: c.surface,
+    },
+    typeIconWrap: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center" },
+    moviePoster: { width: 32, height: 46, borderRadius: 6, marginLeft: 4 },
     text: { fontSize: 13, color: c.text },
     empty: { color: c.dim, fontSize: 12, textAlign: "center", paddingVertical: 40 },
     actionsRow: { flexDirection: "row", gap: 8, marginTop: 8 },

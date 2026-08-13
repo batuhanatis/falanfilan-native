@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from "rea
 import { Check } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { platformName, platformLogo } from "../utils/platform";
+import { hapticLight } from "../utils/haptics";
 
 // Web'deki PlatformChipRow ile aynı: yazı yerine logo, çoklu seçim, seçiliyse köşede onay rozeti.
 export default function PlatformChipRow({ items, activeSet, onToggle }) {
@@ -20,7 +21,7 @@ export default function PlatformChipRow({ items, activeSet, onToggle }) {
         const logo = platformLogo(p);
         const on = activeSet.has(name);
         return (
-          <TouchableOpacity key={i} onPress={() => onToggle(name)} style={styles.chipWrap}>
+          <TouchableOpacity key={i} onPress={() => { hapticLight(); onToggle(name); }} style={styles.chipWrap}>
             <View style={[styles.chip, on && { borderColor: c.accent }, !logo && { backgroundColor: on ? c.accent : c.surface2 }]}>
               {logo ? (
                 <Image source={{ uri: logo }} style={styles.logo} />

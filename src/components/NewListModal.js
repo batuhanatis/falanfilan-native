@@ -5,6 +5,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import DismissableSheet from "./DismissableSheet";
+import CoverPicker from "./CoverPicker";
 
 // Profil > Listelerim > "Yeni Liste Oluştur" için ayrı bir popup — isim girişinin yanında,
 // kullanıcı listeyi oluştururken aynı anda hızlıca birkaç film de ekleyebilsin diye 12'lik bir
@@ -20,9 +21,11 @@ export default function NewListModal({ visible, onClose, onCreated }) {
   const [loadingMovies, setLoadingMovies] = useState(true);
   const [selected, setSelected] = useState(new Set());
   const [creating, setCreating] = useState(false);
+  const [coverEmoji, setCoverEmoji] = useState(null);
+  const [coverColor, setCoverColor] = useState(null);
 
   useEffect(() => {
-    if (!visible) { setName(""); setSelected(new Set()); return; }
+    if (!visible) { setName(""); setSelected(new Set()); setCoverEmoji(null); setCoverColor(null); return; }
     setLoadingMovies(true);
     api.movies(auth.token, "movie", 1)
       .then((data) => setMovies((data.results || []).slice(0, 12)))
@@ -43,10 +46,10 @@ export default function NewListModal({ visible, onClose, onCreated }) {
     if (!trimmed || creating) return;
     setCreating(true);
     try {
-      const list = await api.createWatchlist(auth.token, trimmed);
+      const list = await api.createWatchlist(auth.token, trimmed, { coverEmoji, coverColor });
       const chosen = movies.filter((m) => selected.has(m.id));
       await Promise.all(chosen.map((m) => api.addToWatchlist(auth.token, list.id, m.id).catch(() => {})));
-      onCreated?.({ ...list, count: chosen.length, previewPoster: chosen[0]?.poster || null, isPublic: false });
+      onCreated?.({ ...list, count: chosen.length, previewPoster: chosen[0]?.poster || null, isPublic: false, coverEmoji, coverColor, isOwner: true });
       onClose();
     } catch {
       setCreating(false);
@@ -78,7 +81,9 @@ export default function NewListModal({ visible, onClose, onCreated }) {
                   autoFocus
                 />
 
-                <Text style={styles.subLabel}>
+                <CoverPicker emoji={coverEmoji} color={coverColor} onChangeEmoji={setCoverEmoji} onChangeColor={setCoverColor} />
+
+                <Text style={[styles.subLabel, { marginTop: 16 }]}>
                   Hızlıca film ekle <Text style={{ opacity: 0.6, fontWeight: "600" }}>(opsiyonel)</Text>
                 </Text>
               </View>

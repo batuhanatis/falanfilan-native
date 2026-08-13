@@ -1,12 +1,84 @@
-import React, { useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Alert, TouchableWithoutFeedback } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
-import { X, Camera, Image as ImageIcon, Star } from "lucide-react-native";
+import { Camera, Image as ImageIcon, Star, Crown } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
-import DismissableSheet from "./DismissableSheet";
+import { hapticSuccess } from "../utils/haptics";
+import IslandModal from "./IslandModal";
+import LoadingLines from "./LoadingLines";
+
+const PHOTO_GRADIENT = ["#f7971e", "#ffd200", "#f857a6"];
+
+// PH1 — "Bul"a basınca artık düz bir buton-içi spinner değil, fotoğrafın üzerinde yukarıdan
+// aşağıya süzülen bir tarama çizgisi + dönen mikro-metin var ("Shazam anı" — bu özelliğin
+// bütün değer önerisi burada, önceden bir yorum listesi yüklemesinden görsel olarak farksızdı).
+const SCAN_LOADING_LINES = ["Kareyi inceliyorum…", "Kataloğa bakıyorum…", "Neredeyse buldum…"];
+
+function ScanOverlay() {
+  const sweep = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 1400, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sweep]);
+  const translateY = sweep.interpolate({ inputRange: [0, 1], outputRange: [0, 220] });
+  return (
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      <Animated.View style={[scanStyles.line, { transform: [{ translateY }] }]} />
+      <View style={scanStyles.tint} />
+    </View>
+  );
+}
+
+const scanStyles = StyleSheet.create({
+  tint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.15)" },
+  line: {
+    position: "absolute", left: 0, right: 0, height: 3, backgroundColor: "#ffd200",
+    shadowColor: "#ffd200", shadowOpacity: 0.9, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+  },
+});
+
+// PH2 — sonuçlar artık .map()'in düz, anlık listelemesi yerine sırayla (kademeli) beliriyor.
+function ResultRow({ m, index, isTop, onPress, styles, c }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
+  useEffect(() => {
+    Animated.sequence([
+      Animated.delay(index * 90),
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 260, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      <TouchableOpacity style={styles.resultRow} onPress={onPress}>
+        {m.poster ? <Image source={{ uri: m.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
+        <View style={{ flex: 1 }}>
+          {/* PH3 — ilk sonuç artık "en iyi eşleşme" rozetiyle öne çıkıyor, diğerleriyle aynı
+              ağırlıkta görünmüyor. */}
+          {isTop && (
+            <View style={styles.topMatchPill}>
+              <Crown size={9} color="#fff" fill="#fff" />
+              <Text style={styles.topMatchPillText}>En iyi eşleşme</Text>
+            </View>
+          )}
+          <Text style={styles.resultTitle} numberOfLines={1}>{m.title}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+            <Star size={10} color={c.accent} fill={c.accent} />
+            <Text style={styles.resultMeta}>{m.imdb} · {m.year} · {m.type}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 export default function PhotoIdentifyModal({ onClose, navigation }) {
   const { c } = useAppTheme();
@@ -48,6 +120,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
       if ((data.results || []).length === 0) {
         setError(data.guess ? `"${data.guess}" olabilir diye düşündüm ama kataloğumuzda bulamadım.` : "Bu fotoğraftan hangi film/dizi olduğunu çıkaramadım, başka bir kare dener misin?");
       } else {
+        hapticSuccess(); // PH4 — fotoğrafın filme dönüştüğü an artık fiziksel olarak da hissediliyor.
         setResults(data.results);
       }
     } catch (e) {
@@ -55,7 +128,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
       if (e.limitReached) {
         Alert.alert("Günlük hakkın doldu", e.message, [
           { text: "Tamam", style: "cancel" },
-          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium"); } },
+          { text: "Premium'a Geç", onPress: () => { onClose(); navigation.navigate("Premium", { reason: "ai_limit" }); } },
         ]);
       }
     }
@@ -68,78 +141,63 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
   }
 
   return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
-          <LinearGradient colors={["#f7971e", "#ffd200", "#f857a6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
-            <View style={styles.header}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <ImageIcon size={18} color="#fff" />
-                <Text style={styles.headerTitle}>Fotoğraftan Bul</Text>
-              </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color="#fff" /></TouchableOpacity>
-            </View>
-            <Text style={styles.headerSubtitle}>Bir sahne/kare yükle, hangi film/diziden olduğunu bulalım. Fotoğraf kaydedilmiyor.</Text>
-          </LinearGradient>
-
-          <View style={{ padding: 20 }}>
-            {imageUri ? (
-              <TouchableOpacity onPress={() => pickImage(false)}>
-                <Image source={{ uri: imageUri }} style={styles.preview} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.pickRow}>
-                <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}>
-                  <Camera size={20} color={c.text} />
-                  <Text style={styles.pickBtnText}>Kamera</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}>
-                  <ImageIcon size={20} color={c.text} />
-                  <Text style={styles.pickBtnText}>Galeri</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-            {imageUri && !results && (
-              <TouchableOpacity style={styles.goBtn} onPress={identify} disabled={loading}>
-                {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.goBtnText}>Bul</Text>}
-              </TouchableOpacity>
-            )}
-
-            {results && results.map((m) => (
-              <TouchableOpacity key={m.id} style={styles.resultRow} onPress={() => openMovie(m)}>
-                {m.poster ? <Image source={{ uri: m.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.resultTitle} numberOfLines={1}>{m.title}</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
-                    <Star size={10} color={c.accent} fill={c.accent} />
-                    <Text style={styles.resultMeta}>{m.imdb} · {m.year} · {m.type}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </DismissableSheet>
-          </TouchableWithoutFeedback>
+    <IslandModal
+      visible
+      onClose={onClose}
+      title="Fotoğraftan Bul"
+      icon={ImageIcon}
+      gradientColors={PHOTO_GRADIENT}
+      subtitle="Bir sahne/kare yükle, hangi film/diziden olduğunu bulalım. Fotoğraf kaydedilmiyor."
+    >
+      {imageUri ? (
+        <TouchableOpacity onPress={() => pickImage(false)} disabled={loading}>
+          <Image source={{ uri: imageUri }} style={styles.preview} />
+          {loading && <ScanOverlay />}
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.pickRow}>
+          <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}>
+            <Camera size={20} color={c.text} />
+            <Text style={styles.pickBtnText}>Kamera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}>
+            <ImageIcon size={20} color={c.text} />
+            <Text style={styles.pickBtnText}>Galeri</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      )}
+
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+      {imageUri && !results && (
+        <TouchableOpacity activeOpacity={0.88} onPress={identify} disabled={loading}>
+          <LinearGradient colors={PHOTO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
+            {loading ? (
+              <LoadingLines lines={SCAN_LOADING_LINES} style={styles.goBtnText} />
+            ) : (
+              <Text style={styles.goBtnText}>Bul</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {results && results.map((m, i) => (
+        <ResultRow key={m.id} m={m} index={i} isTop={i === 0} onPress={() => openMovie(m)} styles={styles} c={c} />
+      ))}
+
+      {/* PH5 — sonuç yanlışsa/eminsen değilse, fotoğrafı baştan seçmeye gerek kalmadan
+          aynı kareyle tekrar deneyebiliyorsun. */}
+      {results && (
+        <TouchableOpacity onPress={() => setResults(null)} style={{ alignSelf: "center", marginTop: 14 }}>
+          <Text style={styles.retryText}>Tekrar dene</Text>
+        </TouchableOpacity>
+      )}
+    </IslandModal>
   );
 }
 
 function makeStyles(c) {
   return StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-    sheet: { backgroundColor: c.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden", maxHeight: "85%" },
-    headerGradient: { padding: 20 },
-    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-    headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.9)", marginTop: 6, lineHeight: 16 },
-    closeBtn: { width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
     pickRow: { flexDirection: "row", gap: 10 },
     pickBtn: {
       flex: 1, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 14,
@@ -148,11 +206,17 @@ function makeStyles(c) {
     pickBtnText: { fontSize: 12, fontWeight: "700", color: c.text },
     preview: { width: "100%", aspectRatio: 4 / 3, borderRadius: 14, backgroundColor: c.surface2 },
     errorText: { color: c.danger, fontSize: 11, marginTop: 14, textAlign: "center" },
-    goBtn: { marginTop: 16, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    goBtnText: { color: "#14121a", fontWeight: "800", fontSize: 13 },
+    goBtn: { marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
+    goBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
     resultRow: { flexDirection: "row", gap: 12, alignItems: "center", backgroundColor: c.surface2, borderRadius: 14, padding: 10, marginTop: 12 },
     resultPoster: { width: 46, height: 66, borderRadius: 8 },
     resultTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     resultMeta: { fontSize: 11, color: c.dim },
+    topMatchPill: {
+      flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f857a6",
+      alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4,
+    },
+    topMatchPillText: { fontSize: 8.5, fontWeight: "800", color: "#fff" },
+    retryText: { fontSize: 12, fontWeight: "700", color: c.dim, textDecorationLine: "underline" },
   });
 }

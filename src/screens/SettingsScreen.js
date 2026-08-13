@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from "react-native";
-import { ChevronLeft, Check } from "lucide-react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, Linking, ActivityIndicator } from "react-native";
+import Constants from "expo-constants";
+import { ChevronLeft, Check, ChevronRight, Mail, Shield, FileText, Sun, Moon, Crown } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../api/client";
+import { api, API_BASE } from "../api/client";
+
+const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
+const SUPPORT_EMAIL = "destek@pellix.app";
 
 export default function SettingsScreen({ navigation }) {
-  const { c } = useAppTheme();
+  const { c, mode, setMode } = useAppTheme();
   const { auth, logout } = useAuth();
   const styles = makeStyles(c);
 
@@ -21,11 +25,14 @@ export default function SettingsScreen({ navigation }) {
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const [premiumStatus, setPremiumStatus] = useState(null);
+
   useEffect(() => {
     api.me(auth.token).then((me) => {
       setPrivacy(me.privacy || "everyone");
       setTastemateVisibleState(me.tastemateVisible !== false);
     }).catch(() => {});
+    api.premiumStatus(auth.token).then(setPremiumStatus).catch(() => {});
   }, []);
 
   async function toggleTastemateVisible() {
@@ -72,6 +79,22 @@ export default function SettingsScreen({ navigation }) {
       </View>
 
       <View style={{ padding: 18 }}>
+        {/* Eskiden Profilim sayfasının üst satırında bir "Premium" rozeti/pill'i vardı — profil
+            gereksiz kalabalıklaşmasın diye buraya, hesap durumunun asıl yaşaması gereken yere
+            taşındı. */}
+        {premiumStatus?.isPremium && (
+          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Premium")}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={styles.premiumIconWrap}><Crown size={16} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>Premium Üye</Text>
+                <Text style={[styles.cardSubtitle, { marginBottom: 0 }]}>Aboneliğini yönet, yenileme tarihini gör.</Text>
+              </View>
+              <ChevronRight size={16} color={c.dim} />
+            </View>
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.sectionLabel}>GİZLİLİK</Text>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Profilimi kimler görebilir</Text>
@@ -80,6 +103,20 @@ export default function SettingsScreen({ navigation }) {
             <TouchableOpacity key={val} onPress={() => savePrivacy(val)} style={styles.privacyRow}>
               <Text style={styles.privacyLabel}>{label}</Text>
               {privacy === val && <Check size={16} color={c.accent} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionLabel}>GÖRÜNÜM</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tema</Text>
+          {[["light", "Aydınlık", Sun], ["dark", "Karanlık", Moon]].map(([val, label, Icon]) => (
+            <TouchableOpacity key={val} onPress={() => setMode(val)} style={styles.privacyRow}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Icon size={14} color={c.dim} />
+                <Text style={styles.privacyLabel}>{label}</Text>
+              </View>
+              {mode === val && <Check size={16} color={c.accent} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -121,6 +158,29 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.cardSubtitle}>Kimleri engellediğini gör, istersen engeli kaldır.</Text>
         </TouchableOpacity>
 
+        {/* Destek/Gizlilik/Kullanım Şartları — eskiden bunlara sadece kayıt ekranından
+            ulaşılabiliyordu, hesabı olan bir kullanıcının bunları tekrar görmesinin bir yolu
+            yoktu. Abonelik içeren uygulamalarda App Store incelemesi bu linkleri Ayarlar'da da
+            arıyor (Guideline 3.1.2). */}
+        <Text style={styles.sectionLabel}>DESTEK & YASAL</Text>
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.linkRow} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}>
+            <Mail size={15} color={c.dim} />
+            <Text style={styles.linkRowText}>Destek — {SUPPORT_EMAIL}</Text>
+            <ChevronRight size={14} color={c.dim} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.linkRow, styles.linkRowBorder]} onPress={() => Linking.openURL(`${API_BASE}/privacy`)}>
+            <Shield size={15} color={c.dim} />
+            <Text style={styles.linkRowText}>Gizlilik Politikası</Text>
+            <ChevronRight size={14} color={c.dim} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.linkRow, styles.linkRowBorder]} onPress={() => Linking.openURL(`${API_BASE}/terms`)}>
+            <FileText size={15} color={c.dim} />
+            <Text style={styles.linkRowText}>Kullanım Şartları</Text>
+            <ChevronRight size={14} color={c.dim} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </TouchableOpacity>
@@ -142,6 +202,8 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.deleteBtnText}>{deleting ? "Siliniyor..." : "Hesabımı Kalıcı Olarak Sil"}</Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.versionText}>pellix · Sürüm {APP_VERSION}</Text>
       </View>
     </ScrollView>
   );
@@ -161,6 +223,10 @@ function makeStyles(c) {
     privacyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border },
     privacyLabel: { fontSize: 13, color: c.text },
     switchRow: { flexDirection: "row", alignItems: "center" },
+    premiumIconWrap: {
+      width: 32, height: 32, borderRadius: 999, backgroundColor: "#16A34A",
+      alignItems: "center", justifyContent: "center",
+    },
     fieldLabel: { fontSize: 10, fontWeight: "700", color: c.dim, marginTop: 8, marginBottom: 4 },
     input: {
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 10,
@@ -174,5 +240,9 @@ function makeStyles(c) {
     logoutText: { color: c.text, fontWeight: "700", fontSize: 13 },
     deleteBtn: { marginTop: 10, backgroundColor: c.danger, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
     deleteBtnText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+    linkRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
+    linkRowBorder: { borderTopWidth: 1, borderTopColor: c.border },
+    linkRowText: { flex: 1, fontSize: 13, color: c.text, fontWeight: "600" },
+    versionText: { textAlign: "center", fontSize: 11, color: c.dim, marginTop: 4, marginBottom: 30 },
   });
 }

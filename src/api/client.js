@@ -50,14 +50,20 @@ export const api = {
 
   watchlists: (token, movieId) => request(`/api/watchlists${movieId ? `?movieId=${movieId}` : ""}`, { token }),
   watchlistItems: (token, id) => request(`/api/watchlists/${id}/items`, { token }),
-  createWatchlist: (token, name) => request("/api/watchlists", { method: "POST", token, body: { name } }),
+  // WL1 — coverEmoji/coverColor opsiyonel, verilmezse backend null bırakır (native taraf o
+  // zaman isim/id'den türetilmiş bir renge düşer).
+  createWatchlist: (token, name, cover) => request("/api/watchlists", { method: "POST", token, body: { name, ...(cover || {}) } }),
   updateWatchlist: (token, id, patch) => request(`/api/watchlists/${id}`, { method: "PATCH", token, body: patch }),
   aiRecommendForList: (token, id) => request(`/api/watchlists/${id}/ai-recommend`, { method: "POST", token }),
   deleteWatchlist: (token, id) => request(`/api/watchlists/${id}`, { method: "DELETE", token }),
   addToWatchlist: (token, id, movieId) => request(`/api/watchlists/${id}/items`, { method: "POST", token, body: { movie_id: movieId } }),
   removeFromWatchlist: (token, id, movieId) => request(`/api/watchlists/${id}/items/${movieId}`, { method: "DELETE", token }),
+  // WL6 — ortak düzenleyici ekleme/çıkarma (sadece sahip ekleyebilir; biri kendini çıkarıp ayrılabilir).
+  addWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators`, { method: "POST", token, body: { userId } }),
+  removeWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators/${userId}`, { method: "DELETE", token }),
 
   movies: (token, type, page, sort) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}`, { token }),
+  platforms: (token) => request("/api/platforms", { token }),
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
   movieById: (token, id) => request(`/api/movies/${id}`, { token }),
   search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
@@ -77,6 +83,7 @@ export const api = {
   allLikes: (token, id, page) => request(`/api/users/${id}/all-likes?page=${page}`, { token }),
   allDislikes: (token, page) => request(`/api/me/all-dislikes?page=${page}`, { token }),
   blend: (token, friendId) => request(`/api/blend/${friendId}`, { token }),
+  friendMatchRanking: (token) => request("/api/friends/match-ranking", { token }), // BL4
   blockUser: (token, id) => request(`/api/users/${id}/block`, { method: "POST", token }),
   unblockUser: (token, id) => request(`/api/users/${id}/block`, { method: "DELETE", token }),
   blockedUsers: (token) => request("/api/me/blocked", { token }),
@@ -115,7 +122,7 @@ export const api = {
   notifyMe: (token, movieId) => request(`/api/movies/${movieId}/notify-me`, { method: "POST", token }),
   notifySubscriptions: (token) => request("/api/me/notify-subscriptions", { token }),
   movieExtra: (token, movieId) => request(`/api/movies/${movieId}/extra`, { token }),
-  personCredits: (token, personId) => request(`/api/people/${personId}`, { token }),
+  personCredits: (token, personId, opts) => request(`/api/people/${personId}${opts?.full ? "?full=1" : ""}`, { token }),
   socialStats: (token, movieIds) => request("/api/movies/social-stats", { method: "POST", token, body: { movieIds } }),
   trackEvents: (token, events) => request("/api/analytics/events-batch", { method: "POST", token, body: { events } }),
   achievements: (token) => request("/api/achievements", { token }),
@@ -124,6 +131,9 @@ export const api = {
   tastemates: (token) => request("/api/tastemates", { token }),
   tastemateSwipe: (token) => request("/api/tastemates/swipe", { method: "POST", token }),
   premiumStatus: (token) => request("/api/premium/status", { token }),
+  generateProfileBackground: (token) => request("/api/profile/background/generate", { method: "POST", token }),
+  resetProfileBackground: (token) => request("/api/profile/background/reset", { method: "POST", token }),
+  updateProfileBackgroundIntensity: (token, intensity) => request("/api/me/profile-background-intensity", { method: "PATCH", token, body: { intensity } }),
   devGrantPremium: (token, days) => request("/api/premium/dev-grant", { method: "POST", token, body: { days } }),
   quests: (token) => request("/api/quests", { token }),
   claimQuestReward: (token) => request("/api/quests/claim", { method: "POST", token }),
@@ -137,4 +147,5 @@ export const api = {
   endParty: (token, id) => request(`/api/matchparty/${id}/end`, { method: "POST", token }),
   extendParty: (token, id) => request(`/api/matchparty/${id}/extend`, { method: "POST", token }),
   recentPartyMatches: (token) => request("/api/matchparty/recent", { token }),
+  partyStatusWithFriend: (token, friendId) => request(`/api/matchparty/status?friendId=${friendId}`, { token }),
 };

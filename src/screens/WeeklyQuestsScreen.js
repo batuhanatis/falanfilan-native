@@ -1,9 +1,32 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
-import { ChevronLeft, Check, Gift, Trophy } from "lucide-react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Animated } from "react-native";
+import { ChevronLeft, Check, Gift, Trophy, Clock } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { hapticSuccess } from "../utils/haptics";
+import Confetti from "../components/Confetti";
+
+// WQ2 — haftanın ne zaman sıfırlanacağı artık belli. week_start Pazartesi 00:00 UTC — bir
+// sonraki sıfırlanma tam olarak +7 gün.
+function useWeekResetCountdown(weekStart) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    if (!weekStart) return;
+    function update() {
+      const resetAt = new Date(`${weekStart}T00:00:00Z`).getTime() + 7 * 24 * 60 * 60 * 1000;
+      const diffMs = resetAt - Date.now();
+      if (diffMs <= 0) { setLabel("Yenileniyor…"); return; }
+      const days = Math.floor(diffMs / 86400000);
+      const hours = Math.floor((diffMs % 86400000) / 3600000);
+      setLabel(days > 0 ? `${days} gün ${hours} saat sonra yenilenir` : `${hours} saat sonra yenilenir`);
+    }
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [weekStart]);
+  return label;
+}
 
 export default function WeeklyQuestsScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -13,6 +36,10 @@ export default function WeeklyQuestsScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
+  // WQ1 — ödül teslimatı artık hata mesajıyla aynı görsel ağırlıktaki bir Alert.alert değil,
+  // MatchCelebration/BadgeCelebrationOverlay ile AYNI konfeti+kart dilini paylaşan bir kutlama.
+  const [rewardDays, setRewardDays] = useState(null);
+  const resetLabel = useWeekResetCountdown(data?.weekStart);
 
   const load = useCallback(() => {
     api.quests(auth.token).then(setData).catch(() => {}).finally(() => setLoading(false));
@@ -25,7 +52,8 @@ export default function WeeklyQuestsScreen({ navigation }) {
     try {
       const res = await api.claimQuestReward(auth.token);
       await load();
-      Alert.alert("Tebrikler! 🎁", `${res.rewardDays} günlük Premium hesabına tanımlandı.`);
+      hapticSuccess();
+      setRewardDays(res.rewardDays);
     } catch (e) {
       Alert.alert("Olmadı", e.message || "Ödül alınamadı.");
     }
@@ -52,7 +80,15 @@ export default function WeeklyQuestsScreen({ navigation }) {
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View style={styles.introCard}>
           <Trophy size={22} color={c.accent} />
-          <Text style={styles.introText}>Bu haftaki 4 görevin tamamını bitir, {data?.rewardDays} günlük Premium kazan.</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.introText}>Bu haftaki 4 görevin tamamını bitir, {data?.rewardDays} günlük Premium kazan.</Text>
+            {!!resetLabel && (
+              <View style={styles.resetRow}>
+                <Clock size={11} color={c.dim} />
+                <Text style={styles.resetText}>{resetLabel}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {data?.quests?.map((q) => (
@@ -89,7 +125,39 @@ export default function WeeklyQuestsScreen({ navigation }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {rewardDays != null && (
+        <RewardCelebration days={rewardDays} onClose={() => setRewardDays(null)} />
+      )}
     </View>
+  );
+}
+
+function RewardCelebration({ days, onClose }) {
+  const { c } = useAppTheme();
+  const styles = makeStyles(c);
+  const scale = React.useRef(new Animated.Value(0.4)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, bounciness: 14, speed: 8 }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.rewardBackdrop, { opacity }]}>
+      <Confetti count={40} spread={700} />
+      <Animated.View style={[styles.rewardCard, { transform: [{ scale }] }]}>
+        <View style={styles.rewardIconRing}><Gift size={38} color="#fff" /></View>
+        <Text style={styles.rewardTitle}>Tebrikler! 🎁</Text>
+        <Text style={styles.rewardDesc}>{days} günlük Premium hesabına tanımlandı.</Text>
+        <TouchableOpacity style={styles.rewardCloseBtn} onPress={onClose} activeOpacity={0.85}>
+          <Text style={styles.rewardCloseBtnText}>Harika!</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
@@ -105,7 +173,9 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface,
       borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, marginBottom: 18,
     },
-    introText: { flex: 1, fontSize: 12.5, color: c.text, lineHeight: 18 },
+    introText: { fontSize: 12.5, color: c.text, lineHeight: 18 },
+    resetRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+    resetText: { fontSize: 10.5, color: c.dim, fontWeight: "600" },
     questRow: {
       flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface,
       borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 14, marginBottom: 10,
@@ -123,5 +193,23 @@ function makeStyles(c) {
       backgroundColor: c.accent, borderRadius: 14, paddingVertical: 16, marginTop: 12,
     },
     claimBtnText: { color: c.bg, fontWeight: "800", fontSize: 14 },
+
+    rewardBackdrop: {
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+      backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center", padding: 30,
+    },
+    rewardCard: {
+      width: "100%", maxWidth: 300, backgroundColor: c.surface, borderRadius: 24, padding: 26,
+      alignItems: "center", borderWidth: 1, borderColor: c.border,
+      shadowColor: "#6366F1", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 12,
+    },
+    rewardIconRing: {
+      width: 72, height: 72, borderRadius: 999, backgroundColor: "#6366F1",
+      alignItems: "center", justifyContent: "center", marginBottom: 14,
+    },
+    rewardTitle: { fontSize: 19, fontWeight: "800", color: c.text },
+    rewardDesc: { fontSize: 12.5, color: c.dim, marginTop: 6, textAlign: "center", lineHeight: 18 },
+    rewardCloseBtn: { backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 40, marginTop: 20 },
+    rewardCloseBtnText: { color: c.bg, fontWeight: "800", fontSize: 13.5 },
   });
 }

@@ -9,6 +9,7 @@ import OtherProfileScreen from "../screens/OtherProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import BlockedUsersScreen from "../screens/BlockedUsersScreen";
 import BlendScreen from "../screens/BlendScreen";
+import BlendLeaderboardScreen from "../screens/BlendLeaderboardScreen";
 import PremiumScreen from "../screens/PremiumScreen";
 import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
@@ -20,6 +21,8 @@ import FriendSearchScreen from "../screens/FriendSearchScreen";
 import PersonScreen from "../screens/PersonScreen";
 import GroupPartyScreen from "../screens/GroupPartyScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import FriendsListScreen from "../screens/FriendsListScreen";
+import MyWatchlistsScreen from "../screens/MyWatchlistsScreen";
 import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
@@ -92,6 +95,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Blend" component={BlendScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="BlendLeaderboard" component={BlendLeaderboardScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Premium" component={PremiumScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
@@ -101,6 +105,8 @@ export default function RootNavigator() {
         <Stack.Screen name="Person" component={PersonScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="GroupParty" component={GroupPartyScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="FriendsList" component={FriendsListScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="MyWatchlists" component={MyWatchlistsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="MatchParty" component={MatchPartyScreen} options={{ presentation: "fullScreenModal" }} />
         <Stack.Screen name="ComingSoon" component={ComingSoonScreen} options={{ presentation: "modal" }} />
       </Stack.Navigator>

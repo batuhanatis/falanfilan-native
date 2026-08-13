@@ -18,6 +18,7 @@ export default function PersonScreen({ route, navigation }) {
 
   const [person, setPerson] = useState({ name: initialName, photo: initialPhoto, results: [] });
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +30,24 @@ export default function PersonScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [personId]);
 
+  // ÖNEMLİ: İlk yükleme sadece en tanınan 40 rolü (havuz) işliyor, bu yüzden sonuç listesi her
+  // zaman gerçek toplamdan az/eşit olabiliyor — "hasMore" varsa geri kalanını tek seferlik bir
+  // istekle (full=1) çekip mevcut listenin SONUNA ekliyoruz.
+  function loadMore() {
+    if (loadingMore || !person.hasMore) return;
+    setLoadingMore(true);
+    api.personCredits(auth.token, personId, { full: true })
+      .then((data) => {
+        setPerson((prev) => ({ ...prev, results: [...(prev.results || []), ...(data.results || [])], hasMore: false }));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  }
+
   const results = person.results || [];
+  // Üstteki sayı artık her zaman GERÇEK toplamı gösteriyor (TMDB'nin ham kredi sayısı) —
+  // henüz hiç zenginleştirilmemiş/gösterilmemiş olsa bile doğru.
+  const totalCount = person.totalCount ?? results.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -58,7 +76,7 @@ export default function PersonScreen({ route, navigation }) {
               <View style={styles.profileMetaRow}>
                 <Clapperboard size={12} color={c.dim} />
                 <Text style={styles.profileMeta}>
-                  {results.length > 0 ? `${results.length} yapımda oynadı` : "Bilinen bir yapım bulunamadı"}
+                  {totalCount > 0 ? `${totalCount} yapımda oynadı` : "Bilinen bir yapım bulunamadı"}
                 </Text>
               </View>
             )}
@@ -93,6 +111,17 @@ export default function PersonScreen({ route, navigation }) {
             <Text style={styles.emptyText}>Bu kişi için gösterilecek bir yapım bulunamadı.</Text>
           )
         }
+        ListFooterComponent={
+          !loading && person.hasMore ? (
+            <TouchableOpacity style={styles.seeAllBtn} onPress={loadMore} disabled={loadingMore}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color={c.accent} />
+              ) : (
+                <Text style={styles.seeAllBtnText}>Tümünü Gör</Text>
+              )}
+            </TouchableOpacity>
+          ) : null
+        }
       />
     </View>
   );
@@ -124,5 +153,10 @@ function makeStyles(c) {
     cardMeta: { fontSize: 10, color: c.dim, marginTop: 1 },
     cardCharacter: { fontSize: 9.5, color: c.accent, marginTop: 1, fontStyle: "italic" },
     emptyText: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 20, paddingHorizontal: 30 },
+    seeAllBtn: {
+      alignItems: "center", justifyContent: "center", paddingVertical: 14, marginTop: 4,
+      borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.surface,
+    },
+    seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
   });
 }

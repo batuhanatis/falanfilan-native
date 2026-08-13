@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from "react-native";
-import { PartyPopper, MessageCircle, Award, CheckCircle2 } from "lucide-react-native";
+import { PartyPopper, MessageCircle, CheckCircle2 } from "lucide-react-native";
 import { useWS } from "../context/WSContext";
 import { subscribeLocalEvents } from "../utils/localEvents";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { api } from "../api/client";
 import { navigationRef } from "../navigation/RootNavigator";
+import BadgeCelebrationOverlay from "./BadgeCelebrationOverlay";
 
 const TOP_OFFSET = Platform.OS === "ios" ? 54 : 30;
 
@@ -26,9 +27,13 @@ export default function GlobalPopups() {
   const [invite, setInvite] = useState(null); // { sessionId, fromName, fromUser }
   const [responding, setResponding] = useState(false);
   const [banner, setBanner] = useState(null); // { senderName, preview }
-  // Rozet kazanma / haftalık görev tamamlama kutlaması — mesaj şeridiyle AYNI "1 saniye görün,
-  // kendiliğinden kaybol" mantığı, ama bu TIKLANABİLİR: dokununca rozetler sayfasına götürüyor.
-  const [celebration, setCelebration] = useState(null); // { kind: 'badge'|'quest', title, desc }
+  // Haftalık görev tamamlama kutlaması — mesaj şeridiyle AYNI "1 saniye görün, kendiliğinden
+  // kaybol" mantığı, tıklanınca rozetler sayfasına götürüyor.
+  const [celebration, setCelebration] = useState(null); // { kind: 'quest', title, desc }
+  // PR2 — rozet kazanma artık bu küçük şeritle YETİNMİYOR, ayrı ve çok daha görkemli bir tam ekran
+  // konfeti+kart anı alıyor (bkz. BadgeCelebrationOverlay) çünkü kalıcı bir başarı, geçip giden bir
+  // mesaj bildirimiyle aynı ağırlıkta hissettirilmemeli.
+  const [badgeCelebration, setBadgeCelebration] = useState(null); // { id, name, desc, icon }
 
   const inviteAnim = useRef(new Animated.Value(-220)).current;
   const bannerAnim = useRef(new Animated.Value(-120)).current;
@@ -53,7 +58,7 @@ export default function GlobalPopups() {
         else preview = body.length > 60 ? body.slice(0, 60) + "…" : body;
         setBanner({ senderName: msg.from?.name || "Yeni mesaj", preview, chatId: msg.chat_id });
       } else if (msg.type === "badge_unlocked") {
-        setCelebration({ kind: "badge", title: `${msg.badge.icon} ${msg.badge.name}`, desc: msg.badge.desc });
+        setBadgeCelebration(msg.badge);
       } else if (msg.type === "quest_completed") {
         setCelebration({ kind: "quest", title: "Görev tamamlandı! ✅", desc: msg.quest.title });
       } else if (msg.type === "watch_plan_due") {
@@ -101,6 +106,17 @@ export default function GlobalPopups() {
     return () => { if (celebrationTimer.current) clearTimeout(celebrationTimer.current); };
   }, [celebration]);
 
+  function closeBadgeCelebration() {
+    setBadgeCelebration(null);
+  }
+
+  function openBadgeCelebration() {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate("MainTabs", { screen: "Profile", params: { initialSub: "badges" } });
+    }
+    setBadgeCelebration(null);
+  }
+
   function openCelebration() {
     if (!celebration || !navigationRef.isReady()) return;
     navigationRef.navigate("MainTabs", { screen: "Profile", params: { initialSub: "badges" } });
@@ -147,7 +163,13 @@ export default function GlobalPopups() {
               activeOpacity={0.85}
               onPress={() => {
                 if (navigationRef.isReady()) {
-                  navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: { chatId: banner.chatId } } });
+                  // App.js'teki push-bildirimi akışıyla AYNI düzeltme: Sohbetler sekmesi bu
+                  // oturumda hiç ziyaret edilmediyse, ChatList'i temel olarak kurmadan doğrudan
+                  // ChatConversation'a atlamak, geri tuşunun Ana Sayfa'ya düşmesine yol açıyordu.
+                  navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
+                  setTimeout(() => {
+                    navigationRef.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: { chatId: banner.chatId } } });
+                  }, 300);
                 }
                 setBanner(null);
               }}
@@ -181,6 +203,13 @@ export default function GlobalPopups() {
             </View>
           </TouchableOpacity>
         </Animated.View>
+      )}
+      {badgeCelebration && (
+        <BadgeCelebrationOverlay
+          badge={badgeCelebration}
+          onClose={closeBadgeCelebration}
+          onViewBadges={openBadgeCelebration}
+        />
       )}
     </>
   );

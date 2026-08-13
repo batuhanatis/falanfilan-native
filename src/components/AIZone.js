@@ -1,72 +1,65 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Animated, LayoutAnimation, Platform, UIManager } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Sparkles, ChevronDown, MessageSquareText, Wand2, Image as ImageIcon } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
-import { api } from "../api/client";
+import DescribeModal from "./DescribeModal";
 import TasteRecommendModal from "./TasteRecommendModal";
 import PhotoIdentifyModal from "./PhotoIdentifyModal";
+
+// Android'de LayoutAnimation varsayılan olarak kapalı — panel açılış/kapanışını (aiOpen)
+// yumuşak bir unfurl yapabilmek için bir kerelik açıyoruz.
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // ÖNEMLİ (performans düzeltmesi): Bu bileşen eskiden HomeScreen'in İÇİNDE, aynı fonksiyonun
 // state'iyle yaşıyordu — panel her açılıp kapandığında (aiOpen değiştiğinde) HomeScreen'in
 // TAMAMI (uzun film listesi dahil) yeniden render ediliyordu, bu da "butona basınca hafif
-// gecikmeli açılıyor" hissine yol açıyordu. Artık kendi izole state'ine (aiOpen, describeOpen,
-// prompt, describeLoading, describeError, modal aç/kapa) sahip AYRI bir bileşen — açıp
-// kapatmak artık SADECE bunu, film listesini değil, yeniden render ediyor.
+// gecikmeli açılıyor" hissine yol açıyordu. Artık kendi izole state'ine (aiOpen, hangi modal
+// açık) sahip AYRI bir bileşen — açıp kapatmak artık SADECE bunu, film listesini değil,
+// yeniden render ediyor.
+//
+// PR8 — üç alt özellik (Anlat/Zevkine Göre Öner/Fotoğraftan Bul) eskiden karışık bir örüntüydü:
+// biri panelin İÇİNDE alttan açılan bir akordeon, ikisi ise ayrı ayrı alttan kayan sheet
+// modallardı. Premium'un asıl vitrini olan bu üç özellik artık HEPSİ aynı, ortada beliren
+// "adacık" (IslandModal) modelini paylaşıyor — her biri kendi renk kimliğiyle.
 //
 // Ana sayfanın besleme akışını GERÇEKTEN etkileyen tek şey (arama/AI sonuçlarının listede
 // gösterilmesi) hâlâ HomeScreen'de kalıyor — bu bileşen sonuç bulunca sadece `onResults`
 // callback'iyle yukarı bildiriyor, kendi state'ine yazmıyor.
 export default function AIZone({ navigation, hasResults, onResults, onClear }) {
   const { c } = useAppTheme();
-  const { auth } = useAuth();
   const styles = makeStyles(c);
 
   const [aiOpen, setAiOpen] = useState(false);
-  const [describeOpen, setDescribeOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [describeLoading, setDescribeLoading] = useState(false);
-  const [describeError, setDescribeError] = useState("");
+  const [describeModalOpen, setDescribeModalOpen] = useState(false);
   const [tasteModalOpen, setTasteModalOpen] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
-  async function runDescribe(overrideText) {
-    const text = (typeof overrideText === "string" ? overrideText : prompt).trim();
-    if (!text || describeLoading) return;
-    if (typeof overrideText === "string") setPrompt(overrideText);
-    setDescribeLoading(true);
-    setDescribeError("");
-    try {
-      const data = await api.describe(auth.token, text);
-      const matched = data.results || [];
-      if (matched.length === 0) {
-        setDescribeError("Bu tanıma uyan bir şey bulamadım, farklı bir şekilde anlatmayı dener misin?");
-      } else {
-        onResults(matched, `"${text}" için önerilerin`);
-      }
-    } catch (e) {
-      setDescribeError(e.message || "Öneri alınamadı, tekrar dener misin?");
-      if (e.limitReached) {
-        Alert.alert("Günlük hakkın doldu", e.message, [
-          { text: "Tamam", style: "cancel" },
-          { text: "Premium'a Geç", onPress: () => navigation.navigate("Premium") },
-        ]);
-      }
-    }
-    setDescribeLoading(false);
-  }
+  // HM3 — Sparkles ikonuna sürekli, hafif bir parıltı (opacity nabzı) veriyoruz; ikonun ima
+  // ettiği "hareket" artık gerçekten var, banner'ın altındaki her şey düz kalsa bile bu köşe
+  // canlı duruyor.
+  const sparkleOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkleOpacity, { toValue: 0.4, duration: 900, useNativeDriver: true }),
+        Animated.timing(sparkleOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sparkleOpacity]);
 
-  function clearDescribe() {
-    setPrompt("");
-    setDescribeOpen(false);
-    setDescribeError("");
-    onClear();
+  function toggleAiOpen() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAiOpen((v) => !v);
   }
 
   return (
     <View>
-      <TouchableOpacity activeOpacity={0.9} onPress={() => setAiOpen((v) => !v)}>
+      <TouchableOpacity activeOpacity={0.9} onPress={toggleAiOpen}>
         <LinearGradient
           colors={["#ff6b6b", "#f7b733", "#48dbfb", "#7367f0"]}
           start={{ x: 0, y: 0 }}
@@ -75,7 +68,9 @@ export default function AIZone({ navigation, hasResults, onResults, onClear }) {
         >
           <View style={styles.aiZoneHeader}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Sparkles size={18} color="#fff" />
+              <Animated.View style={{ opacity: sparkleOpacity }}>
+                <Sparkles size={18} color="#fff" />
+              </Animated.View>
               <Text style={styles.aiZoneTitle}>Yapay Zeka Köşesi</Text>
             </View>
             <ChevronDown size={18} color="#fff" style={{ transform: [{ rotate: aiOpen ? "180deg" : "0deg" }] }} />
@@ -86,79 +81,50 @@ export default function AIZone({ navigation, hasResults, onResults, onClear }) {
 
       {aiOpen && (
         <View style={styles.aiPanel}>
-          <TouchableOpacity style={styles.aiRow} onPress={() => setDescribeOpen((v) => !v)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#ff6b6b" }]}>
+          <TouchableOpacity style={styles.aiRow} onPress={() => setDescribeModalOpen(true)}>
+            <LinearGradient colors={["#ff6b6b", "#f7b733"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiRowIcon}>
               <MessageSquareText size={16} color="#fff" />
-            </View>
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiRowTitle}>Anlat, Bulalım</Text>
               <Text style={styles.aiRowSubtitle}>Ne tür bir şey istediğini kendi cümlelerinle anlat</Text>
             </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: describeOpen ? "180deg" : "0deg" }] }} />
+            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
 
-          {describeOpen && (
-            <View style={styles.describePanel}>
-              <Text style={styles.moodLabel}>HIZLI SEÇİM</Text>
-              <View style={styles.moodRow}>
-                {[
-                  ["😔", "Moral", "Moralim bozuk, içimi ısıtacak bir şey istiyorum"],
-                  ["🤯", "Dağıt", "Kafamı dağıtmam lazım, hafif ve eğlenceli bir şey"],
-                  ["🔥", "Heyecan", "Heyecan istiyorum, gerilim dolu bir şey"],
-                  ["😂", "Güldür", "Güldürsün, kesin bir komedi"],
-                  ["😢", "Duygusal", "Ağlamak istiyorum, duygusal bir dram"],
-                ].map(([emoji, label, text]) => (
-                  <TouchableOpacity key={text} style={styles.moodChip} onPress={() => runDescribe(text)} disabled={describeLoading}>
-                    <Text style={styles.moodChipEmoji}>{emoji}</Text>
-                    <Text style={styles.moodChipLabel}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TextInput
-                style={styles.describeInput}
-                placeholder="Örn: kapalı havada geçen klostrofobik atmosferli hayatta kalma filmleri"
-                placeholderTextColor={c.dim}
-                value={prompt}
-                onChangeText={setPrompt}
-                multiline
-                numberOfLines={2}
-              />
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                <TouchableOpacity style={[styles.describeGoBtn, describeLoading && { opacity: 0.6 }]} onPress={() => runDescribe()} disabled={describeLoading}>
-                  {describeLoading ? <ActivityIndicator size="small" color="#14121a" /> : <Text style={styles.describeGoText}>Öneri al</Text>}
-                </TouchableOpacity>
-                {hasResults && (
-                  <TouchableOpacity onPress={clearDescribe} style={{ justifyContent: "center" }}>
-                    <Text style={styles.clearDescribeText}>Aramayı temizle</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {!!describeError && <Text style={styles.describeErrorText}>{describeError}</Text>}
-            </View>
-          )}
-
           <TouchableOpacity style={styles.aiRow} onPress={() => setTasteModalOpen(true)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#7367f0" }]}>
+            <LinearGradient colors={["#7367f0", "#48dbfb"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiRowIcon}>
               <Wand2 size={16} color="#fff" />
-            </View>
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiRowTitle}>Zevkime Göre Öner</Text>
               <Text style={styles.aiRowSubtitle}>Beğendiklerine bakıp sana özel bir şey bulur</Text>
             </View>
+            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.aiRow, { borderBottomWidth: 0 }]} onPress={() => setPhotoModalOpen(true)}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "#f7b733" }]}>
+            <LinearGradient colors={["#f7b733", "#fa709a"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiRowIcon}>
               <ImageIcon size={16} color="#fff" />
-            </View>
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiRowTitle}>Fotoğraftan Bul</Text>
               <Text style={styles.aiRowSubtitle}>Bir sahne yükle, hangi film/diziden olduğunu bulalım</Text>
             </View>
+            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
         </View>
       )}
 
+      {describeModalOpen && (
+        <DescribeModal
+          onClose={() => setDescribeModalOpen(false)}
+          onResults={onResults}
+          onClear={onClear}
+          hasResults={hasResults}
+          navigation={navigation}
+        />
+      )}
       {tasteModalOpen && (
         <TasteRecommendModal
           onClose={() => setTasteModalOpen(false)}
@@ -183,23 +149,5 @@ function makeStyles(c) {
     aiRowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
     aiRowTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     aiRowSubtitle: { fontSize: 11, color: c.dim, marginTop: 2 },
-
-    describePanel: { paddingBottom: 14 },
-    moodLabel: { fontSize: 9, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8 },
-    moodRow: { flexDirection: "row", gap: 6, marginBottom: 10, flexWrap: "wrap" },
-    moodChip: {
-      alignItems: "center", gap: 2, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
-      borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7,
-    },
-    moodChipEmoji: { fontSize: 16 },
-    moodChipLabel: { fontSize: 9, fontWeight: "700", color: c.text },
-    describeInput: {
-      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 10,
-      padding: 10, color: c.text, fontSize: 13, minHeight: 50, textAlignVertical: "top",
-    },
-    describeGoBtn: { backgroundColor: c.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-    describeGoText: { color: "#14121a", fontWeight: "700", fontSize: 12 },
-    clearDescribeText: { color: c.dim, fontSize: 11, textDecorationLine: "underline" },
-    describeErrorText: { color: c.danger, fontSize: 11, marginTop: 8 },
   });
 }

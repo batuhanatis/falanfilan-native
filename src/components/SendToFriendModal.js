@@ -130,27 +130,36 @@ export default function SendToFriendModal({ movie, list, onClose, onSent }) {
             </View>
           ) : (
             <>
+              {/* GroupPartyScreen'in arkadaş seçme ızgarasıyla AYNI dil — satır satır dümdüz bir
+                  liste yerine, her satırda 3 kişi, üstte avatar, altta isim; seçim de ayrı bir
+                  radyo yerine avatarın üstüne binen halka + onay rozetiyle gösteriliyor. */}
               <FlatList
                 data={filtered}
                 keyExtractor={(item) => String(item.id)}
-                contentContainerStyle={{ paddingBottom: 10 }}
+                numColumns={3}
+                columnWrapperStyle={{ gap: 10 }}
+                contentContainerStyle={{ gap: 12, paddingBottom: 10 }}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => {
                   const isSelected = selectedId === item.id;
                   return (
                     <TouchableOpacity
-                      style={[styles.row, isSelected && { backgroundColor: c.surface2, borderRadius: 12 }]}
+                      style={styles.friendCell}
                       onPress={() => setSelectedId(item.id)}
                       activeOpacity={0.7}
                     >
-                      <RetryImage source={{ uri: avatarOr(item.avatar_url, item.id) }} style={styles.avatar} />
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.name}>{item.name}</Text>
-                        {!!item.username && <Text style={styles.username}>@{item.username}</Text>}
+                      <View>
+                        <RetryImage
+                          source={{ uri: avatarOr(item.avatar_url, item.id) }}
+                          style={[styles.gridAvatar, isSelected && styles.gridAvatarSelected]}
+                        />
+                        {isSelected && (
+                          <View style={styles.gridCheckBadge}>
+                            <Check size={11} color={c.bg} strokeWidth={3} />
+                          </View>
+                        )}
                       </View>
-                      <View style={[styles.radio, isSelected && { backgroundColor: c.accent, borderColor: c.accent }]}>
-                        {isSelected && <Check size={12} color={c.bg} strokeWidth={3} />}
-                      </View>
+                      <Text style={styles.gridName} numberOfLines={1}>{item.name}</Text>
                     </TouchableOpacity>
                   );
                 }}
@@ -222,14 +231,14 @@ function makeStyles(c) {
       borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8,
     },
     searchInput: { flex: 1, color: c.text, fontSize: 13 },
-    row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 8 },
-    avatar: { width: 42, height: 42, borderRadius: 999, backgroundColor: c.surface2 },
-    name: { fontSize: 13, fontWeight: "700", color: c.text },
-    username: { fontSize: 11, color: c.dim, marginTop: 1 },
-    radio: {
-      width: 24, height: 24, borderRadius: 999, borderWidth: 2, borderColor: c.border,
-      alignItems: "center", justifyContent: "center", flexShrink: 0,
+    friendCell: { flex: 1, alignItems: "center" },
+    gridAvatar: { width: 62, height: 62, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2, borderColor: "transparent" },
+    gridAvatarSelected: { borderColor: c.accent },
+    gridCheckBadge: {
+      position: "absolute", bottom: -2, right: 2, width: 18, height: 18, borderRadius: 999,
+      backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.surface,
     },
+    gridName: { fontSize: 11, fontWeight: "700", color: c.text, marginTop: 6, textAlign: "center" },
     empty: { color: c.dim, fontSize: 12, textAlign: "center", paddingVertical: 14 },
     emptyBox: { alignItems: "center", paddingVertical: 20 },
     emptySubtitle: { color: c.dim, fontSize: 11, textAlign: "center", marginTop: 4, lineHeight: 16, paddingHorizontal: 20 },

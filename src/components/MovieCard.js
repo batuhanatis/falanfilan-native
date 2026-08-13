@@ -1,14 +1,38 @@
-import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState, useRef } from "react";
+import { View, Text, Image, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Heart, X, Bookmark, Star, Send, Sparkles, MessageCircle, Bell, BellRing } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { platformName, platformLogo } from "../utils/platform";
+import { hapticLight } from "../utils/haptics";
 import CommentsModal from "./CommentsModal";
+
+// CM4 — poster yüklenirken ani "pat" yerine yumuşak bir fade-in. FlatList ızgarası dolarken
+// tüm posterlerin aynı anda pat diye belirmesi yerine her biri kendi yüklenme hızında beliriyor.
+function FadeInImage({ style, ...props }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  return (
+    <Animated.Image
+      {...props}
+      style={[style, { opacity }]}
+      onLoad={(e) => {
+        Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+        props.onLoad?.(e);
+      }}
+    />
+  );
+}
 
 // Instagram gönderisi mantığı: üstte poster (biraz kısaltılmış, sayfaya daha rahat sığsın diye),
 // altında aksiyon ikonları + "X ve Y kişi beğendi" satırı + başlık + "N yorumun tümünü gör".
-export default function MovieCard({ movie, liked, disliked, watchlisted, onLike, onDislike, onAddToList, onSend, onPress, reason, stats, showNotify, notifySubscribed, onNotify, compact }) {
+// PERF — React.memo: Ana Sayfa'nın sonsuz kaydırmalı ızgarasında her yeni sayfa (loadMore)
+// geldiğinde HomeScreen yeniden render oluyor; bu bileşen memo'suzken FlatList'teki HER kart
+// (o an ekranda/bellekte olan onlarcası) gereksiz yere yeniden render ediliyordu — kaydırdıkça
+// daha çok kart canlı kaldığı için gecikme birikip "sayfa ağırlaşıyor" hissi veriyordu. Artık
+// sadece BU kartın kendi prop'ları (liked/disliked/reason/stats gibi ilkel değerler) gerçekten
+// değiştiğinde yeniden render oluyor — bunun işe yaraması için HomeScreen'in geçtiği
+// onLike/onDislike/onPress gibi callback'lerin de KARARLI (stabil referanslı) olması gerekiyor.
+const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchlisted, onLike, onDislike, onAddToList, onSend, onPress, reason, stats, showNotify, notifySubscribed, onNotify, compact }) {
   const { c } = useAppTheme();
   const styles = makeStyles(c);
   const [showComments, setShowComments] = useState(false);
@@ -30,7 +54,7 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
       <TouchableOpacity style={styles.compactCard} onPress={() => onPress?.(movie)} activeOpacity={0.92}>
         <View style={styles.compactPosterWrap}>
           {movie.poster ? (
-            <Image source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} />
+            <FadeInImage source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} />
           ) : (
             <View style={[StyleSheet.absoluteFillObject, styles.posterFallback]} />
           )}
@@ -46,13 +70,24 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
           </View>
           {!!reason && (
             <View style={styles.compactReasonBadge}>
-              <Sparkles size={8} color={c.accent2} />
+              <Sparkles size={9} color={c.accent2} />
               <Text style={styles.compactReasonText} numberOfLines={1}>{reason}</Text>
             </View>
           )}
+          {/* CM2 — ızgarada artık sadece beğen değil, hızlı bir "istemiyorum" sinyali de var;
+              eskiden beğenmemek için Detay sayfasına gitmek gerekiyordu. */}
+          {!!onDislike && (
+            <TouchableOpacity
+              style={[styles.compactDislikeBtn, disliked && { backgroundColor: c.danger }]}
+              onPress={() => { hapticLight(); onDislike(movie.id); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={13} color="#fff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.compactLikeBtn, liked && { backgroundColor: c.accent2 }]}
-            onPress={() => onLike(movie.id)}
+            onPress={() => { hapticLight(); onLike(movie.id); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Heart size={14} color="#fff" fill={liked ? "#fff" : "none"} />
@@ -87,7 +122,7 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
     <View style={styles.card}>
       <TouchableOpacity style={styles.posterWrap} onPress={() => onPress?.(movie)} activeOpacity={0.94}>
         {movie.poster ? (
-          <Image source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} />
+          <FadeInImage source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} />
         ) : (
           <View style={[StyleSheet.absoluteFillObject, styles.posterFallback]} />
         )}
@@ -103,7 +138,7 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
         </View>
         {!!reason && (
           <View style={styles.reasonBadge}>
-            <Sparkles size={9} color={c.accent2} />
+            <Sparkles size={10} color={c.accent2} />
             <Text style={styles.reasonText} numberOfLines={1}>{reason}</Text>
           </View>
         )}
@@ -136,7 +171,12 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
         </Text>
       )}
 
-      {!!likeLine && <Text style={styles.likeLine} numberOfLines={1}>{likeLine}</Text>}
+      {!!likeLine && (
+        <View style={styles.likeLineRow}>
+          <Heart size={11} color={c.accent2} fill={c.accent2} />
+          <Text style={styles.likeLine} numberOfLines={1}>{likeLine}</Text>
+        </View>
+      )}
 
       <Text style={styles.caption} numberOfLines={2}>
         <Text style={styles.captionTitle}>{movie.title}</Text>
@@ -176,12 +216,28 @@ export default function MovieCard({ movie, liked, disliked, watchlisted, onLike,
       )}
     </View>
   );
-}
+});
 
+export default MovieCard;
+
+// CM1 — eskiden basışta hiçbir görsel/dokunsal tepki yoktu (sadece renk anlık değişiyordu).
+// Artık her basışta hafif bir sıçrama + haptic var — beğen/beğenme tüm feed'in ana sinyali
+// olduğu için bu tek düzeltme uygulamanın en sık kullanılan etkileşimini kapsıyor.
 function IconBtn({ icon: Icon, active, activeColor, filled, onPress, c }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  function handlePress() {
+    hapticLight();
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 1.25, useNativeDriver: true, speed: 40, bounciness: 14 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }),
+    ]).start();
+    onPress();
+  }
   return (
-    <TouchableOpacity onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-      <Icon size={24} color={active ? activeColor : c.text} fill={filled ? activeColor : "none"} />
+    <TouchableOpacity onPress={handlePress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Icon size={24} color={active ? activeColor : c.text} fill={filled ? activeColor : "none"} />
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -200,14 +256,16 @@ function makeStyles(c) {
       backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
     },
     ratingText: { fontSize: 11, fontWeight: "800", color: "#fff" },
+    // HM4 — eskiden 8px, neredeyse okunmuyordu. Punto büyütüldü, arka plan koyultuldu.
     reasonBadge: {
-      position: "absolute", top: 10, right: 10, maxWidth: "56%",
+      position: "absolute", top: 10, right: 10, maxWidth: "60%",
       flexDirection: "row", alignItems: "center", gap: 4,
-      backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+      backgroundColor: "rgba(0,0,0,0.7)", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999,
     },
-    reasonText: { fontSize: 8, fontWeight: "700", color: "#fff" },
+    reasonText: { fontSize: 10, fontWeight: "800", color: "#fff" },
     actionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 },
-    likeLine: { fontSize: 12, fontWeight: "800", color: c.text, paddingHorizontal: 14, marginTop: 2 },
+    likeLineRow: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, marginTop: 4 },
+    likeLine: { fontSize: 12, fontWeight: "800", color: c.accent2 },
     notifyHint: { fontSize: 11, fontWeight: "600", color: c.dim, paddingHorizontal: 14, marginTop: 2 },
     caption: { paddingHorizontal: 14, marginTop: 4 },
     captionTitle: { fontSize: 13, fontWeight: "800", color: c.text },
@@ -231,13 +289,17 @@ function makeStyles(c) {
     },
     compactRatingText: { fontSize: 10, fontWeight: "800", color: "#fff" },
     compactReasonBadge: {
-      position: "absolute", top: 8, right: 8, maxWidth: "62%",
+      position: "absolute", top: 8, right: 8, maxWidth: "66%",
       flexDirection: "row", alignItems: "center", gap: 3,
-      backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999,
+      backgroundColor: "rgba(0,0,0,0.7)", paddingHorizontal: 6, paddingVertical: 4, borderRadius: 999,
     },
-    compactReasonText: { fontSize: 7.5, fontWeight: "700", color: "#fff" },
+    compactReasonText: { fontSize: 9, fontWeight: "800", color: "#fff" },
     compactLikeBtn: {
       position: "absolute", bottom: 8, right: 8, width: 28, height: 28, borderRadius: 999,
+      backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
+    },
+    compactDislikeBtn: {
+      position: "absolute", bottom: 8, left: 8, width: 24, height: 24, borderRadius: 999,
       backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
     },
     compactTitle: { fontSize: 12.5, fontWeight: "800", color: c.text, marginTop: 6 },

@@ -3,17 +3,8 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Sparkles, Film } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
+import { verdictFor } from "../utils/blendVerdict";
 import RetryImage from "./RetryImage";
-
-// Uyum yüzdesine göre eğlenceli, kişilikli bir yorum metni — kart, sadece bir sayı
-// göstermek yerine bunu "söylüyormuş" gibi hissettiriyor.
-function verdictFor(pct) {
-  if (pct >= 90) return "İkiz ruhlar 👯";
-  if (pct >= 75) return "Gerçek bir eşleşme 🔥";
-  if (pct >= 55) return "İyi gidiyorsunuz 👌";
-  if (pct >= 35) return "Zıtlar birbirini çeker 😏";
-  return "Zevkleriniz maceraperest 🎢";
-}
 
 // Sadece görsel — yakalanıp paylaşılacak kart. Mantık ShareCardModal'da.
 export default function BlendShareCard({

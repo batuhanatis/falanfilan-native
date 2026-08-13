@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator, Alert, Animated, TouchableWithoutFeedback, Keyboard } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
 import {
-  ChevronLeft, Send, Film, Star, MessageCircle, Camera, Image as ImageIcon, Eye, EyeOff, X, Timer,
+  ChevronLeft, Send, Film, MessageCircle, Camera, Image as ImageIcon, X, Timer,
   Infinity as InfinityIcon, Download, Check, Reply, Trash2, Pencil, CheckSquare, Sparkles, BarChart2,
-  CalendarClock, Plus, Minus, ListVideo, Clock, AlertCircle, ChevronDown, RotateCcw,
+  CalendarClock, Plus, ChevronDown,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -32,22 +31,29 @@ import {
 import { getPrefetchedMessages, setPrefetchedMessages } from "../utils/chatMessagesPrefetch";
 import DismissableSheet from "../components/DismissableSheet";
 import TypingBubble from "../components/TypingBubble";
+import Confetti from "../components/Confetti";
+import ChatMessageRow from "../components/ChatMessageRow";
+import { dayLabel, timeLabel } from "../utils/chatTimeLabels";
 
 const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
 
-// Instagram/WhatsApp'taki gibi gün ayırıcılar için — "Bugün", "Dün" ya da tarih.
-function dayLabel(iso) {
-  const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (sameDay(d, today)) return "Bugün";
-  if (sameDay(d, yesterday)) return "Dün";
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
-}
-function timeLabel(iso) {
-  return new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+// Bir mesajın (film/liste/anket/plan/fotoğraf/silinmiş) kısa, tek satırlık bir önizlemesi —
+// hem "X yanıtlanıyor" çubuğunda hem de bir mesaj başka birine ALINTI olarak eklendiğinde
+// (ChatMessageRow'daki yanıt önizlemesi) AYNI mantıkla kullanılıyor.
+function messageSnippet(msg) {
+  if (!msg) return null;
+  if (msg.deleted_for_everyone) return "Bu mesaj silindi";
+  const photo = decodePhotoMessage(msg.body);
+  if (photo) return "📷 Fotoğraf";
+  const shared = decodeMovieShare(msg.body);
+  if (shared) return `🎬 ${shared.title}`;
+  const listShared = decodeListShare(msg.body);
+  if (listShared) return `📋 ${listShared.name}`;
+  const poll = decodePoll(msg.body);
+  if (poll) return `🗳️ ${poll.question}`;
+  const plan = decodePlan(msg.body);
+  if (plan) return `📅 ${formatPlanTime(plan.scheduledAt)}`;
+  return msg.body;
 }
 
 // ÖNEMLİ (mesajın iki kez gitmesini önlüyor): Her mesaj gönderimi için, cihazda üretilen ve
@@ -82,11 +88,42 @@ export default function ChatConversationScreen({ route, navigation }) {
     const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
-  const styles = makeStyles(c, insets);
+  // ÖNEMLİ (performans): makeStyles her render'da YENİ bir StyleSheet objesi üretiyordu — bu,
+  // ChatMessageRow'a prop olarak geçtiğimizde React.memo'yu (styles "değişti" sanıp) her seferinde
+  // kırardı. useSafeAreaInsets()'in her render'da YENİ bir obje döndürebileceğini varsayıp,
+  // bağımlılık dizisinde "insets" objesinin kendisi yerine İLKEL alanlarını kullanıyoruz —
+  // böylece sadece GERÇEKTEN değişen bir değer olduğunda yeniden hesaplanıyor.
+  const styles = useMemo(() => makeStyles(c, insets), [c, insets.top, insets.bottom, insets.left, insets.right]);
   const listRef = useRef(null);
   const draftInputRef = useRef(null); // gönderince .clear() ile native görünümü de kesin sıfırlamak için
   const rowOffsets = useRef({}); // mesaj id -> ölçülmüş dikey konum (alıntıya tıklayınca gitmek için)
   const swipeRefs = useRef({});
+
+  // CH3 — bu arkadaşla bekleyen/aktif bir MatchParty oturumu varsa header'daki "Party" rozetine
+  // küçük bir nabız ekliyoruz, eskiden davet gönderilmiş olsa bile rozet tamamen durağandı.
+  const [partyActive, setPartyActive] = useState(false);
+  const refreshPartyStatus = useCallback(() => {
+    api.partyStatusWithFriend(auth.token, friendId).then((data) => setPartyActive(!!data.active)).catch(() => {});
+  }, [auth.token, friendId]);
+  useEffect(() => { refreshPartyStatus(); }, [refreshPartyStatus]);
+  const partyPulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!partyActive) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(partyPulse, { toValue: 0.35, duration: 650, useNativeDriver: true }),
+        Animated.timing(partyPulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [partyActive, partyPulse]);
+  useEffect(() => {
+    const unsub = subscribe((msg) => {
+      if (["party_invite", "party_accepted", "party_declined", "party_session_ended"].includes(msg.type)) refreshPartyStatus();
+    });
+    return unsub;
+  }, [subscribe, refreshPartyStatus]);
 
   // ÖNEMLİ (sıfır bekleme deneyimi): Sohbet listesi ekranı zaten arka planda bu sohbetin
   // mesajlarını önceden hafızaya çekmiş olabilir — öyleyse state'i BOŞ diziyle değil, doğrudan o
@@ -115,6 +152,8 @@ export default function ChatConversationScreen({ route, navigation }) {
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [showPlanCreator, setShowPlanCreator] = useState(false);
   const [menuFor, setMenuFor] = useState(null); // uzun basılan mesaj — tepki+aksiyon menüsü için
+  const [showReactionBurst, setShowReactionBurst] = useState(false); // CH2
+  const [reactionBurstKey, setReactionBurstKey] = useState(0);
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // yanıtlanan mesaj
   const [selectionMode, setSelectionMode] = useState(false);
@@ -504,11 +543,19 @@ export default function ChatConversationScreen({ route, navigation }) {
 
   async function react(item, emoji) {
     setMenuFor(null);
+    const key = String(auth.id);
+    const wasReacting = item.reactions?.[key] === emoji;
+    // CH2 — sadece EKLERKEN (kaldırırken değil) küçük bir haptic + konfeti sıçraması.
+    if (!wasReacting) {
+      hapticLight();
+      setReactionBurstKey((k) => k + 1);
+      setShowReactionBurst(true);
+      setTimeout(() => setShowReactionBurst(false), 700);
+    }
     // iyimser güncelleme
     setMessages((prev) => prev.map((m) => {
       if (m.id !== item.id) return m;
       const reactions = { ...(m.reactions || {}) };
-      const key = String(auth.id);
       if (reactions[key] === emoji) delete reactions[key]; else reactions[key] = emoji;
       const updated = { ...m, reactions };
       updateLocalMessage(chatId, updated).catch(() => {});
@@ -660,57 +707,6 @@ export default function ChatConversationScreen({ route, navigation }) {
     navigation.navigate("MatchParty", { friend: { id: friendId, name: friendName, avatarUrl: friendAvatar } });
   }
 
-  function renderReplyPreview(replyToId, isMine) {
-    const original = messagesById.get(replyToId);
-    if (!original) return null;
-    const originalPhoto = decodePhotoMessage(original.body);
-    const originalShared = decodeMovieShare(original.body);
-    const originalListShared = decodeListShare(original.body);
-    const originalPoll = decodePoll(original.body);
-    const originalPlan = decodePlan(original.body);
-    const snippet = original.deleted_for_everyone
-      ? "Bu mesaj silindi"
-      : originalPhoto ? "📷 Fotoğraf"
-      : originalShared ? `🎬 ${originalShared.title}`
-      : originalListShared ? `📋 ${originalListShared.name}`
-      : originalPoll ? `🗳️ ${originalPoll.question}`
-      : originalPlan ? `📅 ${formatPlanTime(originalPlan.scheduledAt)}`
-      : original.body;
-    return (
-      <TouchableOpacity
-        onPress={() => scrollToMessage(replyToId)}
-        style={[styles.replyPreviewInBubble, isMine ? { borderLeftColor: "rgba(20,18,10,0.35)" } : { borderLeftColor: c.accent }]}
-      >
-        <Text style={[styles.replyPreviewText, isMine ? { color: "rgba(20,18,10,0.7)" } : { color: c.dim }]} numberOfLines={1}>
-          {snippet}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
-
-  function renderReactionBadge(item, isMine) {
-    const reactions = item.reactions || {};
-    const emojis = [...new Set(Object.values(reactions))];
-    if (emojis.length === 0) return null;
-    return (
-      <View style={[styles.reactionBadge, isMine ? { right: 4 } : { left: 4 }]}>
-        <Text style={styles.reactionBadgeText}>{emojis.join(" ")}</Text>
-      </View>
-    );
-  }
-
-  // Bir mesaja sağa kaydırınca "yanıtla" ikonu belirsin.
-  function renderLeftActions(item, progress, dragX) {
-    const scale = dragX.interpolate({ inputRange: [0, 60], outputRange: [0.5, 1], extrapolate: "clamp" });
-    return (
-      <View style={styles.replySwipeAction}>
-        <Animated.View style={{ transform: [{ scale }] }}>
-          <Reply size={18} color={c.accent} />
-        </Animated.View>
-      </View>
-    );
-  }
-
   const flatData = useMemo(() => {
     // Gün ayırıcılarını mesaj listesinin arasına serpiştiriyoruz.
     const out = [];
@@ -772,6 +768,53 @@ export default function ChatConversationScreen({ route, navigation }) {
     setTimeout(() => scrollToMessage(messageId, attempt + 1), 200);
   }
 
+  // ÖNEMLİ (performans köprüsü — ChatMessageRow.js'teki React.memo'nun işe yaraması için):
+  // Bu ekrandaki fonksiyonlar (retryFailedMessage, votePoll, vb.) her render'da YENİDEN
+  // tanımlanıyor — state'e bağlı taze closure'lar. Onları doğrudan prop olarak geçirmek,
+  // satırla İLGİSİZ her render'da TÜM satırların "callback değişti" sanıp yeniden render
+  // olmasına yol açardı. "latestRef" her render'da en güncel versiyonlarla dolduruluyor,
+  // "rowActions" objesi ise SADECE BİR KERE (useRef ile) oluşturuluyor ve metodları hep
+  // latestRef.current üzerinden en güncele yönleniyor — hem her zaman taze state'i görüyor
+  // hem de referans kimliği hiç değişmiyor.
+  const latestRef = useRef({});
+  latestRef.current = {
+    messages, toggleSelected, retryFailedMessage, votePoll, acceptPlan, openOnceView,
+    setViewerImage, scrollToMessage, startReply, setMenuFor, navigation,
+  };
+  const rowActions = useRef({
+    toggleSelected: (id) => latestRef.current.toggleSelected({ id }),
+    retryFailedMessage: (id) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.retryFailedMessage(item);
+    },
+    votePoll: (id, optionIndex) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.votePoll(item, optionIndex);
+    },
+    acceptPlan: (id) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.acceptPlan(item);
+    },
+    openOnceView: (id) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.openOnceView(item);
+    },
+    openViewer: (uri, downloadable) => latestRef.current.setViewerImage({ uri, downloadable }),
+    scrollToMessage: (id) => latestRef.current.scrollToMessage(id),
+    startReply: (id) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.startReply(item);
+    },
+    openMenu: (id) => {
+      const item = latestRef.current.messages.find((m) => m.id === id);
+      if (item) latestRef.current.setMenuFor(item);
+    },
+    navigateDetail: (movie) => latestRef.current.navigation.navigate("Detail", { movie }),
+    navigateWatchlist: (watchlistId, name) => latestRef.current.navigation.navigate("WatchlistDetail", { watchlistId, name }),
+    measureLayout: (id, y) => { rowOffsets.current[id] = y; },
+    setSwipeRef: (id, ref) => { swipeRefs.current[id] = ref; },
+  }).current;
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {selectionMode ? (
@@ -802,17 +845,26 @@ export default function ChatConversationScreen({ route, navigation }) {
               <Text style={styles.headerPillText}>Blend</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity onPress={startParty}>
+          <TouchableOpacity onPress={startParty} style={{ position: "relative" }}>
             <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerPill}>
               <Film size={12} color="#fff" />
               <Text style={styles.headerPillText}>Party</Text>
             </LinearGradient>
+            {/* CH3 — bu arkadaşla bekleyen/aktif bir oturum varken nabız atan bir nokta. */}
+            {partyActive && <Animated.View style={[styles.partyPulseDot, { opacity: partyPulse }]} />}
           </TouchableOpacity>
         </View>
       )}
 
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      {/* ÖNEMLİ DÜZELTME: "behavior" burada Android için hâlâ "height" idi — bu, Android'in
+          zaten varsayılan olarak (windowSoftInputMode: resize) kendi native yeniden-boyutlandırmasıyla
+          ÇAKIŞIYORDU: ikisi de aynı anda alan açmaya çalışınca çift boşluk/klavye kapanınca geç
+          sıfırlanma oluyordu — üstteki yorumun anlattığı "Android'de kendi kontrolümüzü alıyoruz"
+          niyeti koddaki bu satırla tam örtüşmüyordu. Android'de artık "undefined" (no-op)
+          veriyoruz, tüm yeniden boyutlandırmayı native'e + keyboardHeight'a bağlı manuel
+          paddingBottom'a bırakıyoruz. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
@@ -877,11 +929,6 @@ export default function ChatConversationScreen({ route, navigation }) {
               );
             }
 
-            const shared = decodeMovieShare(item.body);
-            const listShared = decodeListShare(item.body);
-            const photo = decodePhotoMessage(item.body);
-            const poll = decodePoll(item.body);
-            const plan = decodePlan(item.body);
             const isMine = item.sender_id === auth.id;
             // ÖNEMLİ: flatData artık tersten (yeniden eskiye) sıralı — bu yüzden kronolojik
             // olarak "bir SONRAKİ mesaj" artık index-1'de, "bir ÖNCEKİ mesaj" ise index+1'de.
@@ -900,299 +947,37 @@ export default function ChatConversationScreen({ route, navigation }) {
             const itemHasReaction = item.reactions && Object.keys(item.reactions).length > 0;
             const nextHasReaction = nextItem && nextItem.reactions && Object.keys(nextItem.reactions).length > 0;
             const rowSpacing = (isGroupedWithPrevious ? 2 : 12) + (itemHasReaction || nextHasReaction ? 14 : 0);
-            const seenTick = isLastOfMine && item.read ? <Text style={styles.seenText}>Görüldü</Text> : null;
-            const timeInBubble = (
-              <Text style={[styles.timeTextInBubble, isMine ? { color: "rgba(20,18,10,0.55)" } : { color: c.dim }]}>
-                {timeLabel(item.created_at)}
-              </Text>
-            );
-            const isSelected = selectedIds.has(item.id);
-            const canLongPress = !item.deleted_for_everyone && !selectionMode;
-
-            function handlePress() {
-              if (selectionMode) toggleSelected(item);
-            }
-            function handleLongPress() {
-              if (canLongPress) setMenuFor(item);
-            }
-
-            let bubbleContent;
-
-            if (item.deleted_for_everyone) {
-              bubbleContent = (
-                <View style={[styles.photoLockedBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <X size={13} color={isMine ? c.bg : c.dim} />
-                  <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs, { fontStyle: "italic" }]}>Bu mesaj silindi</Text>
-                </View>
-              );
-            } else if (photo) {
-              // ÖNEMLİ: Metin mesajlarındaki AYNI "gönderiliyor"/"gönderilemedi" durumu artık
-              // fotoğraflar için de geçerli — bkz. attemptSendPhoto. "consumed"/"once" hâlâ
-              // sunucudan gelen KESİN durumlar, bu yüzden onları önceliklendiriyoruz; bir fotoğraf
-              // hâlâ gönderiliyor/başarısızsa zaten "consumed" ya da başkasının "once" akışına
-              // giremez (yerel, henüz sunucuya ulaşmamış bir kayıt).
-              const isPhotoSending = item._status === "sending";
-              const isPhotoFailed = item._status === "failed";
-              if (photo.consumed) {
-                bubbleContent = (
-                  <View style={[styles.photoLockedBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                    <EyeOff size={14} color={isMine ? c.bg : c.dim} />
-                    <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>Fotoğraf görüntülendi</Text>
-                  </View>
-                );
-              } else if (photo.once) {
-                bubbleContent = (
-                  <TouchableOpacity
-                    style={[styles.photoLockedBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isPhotoFailed && { opacity: 0.7 }]}
-                    activeOpacity={isMine && !isPhotoFailed ? 1 : 0.75}
-                    onPress={() => (isPhotoFailed ? retryFailedMessage(item) : selectionMode ? toggleSelected(item) : !isMine && openOnceView(item))}
-                    onLongPress={isPhotoSending || isPhotoFailed ? undefined : handleLongPress}
-                  >
-                    {isPhotoSending ? <Clock size={14} color={isMine ? c.bg : c.text} /> : isPhotoFailed ? <AlertCircle size={14} color={c.danger} /> : <Eye size={14} color={isMine ? c.bg : c.text} />}
-                    <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
-                      {isPhotoSending ? "Gönderiliyor..." : isPhotoFailed ? "Gönderilemedi — tekrar dene" : isMine ? "Tek seferlik fotoğraf gönderildi" : "Fotoğrafı Gör"}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              } else {
-                bubbleContent = (
-                  <TouchableOpacity
-                    onPress={() => (isPhotoFailed ? retryFailedMessage(item) : selectionMode ? toggleSelected(item) : setViewerImage({ uri: photo.image, downloadable: true }))}
-                    onLongPress={isPhotoSending || isPhotoFailed ? undefined : handleLongPress}
-                    activeOpacity={0.9}
-                    style={{ position: "relative" }}
-                  >
-                    {item.reply_to_id && renderReplyPreview(item.reply_to_id, isMine)}
-                    <Image source={{ uri: photo.image }} style={[styles.photoBubbleImage, isMine ? { alignSelf: "flex-end" } : { alignSelf: "flex-start" }, (isPhotoSending || isPhotoFailed) && { opacity: 0.55 }]} />
-                    {(isPhotoSending || isPhotoFailed) && (
-                      <View style={styles.photoStatusOverlay} pointerEvents="none">
-                        {isPhotoSending ? <Clock size={20} color="#fff" /> : (
-                          <>
-                            <AlertCircle size={20} color="#fff" />
-                            <Text style={styles.photoStatusOverlayText}>Tekrar dene</Text>
-                          </>
-                        )}
-                      </View>
-                    )}
-                    <View style={styles.photoTimeBadge}><Text style={styles.photoTimeBadgeText}>{timeLabel(item.created_at)}</Text></View>
-                    {renderReactionBadge(item, isMine)}
-                  </TouchableOpacity>
-                );
-              }
-            } else if (shared) {
-              bubbleContent = (
-                <TouchableOpacity
-                  style={[styles.movieBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
-                  activeOpacity={0.8}
-                  onPress={() => (selectionMode ? toggleSelected(item) : navigation.navigate("Detail", { movie: shared }))}
-                  onLongPress={handleLongPress}
-                >
-                  {shared.poster ? (
-                    <Image source={{ uri: shared.poster }} style={styles.movieBubblePoster} />
-                  ) : (
-                    <View style={[styles.movieBubblePoster, { backgroundColor: c.surface2 }]} />
-                  )}
-                  <View style={styles.movieBubbleInfo}>
-                    <Text style={[styles.movieBubbleLabel, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>🎬 Film/dizi önerisi</Text>
-                    <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{shared.title}</Text>
-                    <View style={styles.movieBubbleMetaRow}>
-                      <Star size={10} color={isMine ? c.bg : c.accent} fill={isMine ? c.bg : c.accent} />
-                      <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>{shared.imdb} · {shared.year} · {shared.type}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 3 }}>{timeInBubble}</View>
-                  </View>
-                  {renderReactionBadge(item, isMine)}
-                </TouchableOpacity>
-              );
-            } else if (listShared) {
-              bubbleContent = (
-                <TouchableOpacity
-                  style={[styles.movieBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
-                  activeOpacity={0.8}
-                  onPress={() => (selectionMode ? toggleSelected(item) : navigation.navigate("WatchlistDetail", { watchlistId: listShared.id, name: listShared.name }))}
-                  onLongPress={handleLongPress}
-                >
-                  {listShared.previewPoster ? (
-                    <Image source={{ uri: listShared.previewPoster }} style={styles.movieBubblePoster} />
-                  ) : (
-                    <View style={[styles.movieBubblePoster, { backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }]}>
-                      <ListVideo size={20} color={c.dim} />
-                    </View>
-                  )}
-                  <View style={styles.movieBubbleInfo}>
-                    <Text style={[styles.movieBubbleLabel, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>📋 {listShared.ownerName} bir liste paylaştı</Text>
-                    <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{listShared.name}</Text>
-                    <View style={styles.movieBubbleMetaRow}>
-                      <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>{listShared.count} içerik</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 3 }}>{timeInBubble}</View>
-                  </View>
-                  {renderReactionBadge(item, isMine)}
-                </TouchableOpacity>
-              );
-            } else if (poll) {
-              const myVote = poll.votes?.[String(auth.id)] ?? poll.votes?.[auth.id];
-              const friendVote = poll.votes?.[String(friendId)] ?? poll.votes?.[friendId];
-              const totalVotes = Object.keys(poll.votes || {}).length;
-              bubbleContent = (
-                <View style={[styles.pollBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <Text style={[styles.pollQuestion, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>🗳️ {poll.question}</Text>
-                  <View style={styles.pollOptionsRow}>
-                    {poll.options.map((opt, i) => {
-                      const voteCount = Object.values(poll.votes || {}).filter((v) => v === i).length;
-                      const pct = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-                      const isMyVote = myVote === i;
-                      const isFriendVote = friendVote === i;
-                      const checkColor = isMine ? c.bg : c.accent;
-                      return (
-                        <View key={opt.id ?? i} style={styles.pollOptionCol}>
-                          {/* Postere basınca oy vermiyor, film DETAYINA gidiyor. */}
-                          <TouchableOpacity onPress={() => navigation.navigate("Detail", { movie: opt })} activeOpacity={0.85}>
-                            {opt.poster
-                              ? <Image source={{ uri: opt.poster }} style={styles.pollOptionPoster} />
-                              : <View style={[styles.pollOptionPoster, { backgroundColor: c.surface2 }]} />}
-                          </TouchableOpacity>
-                          <Text style={[styles.pollOptionTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                            {opt.title}
-                          </Text>
-                          <View style={styles.pollOptionBarTrack}>
-                            <View style={[styles.pollOptionBarFill, { width: `${pct}%` }, isMyVote && { backgroundColor: c.accent }]} />
-                          </View>
-                          <Text style={[styles.pollOptionPct, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
-                            {totalVotes > 0 ? `%${pct}` : " "}
-                          </Text>
-                          {/* Checkbox AYRI bir dokunma alanı — oy vermek için burası kullanılıyor. */}
-                          <TouchableOpacity style={styles.pollVoteRow} onPress={() => votePoll(item, i)} activeOpacity={0.7}>
-                            <View style={[
-                              styles.pollCheckbox,
-                              { borderColor: checkColor },
-                              isMyVote && { backgroundColor: checkColor },
-                            ]}>
-                              {isMyVote && <Check size={13} color={isMine ? c.accent : c.bg} />}
-                            </View>
-                            {isFriendVote && (
-                              <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={styles.pollVoterAvatar} />
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 2 }}>{timeInBubble}</View>
-                </View>
-              );
-            } else if (plan) {
-              bubbleContent = (
-                <View style={[styles.planBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <View style={styles.planHeaderRow}>
-                    <CalendarClock size={14} color={isMine ? c.bg : c.accent} />
-                    <Text style={[styles.pollQuestion, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>İzleme Planı</Text>
-                  </View>
-                  <Text style={[styles.planNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
-                    {formatPlanTime(plan.scheduledAt)}
-                  </Text>
-                  {!!plan.note && (
-                    <Text style={[styles.planSubNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>{plan.note}</Text>
-                  )}
-                  {plan.status === "accepted" ? (
-                    <View style={styles.planStatusRow}>
-                      <Check size={13} color={isMine ? c.bg : c.accent} />
-                      <Text style={[styles.planStatusText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>Kabul edildi</Text>
-                    </View>
-                  ) : isMine ? (
-                    <Text style={[styles.planStatusText, styles.bubbleTextMine, { opacity: 0.8 }]}>Yanıt bekleniyor...</Text>
-                  ) : (
-                    <TouchableOpacity style={styles.planAcceptBtn} onPress={() => acceptPlan(item)}>
-                      <Text style={styles.planAcceptBtnText}>Kabul Et</Text>
-                    </TouchableOpacity>
-                  )}
-                  <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 2 }}>{timeInBubble}</View>
-                </View>
-              );
-            } else {
-              const isFailed = item._status === "failed";
-              const isSending = item._status === "sending";
-              bubbleContent = (
-                <TouchableOpacity
-                  style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isFailed && { opacity: 0.7 }]}
-                  activeOpacity={0.8}
-                  onPress={() => (isFailed ? retryFailedMessage(item) : handlePress())}
-                  onLongPress={isSending || isFailed ? undefined : handleLongPress}
-                >
-                  {item.reply_to_id && renderReplyPreview(item.reply_to_id, isMine)}
-                  <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>{item.body}</Text>
-                  <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 5, marginTop: 2 }}>
-                    {!!item.edited_at && (
-                      <Text style={[styles.editedTag, isMine ? { color: "rgba(20,18,10,0.6)" } : { color: c.dim }]}>düzenlendi</Text>
-                    )}
-                    {/* ÖNEMLİ (gönderim durumu göstergesi): Zayıf bağlantıda mesajın gerçekten
-                        gidip gitmediği belli olmuyordu. Artık "gönderiliyor" (saat ikonu) ve
-                        "gönderilemedi" (kırmızı ünlem, dokununca tekrar dener) durumları
-                        görünür. Normal gönderilmiş bir mesajda ekstra bir ikon yok — mevcut
-                        "Görüldü" yazısı zaten o durumu kapsıyor. */}
-                    {isMine && isSending && <Clock size={11} color="rgba(20,18,10,0.55)" />}
-                    {isMine && isFailed && <AlertCircle size={12} color={c.danger} />}
-                    {timeInBubble}
-                  </View>
-                  {isFailed && (
-                    <TouchableOpacity
-                      style={styles.retryBtn}
-                      onPress={(e) => { e.stopPropagation(); retryFailedMessage(item); }}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <RotateCcw size={11} color={c.danger} />
-                      <Text style={styles.failedText}>Gönderilemedi — tekrar dene</Text>
-                    </TouchableOpacity>
-                  )}
-                  {renderReactionBadge(item, isMine)}
-                </TouchableOpacity>
-              );
-            }
-
-            const isHighlighted = item.id === highlightedId;
-            const row = (
-              <View style={[
-                { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: isMine ? "flex-end" : "flex-start", borderRadius: 14, marginTop: rowSpacing },
-                isHighlighted && styles.highlightedRow,
-              ]}>
-                {selectionMode && !isMine && (
-                  <View style={[styles.selectCircle, isSelected && { backgroundColor: c.accent, borderColor: c.accent }]}>
-                    {isSelected && <Check size={12} color={c.bg} />}
-                  </View>
-                )}
-                <View style={{ maxWidth: poll || plan ? "92%" : "84%" }}>
-                  {bubbleContent}
-                  {!!seenTick && (
-                    <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 2 }}>{seenTick}</View>
-                  )}
-                </View>
-                {selectionMode && isMine && (
-                  <View style={[styles.selectCircle, isSelected && { backgroundColor: c.accent, borderColor: c.accent }]}>
-                    {isSelected && <Check size={12} color={c.bg} />}
-                  </View>
-                )}
-              </View>
-            );
-
-            const measureLayout = (e) => { rowOffsets.current[item.id] = e.nativeEvent.layout.y; };
-
-            if (item.deleted_for_everyone || selectionMode) {
-              return <View onLayout={measureLayout}>{row}</View>;
-            }
+            const reactions = item.reactions || {};
+            // ÖNEMLİ (performans): tek bir STRING'e indirgeniyor — ChatMessageRow'a obje yerine
+            // ilkel bir değer geçiyoruz ki React.memo'nun varsayılan sığ karşılaştırması "bu satır
+            // gerçekten değişti mi" sorusunu doğru cevaplayabilsin (bkz. ChatMessageRow.js).
+            const reactionsKey = Object.keys(reactions).length > 0 ? [...new Set(Object.values(reactions))].join(" ") : null;
+            const replySnippet = item.reply_to_id ? messageSnippet(messagesById.get(item.reply_to_id)) : null;
 
             return (
-              <View onLayout={measureLayout}>
-                <Swipeable
-                  ref={(ref) => { swipeRefs.current[item.id] = ref; }}
-                  renderLeftActions={(progress, dragX) => renderLeftActions(item, progress, dragX)}
-                  onSwipeableWillOpen={() => startReply(item)}
-                  leftThreshold={35}
-                  friction={1.4}
-                  overshootLeft={false}
-                >
-                  {row}
-                </Swipeable>
-              </View>
+              <ChatMessageRow
+                id={item.id}
+                body={item.body}
+                isMine={isMine}
+                myId={auth.id}
+                createdAt={item.created_at}
+                editedAt={item.edited_at}
+                deletedForEveryone={item.deleted_for_everyone}
+                status={item._status}
+                reactionsKey={reactionsKey}
+                showSeenTick={isLastOfMine && item.read}
+                replyToId={item.reply_to_id}
+                replySnippet={replySnippet}
+                rowSpacing={rowSpacing}
+                isSelected={selectedIds.has(item.id)}
+                isHighlighted={item.id === highlightedId}
+                selectionMode={selectionMode}
+                friendId={friendId}
+                friendAvatar={friendAvatar}
+                c={c}
+                styles={styles}
+                actions={rowActions}
+              />
             );
           }}
           ListEmptyComponent={
@@ -1221,12 +1006,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.replyingToLabel}>{replyingTo.sender_id === auth.id ? "Kendine" : friendName} yanıtlanıyor</Text>
               <Text style={styles.editingBarText} numberOfLines={1}>
-                {decodePhotoMessage(replyingTo.body) ? "📷 Fotoğraf"
-                  : decodeMovieShare(replyingTo.body) ? `🎬 ${decodeMovieShare(replyingTo.body).title}`
-                  : decodeListShare(replyingTo.body) ? `📋 ${decodeListShare(replyingTo.body).name}`
-                  : decodePoll(replyingTo.body) ? `🗳️ ${decodePoll(replyingTo.body).question}`
-                  : decodePlan(replyingTo.body) ? `📅 ${formatPlanTime(decodePlan(replyingTo.body).scheduledAt)}`
-                  : replyingTo.body}
+                {messageSnippet(replyingTo)}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyingTo(null)}><X size={16} color={c.dim} /></TouchableOpacity>
@@ -1261,6 +1041,14 @@ export default function ChatConversationScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* CH2 — bir reaksiyon eklendiğinde ekranın alt yarısında küçük, kısa bir konfeti
+          sıçraması (reaksiyon sayfasının kapandığı tam o an tetikleniyor). */}
+      {showReactionBurst && (
+        <View style={styles.reactionBurstWrap} pointerEvents="none">
+          <Confetti key={reactionBurstKey} count={12} spread={160} fast />
+        </View>
+      )}
 
       {/* Mesaja uzun basınca: hızlı tepki satırı + aksiyon listesi. ÖNEMLİ: bu bilinçli olarak
           native <Modal> DEĞİL — kendi başına bir UIViewController olarak sunulan bir Modal,
@@ -1417,12 +1205,20 @@ function makeStyles(c, insets) {
       flexDirection: "row", alignItems: "center", gap: 4,
     },
     headerPillText: { fontSize: 11, fontWeight: "700", color: "#fff" },
-    bubble: {
-      maxWidth: "100%", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16,
-      shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+    partyPulseDot: {
+      position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 999,
+      backgroundColor: "#4ADE80", borderWidth: 1.5, borderColor: c.bg,
     },
+    bubble: {
+      maxWidth: "100%", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, overflow: "hidden",
+      shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2,
+    },
+    bubbleGloss: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
     bubbleMine: { alignSelf: "flex-end", backgroundColor: c.accent, borderBottomRightRadius: 4 },
     bubbleTheirs: { alignSelf: "flex-start", backgroundColor: c.surface2, borderBottomLeftRadius: 4 },
+    // CH1 — sadece düz metin balonunda kullanılan hafif çerçeve (paylaşılan bubbleTheirs'a
+    // eklenmiyor, çünkü o film/anket/plan kartlarında da kullanılıyor).
+    bubbleTheirsBorder: { borderWidth: 1, borderColor: c.border },
     // ÖNEMLİ: fontSize'ı buradan kaldırdık — bu stil, film/anket/plan kartları gibi KENDİ punto
     // boyutu olan birçok yerde de "renk" vermek için kullanılıyordu; buraya sabit bir fontSize
     // koymak, o kartların kendi (zaten ayarlı) boyutlarını ezip hepsini 13.5'e sabitliyordu.
@@ -1475,20 +1271,54 @@ function makeStyles(c, insets) {
     // Android'in yanlış yükseklik hesaplaması ihtimali de ortadan kalkıyor.
     movieBubble: { maxWidth: "100%", flexDirection: "row", gap: 10, padding: 12, borderRadius: 14, alignItems: "flex-start", alignSelf: "flex-start" },
     movieBubblePoster: { width: 92, height: 132, borderRadius: 10 },
+    // Poster + IMDb puan rozeti aynı yerde çakışmasın diye poster artık ayrı bir "wrap" içinde —
+    // rozet buna göre mutlak konumlanıyor (bkz. movieBubbleRatingBadge).
+    movieBubblePosterWrap: { width: 92, height: 132 },
+    movieBubbleRatingBadge: {
+      position: "absolute", bottom: 6, right: 6, flexDirection: "row", alignItems: "center", gap: 3,
+      backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999,
+    },
+    movieBubbleRatingText: { fontSize: 9.5, fontWeight: "800", color: "#fff" },
     movieBubbleInfo: { width: 170 },
-    movieBubbleLabel: { fontSize: 9, fontWeight: "700", opacity: 0.75 },
-    movieBubbleTitle: { fontSize: 13, fontWeight: "700", marginTop: 2 },
-    movieBubbleMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-    movieBubbleMeta: { fontSize: 10, opacity: 0.8 },
-    pollBubble: { borderRadius: 18, padding: 16 },
-    pollQuestion: { fontSize: 15, fontWeight: "800", marginBottom: 12 },
+    // Eskiden düz, soluk bir "🎬 Film/dizi önerisi" metniydi — artık renkli, gradyanlı bir rozet
+    // (Blend/Party başlık rozetleriyle aynı dil), kart tekdüze durmasın diye.
+    movieBubblePill: {
+      flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+    },
+    movieBubblePillText: { fontSize: 9, fontWeight: "800", color: "#fff" },
+    movieBubbleTitle: { fontSize: 13, fontWeight: "700", marginTop: 5 },
+    movieBubbleMeta: { fontSize: 10, opacity: 0.8, marginTop: 4 },
+    // Tür/yıl bilgisinin altındaki boşluğu dolduran platform logoları (Netflix/Prime vb.).
+    movieBubblePlatformsRow: { flexDirection: "row", gap: 4, marginTop: 7, flexWrap: "wrap" },
+    movieBubblePlatformLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
+    // Saat artık metin akışının bir parçası değil — poster/gövde ne kadar uzun olursa olsun
+    // baloncuğun TAM sağ alt köşesine sabit kalıyor (film/liste/anket/plan kartlarının hepsinde ortak).
+    movieBubbleTimeCorner: { position: "absolute", bottom: 8, right: 10 },
+    // Anket/plan kartları eskiden TEK bir düz renkli blok olarak boyanıyordu (sıkıcı şikayetinin
+    // asıl kaynağı) — artık renkli bir gradyan başlık şeridi + altında normal balon rengi taşıyan
+    // bir gövde olarak İKİ katmanlı. "overflow: hidden" sayesinde şeridin köşeleri ayrıca
+    // yuvarlatılmasa da dış borderRadius'u takip ediyor.
+    pollBubble: { borderRadius: 18, overflow: "hidden" },
+    pollHeaderStrip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+    pollQuestion: { flex: 1, fontSize: 14, fontWeight: "800", color: "#fff" },
+    // paddingBottom fazladan — köşeye sabitlenen saat (movieBubbleTimeCorner) içerikle çakışmasın.
+    pollBody: { padding: 16, paddingBottom: 28 },
     // Filmler artık YAN YANA — her biri kendi sütununda (poster, başlık, çubuk, yüzde, checkbox
     // alt alta). Sığmazsa yatay kaydırılabilir.
     pollOptionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
     pollOptionCol: { width: 92, alignItems: "center" },
     pollOptionPoster: { width: 92, height: 132, borderRadius: 10 },
+    // En çok oy alan seçenek altın bir çerçeve + taç rozetiyle öne çıkıyor — bir anketin sonucu
+    // artık tek bakışta belli oluyor, sadece yüzdelere bakmak gerekmiyor.
+    pollOptionPosterLeading: { borderWidth: 2, borderColor: "#FFD700" },
+    pollLeaderBadge: {
+      position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
+      backgroundColor: "#fff", alignItems: "center", justifyContent: "center",
+      shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 3,
+    },
     pollOptionBarTrack: { width: "100%", height: 8, borderRadius: 5, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden", marginTop: 6 },
-    pollOptionBarFill: { height: "100%", borderRadius: 5, backgroundColor: "rgba(255,255,255,0.7)" },
+    pollOptionBarFill: { height: "100%", borderRadius: 5 },
     // ÖNEMLİ DÜZELTME: Sabit "height: 30" kullanılıyordu — Android'de gerçek font satır
     // yüksekliği bazı cihazlarda "lineHeight: 15 x 2 satır = 30" sınırını hafifçe aşabiliyor,
     // bu da ikinci satırın kırpılmasına/kaybolmasına yol açıyordu. "minHeight" kullanmak, metnin
@@ -1502,14 +1332,20 @@ function makeStyles(c, insets) {
       alignItems: "center", justifyContent: "center",
     },
     pollVoterAvatar: { width: 20, height: 20, borderRadius: 999, borderWidth: 1.5, borderColor: "#fff" },
-    planBubble: { borderRadius: 18, padding: 16 },
-    planHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+    planBubble: { borderRadius: 18, overflow: "hidden" },
+    planHeaderStrip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+    planHeaderStripText: { fontSize: 12.5, fontWeight: "800", color: "#fff" },
+    // paddingBottom fazladan — köşeye sabitlenen saat (movieBubbleTimeCorner) içerikle çakışmasın.
+    planBody: { padding: 16, paddingTop: 12, paddingBottom: 26 },
     planNote: { fontSize: 15, fontWeight: "700", marginBottom: 12, lineHeight: 21 },
     planSubNote: { fontSize: 12.5, opacity: 0.85, marginTop: -8, marginBottom: 12 },
     planStatusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     planStatusText: { fontSize: 13, fontWeight: "700" },
-    planAcceptBtn: { backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 12, paddingVertical: 12, alignItems: "center" },
-    planAcceptBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+    planAcceptBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+      borderRadius: 12, paddingVertical: 12,
+    },
+    planAcceptBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
     photoLockedBubble: {
       maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 8,
       paddingHorizontal: 13, paddingVertical: 11, borderRadius: 16,
@@ -1524,6 +1360,7 @@ function makeStyles(c, insets) {
       ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 4,
     },
     photoStatusOverlayText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+    reactionBurstWrap: { position: "absolute", left: 0, right: 0, bottom: 0, top: "45%" },
     reactionBadge: {
       position: "absolute", bottom: -10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1,

@@ -20,6 +20,21 @@ export function setPrefetchedMessages(chatId, messages) {
   prefetchCache.set(chatId, messages);
 }
 
+// ÖNEMLİ (bildirime dokunup girince "en yeni mesaj eksik" düzeltmesi): prefetchAllChats bir
+// sohbeti BİR KERE önbelleğe aldıktan sonra bir daha asla güncellemiyordu (prefetchCache.has()
+// hep true dönüp atlıyordu) — sohbet listesindeyken yeni bir mesaj gelip sonra o sohbete
+// tıklandığında, ChatConversationScreen İLK KAREDE bu BAYAT önbellekten okuyordu, az önce
+// bildirimini aldığın mesaj bir an görünmeyip sonra (gerçek senkron bitince) beliriyordu. Global
+// WS dinleyicisi (bkz. UnreadContext.js) her "message" olayında bunu çağırıp önbelleği CANLI
+// tutuyor — sohbet hiç önbellekte yoksa hiçbir şey yapmıyoruz (ilk açılışta zaten sıfırdan
+// yüklenecek, burada icat etmeye gerek yok).
+export function appendPrefetchedMessage(chatId, message) {
+  const existing = prefetchCache.get(chatId);
+  if (!existing) return;
+  if (existing.some((m) => m.id === message.id)) return;
+  prefetchCache.set(chatId, [...existing, message]);
+}
+
 // Hesap değiştiğinde (çıkış yapılınca) çağrılıyor — bu, modül seviyesinde (React state'i
 // DEĞİL) yaşayan bir önbellek olduğu için, aksi halde önceki hesabın sohbet verileri hafızada
 // kalmaya devam ederdi.

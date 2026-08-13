@@ -1,8 +1,13 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { Check } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { hapticLight } from "../utils/haptics";
 
 // Web'deki ChipRow'un native karşılığı — tek/çoklu seçilebilir yatay çip listesi.
+// ÖNEMLİ (tutarlılık): Seçili durumu artık sadece dolgu rengiyle değil, PlatformChipRow'daki
+// AYNI küçük onay ikonuyla da işaretleniyor — aynı filtre panelinde iki farklı "seçili" dili
+// konuşulmasın diye (bkz. HomeScreen'deki TÜR/PLATFORM bölümleri, yan yana kullanılıyorlar).
 export default function ChipRow({ items, active, onSelect, isActive }) {
   const { c } = useAppTheme();
   const styles = makeStyles(c);
@@ -18,9 +23,10 @@ export default function ChipRow({ items, active, onSelect, isActive }) {
         return (
           <TouchableOpacity
             key={item}
-            onPress={() => onSelect(item)}
+            onPress={() => { hapticLight(); onSelect(item); }}
             style={[styles.chip, on && { backgroundColor: c.accent, borderColor: c.accent }]}
           >
+            {on && <Check size={12} color={c.bg} strokeWidth={3} />}
             <Text style={[styles.chipText, on && { color: c.bg, fontWeight: "800" }]}>{item}</Text>
           </TouchableOpacity>
         );
@@ -33,6 +39,7 @@ function makeStyles(c) {
   return StyleSheet.create({
     row: { gap: 8, paddingVertical: 2 },
     chip: {
+      flexDirection: "row", alignItems: "center", gap: 5,
       paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
       borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2,
     },

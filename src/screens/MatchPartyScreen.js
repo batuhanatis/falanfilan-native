@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check } from "lucide-react-native";
+import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check, Trophy } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -12,8 +12,11 @@ import { avatarOr } from "../utils/avatar";
 import { emitLocalEvent } from "../utils/localEvents";
 import RetryImage from "../components/RetryImage";
 import { recommendationReason } from "../utils/recommend";
-import { GENRE_FILTERS, COMMON_PLATFORMS } from "../theme/theme";
+import { GENRE_FILTERS } from "../theme/theme";
+import { YEAR_OPTIONS } from "../utils/filterYears";
 import ChipRow from "../components/ChipRow";
+import FilterFields from "../components/FilterFields";
+import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
 import SwipeableCard from "../components/SwipeableCard";
 import ShareCardModal from "../components/ShareCardModal";
 import MatchShareCard from "../components/MatchShareCard";
@@ -23,13 +26,38 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const SWIPE_THRESHOLD = 110;
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
 const STOCK_TARGET = 10; // Discover'daki gibi: kuyrukta her zaman en az bu kadar film kalsın
-const YEAR_OPTIONS = [
-  ["1990 öncesi", "before1990"],
-  ["1990'lar", "1990s"],
-  ["2000'ler", "2000s"],
-  ["2010'lar", "2010s"],
-  ["2020 ve sonrası", "2020s"],
-];
+
+// MP2 — bekleme ekranındaki canlı animasyon: iki avatar birbirine hafifçe yaklaşıp uzaklaşarak
+// "bağlantı kurulmaya çalışılıyor" hissi veriyor, düz bir spinnerden daha canlı.
+function WaitingAvatars({ myAvatar, myId, friendAvatar, friendId, c }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  const gap = pulse.interpolate({ inputRange: [0, 1], outputRange: [10, -4] });
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+      <Animated.View style={{ transform: [{ translateX: gap }] }}>
+        <RetryImage source={{ uri: avatarOr(myAvatar, myId) }} style={waitingStyles.avatar} />
+      </Animated.View>
+      <Animated.View style={[waitingStyles.dot, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }]} />
+      <Animated.View style={{ transform: [{ translateX: pulse.interpolate({ inputRange: [0, 1], outputRange: [-10, 4] }) }] }}>
+        <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={waitingStyles.avatar} />
+      </Animated.View>
+    </View>
+  );
+}
+const waitingStyles = StyleSheet.create({
+  avatar: { width: 56, height: 56, borderRadius: 999 },
+  dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "#c9a44c", marginHorizontal: 10 },
+});
 
 export default function MatchPartyScreen({ route, navigation }) {
   const { friend, sessionId: initialSessionId } = route.params || {};
@@ -38,6 +66,7 @@ export default function MatchPartyScreen({ route, navigation }) {
   const { auth } = useAuth();
   const { subscribe } = useWS();
   const styles = makeStyles(c);
+  const commonPlatforms = useCommonPlatforms();
 
   const [stage, setStage] = useState(initialSessionId ? "loading" : "setup");
   const [sessionId, setSessionId] = useState(initialSessionId || null);
@@ -77,12 +106,16 @@ export default function MatchPartyScreen({ route, navigation }) {
     api.userProfile(auth.token, auth.id).then((data) => setLikedMovies(data.likedMovies || [])).catch(() => {});
   }, []);
   const likedIds = new Set(likedMovies.map((m) => m.id));
+  const likedMoviesById = new Map(likedMovies.map((m) => [m.id, m]));
 
   function toggleYear(label) {
     setYearLabels((prev) => { const n = new Set(prev); n.has(label) ? n.delete(label) : n.add(label); return n; });
   }
   function togglePlatform(name) {
     setPlatformPrefs((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  }
+  function shuffleGenre() {
+    setGenrePref(GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)]);
   }
 
   const cardRef = useRef(null);
@@ -120,8 +153,11 @@ export default function MatchPartyScreen({ route, navigation }) {
       } else if (msg.type === "party_match") {
         setMatches((m) => {
           if (m.some((x) => x.id === msg.movie.id)) return m;
-          setCelebration({ movie: msg.movie });
-          return [...m, msg.movie];
+          const next = [...m, msg.movie];
+          // MP5 — aynı oturumda art arda eşleşmelerde kutlama hep birebir aynı olmasın diye
+          // kaçıncı eşleşme olduğunu da taşıyoruz (bkz. MatchCelebration'daki milestone mantığı).
+          setCelebration({ movie: msg.movie, matchNumber: next.length });
+          return next;
         });
       } else if (msg.type === "party_partner_swiped") {
         // Canlı ilerleme güncellemesi — "arkadaşın kaçıncı içerikte" bilgisini anlık gösterebilmek için.
@@ -253,17 +289,22 @@ export default function MatchPartyScreen({ route, navigation }) {
 
       {stage === "setup" && (
         <ScrollView style={{ padding: 18 }}>
-          <Text style={styles.label}>TÜR</Text>
-          <ChipRow items={["Film", "Dizi"]} active={typePref === "Hepsi" ? null : typePref}
-            onSelect={(v) => setTypePref(v === typePref ? "Hepsi" : v)} />
-          <Text style={styles.label}>KATEGORİ</Text>
-          <ChipRow items={GENRE_FILTERS} active={genrePref} onSelect={(v) => setGenrePref(v === genrePref ? null : v)} />
+          {/* GroupPartyScreen'in grup daveti İLE AYNI paylaşılan filtre bileşeni (bkz.
+              FilterFields.js) — burada da modal olmadan doğrudan sayfanın akışına gömülü. */}
+          <FilterFields
+            typeValue={typePref}
+            onTypeChange={setTypePref}
+            genreValue={genrePref}
+            onGenreChange={setGenrePref}
+            yearSet={yearLabels}
+            onToggleYear={toggleYear}
+            platformSet={platformPrefs}
+            onTogglePlatform={togglePlatform}
+            platforms={commonPlatforms}
+            onShuffleGenre={shuffleGenre}
+          />
           <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
           <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
-          <Text style={styles.label}>YAPIM YILI (opsiyonel, birden fazla seçilebilir)</Text>
-          <ChipRow items={YEAR_OPTIONS.map(([label]) => label)} isActive={(label) => yearLabels.has(label)} onSelect={toggleYear} />
-          <Text style={styles.label}>PLATFORM (opsiyonel, birden fazla seçilebilir)</Text>
-          <ChipRow items={COMMON_PLATFORMS} isActive={(name) => platformPrefs.has(name)} onSelect={togglePlatform} />
           <TouchableOpacity style={styles.primaryBtn} onPress={startInvite}>
             <Text style={styles.primaryBtnText}>{displayName}'e Davet Gönder</Text>
           </TouchableOpacity>
@@ -272,17 +313,25 @@ export default function MatchPartyScreen({ route, navigation }) {
       )}
 
       {stage === "waiting" && (
+        // MP2 — düz bir spinner yerine, birbirine yaklaşıp uzaklaşan iki avatarla "bekleniyor"
+        // hissini biraz daha canlı anlatıyoruz.
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.accent} />
+          <WaitingAvatars myAvatar={myAvatarUrl} myId={auth.id} friendAvatar={friend?.avatarUrl} friendId={friend?.id} c={c} />
           <Text style={styles.waitTitle}>Davet gönderildi</Text>
           <Text style={styles.waitSubtitle}>{displayName} kabul etmesi bekleniyor… Kabul edince otomatik başlayacak.</Text>
         </View>
       )}
 
       {stage === "declined" && (
+        // MP3 — eskiden bir X ikonu + tek satırla bitiyordu; artık daha yumuşak bir ton +
+        // doğrudan başka bir arkadaşla tekrar denemeyi öneren bir CTA var.
         <View style={styles.center}>
-          <X size={30} color={c.danger} />
-          <Text style={styles.waitTitle}>{declinedBy} daveti reddetti</Text>
+          <RetryImage source={{ uri: avatarOr(friend?.avatarUrl, friend?.id) }} style={styles.declinedAvatar} />
+          <Text style={styles.waitTitle}>{declinedBy} şu an uygun değil</Text>
+          <Text style={styles.waitSubtitle}>Belki başka zaman — istersen başka bir arkadaşınla dene.</Text>
+          <TouchableOpacity style={styles.primaryBtnSmall} onPress={() => navigation.replace("GroupParty")}>
+            <Text style={styles.primaryBtnSmallText}>Başka Arkadaşınla Dene</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.secondaryBtnText}>Kapat</Text>
           </TouchableOpacity>
@@ -301,25 +350,36 @@ export default function MatchPartyScreen({ route, navigation }) {
               olmadığı için en anlamlı kıyaslama bu.
           */}
           {(() => {
-            const maxProgress = Math.max(cursor, ...members.map((m) => m.progress || 0), 1);
+            // MP4 — çift ilerleme çubuğu artık açıkça bir "yarış": kim önde küçük bir kupa
+            // ikonuyla işaretleniyor (sadece gerçek bir öndelik varken, 0-0 beraberlikte değil).
+            const allProgress = [cursor, ...members.map((m) => m.progress || 0)];
+            const maxProgress = Math.max(...allProgress, 1);
+            const leadValue = Math.max(...allProgress);
+            const isTie = allProgress.filter((v) => v === leadValue).length > 1;
+            const iAmLeading = !isTie && leadValue > 0 && cursor === leadValue;
             return (
               <View style={styles.progressBlock}>
                 <View style={styles.progressBarRow}>
+                  {iAmLeading && <Trophy size={11} color="#FFD700" />}
                   <Text style={styles.progressLabel} numberOfLines={1}>Sen</Text>
                   <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${Math.min(100, (cursor / maxProgress) * 100)}%`, backgroundColor: c.accent }]} />
                   </View>
                   <Text style={styles.progressCount}>{cursor}</Text>
                 </View>
-                {members.map((m) => (
-                  <View key={m.id} style={styles.progressBarRow}>
-                    <RetryImage source={{ uri: avatarOr(m.avatarUrl, m.id) }} style={styles.progressAvatar} />
-                    <View style={styles.progressTrack}>
-                      <View style={[styles.progressFill, { width: `${Math.min(100, ((m.progress || 0) / maxProgress) * 100)}%`, backgroundColor: c.accent2 }]} />
+                {members.map((m) => {
+                  const memberLeading = !isTie && leadValue > 0 && (m.progress || 0) === leadValue;
+                  return (
+                    <View key={m.id} style={styles.progressBarRow}>
+                      {memberLeading && <Trophy size={11} color="#FFD700" />}
+                      <RetryImage source={{ uri: avatarOr(m.avatarUrl, m.id) }} style={styles.progressAvatar} />
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${Math.min(100, ((m.progress || 0) / maxProgress) * 100)}%`, backgroundColor: c.accent2 }]} />
+                      </View>
+                      <Text style={styles.progressCount}>{m.progress || 0}</Text>
                     </View>
-                    <Text style={styles.progressCount}>{m.progress || 0}</Text>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             );
           })()}
@@ -341,7 +401,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                 {current.poster ? <Image source={{ uri: current.poster }} style={StyleSheet.absoluteFillObject} /> : <View style={[StyleSheet.absoluteFillObject, { backgroundColor: c.surface2 }]} />}
                 <LinearGradient colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0)"]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0.45 }} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
                 {(() => {
-                  const reason = recommendationReason(current, likedIds, likedMovies);
+                  const reason = recommendationReason(current, likedIds, likedMoviesById);
                   return reason ? (
                     <View style={styles.reasonBadge} pointerEvents="none">
                       <Sparkles size={9} color={c.accent2} />
@@ -391,6 +451,23 @@ export default function MatchPartyScreen({ route, navigation }) {
             <Text style={styles.hintText}>Bu oturumda ortak bir eşleşme olmadı.</Text>
           ) : (
             <>
+              {/* MP6 — en güzel görsel (paylaşım kartı) artık bir buton arkasında saklı değil,
+                  doğrudan burada, küçültülmüş bir önizleme olarak görünüyor. Buton artık sadece
+                  gerçek dışa aktarma/paylaşma eylemini tetikliyor. */}
+              <View style={styles.sharePreviewWrap} pointerEvents="none">
+                <View style={styles.sharePreviewScale}>
+                  <MatchShareCard
+                    myAvatar={myAvatarUrl}
+                    myId={auth.id}
+                    myName={auth.name}
+                    friendAvatar={members[0]?.avatarUrl || friend?.avatarUrl}
+                    friendId={members[0]?.id || friend?.id}
+                    friendName={displayName}
+                    matchCount={matches.length}
+                    topMovie={matches[0]}
+                  />
+                </View>
+              </View>
               <TouchableOpacity style={styles.shareResultBtn} onPress={() => setShowShareCard(true)}>
                 <Sparkles size={13} color="#fff" />
                 <Text style={styles.shareResultBtnText}>Eşleşmeyi Paylaş</Text>
@@ -451,6 +528,7 @@ export default function MatchPartyScreen({ route, navigation }) {
       {celebration && (
         <MatchCelebration
           movie={celebration.movie}
+          matchNumber={celebration.matchNumber}
           myAvatar={myAvatarUrl}
           myId={auth.id}
           partnerAvatar={members[0]?.avatarUrl || friend?.avatarUrl}
@@ -501,6 +579,9 @@ function makeStyles(c) {
     waitSubtitle: { fontSize: 12, color: c.dim, marginTop: 6, textAlign: "center" },
     secondaryBtn: { marginTop: 16, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
     secondaryBtnText: { color: c.text, fontWeight: "700", fontSize: 12 },
+    declinedAvatar: { width: 72, height: 72, borderRadius: 999, opacity: 0.85 },
+    primaryBtnSmall: { marginTop: 18, backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 },
+    primaryBtnSmallText: { color: c.bg, fontWeight: "800", fontSize: 12.5 },
     progressBlock: { gap: 6, marginBottom: 10 },
     progressBarRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     progressLabel: { fontSize: 10.5, fontWeight: "700", color: c.dim, width: 34 },
@@ -525,6 +606,11 @@ function makeStyles(c) {
     endBtnText: { color: c.dim, fontWeight: "700", fontSize: 12 },
     summaryTitle: { fontSize: 20, fontWeight: "700", color: c.text, textAlign: "center" },
     summarySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 4, marginBottom: 16 },
+    sharePreviewWrap: { alignItems: "center", marginBottom: 12 },
+    // Kart 320×550 sabit boyutta tasarlanmış (dışa aktarılan görsel) — burada sadece küçültülmüş
+    // bir önizleme olarak gösteriliyor; transform:scale layout boyutunu değiştirmediği için
+    // negatif dikey margin ile fazladan boşluğu topluyoruz.
+    sharePreviewScale: { transform: [{ scale: 0.72 }], marginVertical: -77 },
     shareResultBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
       backgroundColor: "#DB2777", borderRadius: 14, paddingVertical: 13, marginBottom: 16,

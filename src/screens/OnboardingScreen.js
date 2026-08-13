@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from "react-native";
-import { Heart, ChevronLeft } from "lucide-react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
+import { Heart, ChevronLeft, Sparkles } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { hapticSuccess } from "../utils/haptics";
+import { emitLocalEvent } from "../utils/localEvents";
 import TasteSurveyStep from "../components/TasteSurveyStep";
 
 // ÖNEMLİ (mimari): Onboarding artık İKİ ADIM — 1) kısa bir zevk anketi (türler + en sevdiğin
@@ -15,10 +17,16 @@ export default function OnboardingScreen() {
   const { c } = useAppTheme();
   const { auth, markOnboardingComplete } = useAuth();
   const styles = makeStyles(c);
-  const [step, setStep] = useState(1);
+  // OB1 — eskiden hiçbir karşılama/marka anı olmadan direkt forma düşülüyordu. Artık kısa bir
+  // "0. adım" var: logo + tagline, dokununca gerçek akış (zevk anketi) başlıyor.
+  const [step, setStep] = useState(0);
 
   async function finishOnboarding() {
     await markOnboardingComplete();
+  }
+
+  if (step === 0) {
+    return <WelcomeStep c={c} styles={styles} name={auth?.name?.split(" ")[0]} onContinue={() => setStep(1)} />;
   }
 
   if (step === 1) {
@@ -42,6 +50,33 @@ export default function OnboardingScreen() {
       onSkip={finishOnboarding}
       onFinish={finishOnboarding}
     />
+  );
+}
+
+// ---- Adım 0: karşılama/marka anı (OB1) ----
+function WelcomeStep({ c, styles, name, onContinue }) {
+  const scale = useRef(new Animated.Value(0.85)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, bounciness: 10 }),
+      Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return (
+    <View style={styles.welcomeWrap}>
+      <Animated.View style={{ opacity, transform: [{ scale }], alignItems: "center" }}>
+        <Text style={styles.welcomeLogo}>
+          pell<Text style={{ color: c.accent }}>i</Text>x
+        </Text>
+        <Sparkles size={18} color={c.accent} style={{ marginTop: 14, marginBottom: 10 }} />
+        <Text style={styles.welcomeTitle}>{name ? `Hoş geldin, ${name}` : "Hoş geldin"}</Text>
+        <Text style={styles.welcomeSubtitle}>Birkaç soru soralım, sana özel bir akış kuralım.</Text>
+      </Animated.View>
+      <TouchableOpacity style={styles.welcomeBtn} onPress={onContinue}>
+        <Text style={styles.welcomeBtnText}>Başlayalım</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -77,6 +112,13 @@ function LikePicksStep({ c, styles, auth, onBack, onSkip, onFinish }) {
   }, []);
 
   function toggle(id) {
+    // OB2 — 5 beğeni eşiğine ulaşınca (kişiselleştirmeyi açan an) artık buton sessizce
+    // aktifleşmiyor, bir haptic + kısa bir onay toast'ı ile fark ediliyor.
+    const willBeSize = picked.has(id) ? picked.size - 1 : picked.size + 1;
+    if (picked.size < 5 && willBeSize >= 5) {
+      hapticSuccess();
+      emitLocalEvent({ type: "toast", title: "Zevkini öğrendik! 🎬", message: "Artık sana özel öneriler hazırlayabiliriz." });
+    }
     setPicked((prev) => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
@@ -169,27 +211,18 @@ function StepDots({ c, activeStep }) {
 function makeStyles(c) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg },
+    welcomeWrap: { flex: 1, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", padding: 30 },
+    welcomeLogo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 34, color: c.text },
+    welcomeTitle: { fontSize: 19, fontWeight: "800", color: c.text, textAlign: "center" },
+    welcomeSubtitle: { fontSize: 13, color: c.dim, marginTop: 8, textAlign: "center", lineHeight: 19 },
+    welcomeBtn: {
+      position: "absolute", bottom: 50, left: 30, right: 30,
+      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, alignItems: "center",
+    },
+    welcomeBtnText: { color: c.bg, fontWeight: "800", fontSize: 14 },
     title: { color: c.text, fontSize: 20, fontWeight: "800" },
     subtitle: { color: c.dim, fontSize: 12.5, marginTop: 5, lineHeight: 18 },
     stepHeaderRow: { flexDirection: "row", alignItems: "flex-start" },
-
-    sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    sectionIconWrap: {
-      width: 24, height: 24, borderRadius: 999, backgroundColor: c.surface2,
-      alignItems: "center", justifyContent: "center",
-    },
-    sectionTitle: { fontSize: 14.5, fontWeight: "800", color: c.text },
-    sectionHint: { fontSize: 11, color: c.dim, marginTop: 4, marginLeft: 32 },
-
-    genreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-    genreChip: {
-      flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999,
-      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
-    },
-    genreChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-    genreChipText: { fontSize: 12.5, fontWeight: "700", color: c.text },
-    genreChipTextActive: { color: c.bg },
 
     progressTrack: { height: 6, borderRadius: 999, backgroundColor: c.surface2, marginTop: 12, overflow: "hidden" },
     progressFill: { height: "100%", backgroundColor: c.accent },

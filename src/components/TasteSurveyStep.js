@@ -4,7 +4,9 @@ import { Heart, Check, Sparkles } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { hapticLight } from "../utils/haptics";
 import { GENRE_FILTERS } from "../theme/theme";
+import { GENRE_COLORS } from "../utils/genreColors";
 import FavoritePicker from "./FavoritePicker";
 
 // Zevk anketi ekranı (türler + en sevdiğin film/dizi) — paylaşılabilir bir bileşen olarak
@@ -35,6 +37,7 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
   // Her değişiklik ANINDA kalıcı hale geliyor (WhatsApp'taki gibi "kaydet" butonu beklemeden) —
   // kullanıcı "Atla" dese bile, o ana kadar verdiği cevaplar kaybolmuyor.
   function toggleGenre(genre) {
+    hapticLight();
     setSelectedGenres((prev) => {
       const next = new Set(prev);
       next.has(genre) ? next.delete(genre) : next.add(genre);
@@ -76,15 +79,16 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
         <View style={styles.genreGrid}>
           {GENRE_FILTERS.map((genre) => {
             const on = selectedGenres.has(genre);
+            const color = GENRE_COLORS[genre] || c.accent;
             return (
               <TouchableOpacity
                 key={genre}
-                style={[styles.genreChip, on && styles.genreChipActive]}
+                style={[styles.genreChip, on && { backgroundColor: color, borderColor: color }]}
                 onPress={() => toggleGenre(genre)}
                 activeOpacity={0.8}
               >
-                {on && <Check size={12} color={c.bg} style={{ marginRight: 5 }} />}
-                <Text style={[styles.genreChipText, on && styles.genreChipTextActive]}>{genre}</Text>
+                {on && <Check size={12} color="#fff" style={{ marginRight: 5 }} />}
+                <Text style={[styles.genreChipText, on && { color: "#fff" }]}>{genre}</Text>
               </TouchableOpacity>
             );
           })}
@@ -143,9 +147,7 @@ function makeStyles(c) {
       paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999,
       borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
     },
-    genreChipActive: { backgroundColor: c.accent, borderColor: c.accent },
     genreChipText: { fontSize: 12.5, fontWeight: "700", color: c.text },
-    genreChipTextActive: { color: c.bg },
     footer: { flexDirection: "row", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
     skipBtn: { paddingHorizontal: 18, justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: c.border },
     skipText: { color: c.dim, fontWeight: "700", fontSize: 13 },

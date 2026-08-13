@@ -39,6 +39,20 @@ function groupActivity(items) {
   return groups;
 }
 
+// CH5 — sohbet listesindeki son-mesaj önizlemesi eskiden içerik türünden bağımsız, hep aynı
+// düz gri metindi. Artık her tür (film/liste/anket/plan), o türün ChatConversationScreen'deki
+// kart tasarımıyla AYNI renk ailesinden küçük bir noktayla işaretleniyor — listeyi tararken ne
+// beklediğin, mesajı açmadan belli oluyor.
+function messagePreviewInfo(lastMessage) {
+  const shared = decodeMovieShare(lastMessage);
+  if (shared) return { text: shared.type === "Dizi" ? "Dizi Önerisi" : "Film Önerisi", dotColor: shared.type === "Dizi" ? "#0EA5E9" : "#8B5CF6" };
+  if (decodePhotoMessage(lastMessage)) return { text: "📷 Fotoğraf", dotColor: null };
+  if (decodePoll(lastMessage)) return { text: "Mini Anket", dotColor: "#F97316" };
+  if (decodePlan(lastMessage)) return { text: "İzleme Planı", dotColor: "#06B6D4" };
+  if (decodeListShare(lastMessage)) return { text: "Liste Paylaşıldı", dotColor: "#14B8A6" };
+  return { text: lastMessage || "Henüz mesaj yok", dotColor: null };
+}
+
 function activityText(g) {
   if (g.type === "like") {
     return g.movies.length > 1
@@ -212,14 +226,17 @@ export default function ChatListScreen({ navigation }) {
                   <RetryImage source={{ uri: avatarOr(item.friend_avatar, item.friend_id) }} style={styles.avatar} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.name}>{item.friend_name}</Text>
-                    <Text style={[styles.lastMessage, item.unread_count > 0 && { color: c.text, fontWeight: "600" }]} numberOfLines={1}>
-                      {decodeMovieShare(item.last_message) ? "🎬 Film/dizi önerisi"
-                        : decodePhotoMessage(item.last_message) ? "📷 Fotoğraf"
-                        : decodePoll(item.last_message) ? "🗳️ Mini anket"
-                        : decodePlan(item.last_message) ? "📅 İzleme planı"
-                        : decodeListShare(item.last_message) ? "📋 Bir liste paylaşıldı"
-                        : (item.last_message || "Henüz mesaj yok")}
-                    </Text>
+                    {(() => {
+                      const preview = messagePreviewInfo(item.last_message);
+                      return (
+                        <View style={styles.lastMessageRow}>
+                          {!!preview.dotColor && <View style={[styles.lastMessageDot, { backgroundColor: preview.dotColor }]} />}
+                          <Text style={[styles.lastMessage, item.unread_count > 0 && { color: c.text, fontWeight: "600" }]} numberOfLines={1}>
+                            {preview.text}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
                   {item.unread_count > 0 && (
                     <View style={styles.unreadBadge}>
@@ -267,7 +284,11 @@ export default function ChatListScreen({ navigation }) {
               activeOpacity={item.movies.length > 0 ? 0.75 : 1}
               onPress={() => openGroup(item)}
             >
-              <RetryImage source={{ uri: avatarOr(item.user.avatar_url, item.user.id) }} style={styles.avatar} />
+              {/* Satırın geri kalanı hâlâ aktiviteye (filme) götürüyor — sadece avatar kendi
+                  dokunma hedefi, kullanıcının profiline gidiyor. */}
+              <TouchableOpacity onPress={() => navigation.navigate("OtherProfile", { userId: item.user.id })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <RetryImage source={{ uri: avatarOr(item.user.avatar_url, item.user.id) }} style={styles.avatar} />
+              </TouchableOpacity>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name} numberOfLines={1}>{activityText(item)}</Text>
                 {item.movies.length === 1 && <Text style={styles.lastMessage} numberOfLines={1}>{item.movies[0].title}</Text>}
@@ -333,7 +354,9 @@ function makeStyles(c) {
     },
     avatar: { width: 46, height: 46, borderRadius: 999, backgroundColor: c.surface2 },
     name: { fontSize: 13, fontWeight: "700", color: c.text },
-    lastMessage: { fontSize: 12, color: c.dim, marginTop: 2 },
+    lastMessageRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+    lastMessageDot: { width: 6, height: 6, borderRadius: 999 },
+    lastMessage: { fontSize: 12, color: c.dim, flexShrink: 1 },
     unreadBadge: {
       minWidth: 22, height: 22, borderRadius: 999, backgroundColor: c.danger,
       alignItems: "center", justifyContent: "center", paddingHorizontal: 6,

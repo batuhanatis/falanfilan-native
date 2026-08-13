@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Linking, ActivityIndicator } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import * as AppleAuthentication from "expo-apple-authentication";
 import GoogleLogo from "../components/GoogleLogo";
@@ -161,6 +162,19 @@ export default function AuthScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      {/* AU1 — eskiden uygulamanın en düz ekranıydı, hiçbir gradyan/kişilik yoktu. İki soluk
+          "glow" lekesi (marka altını + Blend'in mor-mavi ailesi) formun okunabilirliğini
+          bozmadan girişe hafif bir kişilik katıyor. */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        <LinearGradient
+          colors={["rgba(201,164,76,0.22)", "rgba(201,164,76,0)"]}
+          style={styles.glowTop}
+        />
+        <LinearGradient
+          colors={["rgba(99,102,241,0.16)", "rgba(99,102,241,0)"]}
+          style={styles.glowBottom}
+        />
+      </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo}>
           pell<Text style={{ color: c.accent }}>i</Text>x
@@ -288,6 +302,12 @@ export default function AuthScreen() {
 function makeStyles(c) {
   return StyleSheet.create({
     scroll: { flexGrow: 1, justifyContent: "center", padding: 28 },
+    glowTop: {
+      position: "absolute", top: -120, left: -80, width: 320, height: 320, borderRadius: 999,
+    },
+    glowBottom: {
+      position: "absolute", bottom: -140, right: -100, width: 340, height: 340, borderRadius: 999,
+    },
     logo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 32, color: c.text, textAlign: "center", marginBottom: 30, letterSpacing: 0.3 },
     title: { fontSize: 22, fontWeight: "700", color: c.text, textAlign: "center" },
     subtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 6, marginBottom: 24 },

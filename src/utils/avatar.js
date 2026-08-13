@@ -1,11 +1,9 @@
-// Web'deki AVATAR_OR() ile birebir aynı: gerçek yüklenmiş fotoğraf varsa onu, yoksa
-// kişiye özel (id'ye göre sabit) rastgele bir görsel döndürür. Önceden native tarafta
-// bu fallback yoktu — fotoğrafı olmayan kullanıcılar (ki çoğu gerçek kullanıcı/bot böyle)
-// boş gri daire olarak görünüyordu, "diğer kullanıcıların fotoğrafı gelmiyor" izlenimi veriyordu.
-export function avatarSeed(seed) {
-  return `https://picsum.photos/seed/ffav${seed}/400/400`;
-}
-
-export function avatarOr(url, seed) {
-  return url || avatarSeed(seed);
+// ÖNEMLİ (geri alındı): Bu daha önce fotoğrafı olmayan kullanıcılara id'ye göre sabit,
+// rastgele bir stok fotoğraf (picsum.photos) atıyordu — amaç "boş gri daire" izlenimini
+// önlemekti. Ama pratikte TERS etki yaptı: herkesin zaten "bir fotoğrafı" varmış gibi
+// göründüğü için gerçek kullanıcılar kendi fotoğraflarını hiç yüklemedi. Artık gerçek bir
+// fotoğraf yoksa null dönüyoruz — RetryImage bunu görünce nötr, boş bir "fotoğraf yok"
+// göstergesi çiziyor (bkz. components/RetryImage.js), sahte bir fotoğraf DEĞİL.
+export function avatarOr(url) {
+  return url || null;
 }

@@ -1,14 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Heart, X, Users } from "lucide-react-native";
+import { Heart, X, Users, PartyPopper } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
+import { emitLocalEvent } from "../utils/localEvents";
+import { hapticSuccess } from "../utils/haptics";
 import SwipeableCard from "../components/SwipeableCard";
 import RetryImage from "../components/RetryImage";
+import Confetti from "../components/Confetti";
+
+// TM3 — uyum yüzdesi halkası eskiden her skorda AYNI altın renkti; %95 ile %40 görsel olarak
+// hiç ayrışmıyordu. Artık skor aralığına göre renkleniyor.
+function matchRingColor(pct, c) {
+  if (pct >= 85) return "#FFD700";
+  if (pct >= 60) return c.accent;
+  if (pct >= 40) return c.accent2;
+  return c.border;
+}
 
 export default function TasteMateScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -20,6 +32,7 @@ export default function TasteMateScreen({ navigation }) {
   const [limitReached, setLimitReached] = useState(false);
   const [index, setIndex] = useState(0);
   const cardRef = useRef(null);
+  const [mutualMatch, setMutualMatch] = useState(null); // TM5 — { with } | null
   // Uygulama açılır açılmaz arka planda çekilmiş bir sonuç varsa (bkz. PrefetchContext),
   // ağa hiç istek atmadan direkt onu kullan.
   const prefetched = useRef(usePrefetch().tasteMates).current;
@@ -75,7 +88,18 @@ export default function TasteMateScreen({ navigation }) {
     const swiped = mates[index];
     if (!swiped) return;
     if (direction === "right") {
-      try { await api.friendRequest(auth.token, swiped.id); } catch { /* zaten istek gönderilmiş olabilir */ }
+      try {
+        const data = await api.friendRequest(auth.token, swiped.id);
+        if (data.mutualMatch) {
+          // TM5 — TasteMate'teki keşif ile gerçek bir arkadaşlık anı arasında eskiden hiç bağ
+          // yoktu; karşı taraf da seni beğenmişse artık anında bir kutlamayla ödüllendiriliyor.
+          hapticSuccess();
+          setMutualMatch({ with: data.with || { id: swiped.id, name: swiped.name, avatarUrl: swiped.avatarUrl } });
+        } else {
+          // TM2 — eskiden istek gönderilince hiçbir görsel onay yoktu, sadece bir sonraki karta geçiliyordu.
+          emitLocalEvent({ type: "toast", title: "İstek gönderildi ✅", message: `${swiped.name}'e arkadaşlık isteği gönderildi` });
+        }
+      } catch { /* zaten istek gönderilmiş olabilir */ }
     }
     // Hakkı GERÇEK kaydırma anında düşürüyoruz — ekrana gelen toplu listeye göre değil.
     try {
@@ -88,6 +112,7 @@ export default function TasteMateScreen({ navigation }) {
   }
 
   const current = limitReached ? null : mates[index];
+  const resetLabel = useMidnightCountdown(limitReached);
 
   if (loading) {
     return (
@@ -118,7 +143,9 @@ export default function TasteMateScreen({ navigation }) {
             {limitReached ? (
               <>
                 <Text style={styles.emptySubtitle}>Bugünkü ücretsiz TasteMate hakkın doldu. Premium ile sınırsız kaydırabilirsin.</Text>
-                <TouchableOpacity onPress={() => navigation.navigate("Premium", { autoPurchase: true })} style={styles.premiumBtn}>
+                {/* TM4 — ne zaman sıfırlanacağı artık belli, ücretsiz kullanıcıya yarın dönmesi için bir sebep. */}
+                {!!resetLabel && <Text style={styles.resetLabel}>{resetLabel}</Text>}
+                <TouchableOpacity onPress={() => navigation.navigate("Premium", { autoPurchase: true, reason: "tastemate_limit" })} style={styles.premiumBtn}>
                   <Text style={styles.premiumBtnText}>Premium'a Geç</Text>
                 </TouchableOpacity>
               </>
@@ -169,8 +196,54 @@ export default function TasteMateScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* TM5 — karşılıklı eşleşme anı: keşif (TasteMate) ile ödül (arkadaşlık) artık bağlı. */}
+      {mutualMatch && (
+        <View style={styles.mutualOverlay}>
+          <Confetti />
+          <RetryImage source={{ uri: avatarOr(mutualMatch.with?.avatarUrl, mutualMatch.with?.id) }} style={styles.mutualAvatar} />
+          <View style={styles.mutualBadge}>
+            <PartyPopper size={16} color="#fff" />
+          </View>
+          <Text style={styles.mutualTitle}>Karşılıklı Eşleştiniz! 🎉</Text>
+          <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name} de seni beğenmiş — artık arkadaşsınız.</Text>
+          <View style={styles.mutualBtnRow}>
+            <TouchableOpacity
+              style={styles.mutualSecondaryBtn}
+              onPress={() => { const m = mutualMatch; setMutualMatch(null); navigation.navigate("OtherProfile", { userId: m.with?.id }); }}
+            >
+              <Text style={styles.mutualSecondaryBtnText}>Profiline Git</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.mutualPrimaryBtn} onPress={() => setMutualMatch(null)}>
+              <Text style={styles.mutualPrimaryBtnText}>Devam Et</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
+}
+
+// TM4 — günlük limit dolunca eskiden "ne zaman sıfırlanacağı" hiç belli değildi. Backend
+// günü kendi tarafında (todayStr) sıfırladığı için tam saniyesi bilinmiyor — cihazın gece
+// yarısına kalan süresini yaklaşık bir geri sayım olarak gösteriyoruz.
+function useMidnightCountdown(active) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    if (!active) return;
+    function tick() {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+      const diffMs = midnight - now;
+      const h = Math.floor(diffMs / 3600000);
+      const m = Math.floor((diffMs % 3600000) / 60000);
+      setLabel(`${h} saat ${m} dakika sonra sıfırlanır`);
+    }
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, [active]);
+  return label;
 }
 
 function MateCardContent({ mate, c, styles, navigation, interactive }) {
@@ -206,7 +279,7 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
               </>
             )}
           </View>
-          <View style={styles.matchRing}>
+          <View style={[styles.matchRing, { borderColor: matchRingColor(mate.matchPercent, c) }]}>
             <Text style={styles.matchRingText}>%{mate.matchPercent}</Text>
           </View>
         </View>
@@ -225,6 +298,23 @@ function makeStyles(c) {
     restartText: { color: c.text, fontSize: 12, fontWeight: "700" },
     premiumBtn: { marginTop: 14, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 },
     premiumBtnText: { color: c.bg, fontSize: 12, fontWeight: "800" },
+    resetLabel: { fontSize: 11, color: c.dim, marginTop: 8, fontWeight: "600" },
+    mutualOverlay: {
+      ...StyleSheet.absoluteFillObject, zIndex: 50, backgroundColor: "rgba(10,9,14,0.94)",
+      alignItems: "center", justifyContent: "center", padding: 28,
+    },
+    mutualAvatar: { width: 88, height: 88, borderRadius: 999, borderWidth: 3, borderColor: c.accent },
+    mutualBadge: {
+      width: 32, height: 32, borderRadius: 999, backgroundColor: c.accent2, alignItems: "center", justifyContent: "center",
+      marginTop: -16, borderWidth: 3, borderColor: "#0a090e",
+    },
+    mutualTitle: { fontSize: 22, fontWeight: "900", color: "#fff", marginTop: 16 },
+    mutualSubtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.75)", marginTop: 8, textAlign: "center", maxWidth: 280 },
+    mutualBtnRow: { flexDirection: "row", gap: 10, marginTop: 26, width: "100%", maxWidth: 320 },
+    mutualSecondaryBtn: { flex: 1, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", borderRadius: 14, paddingVertical: 13, alignItems: "center" },
+    mutualSecondaryBtnText: { color: "rgba(255,255,255,0.85)", fontWeight: "700", fontSize: 13 },
+    mutualPrimaryBtn: { flex: 1.2, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13, alignItems: "center" },
+    mutualPrimaryBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
     stage: { flex: 1, paddingHorizontal: 16 },
     card: {
       position: "absolute", top: 0, bottom: 0, left: 16, right: 16,
@@ -234,7 +324,7 @@ function makeStyles(c) {
     photoArea: { height: "72%", position: "relative", backgroundColor: c.surface2 },
     matchRing: {
       width: 40, height: 40, borderRadius: 999, flexShrink: 0,
-      backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.accent,
+      backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", borderWidth: 2,
     },
     matchRingText: { color: c.text, fontSize: 10, fontWeight: "800" },
     stampLike: { position: "absolute", top: 20, left: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, transform: [{ rotate: "-12deg" }] },
