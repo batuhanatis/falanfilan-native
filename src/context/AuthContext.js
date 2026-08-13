@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../api/client";
 import { clearPrefetchCache } from "../utils/chatMessagesPrefetch";
 import { clearAllLocalMessages } from "../utils/chatDb";
 import { clearLocalChatList } from "../utils/chatListDb";
 import { logoutPurchases } from "../utils/purchases";
-import { clearPushSession } from "../utils/pushSessionV2";
+import { clearPushSession } from "../utils/pushSessionFinal";
 import { subscribeLocalEvents } from "../utils/localEvents";
 
 const AuthContext = createContext(null);
@@ -36,6 +36,9 @@ function snapshotOf(value) {
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(null);
   const [checking, setChecking] = useState(true);
+  // Logout temizliği sürerken çok hızlı başka hesapla login olunursa eski cleanup yeni hesabın
+  // SQLite/RevenueCat/push state'ini silmesin; yeni login bu promise'i bekler.
+  const logoutCleanupRef = useRef(Promise.resolve());
 
   useEffect(() => {
     (async () => {
@@ -86,6 +89,7 @@ export function AuthProvider({ children }) {
   }, [auth?.offline, auth?.token]);
 
   async function handleAuthed(a) {
+    await logoutCleanupRef.current.catch(() => {});
     const next = { ...a, offline: false };
     setAuth(next);
     await Promise.all([
@@ -111,27 +115,31 @@ export function AuthProvider({ children }) {
     const sessionToken = auth?.token;
     setAuth(null);
     clearPrefetchCache();
-    await Promise.allSettled([
-      clearAllLocalMessages(),
-      clearLocalChatList(),
-      logoutPurchases(),
-      clearPushSession(sessionToken),
-    ]);
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
+    const cleanup = (async () => {
+      await Promise.allSettled([
+        clearAllLocalMessages(),
+        clearLocalChatList(),
+        logoutPurchases(),
+        clearPushSession(sessionToken),
+      ]);
+      await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
+    })();
+    logoutCleanupRef.current = cleanup;
+    await cleanup;
   }
 
   async function markOnboardingComplete() {
-    setAuth((prev) => (prev ? { ...prev, onboardingCompleted: true, tasteSurveySeen: true } : prev));
+    updateAuthProfile({ onboardingCompleted: true, tasteSurveySeen: true });
     try { await api.onboardingComplete(auth.token); } catch { /* sessizce geç */ }
   }
 
   async function markTutorialSeen() {
-    setAuth((prev) => (prev ? { ...prev, tutorialSeen: true } : prev));
+    updateAuthProfile({ tutorialSeen: true });
     try { await api.tutorialSeen(auth.token); } catch { /* sessizce geç */ }
   }
 
   async function markTasteSurveySeen() {
-    setAuth((prev) => (prev ? { ...prev, tasteSurveySeen: true } : prev));
+    updateAuthProfile({ tasteSurveySeen: true });
     try { await api.tasteSurveySeen(auth.token); } catch { /* sessizce geç */ }
   }
 
