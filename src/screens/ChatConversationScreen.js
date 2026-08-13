@@ -241,7 +241,10 @@ export default function ChatConversationScreen({ route, navigation }) {
   // yeniden başlatıyor — kullanıcı hiçbir şey yapmasa bile mesaj göndermeye devam ediliyor.
   useEffect(() => {
     messages.forEach((m) => {
-      if (m._status === "failed" && !retryTimeoutsRef.current.has(m.id)) {
+      // Kalıcı 4xx hatası veya otomatik deneme sınırına ulaşmış mesajlar uygulama yeniden
+      // açıldığında tekrar sonsuz retry döngüsüne girmesin. Kullanıcı isterse balona dokunup
+      // manuel olarak yeniden deneyebilir.
+      if (m._status === "failed" && !m._autoRetryStopped && !retryTimeoutsRef.current.has(m.id)) {
         retrySend(m, m._retryCount || 0);
       }
     });
@@ -360,6 +363,14 @@ export default function ChatConversationScreen({ route, navigation }) {
   // zamanlayıcıyı iptal edip hemen bir tane daha başlatıyor.
   const retryTimeoutsRef = useRef(new Map()); // tempId -> setTimeout referansı
   const RETRY_DELAYS = [3000, 6000, 12000, 24000, 30000];
+  const MAX_AUTO_RETRIES = 5;
+
+  function isRetryableSendError(error) {
+    if (error?.isTimeout) return true;
+    // fetch'in hiç HTTP cevabı alamadığı network hatalarında status yoktur.
+    if (error?.status == null) return true;
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
 
   useEffect(() => {
     return () => { retryTimeoutsRef.current.forEach((t) => clearTimeout(t)); retryTimeoutsRef.current.clear(); };
@@ -375,23 +386,30 @@ export default function ChatConversationScreen({ route, navigation }) {
       replaceLocalMessage(chatId, tempId, msg).catch(() => {});
       const t = retryTimeoutsRef.current.get(tempId);
       if (t) { clearTimeout(t); retryTimeoutsRef.current.delete(tempId); }
-    } catch {
-      // Başarısız durumu da kalıcı hale getiriyoruz — sohbetten çıkıp geri dönülse ya da
-      // uygulama yeniden başlatılsa bile mesaj "kayıp" görünmüyor, tekrar deneme devam ediyor.
+    } catch (e) {
+      const shouldRetry = isRetryableSendError(e) && retryCount < MAX_AUTO_RETRIES;
+      // 400/401/403/404 gibi kalıcı HTTP hataları otomatik tekrar edilmez. Network/timeout,
+      // 408/429 ve 5xx ise sınırlı sayıda kademeli olarak denenir.
       setMessages((prev) => prev.map((m) => {
         if (m.id !== tempId) return m;
-        const updated = { ...m, _status: "failed", _retryCount: retryCount, _clientId: clientId };
+        const updated = {
+          ...m,
+          _status: "failed",
+          _retryCount: retryCount,
+          _clientId: clientId,
+          _autoRetryStopped: !shouldRetry,
+        };
         updateLocalMessage(chatId, updated).catch(() => {});
         return updated;
       }));
+      if (!shouldRetry) {
+        retryTimeoutsRef.current.delete(tempId);
+        return;
+      }
       const delay = RETRY_DELAYS[Math.min(retryCount, RETRY_DELAYS.length - 1)];
       const t = setTimeout(() => {
-        // Bu arada mesaj başka bir yoldan (ör. elle tekrar deneme) zaten gönderilmiş/kaldırılmış
-        // olabilir — hâlâ listede VE hâlâ "failed" durumundaysa devam ediyoruz. ÖNEMLİ: clientId
-        // burada DEĞİŞMİYOR — aynı mantıksal mesajın tekrar denemesi olduğu için sunucunun
-        // "bunu daha önce gördüm" diyebilmesi bu tutarlılığa bağlı.
         setMessages((prevMsgs) => {
-          const stillThere = prevMsgs.find((m) => m.id === tempId && m._status === "failed");
+          const stillThere = prevMsgs.find((m) => m.id === tempId && m._status === "failed" && !m._autoRetryStopped);
           if (stillThere) attemptSend(tempId, body, replyId, clientId, retryCount + 1);
           return prevMsgs;
         });
@@ -460,7 +478,7 @@ export default function ChatConversationScreen({ route, navigation }) {
   function retryFailedMessage(item) {
     const t = retryTimeoutsRef.current.get(item.id);
     if (t) { clearTimeout(t); retryTimeoutsRef.current.delete(item.id); }
-    setMessages((prev) => prev.map((m) => (m.id === item.id ? { ...m, _status: "sending" } : m)));
+    setMessages((prev) => prev.map((m) => (m.id === item.id ? { ...m, _status: "sending", _autoRetryStopped: false } : m)));
     // ÖNEMLİ: item._clientId zaten var olan (ilk denemede üretilen) kimlik — burada YENİ bir
     // tane üretmiyoruz, aksi halde sunucu bunu FARKLI bir mesaj sanır.
     retrySend(item, item._retryCount || 0);
@@ -627,17 +645,28 @@ export default function ChatConversationScreen({ route, navigation }) {
       replaceLocalMessage(chatId, tempId, msg).catch(() => {});
       const t = retryTimeoutsRef.current.get(tempId);
       if (t) { clearTimeout(t); retryTimeoutsRef.current.delete(tempId); }
-    } catch {
+    } catch (e) {
+      const shouldRetry = isRetryableSendError(e) && retryCount < MAX_AUTO_RETRIES;
       setMessages((prev) => prev.map((m) => {
         if (m.id !== tempId) return m;
-        const updated = { ...m, _status: "failed", _retryCount: retryCount, _clientId: clientId };
+        const updated = {
+          ...m,
+          _status: "failed",
+          _retryCount: retryCount,
+          _clientId: clientId,
+          _autoRetryStopped: !shouldRetry,
+        };
         updateLocalMessage(chatId, updated).catch(() => {});
         return updated;
       }));
+      if (!shouldRetry) {
+        retryTimeoutsRef.current.delete(tempId);
+        return;
+      }
       const delay = RETRY_DELAYS[Math.min(retryCount, RETRY_DELAYS.length - 1)];
       const t = setTimeout(() => {
         setMessages((prevMsgs) => {
-          const stillThere = prevMsgs.find((m) => m.id === tempId && m._status === "failed");
+          const stillThere = prevMsgs.find((m) => m.id === tempId && m._status === "failed" && !m._autoRetryStopped);
           if (stillThere) attemptSendPhoto(tempId, dataUri, once, clientId, retryCount + 1);
           return prevMsgs;
         });
