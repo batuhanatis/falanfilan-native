@@ -6,14 +6,13 @@
 export const API_BASE = "https://api.pellix.app";
 export const WS_BASE = API_BASE.replace(/^http/, "ws") + "/ws";
 
-// ÖNEMLİ: Öncesinde hiçbir istek zaman aşımına uğramıyordu — zayıf/kesik bir şebekede fetch
-// süresiz pending kalabiliyor, ekran sonsuza kadar spinner'da takılı kalabiliyordu. 20 saniye
-// sonra isteği kendimiz iptal edip anlamlı bir hata fırlatıyoruz.
 const REQUEST_TIMEOUT_MS = 20000;
+const UPLOAD_TIMEOUT_MS = 60000;
+const AI_IMAGE_TIMEOUT_MS = 90000;
 
-async function request(path, { method = "GET", token, body } = {}) {
+async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let res;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -39,9 +38,6 @@ async function request(path, { method = "GET", token, body } = {}) {
   if (!res.ok) {
     const err = new Error(data.error || "Bir şeyler ters gitti.");
     if (data.limitReached) err.limitReached = true;
-    // ÖNEMLİ: status kodu burada taşınmazsa, çağıran taraf (ör. AuthContext) bir 401/403
-    // "geçersiz session" hatasını ağ hatası/500'den ayırt edemiyor — bu da geçici bir bağlantı
-    // sorununda bile kullanıcının hesaptan atılmasına yol açıyordu.
     err.status = res.status;
     throw err;
   }
@@ -63,7 +59,7 @@ export const api = {
   me: (token) => request("/api/me", { token }),
   setTastemateVisibility: (token, visible) => request("/api/me/tastemate-visibility", { method: "PATCH", token, body: { visible } }),
   updateMe: (token, payload) => request("/api/me", { method: "PUT", token, body: payload }),
-  updatePhoto: (token, payload) => request("/api/me/photo", { method: "PUT", token, body: payload }),
+  updatePhoto: (token, payload) => request("/api/me/photo", { method: "PUT", token, body: payload, timeoutMs: UPLOAD_TIMEOUT_MS }),
   updateFavorite: (token, payload) => request("/api/me/favorite", { method: "PUT", token, body: payload }),
   updatePreferredGenres: (token, preferredGenres) => request("/api/me/preferences", { method: "PUT", token, body: { preferredGenres } }),
   updatePassword: (token, payload) => request("/api/me/password", { method: "PUT", token, body: payload }),
@@ -74,15 +70,12 @@ export const api = {
 
   watchlists: (token, movieId) => request(`/api/watchlists${movieId ? `?movieId=${movieId}` : ""}`, { token }),
   watchlistItems: (token, id) => request(`/api/watchlists/${id}/items`, { token }),
-  // WL1 — coverEmoji/coverColor opsiyonel, verilmezse backend null bırakır (native taraf o
-  // zaman isim/id'den türetilmiş bir renge düşer).
   createWatchlist: (token, name, cover) => request("/api/watchlists", { method: "POST", token, body: { name, ...(cover || {}) } }),
   updateWatchlist: (token, id, patch) => request(`/api/watchlists/${id}`, { method: "PATCH", token, body: patch }),
   aiRecommendForList: (token, id) => request(`/api/watchlists/${id}/ai-recommend`, { method: "POST", token }),
   deleteWatchlist: (token, id) => request(`/api/watchlists/${id}`, { method: "DELETE", token }),
   addToWatchlist: (token, id, movieId) => request(`/api/watchlists/${id}/items`, { method: "POST", token, body: { movie_id: movieId } }),
   removeFromWatchlist: (token, id, movieId) => request(`/api/watchlists/${id}/items/${movieId}`, { method: "DELETE", token }),
-  // WL6 — ortak düzenleyici ekleme/çıkarma (sadece sahip ekleyebilir; biri kendini çıkarıp ayrılabilir).
   addWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators`, { method: "POST", token, body: { userId } }),
   removeWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators/${userId}`, { method: "DELETE", token }),
 
@@ -92,12 +85,10 @@ export const api = {
   movieById: (token, id) => request(`/api/movies/${id}`, { token }),
   search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
   describe: (token, query) => request("/api/describe", { method: "POST", token, body: { query } }),
-  aiTaste: (token, payload) => request("/api/ai-taste", { method: "POST", token, body: payload }), // payload: { genre, type, years }
-  identifyPhoto: (token, imageBase64) => request("/api/identify-photo", { method: "POST", token, body: { image: imageBase64 } }),
-  recordInteraction: (token, movieId, action) =>
-    request("/api/interactions", { method: "POST", token, body: { movie_id: movieId, action } }),
-  removeInteraction: (token, movieId, action) =>
-    request(`/api/interactions/${movieId}/${action}`, { method: "DELETE", token }),
+  aiTaste: (token, payload) => request("/api/ai-taste", { method: "POST", token, body: payload }),
+  identifyPhoto: (token, imageBase64) => request("/api/identify-photo", { method: "POST", token, body: { image: imageBase64 }, timeoutMs: UPLOAD_TIMEOUT_MS }),
+  recordInteraction: (token, movieId, action) => request("/api/interactions", { method: "POST", token, body: { movie_id: movieId, action } }),
+  removeInteraction: (token, movieId, action) => request(`/api/interactions/${movieId}/${action}`, { method: "DELETE", token }),
   interactions: (token) => request("/api/interactions", { token }),
 
   friends: (token) => request("/api/friends", { token }),
@@ -107,7 +98,7 @@ export const api = {
   allLikes: (token, id, page) => request(`/api/users/${id}/all-likes?page=${page}`, { token }),
   allDislikes: (token, page) => request(`/api/me/all-dislikes?page=${page}`, { token }),
   blend: (token, friendId) => request(`/api/blend/${friendId}`, { token }),
-  friendMatchRanking: (token) => request("/api/friends/match-ranking", { token }), // BL4
+  friendMatchRanking: (token) => request("/api/friends/match-ranking", { token }),
   blockUser: (token, id) => request(`/api/users/${id}/block`, { method: "POST", token }),
   unblockUser: (token, id) => request(`/api/users/${id}/block`, { method: "DELETE", token }),
   blockedUsers: (token) => request("/api/me/blocked", { token }),
@@ -120,7 +111,7 @@ export const api = {
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),
   markChatRead: (token, chatId) => request(`/api/chats/${chatId}/read`, { method: "POST", token }),
   consumePhoto: (token, messageId) => request(`/api/messages/${messageId}/consume-photo`, { method: "POST", token }),
-  sendChatPhoto: (token, chatId, image, once, clientId) => request(`/api/chats/${chatId}/photo`, { method: "POST", token, body: { image, once, clientId } }),
+  sendChatPhoto: (token, chatId, image, once, clientId) => request(`/api/chats/${chatId}/photo`, { method: "POST", token, body: { image, once, clientId }, timeoutMs: UPLOAD_TIMEOUT_MS }),
   deleteMessage: (token, messageId) => request(`/api/messages/${messageId}`, { method: "DELETE", token }),
   unsendMessage: (token, messageId) => request(`/api/messages/${messageId}/unsend`, { method: "POST", token }),
   editMessage: (token, messageId, body) => request(`/api/messages/${messageId}`, { method: "PUT", token, body: { body } }),
@@ -133,7 +124,11 @@ export const api = {
   comments: (token, movieId) => request(`/api/movies/${movieId}/comments`, { token }),
   addComment: (token, movieId, body) => request(`/api/movies/${movieId}/comments`, { method: "POST", token, body: { body } }),
   deleteComment: (token, id) => request(`/api/comments/${id}`, { method: "DELETE", token }),
-  messages: (token, chatId, after) => request(`/api/chats/${chatId}/messages${after ? `?after=${after}` : ""}`, { token }),
+  // Güvenilirlik önceliği: mevcut server delta endpoint'i yalnız yeni ID'leri döndürüyor ve
+  // uygulama kapalıyken düzenlenen/reaksiyon alan eski mesajları kaçırabiliyordu. Backend'e
+  // updated_at tabanlı senkron eklenene kadar focus'ta tam snapshot çekmek bu veri kaybını kapatır.
+  // ChatConversation zaten ID bazında merge ettiği için görünüm veya mesaj sırası değişmez.
+  messages: (token, chatId, _after) => request(`/api/chats/${chatId}/messages`, { token }),
   sendMessage: (token, chatId, body, replyToId, clientId) => request(`/api/chats/${chatId}/messages`, { method: "POST", token, body: { body, replyToId: replyToId || null, clientId } }),
 
   notifications: (token) => request("/api/notifications", { token }),
@@ -142,6 +137,7 @@ export const api = {
   deleteAllNotifications: (token) => request("/api/notifications", { method: "DELETE", token }),
   reportError: (payload) => request("/api/report-error", { method: "POST", body: payload }).catch(() => {}),
   registerPushToken: (token, expoPushToken) => request("/api/push/register-token", { method: "POST", token, body: { expoPushToken } }),
+  unregisterPushToken: (token, expoPushToken) => request("/api/push/unregister-token", { method: "DELETE", token, body: { expoPushToken } }),
   spotlight: (token) => request("/api/spotlight", { token }),
   notifyMe: (token, movieId) => request(`/api/movies/${movieId}/notify-me`, { method: "POST", token }),
   notifySubscriptions: (token) => request("/api/me/notify-subscriptions", { token }),
@@ -154,8 +150,9 @@ export const api = {
 
   tastemates: (token) => request("/api/tastemates", { token }),
   tastemateSwipe: (token) => request("/api/tastemates/swipe", { method: "POST", token }),
+  tastemateSwipeV2: (token, targetUserId, direction) => request("/api/tastemates/swipe-v2", { method: "POST", token, body: { targetUserId, direction } }),
   premiumStatus: (token) => request("/api/premium/status", { token }),
-  generateProfileBackground: (token) => request("/api/profile/background/generate", { method: "POST", token }),
+  generateProfileBackground: (token) => request("/api/profile/background/generate", { method: "POST", token, timeoutMs: AI_IMAGE_TIMEOUT_MS }),
   resetProfileBackground: (token) => request("/api/profile/background/reset", { method: "POST", token }),
   updateProfileBackgroundIntensity: (token, intensity) => request("/api/me/profile-background-intensity", { method: "PATCH", token, body: { intensity } }),
   devGrantPremium: (token, days) => request("/api/premium/dev-grant", { method: "POST", token, body: { days } }),
