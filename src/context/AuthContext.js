@@ -6,6 +6,7 @@ import { clearAllLocalMessages } from "../utils/chatDb";
 import { clearLocalChatList } from "../utils/chatListDb";
 import { logoutPurchases } from "../utils/purchases";
 import { clearPushSession } from "../utils/pushSession";
+import { subscribeLocalEvents } from "../utils/localEvents";
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = "ff_token";
@@ -56,9 +57,6 @@ export function AuthProvider({ children }) {
         if (e?.status === 401 || e?.status === 403) {
           await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
         } else if (cached?.id) {
-          // Geçici ağ/500/timeout durumunda kullanıcıyı login ekranına atmak yerine son doğrulanmış
-          // kimlik snapshot'ıyla uygulamayı aç. Sunucu gerektiren işlemler doğal olarak bağlantı
-          // düzelene kadar hata verebilir; aşağıdaki effect oturumu arka planda yeniden doğrular.
           setAuth({ ...cached, token, offline: true });
         }
       } finally {
@@ -67,7 +65,6 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  // Offline snapshot ile açıldıysak bağlantı geri geldiğinde /api/me'yi sessizce yeniden dene.
   useEffect(() => {
     if (!auth?.offline || !auth?.token) return;
     let stopped = false;
@@ -97,28 +94,26 @@ export function AuthProvider({ children }) {
     ]);
   }
 
-  // Profil düzenleme sonrası yalnız ProfileScreen değil, auth.name/auth.username kullanan paylaşım
-  // ve sohbet akışları da aynı anda güncel değeri görsün.
   async function updateAuthProfile(patch) {
-    let nextSnapshot = null;
     setAuth((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
-      nextSnapshot = snapshotOf(next);
+      AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(snapshotOf(next))).catch(() => {});
       return next;
     });
-    if (nextSnapshot) {
-      await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(nextSnapshot)).catch(() => {});
-    }
   }
+
+  // API istemcisi başarılı profil güncellemesinden sonra bu local event'i yayınlar. Böylece
+  // EditProfileModal'a veya sayfa düzenine dokunmadan, auth.name/auth.username kullanan tüm
+  // ekranlar aynı anda güncellenir.
+  useEffect(() => subscribeLocalEvents((event) => {
+    if (event?.type === "profile_updated" && event.patch) updateAuthProfile(event.patch);
+  }), []);
 
   async function logout() {
     const sessionToken = auth?.token;
     setAuth(null);
     clearPrefetchCache();
-
-    // Temizliklerin bitmesini gerçekten bekliyoruz; hızlı hesap değiştirmede eski SQLite/
-    // entitlement/push state'inin yeni hesaba yetişip karışması engellenir.
     await Promise.allSettled([
       clearAllLocalMessages(),
       clearLocalChatList(),
