@@ -8,7 +8,22 @@ let sessionStartedAt = null;
 let queue = [];
 let authToken = null;
 
+function resetAnalyticsState({ startNewSession = false } = {}) {
+  currentScreen = null;
+  screenEnteredAt = null;
+  sessionStartedAt = startNewSession ? Date.now() : null;
+  queue = [];
+}
+
 export function setAnalyticsToken(token) {
+  // Hesap değiştiğinde önceki kullanıcının kuyrukta kalmış event'leri yeni kullanıcının
+  // token'ıyla gönderilmesin. Aynı zamanda login ekranında geçirilen süreyi yeni kullanıcının
+  // ilk oturumuna dahil etmemek için oturum sayacını token set edildiği anda yeniden başlatıyoruz.
+  if (token !== authToken) {
+    authToken = token;
+    resetAnalyticsState({ startNewSession: !!token });
+    return;
+  }
   authToken = token;
 }
 
@@ -24,7 +39,8 @@ export function trackScreen(screenName) {
 }
 
 export function startSession() {
-  sessionStartedAt = Date.now();
+  // AppState birden fazla kez "active" üretebilir; mevcut açık oturumu gereksiz yere sıfırlama.
+  if (!sessionStartedAt) sessionStartedAt = Date.now();
 }
 
 export function endSession() {
@@ -42,10 +58,14 @@ export function endSession() {
 
 export async function flush() {
   if (queue.length === 0 || !authToken) return;
+  const tokenAtFlush = authToken;
   const events = queue.splice(0, queue.length);
   try {
-    await api.trackEvents(authToken, events);
+    await api.trackEvents(tokenAtFlush, events);
   } catch {
-    // olaylar kaybolur — analitik için kabul edilebilir, kritik veri değil
+    // Event'ler kritik değil; ancak bu sırada HÂLÂ aynı kullanıcı oturumundaysak bir sonraki
+    // flush'ta tekrar deneyebilmek için kuyruğun başına geri koyuyoruz. Hesap değiştiyse eski
+    // kullanıcının verisini yeni hesaba taşımamak için özellikle geri koymuyoruz.
+    if (authToken === tokenAtFlush) queue = [...events, ...queue].slice(-100);
   }
 }
