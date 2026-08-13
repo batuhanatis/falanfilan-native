@@ -4,56 +4,43 @@ import { api } from "../api/client";
 
 const PrefetchContext = createContext(null);
 
-// DiscoverScreen'deki STOCK_TARGET ile aynı — kullanıcı sekmeye girdiğinde kartların hepsi hazır olsun.
 const DISCOVER_STOCK_TARGET = 20;
 
-// Kullanıcı bir sekmeye HİÇ girmeden, oturum açılır açılmaz arka planda o sekmenin ilk verisini
-// çekip burada bekletiyoruz. İlgili ekranlar mount olduğunda önce buraya bakıyor — veri hazırsa
-// kendi isteğini hiç atmadan direkt kullanıyor, hazır değilse (nadir, çok hızlı sekme değişimi
-// gibi durumlarda) normal şekilde kendi isteğini atıyor. Yani bu sadece bir HIZLANDIRMA katmanı,
-// hiçbir ekranın çalışma mantığını değiştirmiyor.
 export function PrefetchProvider({ children }) {
   const { auth } = useAuth();
   const [discoverQueue, setDiscoverQueue] = useState(null);
   const [tasteMates, setTasteMates] = useState(null);
   const [friends, setFriends] = useState(null);
   const [activity, setActivity] = useState(null);
-  // ÖNEMLİ DÜZELTME: Eskiden "startedRef" bir kez true olduktan sonra asla sıfırlanmıyordu —
-  // bir hesaptan çıkıp FARKLI bir hesapla girince (token değişince), bu ön yükleme bir daha HİÇ
-  // çalışmıyordu; önceki kullanıcı için toplanmış TasteMate/Discover/arkadaş verisi olduğu gibi
-  // kalıyor, yeni kullanıcıya "hazır veri" diye sunuluyordu. Artık HANGİ token için ön yükleme
-  // yapıldığını takip ediyoruz — token gerçekten DEĞİŞTİĞİNDE (aynı token'ın tekrar render
-  // tetiklemesiyle karışmasın diye) hem eski veriyi hemen temizliyor hem yeni kullanıcı için
-  // baştan topluyoruz.
   const startedForTokenRef = useRef(null);
 
   useEffect(() => {
     if (!auth?.token || startedForTokenRef.current === auth.token) return;
     startedForTokenRef.current = auth.token;
     const token = auth.token;
+    let cancelled = false;
 
-    // Önceki kullanıcıya ait olabilecek veriyi ANINDA temizliyoruz — yeni prefetch bitene kadar
-    // ekranlar "hazır" diye eski veriyi kullanmasın, kendi taze isteklerini atsınlar.
+    const stillCurrent = () => !cancelled && startedForTokenRef.current === token;
+
     setDiscoverQueue(null);
     setTasteMates(null);
     setFriends(null);
     setActivity(null);
 
-    // ÖNEMLİ DÜZELTME: Eskiden bir prefetch isteği BAŞARISIZ olduğunda da "gerçekten boş" ile
-    // aynı şekilde ([]) işaretleniyordu — tüketen ekranlar (ör. ChatListScreen) bunu "veri hazır,
-    // kullanılabilir" sanıp gerçek/taze bir istek hiç atmıyor, kullanıcıya olduğu gibi "arkadaşın
-    // yok"/"aktivite yok" gösteriyordu; oysa sadece prefetch başarısız olmuştu. Hata durumunda
-    // state'i null'da (yani "henüz hazır değil") bırakıyoruz ki ekran kendi gerçek isteğini atsın.
-    api.tastemates(token).then(setTasteMates).catch(() => {});
-    api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => {});
-    api.activityFeed(token).then((d) => setActivity(d.results || [])).catch(() => {});
+    api.tastemates(token)
+      .then((data) => { if (stillCurrent()) setTasteMates(data); })
+      .catch(() => {});
+    api.friends(token)
+      .then((d) => { if (stillCurrent()) setFriends(d.friends || []); })
+      .catch(() => {});
+    api.activityFeed(token)
+      .then((d) => { if (stillCurrent()) setActivity(d.results || []); })
+      .catch(() => {});
 
-    // Discover: DiscoverScreen'in kendi kuyruk oluşturma mantığının aynısı — daha önce oy
-    // verilmiş içerikleri dışlayarak, varsayılan "Hepsi" filtresi için rastgele bir başlangıç
-    // kümesi topluyor.
     (async () => {
       try {
         const interactionsData = await api.interactions(token);
+        if (!stillCurrent()) return;
         const usedIds = new Set(
           (interactionsData.results || [])
             .filter((r) => r.action === "like" || r.action === "dislike" || r.action === "skip")
@@ -61,23 +48,35 @@ export function PrefetchProvider({ children }) {
         );
         const gathered = [];
         let attempts = 0;
-        while (gathered.length < DISCOVER_STOCK_TARGET && attempts < 20) {
+        while (gathered.length < DISCOVER_STOCK_TARGET && attempts < 20 && stillCurrent()) {
           attempts++;
           const type = Math.random() < 0.55 ? "movie" : "tv";
           const page = Math.floor(Math.random() * 15) + 1;
           try {
             const data = await api.movies(token, type, page);
+            if (!stillCurrent()) return;
             (data.results || []).forEach((m) => {
               if (!usedIds.has(m.id)) { usedIds.add(m.id); gathered.push(m); }
             });
           } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
         }
-        setDiscoverQueue(gathered);
+        if (stillCurrent()) setDiscoverQueue(gathered);
       } catch {
-        // Aynı düzeltme: başarısızlığı "boş kuyruk" gibi işaretlemiyoruz, null bırakıyoruz ki
-        // DiscoverScreen kendi gerçek kuyruk oluşturma mantığına (growQueue) düşsün.
+        // Hata durumunda null bırak; ilgili ekran kendi gerçek isteğini atsın.
       }
     })();
+
+    return () => { cancelled = true; };
+  }, [auth?.token]);
+
+  // Logout anında eski hesap verisini render edilebilir halde bırakma.
+  useEffect(() => {
+    if (auth?.token) return;
+    startedForTokenRef.current = null;
+    setDiscoverQueue(null);
+    setTasteMates(null);
+    setFriends(null);
+    setActivity(null);
   }, [auth?.token]);
 
   return (
