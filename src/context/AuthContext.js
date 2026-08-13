@@ -5,7 +5,7 @@ import { clearPrefetchCache } from "../utils/chatMessagesPrefetch";
 import { clearAllLocalMessages } from "../utils/chatDb";
 import { clearLocalChatList } from "../utils/chatListDb";
 import { logoutPurchases } from "../utils/purchases";
-import { clearPushSession } from "../utils/pushSession";
+import { clearPushSession } from "../utils/pushSessionV2";
 import { subscribeLocalEvents } from "../utils/localEvents";
 
 const AuthContext = createContext(null);
@@ -103,9 +103,6 @@ export function AuthProvider({ children }) {
     });
   }
 
-  // API istemcisi başarılı profil güncellemesinden sonra bu local event'i yayınlar. Böylece
-  // EditProfileModal'a veya sayfa düzenine dokunmadan, auth.name/auth.username kullanan tüm
-  // ekranlar aynı anda güncellenir.
   useEffect(() => subscribeLocalEvents((event) => {
     if (event?.type === "profile_updated" && event.patch) updateAuthProfile(event.patch);
   }), []);
