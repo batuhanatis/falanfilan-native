@@ -112,7 +112,7 @@ export default function ActivityScreen({ navigation }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>
           <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>
-          <Text style={styles.dailyCta}>Cevabını paylaş →</Text>
+          <Text style={styles.dailyCta}>Yazı veya film/diziyle cevapla →</Text>
         </View>
       </TouchableOpacity>
 
