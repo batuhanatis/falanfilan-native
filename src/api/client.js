@@ -115,6 +115,10 @@ const messageSnapshotInflight = new Map();
 const MOVIE_EXTRA_TTL_MS = 30 * 60 * 1000;
 const movieExtraCache = new Map(); // movieId -> { data, cachedAt }
 const movieExtraInflight = new Map();
+const movieExtraPrefetchQueue = [];
+const movieExtraPrefetchQueued = new Set();
+let activeMovieExtraPrefetches = 0;
+const MAX_MOVIE_EXTRA_PREFETCH_CONCURRENCY = 2;
 
 function movieExtraRequest(token, movieId) {
   const key = Number(movieId);
@@ -132,6 +136,29 @@ function movieExtraRequest(token, movieId) {
     });
   movieExtraInflight.set(key, pending);
   return pending;
+}
+
+function drainMovieExtraPrefetchQueue() {
+  while (activeMovieExtraPrefetches < MAX_MOVIE_EXTRA_PREFETCH_CONCURRENCY && movieExtraPrefetchQueue.length) {
+    const { token, movieId } = movieExtraPrefetchQueue.shift();
+    movieExtraPrefetchQueued.delete(movieId);
+    if (movieExtraCache.has(movieId) || movieExtraInflight.has(movieId)) continue;
+    activeMovieExtraPrefetches++;
+    movieExtraRequest(token, movieId)
+      .catch(() => null)
+      .finally(() => {
+        activeMovieExtraPrefetches--;
+        drainMovieExtraPrefetchQueue();
+      });
+  }
+}
+
+function prefetchMovieExtra(token, movieId) {
+  const key = Number(movieId);
+  if (!key || movieExtraCache.has(key) || movieExtraInflight.has(key) || movieExtraPrefetchQueued.has(key)) return;
+  movieExtraPrefetchQueued.add(key);
+  movieExtraPrefetchQueue.push({ token, movieId: key });
+  drainMovieExtraPrefetchQueue();
 }
 
 function chatMessagesRequest(token, chatId) {
@@ -250,7 +277,7 @@ export const api = {
   notifyMe: (token, movieId) => request(`/api/movies/${movieId}/notify-me`, { method: "POST", token }),
   notifySubscriptions: (token) => request("/api/me/notify-subscriptions", { token }),
   movieExtra: (token, movieId) => movieExtraRequest(token, movieId),
-  prefetchMovieExtra: (token, movieId) => movieExtraRequest(token, movieId).catch(() => null),
+  prefetchMovieExtra,
   peekMovieExtra: (movieId) => movieExtraCache.get(Number(movieId))?.data || null,
   personCredits: (token, personId, opts) => request(`/api/people/${personId}${opts?.full ? "?full=1" : ""}`, { token }),
   socialStats: (token, movieIds) => request("/api/movies/social-stats", { method: "POST", token, body: { movieIds } }),
