@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame, Heart, MessageCircle, Plus, Sparkles, Swords, Users } from "lucide-react-native";
+import { ArrowRight, Flame, Heart, MessageCircle, Plus, Sparkles, Swords, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -108,14 +108,24 @@ export default function ActivityScreen({ navigation }) {
         </View>
       </LinearGradient>
 
-      <TouchableOpacity style={styles.tasteMateCard} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.86}>
-        <View style={styles.tasteMateIcon}><Users size={18} color={c.accent} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.tasteMateEyebrow}>TASTEMATCH</Text>
-          <Text style={styles.tasteMateTitle}>Zevkine yakın insanları keşfet</Text>
-          <Text style={styles.tasteMateSub}>Uyumunu gör, yeni profiller bul ve bağlantı kur.</Text>
-        </View>
-        <Text style={styles.tasteMateCta}>Keşfet →</Text>
+      <TouchableOpacity onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.88} style={styles.tasteMateTouch}>
+        <LinearGradient
+          colors={["#FF3D81", "#8B5CF6", "#2563EB"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.tasteMateCard}
+        >
+          <View style={styles.tasteBlobOne} />
+          <View style={styles.tasteBlobTwo} />
+          <View style={styles.tasteMateIcon}><Users size={17} color="#fff" /></View>
+          <View style={styles.tasteMateCopy}>
+            <View style={styles.tasteMateLabelRow}>
+              <Sparkles size={10} color="#FFE66D" />
+              <Text style={styles.tasteMateEyebrow}>TASTEMATCH</Text>
+            </View>
+            <Text style={styles.tasteMateTitle}>Seninle aynı kafada kim var?</Text>
+          </View>
+          <View style={styles.tasteMateCta}><ArrowRight size={16} color="#fff" /></View>
+        </LinearGradient>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
@@ -202,12 +212,16 @@ function makeStyles(c) {
     quickRow: { flexDirection: "row", gap: 7, marginTop: 11 },
     quickBtn: { flex: 1, minHeight: 34, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
     quickText: { color: c.text, fontSize: 10.5, fontWeight: "800" },
-    tasteMateCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 13, marginBottom: 12 },
-    tasteMateIcon: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    tasteMateEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.7 },
-    tasteMateTitle: { color: c.text, fontSize: 12.5, fontWeight: "900", marginTop: 2 },
-    tasteMateSub: { color: c.dim, fontSize: 10.2, lineHeight: 14, marginTop: 2 },
-    tasteMateCta: { color: c.accent, fontSize: 10.5, fontWeight: "900" },
+    tasteMateTouch: { borderRadius: 17, marginBottom: 12, shadowColor: "#8B5CF6", shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+    tasteMateCard: { height: 78, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 17, paddingHorizontal: 13, overflow: "hidden" },
+    tasteBlobOne: { position: "absolute", width: 86, height: 86, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.12)", right: 36, top: -52 },
+    tasteBlobTwo: { position: "absolute", width: 62, height: 62, borderRadius: 999, backgroundColor: "rgba(255,230,109,0.13)", left: -20, bottom: -38 },
+    tasteMateIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center" },
+    tasteMateCopy: { flex: 1 },
+    tasteMateLabelRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    tasteMateEyebrow: { color: "#FFE66D", fontSize: 8.5, fontWeight: "900", letterSpacing: 1 },
+    tasteMateTitle: { color: "#fff", fontSize: 13.5, fontWeight: "900", marginTop: 3 },
+    tasteMateCta: { width: 31, height: 31, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center" },
     dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginBottom: 12 },
     dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     dailyEyebrow: { color: "#F97316", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.7 },
