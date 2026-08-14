@@ -11,7 +11,7 @@ const SUPPORT_EMAIL = "destek@pellix.app";
 
 export default function SettingsScreen({ navigation }) {
   const { c, mode, setMode } = useAppTheme();
-  const { auth, logout } = useAuth();
+  const { auth, logout, handleAuthed } = useAuth();
   const styles = makeStyles(c);
 
   const [privacy, setPrivacy] = useState("everyone");
@@ -61,7 +61,8 @@ export default function SettingsScreen({ navigation }) {
     if (!newPw || newPw.length < 6) { setPwError("Yeni şifre en az 6 karakter olmalı."); return; }
     setPwSaving(true);
     try {
-      await api.updatePassword(auth.token, { currentPassword: currentPw, newPassword: newPw });
+      const result = await api.updatePassword(auth.token, { currentPassword: currentPw, newPassword: newPw });
+      if (result?.token) await handleAuthed({ ...auth, token: result.token });
       setCurrentPw(""); setNewPw(""); setPwSuccess(true);
     } catch (e) { setPwError(e.message || "Şifre değiştirilemedi."); }
     setPwSaving(false);
