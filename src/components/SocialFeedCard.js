@@ -8,6 +8,7 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
+import SocialSharedCard from "./SocialSharedCard";
 
 function relativeTime(value) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -41,6 +42,7 @@ function activityMood(item) {
 function postLabel(type) {
   if (type === "recommend") return "öneriyor";
   if (type === "poll") return "soruyor";
+  if (type === "card") return "bir kart paylaştı";
   return "paylaştı";
 }
 
@@ -150,7 +152,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
       {!!body && <Text style={styles.body}>{body}</Text>}
 
-      {state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
+      {state.kind === "post" && post?.type === "card" && post.cardPayload ? (
+        <SocialSharedCard payload={post.cardPayload} navigation={navigation} currentUserId={auth.id} />
+      ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
         <View style={styles.pollWrap}>
           {post.pollMovies.map((movie) => {
             const count = Number(post.pollCounts?.[movie.id] || 0);
