@@ -53,6 +53,54 @@ function generateMessageClientId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+// clientId'yi kendisi vermeyen tek-atımlık akışlarda (anket, film/liste paylaşımı vb.) ağ
+// zaman aşımından sonra kullanıcı aynı işlemi tekrar tetiklerse YENİ bir id üretmek yine gerçek
+// duplicate yaratabilirdi. Aynı chat + body + reply kombinasyonu kısa süre içinde yeniden
+// denenirse aynı id'yi kullanıyoruz. Başarılı cevap gelince anahtarı hemen bırakıyoruz; dolayısıyla
+// kullanıcı gerçekten aynı içeriği daha sonra yeniden göndermek isterse normal şekilde yeni
+// mesaj oluşur. Normal yazı sohbeti zaten explicit clientId kullandığı için bu cache ona etki etmez.
+const IMPLICIT_MESSAGE_ID_TTL_MS = 2 * 60 * 1000;
+const implicitMessageIds = new Map(); // fingerprint -> { id, createdAt }
+
+function implicitMessageFingerprint(chatId, body, replyToId) {
+  return `${chatId}|${replyToId || ""}|${body || ""}`;
+}
+
+function getImplicitMessageId(chatId, body, replyToId) {
+  const now = Date.now();
+  for (const [key, entry] of implicitMessageIds.entries()) {
+    if (now - entry.createdAt > IMPLICIT_MESSAGE_ID_TTL_MS) implicitMessageIds.delete(key);
+  }
+  const key = implicitMessageFingerprint(chatId, body, replyToId);
+  const existing = implicitMessageIds.get(key);
+  if (existing) return { key, id: existing.id };
+  const id = generateMessageClientId();
+  implicitMessageIds.set(key, { id, createdAt: now });
+  return { key, id };
+}
+
+async function sendMessageRequest(token, chatId, body, replyToId, clientId) {
+  const implicit = !clientId;
+  const implicitEntry = implicit ? getImplicitMessageId(chatId, body, replyToId) : null;
+  const effectiveClientId = clientId || implicitEntry.id;
+  try {
+    const result = await request(`/api/chats/${chatId}/messages`, {
+      method: "POST",
+      token,
+      body: { body, replyToId: replyToId || null, clientId: effectiveClientId },
+    });
+    if (implicitEntry) implicitMessageIds.delete(implicitEntry.key);
+    return result;
+  } catch (e) {
+    // Network/timeout/408/429/5xx belirsizdir: server işlemiş olabilir, aynı id retry için kalsın.
+    // Kesin 4xx hatalarında server mesajı oluşturmamıştır; fingerprint'i serbest bırakabiliriz.
+    if (implicitEntry && e?.status != null && e.status < 500 && e.status !== 408 && e.status !== 429) {
+      implicitMessageIds.delete(implicitEntry.key);
+    }
+    throw e;
+  }
+}
+
 export const api = {
   signup: (payload) => request("/api/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/api/auth/login", { method: "POST", body: payload }),
@@ -138,7 +186,7 @@ export const api = {
   // updated_at tabanlı senkron eklenene kadar focus'ta tam snapshot çekmek bu veri kaybını kapatır.
   // ChatConversation zaten ID bazında merge ettiği için görünüm veya mesaj sırası değişmez.
   messages: (token, chatId, _after) => request(`/api/chats/${chatId}/messages`, { token }),
-  sendMessage: (token, chatId, body, replyToId, clientId) => request(`/api/chats/${chatId}/messages`, { method: "POST", token, body: { body, replyToId: replyToId || null, clientId: clientId || generateMessageClientId() } }),
+  sendMessage: (token, chatId, body, replyToId, clientId) => sendMessageRequest(token, chatId, body, replyToId, clientId),
 
   notifications: (token) => request("/api/notifications", { token }),
   markAllRead: (token) => request("/api/notifications/read-all", { method: "POST", token }),
