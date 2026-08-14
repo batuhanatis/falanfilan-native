@@ -311,7 +311,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
       <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
         <GameHero meta={GAME_META.friend_quiz} styles={styles} icon={Users} title="Kimi ne kadar iyi tanıyorsun?" subtitle="Önce arkadaşını seç, sonra onun film ve dizi zevkini tahmin et." />
         <Text style={styles.friendPickerTitle}>Arkadaşını seç</Text>
-        <Text style={styles.friendPickerSub}>Yeterli beğeni / beğenmeme verisi olan arkadaşlarınla hemen oynayabilirsin.</Text>
+        <Text style={styles.friendPickerSub}>En az 10 beğenisi olan arkadaşlarınla hemen oynayabilirsin.</Text>
 
         {friends.length === 0 ? (
           <View style={styles.emptyCard}><Text style={styles.emptyText}>Henüz oynayabileceğin bir arkadaş görünmüyor.</Text></View>
@@ -326,7 +326,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.friendPickerName}>{friend.name}</Text>
               <Text style={[styles.friendPickerStatus, friend.ready && { color: "#FB7185" }]}>
-                {friend.ready ? `${friend.questionCount} soruluk tur hazır` : "Biraz daha zevk verisi gerekiyor"}
+                {friend.ready ? `${friend.questionCount} soruluk tur hazır` : `${friend.likeCount || 0}/10 beğeni · biraz daha gerekiyor`}
               </Text>
             </View>
             {friend.ready ? <ArrowRight size={18} color="#FB7185" /> : <LockKeyhole size={16} color={c.dim} />}
@@ -385,7 +385,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={GAME_META.friend_quiz.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.friendHeaderGradient}>
         <RetryImage source={{ uri: avatarOr(data.friend.avatarUrl, data.friend.id) }} style={styles.friendAvatar} />
-        <View style={{ flex: 1 }}><Text style={styles.friendName}>{data.friend.name}</Text><Text style={styles.friendSub}>Hangisini tercih ederdi?</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.friendName}>{data.friend.name}</Text><Text style={styles.friendSub}>Hangisini beğenmiş?</Text></View>
         <Users size={20} color="rgba(255,255,255,0.80)" />
       </LinearGradient>
       <Text style={styles.progressText}>{index + 1} / {data.questions.length} · Skor {score}</Text>
