@@ -10,7 +10,7 @@ import { api } from "../api/client";
 // ÖNEMLİ: Bildirimler artık ayrı bir SAYFA (NotificationsScreen) — burada SADECE zil rozeti
 // (okunmamış var mı) için hafif bir sorgu tutuyoruz, tam listeyi/aksiyonları (kabul/reddet/sil)
 // artık o ekran kendi başına yönetiyor.
-export default function TopBar({ centerLabel }) {
+export default function TopBar({ centerLabel, leftAction = null }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const { subscribe } = useWS();
@@ -41,9 +41,20 @@ export default function TopBar({ centerLabel }) {
   return (
     <View style={styles.bar}>
       <View style={styles.barSide}>
-        <Text style={styles.logo}>
-          pell<Text style={{ color: c.accent }}>i</Text>x
-        </Text>
+        {leftAction ? (
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={leftAction.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={leftAction.accessibilityLabel}
+          >
+            {leftAction.icon}
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.logo}>
+            pell<Text style={{ color: c.accent }}>i</Text>x
+          </Text>
+        )}
       </View>
 
       <View style={styles.barCenter}>

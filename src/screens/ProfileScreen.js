@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, 
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Settings, Camera, Star, PartyPopper, ChevronRight, Sparkles, Crown, Pencil, Share2,
+  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2,
   X, Lock, Eye, EyeOff,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -250,28 +250,7 @@ export default function ProfileScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate("GroupParty")} style={styles.partyCardShadow}>
-          <LinearGradient
-            colors={["#7C3AED", "#DB2777", "#F97316"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.partyCard}
-          >
-            <Sparkles size={14} color="rgba(255,255,255,0.55)" style={styles.partySparkleTop} />
-            <Sparkles size={10} color="rgba(255,255,255,0.4)" style={styles.partySparkleBottom} />
-            <View style={styles.partyIconWrap}>
-              <PartyPopper size={28} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={styles.partyTitle}>MatchParty</Text>
-                <View style={styles.partyBadge}><Text style={styles.partyBadgeText}>DENE</Text></View>
-              </View>
-              <Text style={styles.partySubtitle}>Arkadaşlarınla birlikte kaydır, ortak beğendiklerinizi anında bul</Text>
-            </View>
-            <ChevronRight size={20} color="rgba(255,255,255,0.85)" />
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* MatchParty girişi Aktivite sayfasındaki üst aksiyonlara taşındı. */}
 
         {/* Premium değilse HÂLÂ büyük, göz alıcı kart — profildeki tek gerçek "yükselt" çağrısı,
             küçültmek ikna gücünü zayıflatırdı. Premium olunca artık ikna etmesi gereken bir şey

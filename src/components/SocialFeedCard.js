@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Heart, MessageCircle, Sparkles, Star, ThumbsUp } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -28,6 +29,13 @@ function activityCopy(item) {
   if (item.activityType === "favorite_set") return "favorisini güncelledi";
   if (item.activityType === "list_created") return `“${item.payload?.list_name || "Yeni liste"}” listesini oluşturdu`;
   return "zevk profilini güncelledi";
+}
+
+function activityMood(item) {
+  if (item.activityType === "like") return { emoji: "🍿", label: "YENİ KEŞİF", colors: ["#FF3D81", "#8B5CF6"] };
+  if (item.activityType === "favorite_set") return { emoji: "💘", label: "FAVORİ DEĞİŞTİ", colors: ["#F97316", "#EF4444"] };
+  if (item.activityType === "list_created") return { emoji: "🎬", label: "YENİ LİSTE", colors: ["#06B6D4", "#2563EB"] };
+  return { emoji: "✨", label: "ZEVK GÜNCELLENDİ", colors: ["#8B5CF6", "#2563EB"] };
 }
 
 function postLabel(type) {
@@ -111,9 +119,11 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
+  const mood = state.kind === "activity" ? activityMood(state) : null;
 
   return (
-    <View style={[styles.card, compact && styles.cardCompact]}>
+    <View style={[styles.card, state.kind === "activity" && styles.activityCard, compact && styles.cardCompact]}>
+      {mood && <LinearGradient colors={mood.colors} style={styles.activityRail} />}
       <View style={styles.header}>
         <TouchableOpacity onPress={openProfile} activeOpacity={0.8}>
           <RetryImage source={{ uri: avatarOr(user.avatar_url, user.id) }} style={styles.avatar} />
@@ -123,10 +133,20 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             <Text style={styles.name}>{user.name}</Text>
             {!!user.username && <Text style={styles.username}>@{user.username}</Text>}
           </View>
-          <Text style={styles.meta}>{state.kind === "post" ? postLabel(post?.type) : activityCopy(state)} · {relativeTime(state.created_at)}</Text>
+          <Text style={styles.meta}>{state.kind === "post" ? `${postLabel(post?.type)} · ` : ""}{relativeTime(state.created_at)}</Text>
         </TouchableOpacity>
         {post?.type === "recommend" && <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>ÖNERİ</Text></View>}
       </View>
+
+      {mood && (
+        <View style={styles.activityHeadline}>
+          <LinearGradient colors={mood.colors} style={styles.activityEmoji}><Text style={styles.activityEmojiText}>{mood.emoji}</Text></LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.activityLabel, { color: mood.colors[0] }]}>{mood.label}</Text>
+            <Text style={styles.activityTitle}>{activityCopy(state)}</Text>
+          </View>
+        </View>
+      )}
 
       {!!body && <Text style={styles.body}>{body}</Text>}
 
@@ -148,14 +168,19 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             );
           })}
         </View>
-      ) : state.kind === "activity" && state.movies?.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.posterStrip}>
-          {state.movies.map((movie) => (
-            <TouchableOpacity key={movie.id} onPress={() => openMovie(movie)}>
-              {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.stripPoster} /> : <View style={[styles.stripPoster, { backgroundColor: c.surface2 }]} />}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      ) : state.kind === "activity" && primaryMovie ? (
+        <TouchableOpacity style={styles.activityMovieCard} onPress={() => openMovie(primaryMovie)} activeOpacity={0.88}>
+          {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.activityPoster} resizeMode="cover" /> : <View style={[styles.activityPoster, { backgroundColor: c.surface2 }]} />}
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={styles.activityPosterShade} />
+          <View style={styles.activityMovieCopy}>
+            <Text style={styles.activityMovieTitle} numberOfLines={2}>{primaryMovie.title}</Text>
+            <View style={styles.activityMovieMetaRow}>
+              {!!primaryMovie.imdb && <><Star size={12} color="#FFD166" fill="#FFD166" /><Text style={styles.activityMovieMeta}>{primaryMovie.imdb}</Text></>}
+              {!!primaryMovie.year && <Text style={styles.activityMovieMeta}>· {primaryMovie.year}</Text>}
+              {!!primaryMovie.type && <Text style={styles.activityMovieMeta}>· {primaryMovie.type}</Text>}
+            </View>
+          </View>
+        </TouchableOpacity>
       ) : primaryMovie ? (
         <TouchableOpacity style={styles.movieCard} onPress={() => openMovie(primaryMovie)} activeOpacity={0.85}>
           {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.poster} /> : <View style={[styles.poster, { backgroundColor: c.surface2 }]} />}
@@ -216,11 +241,6 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
               <Text style={styles.actionText}>{state.commentCount || 0}</Text>
             </TouchableOpacity>
           )}
-          {!!primaryMovie && (
-            <TouchableOpacity style={[styles.action, { marginLeft: "auto" }]} onPress={() => openMovie(primaryMovie)}>
-              <Text style={styles.actionLink}>Detay</Text>
-            </TouchableOpacity>
-          )}
         </View>
       ) : null}
 
@@ -246,7 +266,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
 function makeStyles(c) {
   return StyleSheet.create({
-    card: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 14, marginBottom: 12 },
+    card: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 14, marginBottom: 12, overflow: "hidden" },
+    activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
+    activityRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
     cardCompact: { marginBottom: 10, padding: 12 },
     header: { flexDirection: "row", alignItems: "center", gap: 10 },
     avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2 },
@@ -257,14 +279,24 @@ function makeStyles(c) {
     typeChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 },
     typeChipText: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
     body: { color: c.text, fontSize: 14, lineHeight: 20, marginTop: 12 },
+    activityHeadline: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
+    activityEmoji: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    activityEmojiText: { fontSize: 18 },
+    activityLabel: { fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
+    activityTitle: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 2 },
+    activityMovieCard: { height: 330, marginTop: 12, borderRadius: 15, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
+    activityPoster: { width: "100%", height: "100%" },
+    activityPosterShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 120 },
+    activityMovieCopy: { position: "absolute", left: 14, right: 14, bottom: 13 },
+    activityMovieTitle: { color: "#fff", fontWeight: "900", fontSize: 19, lineHeight: 23 },
+    activityMovieMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+    activityMovieMeta: { color: "rgba(255,255,255,0.78)", fontSize: 11, fontWeight: "700" },
     movieCard: { flexDirection: "row", gap: 11, marginTop: 12, padding: 10, backgroundColor: c.surface2, borderRadius: 14, borderWidth: 1, borderColor: c.border },
     poster: { width: 62, height: 92, borderRadius: 9 },
     movieTitle: { color: c.text, fontWeight: "800", fontSize: 13 },
     movieMetaRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 6 },
     movieMeta: { color: c.dim, fontSize: 10.5 },
     openHint: { color: c.accent, fontSize: 10.5, fontWeight: "700", marginTop: 10 },
-    posterStrip: { gap: 8, paddingTop: 12 },
-    stripPoster: { width: 76, height: 112, borderRadius: 10 },
     pollWrap: { gap: 8, marginTop: 12 },
     pollOption: { flexDirection: "row", alignItems: "center", gap: 10, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2 },
     pollPoster: { width: 46, height: 68, borderRadius: 8 },

@@ -11,7 +11,7 @@ const MODES = [
   ["poll", "Anket"],
 ];
 
-export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, onClose, onCreated }) {
+export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, presentation = "sheet", onClose, onCreated }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -26,6 +26,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const island = presentation === "island";
 
   useEffect(() => {
     if (!visible) return;
@@ -99,9 +100,10 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     setSending(true);
     setError("");
     try {
-      const outgoingBody = mode === "thought" && initialContext
-        ? `🔥 Günün Sorusu: ${initialContext}\n\n${body.trim()}`
-        : body.trim();
+      const answer = body.trim();
+      const outgoingBody = initialContext
+        ? `🔥 Günün Sorusu: ${initialContext}${answer ? `\n\n${answer}` : ""}`
+        : answer;
       await api.socialCreatePost(auth.token, {
         type: mode,
         body: outgoingBody,
@@ -139,10 +141,10 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
+    <Modal visible={visible} transparent animationType={island ? "fade" : "slide"} onRequestClose={onClose}>
+      <KeyboardAvoidingView style={[styles.backdrop, island && styles.backdropIsland]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
+        <View style={[styles.sheet, island && styles.sheetIsland]}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Taste Post</Text>
@@ -160,16 +162,17 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
             ))}
           </View>
 
-          {!!initialContext && mode === "thought" && (
+          {!!initialContext && (
             <View style={styles.contextCard}>
               <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
               <Text style={styles.contextText}>{initialContext}</Text>
+              {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? "Cevap olarak bir film veya dizi seç." : "Cevabını iki içeriği kapıştırarak ver."}</Text>}
             </View>
           )}
 
           <TextInput
             style={styles.bodyInput}
-            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
+            placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
             placeholderTextColor={c.dim}
             value={body}
             onChangeText={setBody}
@@ -234,7 +237,9 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
 function makeStyles(c) {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+    backdropIsland: { justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: "rgba(0,0,0,0.7)" },
     sheet: { maxHeight: "88%", backgroundColor: c.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: Platform.OS === "ios" ? 30 : 18, borderWidth: 1, borderColor: c.border },
+    sheetIsland: { width: "100%", maxWidth: 420, borderRadius: 24, paddingBottom: 18, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
     title: { color: c.text, fontWeight: "900", fontSize: 18 },
     subtitle: { color: c.dim, fontSize: 11, marginTop: 2 },
@@ -247,6 +252,7 @@ function makeStyles(c) {
     contextCard: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.accent, borderRadius: 14, padding: 11, marginBottom: 10 },
     contextEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.6 },
     contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },
+    contextHint: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6 },
     bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },
     searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42, marginTop: 8 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },
