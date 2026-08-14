@@ -101,6 +101,24 @@ async function sendMessageRequest(token, chatId, body, replyToId, clientId) {
   }
 }
 
+// ChatConversationScreen hem mount useEffect'inde hem navigation focus listener'ında aynı anda
+// loadMessages çağırabiliyor. Aynı chat için iki paralel TAM snapshot isteği hem gereksiz ağ/JSON
+// işi yapıyor hem de optimistic mesajın server cevabıyla uzlaşması sırasında yarış penceresini
+// büyütüyordu. Aynı token+chat için devam eden bir GET varsa ikinci çağrı aynı Promise'i paylaşır;
+// istek bitince kayıt hemen temizlenir, sonraki gerçek focus yine güncel snapshot alır.
+const messageSnapshotInflight = new Map();
+
+function chatMessagesRequest(token, chatId) {
+  const key = `${token}|${chatId}`;
+  const existing = messageSnapshotInflight.get(key);
+  if (existing) return existing;
+  const pending = request(`/api/chats/${chatId}/messages`, { token }).finally(() => {
+    if (messageSnapshotInflight.get(key) === pending) messageSnapshotInflight.delete(key);
+  });
+  messageSnapshotInflight.set(key, pending);
+  return pending;
+}
+
 export const api = {
   signup: (payload) => request("/api/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/api/auth/login", { method: "POST", body: payload }),
@@ -185,7 +203,7 @@ export const api = {
   // uygulama kapalıyken düzenlenen/reaksiyon alan eski mesajları kaçırabiliyordu. Backend'e
   // updated_at tabanlı senkron eklenene kadar focus'ta tam snapshot çekmek bu veri kaybını kapatır.
   // ChatConversation zaten ID bazında merge ettiği için görünüm veya mesaj sırası değişmez.
-  messages: (token, chatId, _after) => request(`/api/chats/${chatId}/messages`, { token }),
+  messages: (token, chatId, _after) => chatMessagesRequest(token, chatId),
   sendMessage: (token, chatId, body, replyToId, clientId) => sendMessageRequest(token, chatId, body, replyToId, clientId),
 
   notifications: (token) => request("/api/notifications", { token }),
