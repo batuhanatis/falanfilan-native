@@ -51,7 +51,7 @@ export default function DiscoverScreen({ navigation }) {
       votedIdsPromiseRef.current = api.interactions(auth.token).then((data) => {
         const voted = new Set();
         (data.results || []).forEach((row) => {
-          if (row.action === "like" || row.action === "dislike" || row.action === "skip") voted.add(row.movie_id);
+          if (row.action === "like" || row.action === "dislike") voted.add(row.movie_id);
         });
         return voted;
       }).catch(() => new Set());
@@ -70,24 +70,23 @@ export default function DiscoverScreen({ navigation }) {
     try {
       const votedIds = await getVotedIds();
       const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
-      const gathered = [];
-      let attempts = 0;
+      const apiType = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : null;
 
-      function localMatchesType(m) {
-        return existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi");
-      }
+      // Taste Engine geniş cache havuzunu kullanıcının gerçek like/dislike geçmişine göre sıralıyor.
+      // 120 kart istiyoruz; ekranda kullanılanlar tekrar elendikten sonra da stok hızla tükenmesin.
+      const data = await api.recommendations(auth.token, apiType, 120);
+      if (generation !== filterGenerationRef.current || activeFilterRef.current !== existingFilter) return [];
 
-      while (existingQueue.length + gathered.length < STOCK_TARGET && attempts < 20) {
-        attempts++;
-        const type = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : (Math.random() < 0.55 ? "movie" : "tv");
-        const page = Math.floor(Math.random() * 15) + 1;
-        try {
-          const data = await api.movies(auth.token, type, page);
-          const items = (data.results || []).filter((m) => !usedIds.has(m.id)).map((m) => existingFilter === "Movie" ? { ...m, type: "Film" } : existingFilter === "TV Shows" ? { ...m, type: "Dizi" } : m).filter((m) => localMatchesType(m));
-          items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
-        } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
-      }
-      return gathered;
+      return (data.results || [])
+        .filter((m) => !usedIds.has(m.id))
+        .map((m) => existingFilter === "Movie"
+          ? { ...m, type: "Film" }
+          : existingFilter === "TV Shows"
+            ? { ...m, type: "Dizi" }
+            : m)
+        .filter((m) => existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
+    } catch {
+      return [];
     } finally {
       growingRef.current.delete(growKey);
     }

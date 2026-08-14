@@ -4,7 +4,7 @@ import { api } from "../api/client";
 
 const PrefetchContext = createContext(null);
 
-const DISCOVER_STOCK_TARGET = 20;
+const DISCOVER_STOCK_TARGET = 80;
 
 export function PrefetchProvider({ children }) {
   const { auth } = useAuth();
@@ -39,30 +39,13 @@ export function PrefetchProvider({ children }) {
 
     (async () => {
       try {
-        const interactionsData = await api.interactions(token);
+        // Discover açılmadan önce Taste Engine'den geniş bir kişisel kart stoğu hazırla.
+        // Rastgele katalog sayfaları yerine kullanıcının zevk skoruna göre sıralanmış cache havuzu gelir.
+        const data = await api.recommendations(token, null, DISCOVER_STOCK_TARGET);
         if (!stillCurrent()) return;
-        const usedIds = new Set(
-          (interactionsData.results || [])
-            .filter((r) => r.action === "like" || r.action === "dislike" || r.action === "skip")
-            .map((r) => r.movie_id)
-        );
-        const gathered = [];
-        let attempts = 0;
-        while (gathered.length < DISCOVER_STOCK_TARGET && attempts < 20 && stillCurrent()) {
-          attempts++;
-          const type = Math.random() < 0.55 ? "movie" : "tv";
-          const page = Math.floor(Math.random() * 15) + 1;
-          try {
-            const data = await api.movies(token, type, page);
-            if (!stillCurrent()) return;
-            (data.results || []).forEach((m) => {
-              if (!usedIds.has(m.id)) { usedIds.add(m.id); gathered.push(m); }
-            });
-          } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
-        }
-        if (stillCurrent()) setDiscoverQueue(gathered);
+        setDiscoverQueue((data.results || []).slice(0, DISCOVER_STOCK_TARGET));
       } catch {
-        // Hata durumunda null bırak; ilgili ekran kendi gerçek isteğini atsın.
+        // Hata durumunda null bırak; Discover kendi öneri isteğini atsın.
       }
     })();
 

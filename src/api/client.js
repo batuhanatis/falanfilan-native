@@ -157,7 +157,12 @@ export const api = {
   movies: (token, type, page, sort) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}`, { token }),
   platforms: (token) => request("/api/platforms", { token }),
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
-  recommendations: (token) => request("/api/recommendations", { token }),
+  recommendations: (token, type = null, limit = null) => {
+    const parts = [];
+    if (type === "movie" || type === "tv") parts.push(`type=${type}`);
+    if (Number.isFinite(Number(limit))) parts.push(`limit=${Math.floor(Number(limit))}`);
+    return request(`/api/recommendations${parts.length ? `?${parts.join("&")}` : ""}`, { token });
+  },
   movieById: (token, id) => request(`/api/movies/${id}`, { token }),
   search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
   describe: (token, query) => request("/api/describe", { method: "POST", token, body: { query } }),
