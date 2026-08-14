@@ -22,6 +22,9 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import base64
+
+          component = base64.b64decode("ZnVuY3Rpb24gV2hvU2FpZEl0KHsgdG9rZW4sIHN0eWxlcywgYywgb25EaXNhYmxlZCB9KSB7CiAgY29uc3QgW3F1ZXN0aW9ucywgc2V0UXVlc3Rpb25zXSA9IHVzZVN0YXRlKFtdKTsKICBjb25zdCBbaW5kZXgsIHNldEluZGV4XSA9IHVzZVN0YXRlKDApOwogIGNvbnN0IFtzY29yZSwgc2V0U2NvcmVdID0gdXNlU3RhdGUoMCk7CiAgY29uc3QgW2ZlZWRiYWNrLCBzZXRGZWVkYmFja10gPSB1c2VTdGF0ZShudWxsKTsKICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZSh0cnVlKTsKICBjb25zdCBbYW5zd2VyaW5nLCBzZXRBbnN3ZXJpbmddID0gdXNlU3RhdGUoZmFsc2UpOwoKICBjb25zdCBsb2FkID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4gewogICAgc2V0TG9hZGluZyh0cnVlKTsgc2V0SW5kZXgoMCk7IHNldFNjb3JlKDApOyBzZXRGZWVkYmFjayhudWxsKTsgc2V0QW5zd2VyaW5nKGZhbHNlKTsKICAgIHRyeSB7CiAgICAgIGNvbnN0IGRhdGEgPSBhd2FpdCBwbGF5QXBpLndob1NhaWRJdCh0b2tlbik7CiAgICAgIHNldFF1ZXN0aW9ucyhkYXRhLnF1ZXN0aW9ucyB8fCBbXSk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGlmIChlLmRpc2FibGVkKSBvbkRpc2FibGVkKCk7CiAgICAgIHNldFF1ZXN0aW9ucyhbXSk7CiAgICB9IGZpbmFsbHkgewogICAgICBzZXRMb2FkaW5nKGZhbHNlKTsKICAgIH0KICB9LCBbdG9rZW5dKTsKCiAgdXNlRWZmZWN0KCgpID0+IHsgbG9hZCgpOyB9LCBbbG9hZF0pOwoKICBhc3luYyBmdW5jdGlvbiBhbnN3ZXIoY2hvc2VuKSB7CiAgICBpZiAoZmVlZGJhY2sgfHwgYW5zd2VyaW5nKSByZXR1cm47CiAgICBjb25zdCBxID0gcXVlc3Rpb25zW2luZGV4XTsKICAgIGlmICghcSkgcmV0dXJuOwogICAgc2V0QW5zd2VyaW5nKHRydWUpOwogICAgdHJ5IHsKICAgICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgcGxheUFwaS5hbnN3ZXJXaG9TYWlkSXQodG9rZW4sIHEuaWQsIGNob3Nlbik7CiAgICAgIGlmIChyZXN1bHQuY29ycmVjdCkgc2V0U2NvcmUoKHYpID0+IHYgKyAxKTsKICAgICAgc2V0RmVlZGJhY2soeyAuLi5yZXN1bHQsIGNob3NlbiB9KTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgaWYgKGUuZGlzYWJsZWQpIG9uRGlzYWJsZWQoKTsKICAgIH0gZmluYWxseSB7CiAgICAgIHNldEFuc3dlcmluZyhmYWxzZSk7CiAgICB9CiAgfQoKICBmdW5jdGlvbiBuZXh0KCkgewogICAgaWYgKGluZGV4ID49IHF1ZXN0aW9ucy5sZW5ndGggLSAxKSBzZXRJbmRleChxdWVzdGlvbnMubGVuZ3RoKTsKICAgIGVsc2UgewogICAgICBzZXRJbmRleCgodikgPT4gdiArIDEpOwogICAgICBzZXRGZWVkYmFjayhudWxsKTsKICAgIH0KICB9CgogIGlmIChsb2FkaW5nKSByZXR1cm4gPFZpZXcgc3R5bGU9e3N0eWxlcy5jZW50ZXJ9PjxBY3Rpdml0eUluZGljYXRvciBjb2xvcj17Yy5hY2NlbnR9IC8+PC9WaWV3PjsKICBpZiAoaW5kZXggPj0gcXVlc3Rpb25zLmxlbmd0aCkgcmV0dXJuIDxHYW1lRG9uZSBzdHlsZXM9e3N0eWxlc30gdGl0bGU9e2Ake3Njb3JlfS8ke3F1ZXN0aW9ucy5sZW5ndGh9YH0gdGV4dD0iS2HDpyBpa29uaWsgcmVwbGnEn2kgYmlsZGnEn2luaSBnw7ZyZMO8bi4iIG9uQWdhaW49e2xvYWR9IC8+OwogIGNvbnN0IHEgPSBxdWVzdGlvbnNbaW5kZXhdOwogIGlmICghcSkgcmV0dXJuIDxHYW1lRG9uZSBzdHlsZXM9e3N0eWxlc30gdGl0bGU9IlNvcnUgYnVsdW5hbWFkxLEiIHRleHQ9IkJpcmF6IHNvbnJhIHRla3JhciBkZW5lLiIgb25BZ2Fpbj17bG9hZH0gLz47CgogIHJldHVybiAoCiAgICA8U2Nyb2xsVmlldyBjb250ZW50Q29udGFpbmVyU3R5bGU9e3N0eWxlcy5nYW1lQ29udGVudH0+CiAgICAgIDxUZXh0IHN0eWxlPXtzdHlsZXMucHJvZ3Jlc3NUZXh0fT57aW5kZXggKyAxfSAvIHtxdWVzdGlvbnMubGVuZ3RofSDCtyBTa29yIHtzY29yZX08L1RleHQ+CiAgICAgIDxWaWV3IHN0eWxlPXtbc3R5bGVzLmJsaW5kQ2FyZCwgeyBnYXA6IDEyIH1dfT4KICAgICAgICA8UXVvdGUgc2l6ZT17MzJ9IGNvbG9yPXtjLmFjY2VudH0gLz4KICAgICAgICA8VGV4dCBzdHlsZT17eyBjb2xvcjogYy50ZXh0LCBmb250U2l6ZTogMjIsIGxpbmVIZWlnaHQ6IDMwLCBmb250V2VpZ2h0OiAiODAwIiwgdGV4dEFsaWduOiAiY2VudGVyIiB9fT7igJx7cS5xdW90ZX3igJ08L1RleHQ+CiAgICAgICAgPFRleHQgc3R5bGU9e3sgY29sb3I6IGMuZGltLCBmb250U2l6ZTogMTIuNSwgdGV4dEFsaWduOiAiY2VudGVyIiB9fT5CdSByZXBsacSfaSBraW0gc8O2eWxlZGk/PC9UZXh0PgogICAgICA8L1ZpZXc+CgogICAgICA8VmlldyBzdHlsZT17eyBnYXA6IDEwLCBtYXJnaW5Ub3A6IDE4IH19PgogICAgICAgIHtxLm9wdGlvbnMubWFwKChvcHRpb24pID0+IHsKICAgICAgICAgIGNvbnN0IGlzQ29ycmVjdCA9IGZlZWRiYWNrICYmIG9wdGlvbiA9PT0gZmVlZGJhY2suYW5zd2VyOwogICAgICAgICAgY29uc3QgaXNXcm9uZyA9IGZlZWRiYWNrICYmIG9wdGlvbiA9PT0gZmVlZGJhY2suY2hvc2VuICYmICFmZWVkYmFjay5jb3JyZWN0OwogICAgICAgICAgcmV0dXJuICgKICAgICAgICAgICAgPFRvdWNoYWJsZU9wYWNpdHkKICAgICAgICAgICAgICBrZXk9e29wdGlvbn0KICAgICAgICAgICAgICBkaXNhYmxlZD17ISFmZWVkYmFjayB8fCBhbnN3ZXJpbmd9CiAgICAgICAgICAgICAgb25QcmVzcz17KCkgPT4gYW5zd2VyKG9wdGlvbil9CiAgICAgICAgICAgICAgYWN0aXZlT3BhY2l0eT17MC44Mn0KICAgICAgICAgICAgICBzdHlsZT17ewogICAgICAgICAgICAgICAgbWluSGVpZ2h0OiA1MiwKICAgICAgICAgICAgICAgIGJvcmRlclJhZGl1czogMTQsCiAgICAgICAgICAgICAgICBib3JkZXJXaWR0aDogMSwKICAgICAgICAgICAgICAgIGJvcmRlckNvbG9yOiBpc0NvcnJlY3QgPyAiIzIyYzU1ZSIgOiBpc1dyb25nID8gIiNlZjQ0NDQiIDogYy5ib3JkZXIsCiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IGlzQ29ycmVjdCA/ICJyZ2JhKDM0LDE5Nyw5NCwwLjEyKSIgOiBpc1dyb25nID8gInJnYmEoMjM5LDY4LDY4LDAuMTIpIiA6IGMuc3VyZmFjZSwKICAgICAgICAgICAgICAgIHBhZGRpbmdIb3Jpem9udGFsOiAxNSwKICAgICAgICAgICAgICAgIGFsaWduSXRlbXM6ICJjZW50ZXIiLAogICAgICAgICAgICAgICAganVzdGlmeUNvbnRlbnQ6ICJjZW50ZXIiLAogICAgICAgICAgICAgICAgb3BhY2l0eTogYW5zd2VyaW5nID8gMC43IDogMSwKICAgICAgICAgICAgICB9fQogICAgICAgICAgICA+CiAgICAgICAgICAgICAgPFRleHQgc3R5bGU9e3sgY29sb3I6IGMudGV4dCwgZm9udFdlaWdodDogIjgwMCIsIGZvbnRTaXplOiAxNCwgdGV4dEFsaWduOiAiY2VudGVyIiB9fT57b3B0aW9ufTwvVGV4dD4KICAgICAgICAgICAgPC9Ub3VjaGFibGVPcGFjaXR5PgogICAgICAgICAgKTsKICAgICAgICB9KX0KICAgICAgPC9WaWV3PgoKICAgICAge2ZlZWRiYWNrICYmICgKICAgICAgICA8VmlldyBzdHlsZT17eyBtYXJnaW5Ub3A6IDE4LCBnYXA6IDEwIH19PgogICAgICAgICAgPFRleHQgc3R5bGU9e3sgY29sb3I6IGZlZWRiYWNrLmNvcnJlY3QgPyAiIzIyYzU1ZSIgOiAiI2VmNDQ0NCIsIGZvbnRTaXplOiAxNCwgZm9udFdlaWdodDogIjkwMCIsIHRleHRBbGlnbjogImNlbnRlciIgfX0+CiAgICAgICAgICAgIHtmZWVkYmFjay5jb3JyZWN0ID8gIkRvxJ9ydSEiIDogYERvxJ9ydSBjZXZhcDogJHtmZWVkYmFjay5hbnN3ZXJ9YH0KICAgICAgICAgIDwvVGV4dD4KICAgICAgICAgIDxUZXh0IHN0eWxlPXt7IGNvbG9yOiBjLmRpbSwgZm9udFNpemU6IDEyLCB0ZXh0QWxpZ246ICJjZW50ZXIiIH19PntmZWVkYmFjay5tb3ZpZX08L1RleHQ+CiAgICAgICAgICA8VG91Y2hhYmxlT3BhY2l0eSBzdHlsZT17c3R5bGVzLnByaW1hcnlCdG59IG9uUHJlc3M9e25leHR9PgogICAgICAgICAgICA8VGV4dCBzdHlsZT17c3R5bGVzLnByaW1hcnlCdG5UZXh0fT57aW5kZXggPj0gcXVlc3Rpb25zLmxlbmd0aCAtIDEgPyAiU29udWN1IEfDtnIiIDogIlNvbnJha2kifTwvVGV4dD4KICAgICAgICAgICAgPEFycm93UmlnaHQgc2l6ZT17MTd9IGNvbG9yPXtjLmJnfSAvPgogICAgICAgICAgPC9Ub3VjaGFibGVPcGFjaXR5PgogICAgICAgIDwvVmlldz4KICAgICAgKX0KICAgIDwvU2Nyb2xsVmlldz4KICApOwp9Cgo=").decode("utf-8")
 
           api = Path('src/api/play.js')
           p = api.read_text()
@@ -34,7 +37,6 @@ jobs:
 
           screen = Path('src/screens/PellixPlayScreen.js')
           s = screen.read_text()
-
           old_import = 'import { ChevronLeft, Swords, Users, EyeOff, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";'
           new_import = 'import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";'
           if old_import in s:
@@ -49,14 +51,8 @@ jobs:
               s = s.replace(anchor, anchor + '  who_said_it: { title: "Who Said It?", subtitle: "İkonik repliği hangi karakter söyledi?", icon: Quote },\n', 1)
 
           if 'activeGame === "who_said_it"' not in s:
-              anchor = '''      ) : activeGame === "blind_pick" ? (
-        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
-      ) : ('''
-              replacement = '''      ) : activeGame === "blind_pick" ? (
-        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
-      ) : activeGame === "who_said_it" ? (
-        <WhoSaidIt token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
-      ) : ('''
+              anchor = '      ) : activeGame === "blind_pick" ? (\n        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />\n      ) : ('
+              replacement = '      ) : activeGame === "blind_pick" ? (\n        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />\n      ) : activeGame === "who_said_it" ? (\n        <WhoSaidIt token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />\n      ) : ('
               if anchor not in s:
                   raise SystemExit('activeGame anchor bulunamadı')
               s = s.replace(anchor, replacement, 1)
@@ -65,114 +61,7 @@ jobs:
               anchor = 'function BlindPick({ token, styles, c, onDisabled }) {'
               if anchor not in s:
                   raise SystemExit('BlindPick component anchor bulunamadı')
-              component = r'''function WhoSaidIt({ token, styles, c, onDisabled }) {
-  const [questions, setQuestions] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [feedback, setFeedback] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [answering, setAnswering] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true); setIndex(0); setScore(0); setFeedback(null); setAnswering(false);
-    try {
-      const data = await playApi.whoSaidIt(token);
-      setQuestions(data.questions || []);
-    } catch (e) {
-      if (e.disabled) onDisabled();
-      setQuestions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function answer(chosen) {
-    if (feedback || answering) return;
-    const q = questions[index];
-    if (!q) return;
-    setAnswering(true);
-    try {
-      const result = await playApi.answerWhoSaidIt(token, q.id, chosen);
-      if (result.correct) setScore((v) => v + 1);
-      setFeedback({ ...result, chosen });
-    } catch (e) {
-      if (e.disabled) onDisabled();
-    } finally {
-      setAnswering(false);
-    }
-  }
-
-  function next() {
-    if (index >= questions.length - 1) setIndex(questions.length);
-    else {
-      setIndex((v) => v + 1);
-      setFeedback(null);
-    }
-  }
-
-  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
-  if (index >= questions.length) return <GameDone styles={styles} title={`${score}/${questions.length}`} text="Kaç ikonik repliği bildiğini gördün." onAgain={load} />;
-  const q = questions[index];
-  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
-
-  return (
-    <ScrollView contentContainerStyle={styles.gameContent}>
-      <Text style={styles.progressText}>{index + 1} / {questions.length} · Skor {score}</Text>
-      <View style={[styles.blindCard, { gap: 12 }]}> 
-        <Quote size={32} color={c.accent} />
-        <Text style={{ color: c.text, fontSize: 22, lineHeight: 30, fontWeight: "800", textAlign: "center" }}>“{q.quote}”</Text>
-        <Text style={{ color: c.dim, fontSize: 12.5, textAlign: "center" }}>Bu repliği kim söyledi?</Text>
-      </View>
-
-      <View style={{ gap: 10, marginTop: 18 }}>
-        {q.options.map((option) => {
-          const isCorrect = feedback && option === feedback.answer;
-          const isWrong = feedback && option === feedback.chosen && !feedback.correct;
-          return (
-            <TouchableOpacity
-              key={option}
-              disabled={!!feedback || answering}
-              onPress={() => answer(option)}
-              activeOpacity={0.82}
-              style={{
-                minHeight: 52,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : c.border,
-                backgroundColor: isCorrect ? "rgba(34,197,94,0.12)" : isWrong ? "rgba(239,68,68,0.12)" : c.surface,
-                paddingHorizontal: 15,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: answering ? 0.7 : 1,
-              }}
-            >
-              <Text style={{ color: c.text, fontWeight: "800", fontSize: 14, textAlign: "center" }}>{option}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {feedback && (
-        <View style={{ marginTop: 18, gap: 10 }}>
-          <Text style={{ color: feedback.correct ? "#22c55e" : "#ef4444", fontSize: 14, fontWeight: "900", textAlign: "center" }}>
-            {feedback.correct ? "Doğru!" : `Doğru cevap: ${feedback.answer}`}
-          </Text>
-          <Text style={{ color: c.dim, fontSize: 12, textAlign: "center" }}>{feedback.movie}</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={next}>
-            <Text style={styles.primaryBtnText}>{index >= questions.length - 1 ? "Sonucu Gör" : "Sonraki"}</Text>
-            <ArrowRight size={17} color={c.bg} />
-          </TouchableOpacity>
-        </View>
-      )}
-    </ScrollView>
-  );
-}
-
-'''
               s = s.replace(anchor, component + anchor, 1)
-
           screen.write_text(s)
           PY
 
