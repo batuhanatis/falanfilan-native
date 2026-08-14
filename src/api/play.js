@@ -25,8 +25,11 @@ export const playApi = {
   chooseTasteBattle: (token, winnerId, loserId) => playRequest("/api/play/taste-battle/choose", token, { method: "POST", body: { winnerId, loserId } }),
   friendQuiz: (token) => playRequest("/api/play/friend-quiz", token),
   answerFriendQuiz: (token, friendId, chosenMovieId, correctMovieId) => playRequest("/api/play/friend-quiz/answer", token, { method: "POST", body: { friendId, chosenMovieId, correctMovieId } }),
-  whoSaidIt: (token) => playRequest("/api/play/who-said-it", token),
-  answerWhoSaidIt: (token, questionId, chosen) => playRequest("/api/play/who-said-it/answer", token, { method: "POST", body: { questionId, chosen } }),
+  whoSaidIt: (token, { mode = "classic", kind = "all", difficulty = "all" } = {}) => {
+    const qs = new URLSearchParams({ mode, kind, difficulty }).toString();
+    return playRequest(`/api/play/who-said-it?${qs}`, token);
+  },
+  answerWhoSaidIt: (token, questionId, chosen, context = {}) => playRequest("/api/play/who-said-it/answer", token, { method: "POST", body: { questionId, chosen, ...context } }),
   blindPick: (token) => playRequest("/api/play/blind-pick", token),
   answerBlindPick: (token, movieId, interested) => playRequest("/api/play/blind-pick/answer", token, { method: "POST", body: { movieId, interested } }),
 };
