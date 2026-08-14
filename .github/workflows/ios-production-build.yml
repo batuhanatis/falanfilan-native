@@ -1,4 +1,4 @@
-name: iOS Production Build
+name: iOS App Store Submit
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  submit:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,5 +33,5 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS production
-        run: eas build --platform ios --profile production --non-interactive
+      - name: Submit latest iOS production build
+        run: eas submit --platform ios --profile production --latest --non-interactive
