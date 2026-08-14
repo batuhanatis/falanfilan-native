@@ -31,6 +31,7 @@ export default function FriendSearchScreen({ navigation }) {
     api.friends(auth.token).then((data) => {
       setRequests(data.requests || []);
       setFriendIds(new Set((data.friends || []).map((f) => f.id)));
+      setSentTo(new Set((data.sentRequests || []).map((r) => r.id)));
     }).catch(() => {}).finally(() => setRequestsLoading(false));
   }, [auth.token]);
 
