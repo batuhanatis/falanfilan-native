@@ -695,9 +695,16 @@ export default function HomeScreen({ navigation }) {
           ) : dropdownResults.length === 0 ? (
             <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
           ) : (
-            <View>
-              {dropdownResults.map((m) => (
-                <TouchableOpacity key={m.id} style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
+            <FlatList
+              data={dropdownResults}
+              keyExtractor={(m) => String(m.id)}
+              style={styles.dropdownList}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode="on-drag"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              renderItem={({ item: m }) => (
+                <TouchableOpacity style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
                   {m.poster ? (
                     <Image source={{ uri: m.poster }} style={styles.dropdownPoster} />
                   ) : (
@@ -712,8 +719,8 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.dropdownRatingText}>{m.imdb}</Text>
                   </View>
                 </TouchableOpacity>
-              ))}
-            </View>
+              )}
+            />
           )}
         </View>
       )}
@@ -761,6 +768,7 @@ function makeStyles(c) {
     // dropdownTop ölçümü zaten arama kutusunun altına +8 boşluk bırakıyor, o yüzden marginTop
     // burada sıfırlanıyor (yoksa çift boşluk olurdu).
     dropdownOverlay: { position: "absolute", left: 16, right: 16, marginTop: 0, zIndex: 50, elevation: 20 },
+    dropdownList: { maxHeight: 420 },
     dropdownEmpty: { fontSize: 12, color: c.dim, textAlign: "center", paddingVertical: 22, paddingHorizontal: 16 },
     dropdownRow: {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10,
