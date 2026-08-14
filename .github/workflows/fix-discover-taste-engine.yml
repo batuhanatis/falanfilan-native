@@ -1,0 +1,49 @@
+name: Fix Discover Taste Engine
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-discover-taste-engine.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply Discover Taste Engine patch
+        run: node tmp-fix-discover-engine.cjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir /tmp/pellix-discover-engine-android
+
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir /tmp/pellix-discover-engine-ios
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-discover-taste-engine.yml tmp-fix-discover-engine.cjs
+          git add src/api/client.js src/context/PrefetchContext.js src/screens/DiscoverScreen.js .github/workflows/fix-discover-taste-engine.yml tmp-fix-discover-engine.cjs
+          git commit -m "Keşfet akışını geniş Taste Engine havuzuna geri bağla"
+          git push origin HEAD:main
