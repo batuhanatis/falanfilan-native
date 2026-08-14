@@ -279,7 +279,12 @@ export const api = {
   movieExtra: (token, movieId) => movieExtraRequest(token, movieId),
   prefetchMovieExtra,
   peekMovieExtra: (movieId) => movieExtraCache.get(Number(movieId))?.data || null,
-  personCredits: (token, personId, opts) => request(`/api/people/${personId}${opts?.full ? "?full=1" : ""}`, { token }),
+  personCredits: (token, personId, opts) => {
+    const params = [];
+    if (opts?.full) params.push("full=1");
+    if (opts?.role === "director") params.push("role=director");
+    return request(`/api/people/${personId}${params.length ? `?${params.join("&")}` : ""}`, { token });
+  },
   socialStats: (token, movieIds) => request("/api/movies/social-stats", { method: "POST", token, body: { movieIds } }),
   trackEvents: (token, events) => request("/api/analytics/events-batch", { method: "POST", token, body: { events } }),
   achievements: (token) => request("/api/achievements", { token }),
