@@ -51,3 +51,5 @@ jobs:
 
       - name: Submit IPA to App Store Connect
         run: eas submit --platform ios --profile production --path ./pellix-production.ipa --non-interactive --wait
+
+# Manual trigger: 2026-08-14 final closed-test build after prebuild fixes.
