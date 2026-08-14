@@ -1,0 +1,57 @@
+name: Discover Live Search
+on:
+  push:
+    paths:
+      - '.github/workflows/discover-live-search.yml'
+permissions:
+  contents: write
+jobs:
+  patch-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply discover live search patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/DiscoverScreen.js')
+          s = p.read_text()
+
+          old = '  const [searchLoading, setSearchLoading] = useState(false);\n'
+          new = old + '  const searchRequestRef = useRef(0);\n'
+          assert old in s and 'searchRequestRef' not in s
+          s = s.replace(old, new, 1)
+
+          old = '''  async function runSearch() {\n    const q = searchQuery.trim();\n    if (q.length < 2) return;\n    setSearchLoading(true);\n    try {\n      const [movies, shows] = await Promise.all([\n        api.search(auth.token, q, "movie"),\n        api.search(auth.token, q, "tv"),\n      ]);\n      const seen = new Set();\n      setSearchResults([...(movies.results || []), ...(shows.results || [])].filter((item) => {\n        if (!item?.id || seen.has(item.id)) return false;\n        seen.add(item.id);\n        return true;\n      }).slice(0, 30));\n    } catch { setSearchResults([]); }\n    setSearchLoading(false);\n  }\n\n'''
+          new = '''  async function runSearch(queryOverride = null, requestId = null) {\n    const q = String(queryOverride ?? searchQuery).trim();\n    const activeRequestId = requestId ?? ++searchRequestRef.current;\n    if (q.length < 2) {\n      if (activeRequestId === searchRequestRef.current) {\n        setSearchResults([]);\n        setSearchLoading(false);\n      }\n      return;\n    }\n    setSearchLoading(true);\n    try {\n      const [movies, shows] = await Promise.all([\n        api.search(auth.token, q, "movie"),\n        api.search(auth.token, q, "tv"),\n      ]);\n      if (activeRequestId !== searchRequestRef.current) return;\n      const seen = new Set();\n      setSearchResults([...(movies.results || []), ...(shows.results || [])].filter((item) => {\n        if (!item?.id || seen.has(item.id)) return false;\n        seen.add(item.id);\n        return true;\n      }).slice(0, 30));\n    } catch {\n      if (activeRequestId === searchRequestRef.current) setSearchResults([]);\n    } finally {\n      if (activeRequestId === searchRequestRef.current) setSearchLoading(false);\n    }\n  }\n\n  useEffect(() => {\n    // Kullanıcı yazmayı kısa süre bıraktığında otomatik ara. Yeni sorgu geldiği anda\n    // önceki isteği mantıksal olarak geçersiz kılıyoruz; geç dönen eski sonuçlar ekrana sızmıyor.\n    const requestId = ++searchRequestRef.current;\n    if (!showSearch) return;\n    const q = searchQuery.trim();\n    if (q.length < 2) {\n      setSearchResults([]);\n      setSearchLoading(false);\n      return;\n    }\n    const timer = setTimeout(() => runSearch(q, requestId), 350);\n    return () => clearTimeout(timer);\n  }, [searchQuery, showSearch, auth.token]);\n\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '              ListEmptyComponent={searchQuery.trim().length >= 2 && !searchLoading ? <Text style={styles.searchEmpty}>Aramak için klavyedeki “ara” tuşuna dokun.</Text> : null}\n'
+          new = '              ListEmptyComponent={searchQuery.trim().length >= 2 && !searchLoading ? <Text style={styles.searchEmpty}>Sonuç bulunamadı.</Text> : null}\n'
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir /tmp/pellix-discover-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir /tmp/pellix-discover-ios
+      - name: Validate diff
+        run: git diff --check
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/DiscoverScreen.js
+          git commit -m "Keşfet aramasını yazarken otomatik çalıştır"
+          git push
