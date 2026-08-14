@@ -1,0 +1,15 @@
+name: Audit Activity Feed UI
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-activity-feed-ui.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find activity feed usage
+        run: |
+          grep -RniE "activityFeed|activity-feed|Aktivite|aktivite" src App.js || true
