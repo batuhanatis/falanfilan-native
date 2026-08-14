@@ -1,0 +1,771 @@
+name: Social Product Reposition
+on:
+  push:
+    paths:
+      - '.github/workflows/social-product-reposition.yml'
+permissions:
+  contents: write
+jobs:
+  patch-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Reposition product around social feed
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # ------------------------------------------------------------------
+          # API client: recommendations + social endpoints + profile visibility
+          # ------------------------------------------------------------------
+          p = Path('src/api/client.js')
+          s = p.read_text()
+          old = '  trending: (token, type) => request(`/api/trending?type=${type}`, { token }),\n'
+          new = old + '  recommendations: (token) => request("/api/recommendations", { token }),\n'
+          assert old in s and 'recommendations: (token)' not in s
+          s = s.replace(old, new, 1)
+
+          old = '  interactions: (token) => request("/api/interactions", { token }),\n'
+          new = old + '  setLikeProfileVisibility: (token, movieId, hidden) => request(`/api/me/likes/${movieId}/visibility`, { method: "PATCH", token, body: { hidden } }),\n'
+          assert old in s and 'setLikeProfileVisibility' not in s
+          s = s.replace(old, new, 1)
+
+          old = '  activityFeed: (token) => request("/api/activity-feed", { token }),\n'
+          new = old + '''  socialFeed: (token) => request("/api/social/feed", { token }),
+  socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload }),
+  socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
+  socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),
+  socialComments: (token, id) => request(`/api/social/posts/${id}/comments`, { token }),
+  socialAddComment: (token, id, body) => request(`/api/social/posts/${id}/comments`, { method: "POST", token, body: { body } }),
+  socialVote: (token, id, movieId) => request(`/api/social/posts/${id}/vote`, { method: "POST", token, body: { movieId } }),
+  socialUserPosts: (token, userId) => request(`/api/social/users/${userId}/posts`, { token }),
+'''
+          assert old in s and 'socialFeed: (token)' not in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Prefetch: Discover random catalog -> recommendation engine
+          # --------------------------------------------------
+          p = Path('src/context/PrefetchContext.js')
+          s = p.read_text()
+          start = s.index('    (async () => {')
+          end = s.index('\n\n    return () => { cancelled = true; };', start)
+          replacement = '''    (async () => {
+      try {
+        const data = await api.recommendations(token);
+        if (!stillCurrent()) return;
+        setDiscoverQueue((data.results || []).slice(0, DISCOVER_STOCK_TARGET));
+      } catch {
+        // Hata durumunda null bırak; Discover kendi öneri isteğini atsın.
+      }
+    })();'''
+          s = s[:start] + replacement + s[end:]
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # AIZone can open expanded when hosted in Discover modal
+          # --------------------------------------------------
+          p = Path('src/components/AIZone.js')
+          s = p.read_text()
+          old = 'export default function AIZone({ navigation, hasResults, onResults, onClear }) {'
+          new = 'export default function AIZone({ navigation, hasResults, onResults, onClear, defaultOpen = false }) {'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '  const [aiOpen, setAiOpen] = useState(false);'
+          new = '  const [aiOpen, setAiOpen] = useState(defaultOpen);'
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Home = social feed, while keeping “Şu An Popüler”
+          # --------------------------------------------------
+          home = r'''import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";
+import { useAppTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api/client";
+import TopBar from "../components/TopBar";
+import PlayHubCard from "../components/PlayHubCard";
+import SocialFeedCard from "../components/SocialFeedCard";
+import SocialPostComposer from "../components/SocialPostComposer";
+
+function interleave(a = [], b = [], limit = 20) {
+  const out = [];
+  for (let i = 0; out.length < limit && (i < a.length || i < b.length); i++) {
+    if (i < a.length) out.push(a[i]);
+    if (out.length < limit && i < b.length) out.push(b[i]);
+  }
+  return out;
+}
+
+export default function HomeScreen({ navigation }) {
+  const { c } = useAppTheme();
+  const { auth } = useAuth();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const [feed, setFeed] = useState([]);
+  const [popular, setPopular] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerType, setComposerType] = useState("thought");
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    const [feedResult, movieTrending, tvTrending] = await Promise.allSettled([
+      api.socialFeed(auth.token),
+      api.trending(auth.token, "movie"),
+      api.trending(auth.token, "tv"),
+    ]);
+    if (feedResult.status === "fulfilled") setFeed(feedResult.value.results || []);
+    if (movieTrending.status === "fulfilled" || tvTrending.status === "fulfilled") {
+      const movies = movieTrending.status === "fulfilled" ? movieTrending.value.results || [] : [];
+      const shows = tvTrending.status === "fulfilled" ? tvTrending.value.results || [] : [];
+      setPopular(interleave(movies, shows, 20));
+    }
+    setLoading(false);
+  }, [auth.token]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", () => load(true));
+    return unsub;
+  }, [navigation, load]);
+
+  async function refresh() {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }
+
+  function openComposer(type) {
+    setComposerType(type);
+    setComposerOpen(true);
+  }
+
+  const header = (
+    <View>
+      <PopularNowRow items={popular} c={c} styles={styles} navigation={navigation} />
+
+      <View style={styles.composerCard}>
+        <TouchableOpacity style={styles.composerPrompt} onPress={() => openComposer("thought")} activeOpacity={0.85}>
+          <View style={styles.composerPlus}><Plus size={17} color={c.bg} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.composerTitle}>Zevkin hakkında bir şey paylaş</Text>
+            <Text style={styles.composerSub}>Bir yorum, öneri ya da küçük bir karşılaştırma başlat.</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.quickRow}>
+          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("recommend")}>
+            <Sparkles size={14} color={c.accent} />
+            <Text style={styles.quickText}>Öner</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("poll")}>
+            <Swords size={14} color={c.accent} />
+            <Text style={styles.quickText}>Anket</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("thought")}>
+            <MessageCircle size={14} color={c.accent} />
+            <Text style={styles.quickText}>Bir şey söyle</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <PlayHubCard navigation={navigation} />
+
+      <View style={styles.feedTitleRow}>
+        <View>
+          <Text style={styles.feedEyebrow}>SOSYAL AKIŞ</Text>
+          <Text style={styles.feedTitle}>Arkadaşların ne konuşuyor?</Text>
+        </View>
+        <Heart size={18} color={c.accent2} />
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.root}>
+      <TopBar centerLabel="Ana Sayfa" />
+      {loading && feed.length === 0 ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={c.accent} />
+          <Text style={styles.loadingText}>Akışın hazırlanıyor...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={feed}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
+          ListHeaderComponent={header}
+          renderItem={({ item }) => <SocialFeedCard item={item} navigation={navigation} onChanged={() => {}} />}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
+              <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
+                <Text style={styles.emptyBtnText}>İlk paylaşımı yap</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
+
+      <SocialPostComposer
+        visible={composerOpen}
+        initialType={composerType}
+        onClose={() => setComposerOpen(false)}
+        onCreated={() => load(true)}
+      />
+    </View>
+  );
+}
+
+function PopularNowRow({ items, c, styles, navigation }) {
+  return (
+    <View style={styles.popularSection}>
+      <View style={styles.sectionHead}>
+        <View>
+          <Text style={styles.feedEyebrow}>ŞU AN POPÜLER</Text>
+          <Text style={styles.sectionTitle}>Herkes bunları konuşuyor</Text>
+        </View>
+        <Text style={styles.sectionCount}>{items.length ? `${items.length} içerik` : ""}</Text>
+      </View>
+      {items.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
+          {items.map((item, index) => (
+            <TouchableOpacity key={`${item.id}-${index}`} style={styles.popularItem} onPress={() => navigation.navigate("Detail", { movie: item })} activeOpacity={0.86}>
+              {item.poster ? <Image source={{ uri: item.poster }} style={styles.popularPoster} /> : <View style={[styles.popularPoster, { backgroundColor: c.surface2 }]} />}
+              <View style={styles.rankBadge}><Text style={styles.rankText}>{index + 1}</Text></View>
+              <Text style={styles.popularTitle} numberOfLines={1}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.popularSkeleton}><ActivityIndicator color={c.accent} /></View>
+      )}
+    </View>
+  );
+}
+
+function makeStyles(c) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
+    center: { flex: 1, alignItems: "center", justifyContent: "center" },
+    loadingText: { color: c.dim, fontSize: 12, marginTop: 9 },
+    content: { paddingHorizontal: 14, paddingBottom: 28 },
+    popularSection: { marginTop: 14, marginBottom: 14 },
+    sectionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 10 },
+    feedEyebrow: { color: c.accent, fontWeight: "900", fontSize: 9.5, letterSpacing: 0.8 },
+    sectionTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
+    sectionCount: { color: c.dim, fontSize: 10.5 },
+    popularRow: { gap: 9, paddingRight: 10 },
+    popularItem: { width: 92 },
+    popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
+    rankBadge: { position: "absolute", left: 6, top: 6, minWidth: 23, height: 23, paddingHorizontal: 5, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center" },
+    rankText: { color: "#fff", fontWeight: "900", fontSize: 10 },
+    popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
+    popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
+    composerCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 13, marginBottom: 12 },
+    composerPrompt: { flexDirection: "row", alignItems: "center", gap: 10 },
+    composerPlus: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
+    composerTitle: { color: c.text, fontSize: 13, fontWeight: "800" },
+    composerSub: { color: c.dim, fontSize: 10.5, marginTop: 2, lineHeight: 14 },
+    quickRow: { flexDirection: "row", gap: 7, marginTop: 11 },
+    quickBtn: { flex: 1, minHeight: 34, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
+    quickText: { color: c.text, fontSize: 10.5, fontWeight: "800" },
+    feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 },
+    feedTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
+    emptyCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },
+    emptyTitle: { color: c.text, fontWeight: "900", fontSize: 15 },
+    emptyText: { color: c.dim, fontSize: 11.5, lineHeight: 17, textAlign: "center", marginTop: 6 },
+    emptyBtn: { marginTop: 14, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
+    emptyBtnText: { color: c.bg, fontWeight: "900", fontSize: 11.5 },
+  });
+}
+'''
+          Path('src/screens/HomeScreen.js').write_text(home)
+
+          # --------------------------------------------------
+          # Discover: recommendation engine only + Search + AI tools
+          # --------------------------------------------------
+          p = Path('src/screens/DiscoverScreen.js')
+          s = p.read_text()
+          old = 'import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";'
+          new = 'import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Modal, TextInput, FlatList } from "react-native";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = 'import { ChevronLeft, Heart, X, Star, ListVideo, Send } from "lucide-react-native";'
+          new = 'import { Heart, X, Star, ListVideo, Send, Search, Sparkles } from "lucide-react-native";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = 'import Confetti from "../components/Confetti";'
+          new = old + '\nimport AIZone from "../components/AIZone";'
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          marker = '  const [sendMovie, setSendMovie] = useState(null);'
+          addition = marker + '''
+  const [showAiTools, setShowAiTools] = useState(false);
+  const [aiLabel, setAiLabel] = useState(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);'''
+          assert marker in s
+          s = s.replace(marker, addition, 1)
+
+          start = s.index('  const growQueue = useCallback(')
+          end = s.index('\n\n  const resetForFilter = useCallback', start)
+          new_grow = '''  const growQueue = useCallback(async (existingQueue, existingShown, existingFilter) => {
+    if (growingRef.current) return [];
+    growingRef.current = true;
+    try {
+      const votedIds = await getVotedIds();
+      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
+      const data = await api.recommendations(auth.token);
+      return (data.results || [])
+        .filter((m) => !usedIds.has(m.id))
+        .filter((m) => existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"))
+        .slice(0, Math.max(STOCK_TARGET, 18));
+    } catch {
+      return [];
+    } finally {
+      growingRef.current = false;
+    }
+  }, [auth.token]);'''
+          s = s[:start] + new_grow + s[end:]
+
+          # Update copy in loading state.
+          s = s.replace('Kartların karılıyor...', 'Öneri motorun sana özel kartları hazırlıyor...', 1)
+          s = s.replace('Daha sonra tekrar bak, ya da baştan başla.', 'Zevkin geliştikçe yeni öneriler burada belirecek.', 1)
+
+          # Add Search + AI handlers before current/next derivation.
+          marker = '  const current = queue[0];\n  const next = queue[1];'
+          handlers = '''  async function runSearch() {
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+    setSearchLoading(true);
+    try {
+      const [movies, shows] = await Promise.all([
+        api.search(auth.token, q, "movie"),
+        api.search(auth.token, q, "tv"),
+      ]);
+      const seen = new Set();
+      setSearchResults([...(movies.results || []), ...(shows.results || [])].filter((item) => {
+        if (!item?.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      }).slice(0, 30));
+    } catch { setSearchResults([]); }
+    setSearchLoading(false);
+  }
+
+  async function applyAiResults(results, label = "AI seçimi") {
+    const voted = await getVotedIds();
+    const fresh = (results || []).filter((m) => !voted.has(m.id) && matchesType(m));
+    setShownIds(new Set());
+    setQueue(fresh);
+    setStockReady(true);
+    setAiLabel(label || "AI seçimi");
+    setShowAiTools(false);
+  }
+
+  function clearAiResults() {
+    setAiLabel(null);
+    resetForFilter(filterType);
+  }
+
+  const current = queue[0];
+  const next = queue[1];'''
+          assert marker in s
+          s = s.replace(marker, handlers, 1)
+
+          # Replace current floating top bar with content-discovery tools.
+          start = s.index('      <View style={styles.topBar}>')
+          end = s.index('\n\n      {stockReady && current && (', start)
+          topbar = '''      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.toolBtn} onPress={() => setShowSearch(true)}>
+          <Search size={18} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.pillWrap}>
+          <View style={styles.pillRow}>
+            {[["All", "Tümü"], ["Movie", "Film"], ["TV Shows", "Dizi"]].map(([id, label]) => (
+              <TouchableOpacity
+                key={id}
+                onPress={() => { setAiLabel(null); setFilterType(id); }}
+                style={[styles.pill, filterType === id && styles.pillActive]}
+              >
+                <Text style={[styles.pillText, filterType === id && styles.pillTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <TouchableOpacity style={styles.toolBtn} onPress={() => setShowAiTools(true)}>
+          <Sparkles size={18} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {!!aiLabel && (
+        <TouchableOpacity style={styles.aiResultBadge} onPress={clearAiResults}>
+          <Sparkles size={12} color="#fff" />
+          <Text style={styles.aiResultBadgeText} numberOfLines={1}>{aiLabel}</Text>
+          <X size={12} color="#fff" />
+        </TouchableOpacity>
+      )}'''
+          s = s[:start] + topbar + s[end:]
+
+          # Add Discover Search and AI modals before list/send modals.
+          marker = '      {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}'
+          modals = '''      <Modal visible={showSearch} transparent animationType="fade" onRequestClose={() => setShowSearch(false)}>
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowSearch(false)} />
+          <View style={styles.searchSheet}>
+            <View style={styles.searchHeader}>
+              <Text style={styles.modalTitle}>İçerik ara</Text>
+              <TouchableOpacity onPress={() => setShowSearch(false)}><X size={18} color={c.text} /></TouchableOpacity>
+            </View>
+            <View style={styles.searchBox}>
+              <Search size={16} color={c.dim} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Film veya dizi ara..."
+                placeholderTextColor={c.dim}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={runSearch}
+                returnKeyType="search"
+                autoFocus
+              />
+              {searchLoading && <ActivityIndicator size="small" color={c.accent} />}
+            </View>
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => String(item.id)}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingTop: 8 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.searchResultRow} onPress={() => { setShowSearch(false); navigation.navigate("Detail", { movie: item }); }}>
+                  {item.poster ? <Image source={{ uri: item.poster }} style={styles.searchResultPoster} /> : <View style={[styles.searchResultPoster, { backgroundColor: c.surface2 }]} />}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.searchResultMeta}>{item.type} {item.year ? `· ${item.year}` : ""}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={searchQuery.trim().length >= 2 && !searchLoading ? <Text style={styles.searchEmpty}>Aramak için klavyedeki “ara” tuşuna dokun.</Text> : null}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showAiTools} transparent animationType="fade" onRequestClose={() => setShowAiTools(false)}>
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAiTools(false)} />
+          <View style={styles.aiSheet}>
+            <View style={styles.searchHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Yapay Zeka Köşesi</Text>
+                <Text style={styles.modalSub}>İçerik keşfinin içinde, tam olması gereken yerde.</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAiTools(false)}><X size={18} color={c.text} /></TouchableOpacity>
+            </View>
+            <AIZone
+              navigation={navigation}
+              defaultOpen
+              hasResults={!!aiLabel}
+              onResults={applyAiResults}
+              onClear={clearAiResults}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}'''
+          assert marker in s
+          s = s.replace(marker, modals, 1)
+
+          # Replace left-button style and add modal styles.
+          s = s.replace('    backBtn: {\n      width: 38, height: 38, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.55)",\n      alignItems: "center", justifyContent: "center",\n    },', '    toolBtn: {\n      width: 38, height: 38, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.55)",\n      alignItems: "center", justifyContent: "center",\n    },', 1)
+          style_marker = '    actionCircle: { width: 56, height: 56, borderRadius: 999, alignItems: "center", justifyContent: "center" },'
+          extra_styles = style_marker + '''
+    aiResultBadge: { position: "absolute", top: 90, alignSelf: "center", maxWidth: "78%", flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(109,40,217,0.92)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, zIndex: 30 },
+    aiResultBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "800", flexShrink: 1 },
+    modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+    searchSheet: { height: "72%", backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, borderWidth: 1, borderColor: c.border },
+    aiSheet: { backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 30, borderWidth: 1, borderColor: c.border },
+    searchHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+    modalTitle: { color: c.text, fontWeight: "900", fontSize: 17 },
+    modalSub: { color: c.dim, fontSize: 10.5, marginTop: 2 },
+    searchBox: { minHeight: 44, borderRadius: 13, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 8 },
+    searchInput: { flex: 1, color: c.text, fontSize: 13 },
+    searchResultRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+    searchResultPoster: { width: 42, height: 62, borderRadius: 7 },
+    searchResultTitle: { color: c.text, fontWeight: "800", fontSize: 12.5 },
+    searchResultMeta: { color: c.dim, fontSize: 10.5, marginTop: 3 },
+    searchEmpty: { color: c.dim, textAlign: "center", fontSize: 11, marginTop: 24 },'''
+          assert style_marker in s
+          s = s.replace(style_marker, extra_styles, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Chat: activity becomes Home social feed; Chat stays focused on conversations
+          # --------------------------------------------------
+          p = Path('src/screens/ChatListScreen.js')
+          s = p.read_text()
+          old = '  useEffect(() => { loadFriends(); loadActivity(); }, [loadFriends, loadActivity]);'
+          new = '  useEffect(() => { loadFriends(); }, [loadFriends]);'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '    const unsubFocus = navigation.addListener("focus", () => { loadFriends(); loadActivity(); refreshUnread(); });'
+          new = '    const unsubFocus = navigation.addListener("focus", () => { loadFriends(); refreshUnread(); });'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''      <View style={styles.tabRow}>
+        {[["chats", "Sohbetler"], ["activity", "Aktivite"]].map(([id, label]) => (
+          <TouchableOpacity key={id} onPress={() => setSub(id)} style={[styles.tabBtn, sub === id && { backgroundColor: c.accent, borderColor: c.accent }]}>
+            <Text style={[styles.tabText, sub === id && { color: c.bg }]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>'''
+          new = '''      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+        <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>Sohbetler</Text>
+        <Text style={{ color: c.dim, fontSize: 10.5, marginTop: 2 }}>Arkadaş aktiviteleri artık Ana Sayfa’daki sosyal akışta.</Text>
+      </View>'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Profile: social posts tab + eye visibility control on liked posters
+          # --------------------------------------------------
+          p = Path('src/screens/ProfileScreen.js')
+          s = p.read_text()
+          old = '  X, Lock,\n} from "lucide-react-native";'
+          new = '  X, Lock, Eye, EyeOff,\n} from "lucide-react-native";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = 'import EditProfileModal from "../components/EditProfileModal";'
+          new = old + '\nimport SocialFeedCard from "../components/SocialFeedCard";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '  const [watchlists, setWatchlists] = useState([]);'
+          new = old + '\n  const [socialPosts, setSocialPosts] = useState([]);'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '  const [sub, setSub] = useState(route?.params?.initialSub || "likes"); // likes | dislikes | badges'
+          new = '  const [sub, setSub] = useState(route?.params?.initialSub || "posts"); // posts | likes | dislikes | badges'
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '    api.achievements(auth.token).then(setAchievements).catch(() => {});'
+          new = '    api.socialUserPosts(auth.token, auth.id).then((data) => setSocialPosts(data.results || [])).catch(() => setSocialPosts([]));\n' + marker
+          assert marker in s
+          s = s.replace(marker, new, 1)
+
+          # Add visibility toggle helper before loading early-return.
+          marker = '  if (loading || !profile) {'
+          helper = '''  async function toggleLikeVisibility(item) {
+    const hidden = !item.profileHidden;
+    setLikedMovies((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: hidden } : m));
+    try {
+      await api.setLikeProfileVisibility(auth.token, item.id, hidden);
+    } catch {
+      setLikedMovies((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: !hidden } : m));
+    }
+  }
+
+  if (loading || !profile) {'''
+          assert marker in s
+          s = s.replace(marker, helper, 1)
+
+          old = '{[["likes", "Beğeniler"], ["dislikes", "Beğenmediklerim"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => ('
+          new = '{[["posts", "Paylaşımlar"], ["likes", "Beğeniler"], ["dislikes", "Beğenmediklerim"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => ('
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          marker = '        {sub === "likes" && ('
+          posts_block = '''        {sub === "posts" && (
+          socialPosts.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              {socialPosts.map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
+            </View>
+          ) : <Text style={styles.emptyText}>Henüz bir paylaşımın yok. Ana Sayfa’dan ilk Taste Post’unu oluşturabilirsin.</Text>
+        )}
+
+        {sub === "likes" && ('''
+          assert marker in s
+          s = s.replace(marker, posts_block, 1)
+
+          old = '''                renderItem={({ item }) => (
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+                    {item.poster ? <Image source={{ uri: item.poster }} style={styles.posterThumb} />
+                      : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }]} />}
+                  </TouchableOpacity>
+                )}'''
+          new = '''                renderItem={({ item }) => (
+                  <TouchableOpacity style={{ flex: 1, position: "relative" }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+                    {item.poster ? <Image source={{ uri: item.poster }} style={[styles.posterThumb, item.profileHidden && { opacity: 0.48 }]} />
+                      : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }, item.profileHidden && { opacity: 0.48 }]} />}
+                    <TouchableOpacity
+                      style={styles.likeVisibilityBtn}
+                      onPress={(e) => { e.stopPropagation?.(); toggleLikeVisibility(item); }}
+                      hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                    >
+                      {item.profileHidden ? <EyeOff size={14} color="#fff" /> : <Eye size={14} color="#fff" />}
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                )}'''
+          # Replace only first occurrence = likes; dislikes grid stays unchanged.
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          style_marker = '    posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },'
+          style_new = style_marker + '\n    likeVisibilityBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center", zIndex: 5 },'
+          assert style_marker in s
+          s = s.replace(style_marker, style_new, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # All Likes: self can also unhide older items beyond Profile preview
+          # --------------------------------------------------
+          p = Path('src/screens/AllLikesScreen.js')
+          s = p.read_text()
+          old = 'import { ChevronLeft } from "lucide-react-native";'
+          new = 'import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '  async function handleLoadMore() {'
+          helper = '''  async function toggleVisibility(item) {
+    if (kind !== "likes" || Number(userId) !== Number(auth.id)) return;
+    const hidden = !item.profileHidden;
+    setItems((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: hidden } : m));
+    try { await api.setLikeProfileVisibility(auth.token, item.id, hidden); }
+    catch { setItems((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: !hidden } : m)); }
+  }
+
+  async function handleLoadMore() {'''
+          assert marker in s
+          s = s.replace(marker, helper, 1)
+          old = '''          renderItem={({ item }) => (
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+              {item.poster ? <Image source={{ uri: item.poster }} style={styles.poster} />
+                : <View style={[styles.poster, { backgroundColor: c.surface2 }]} />}
+            </TouchableOpacity>
+          )}'''
+          new = '''          renderItem={({ item }) => (
+            <TouchableOpacity style={{ flex: 1, position: "relative" }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+              {item.poster ? <Image source={{ uri: item.poster }} style={[styles.poster, item.profileHidden && { opacity: 0.48 }]} />
+                : <View style={[styles.poster, { backgroundColor: c.surface2 }, item.profileHidden && { opacity: 0.48 }]} />}
+              {kind === "likes" && Number(userId) === Number(auth.id) && (
+                <TouchableOpacity style={styles.eyeBtn} onPress={(e) => { e.stopPropagation?.(); toggleVisibility(item); }}>
+                  {item.profileHidden ? <EyeOff size={14} color="#fff" /> : <Eye size={14} color="#fff" />}
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          )}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          style_marker = '    poster: { flex: 1, aspectRatio: 2 / 3, borderRadius: 8 },'
+          style_new = style_marker + '\n    eyeBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center" },'
+          assert style_marker in s
+          s = s.replace(style_marker, style_new, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Other profile: social posts before visible likes
+          # --------------------------------------------------
+          p = Path('src/screens/OtherProfileScreen.js')
+          s = p.read_text()
+          old = 'import ImageLightbox from "../components/ImageLightbox";'
+          new = old + '\nimport SocialFeedCard from "../components/SocialFeedCard";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '  const [showAvatarLightbox, setShowAvatarLightbox] = useState(false);'
+          new = marker + '\n  const [socialPosts, setSocialPosts] = useState([]);'
+          assert marker in s
+          s = s.replace(marker, new, 1)
+          old = '''    api.userProfile(auth.token, userId)
+      .then(setProfile)
+      .catch(() => {})
+      .finally(() => setLoading(false));'''
+          new = '''    api.userProfile(auth.token, userId)
+      .then((data) => {
+        setProfile(data);
+        api.socialUserPosts(auth.token, userId).then((posts) => setSocialPosts(posts.results || [])).catch(() => setSocialPosts([]));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '          <Text style={styles.sectionTitle}>Beğeniler</Text>'
+          block = '''          <Text style={styles.sectionTitle}>Paylaşımlar</Text>
+          {socialPosts.length > 0 ? (
+            <View style={{ marginTop: 10 }}>
+              {socialPosts.slice(0, 8).map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
+            </View>
+          ) : <Text style={styles.emptyText}>Henüz bir paylaşımı yok.</Text>}
+
+          <Text style={styles.sectionTitle}>Beğeniler</Text>'''
+          assert marker in s
+          s = s.replace(marker, block, 1)
+          p.write_text(s)
+
+          # --------------------------------------------------
+          # Detail: taste post creation is a natural content action
+          # --------------------------------------------------
+          p = Path('src/screens/DetailScreen.js')
+          s = p.read_text()
+          old = 'import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send } from "lucide-react-native";'
+          new = 'import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2 } from "lucide-react-native";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = 'import SendToFriendModal from "../components/SendToFriendModal";'
+          new = old + '\nimport SocialPostComposer from "../components/SocialPostComposer";'
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '  const [sendOpen, setSendOpen] = useState(false);'
+          new = marker + '\n  const [postComposerOpen, setPostComposerOpen] = useState(false);'
+          assert marker in s
+          s = s.replace(marker, new, 1)
+          old = '''            <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
+              <Send size={16} color={c.text} />
+            </TouchableOpacity>'''
+          new = old + '''
+            <TouchableOpacity style={styles.actionSquare} onPress={() => setPostComposerOpen(true)}>
+              <Share2 size={16} color={c.text} />
+            </TouchableOpacity>'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '      {sendOpen && <SendToFriendModal movie={movie} onClose={() => setSendOpen(false)} />}'
+          new = marker + '\n      <SocialPostComposer visible={postComposerOpen} initialMovie={movie} initialType="recommend" onClose={() => setPostComposerOpen(false)} />'
+          assert marker in s
+          s = s.replace(marker, new, 1)
+          p.write_text(s)
+
+          PY
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir dist-social-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir dist-social-ios
+      - name: Commit native social architecture and cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf dist-social-android dist-social-ios
+          rm -f .github/workflows/social-product-reposition.yml
+          git add src .github/workflows
+          git commit -m "Ana akışı sosyalleştir ve keşfi öneri motoruna taşı"
+          git push origin HEAD:main
