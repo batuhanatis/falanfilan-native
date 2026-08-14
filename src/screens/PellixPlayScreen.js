@@ -104,7 +104,7 @@ function TasteBattle({ token, styles, c, onDisabled }) {
   useEffect(() => { load(); }, [load]);
 
   async function choose(winner, loser) {
-    playApi.chooseTasteBattle(token, winner.id, loser.id).catch(() => {});
+    playApi.chooseTasteBattle(token, winner.id, loser.id).catch((e) => { if (e.disabled) onDisabled(); });
     if (index >= pairs.length - 1) setDone(true); else setIndex((v) => v + 1);
   }
 
@@ -148,7 +148,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
     const correct = movie.id === q.correctMovieId;
     if (correct) setScore((s) => s + 1);
     setFeedback({ correct, chosenId: movie.id });
-    playApi.answerFriendQuiz(token, data.friend.id, movie.id, q.correctMovieId).catch(() => {});
+    playApi.answerFriendQuiz(token, data.friend.id, movie.id, q.correctMovieId).catch((e) => { if (e.disabled) onDisabled(); });
   }
 
   function next() {
@@ -201,7 +201,7 @@ function BlindPick({ token, styles, c, onDisabled }) {
 
   function decide(interested) {
     const item = items[index];
-    playApi.answerBlindPick(token, item.id, interested).catch(() => {});
+    playApi.answerBlindPick(token, item.id, interested).catch((e) => { if (e.disabled) onDisabled(); });
     setRevealed(true);
   }
   function next() {
