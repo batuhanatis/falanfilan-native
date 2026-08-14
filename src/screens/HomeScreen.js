@@ -93,7 +93,7 @@ export default function HomeScreen({ navigation }) {
             if (movieResults[i]) merged.push(movieResults[i]);
             if (showResults[i]) merged.push(showResults[i]);
           }
-          if (!cancelled) setPopularNow(dedupe(merged).slice(0, 10));
+          if (!cancelled) setPopularNow(dedupe(merged).slice(0, 20));
         }
       } catch { if (!cancelled) setPopularNow([]); }
     })();
