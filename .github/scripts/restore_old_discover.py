@@ -1,0 +1,110 @@
+from pathlib import Path
+
+p = Path("src/screens/DiscoverScreen.js")
+s = p.read_text()
+
+# Eski Keşfet'in katalogdan sürekli kart toplama davranışını geri getiriyoruz,
+# fakat daha sonra düzelttiğimiz hızlı Film/Dizi geçiş race-condition'ını geri getirmiyoruz.
+s = s.replace(
+    '  const [stockReady, setStockReady] = useState(false);\n  const growingRef = useRef(false);\n',
+    '  const [stockReady, setStockReady] = useState(false);\n  const filterGenerationRef = useRef(0);\n  const activeFilterRef = useRef("All");\n  const growingRef = useRef(new Set());\n',
+    1,
+)
+
+old = '''  const growQueue = useCallback(async (existingQueue, existingShown, existingFilter) => {
+    if (growingRef.current) return 0;
+    growingRef.current = true;
+    const votedIds = await getVotedIds();
+    const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
+    const gathered = [];
+    let attempts = 0;
+
+    function localMatchesType(m) {
+      return existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi");
+    }
+
+    while (existingQueue.length + gathered.length < STOCK_TARGET && attempts < 20) {
+      attempts++;
+      const type = Math.random() < 0.55 ? "movie" : "tv";
+      const page = Math.floor(Math.random() * 15) + 1;
+      try {
+        const data = await api.movies(auth.token, type, page);
+        const items = (data.results || []).filter((m) => !usedIds.has(m.id) && localMatchesType(m));
+        items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
+      } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
+    }
+    growingRef.current = false;
+    return gathered;
+  }, [auth.token]);'''
+new = '''  const growQueue = useCallback(async (existingQueue, existingShown, existingFilter, generation = filterGenerationRef.current) => {
+    const growKey = `${generation}:${existingFilter}`;
+    if (growingRef.current.has(growKey)) return [];
+    growingRef.current.add(growKey);
+    try {
+      const votedIds = await getVotedIds();
+      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
+      const gathered = [];
+      let attempts = 0;
+
+      function localMatchesType(m) {
+        return existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi");
+      }
+
+      while (existingQueue.length + gathered.length < STOCK_TARGET && attempts < 20) {
+        attempts++;
+        const type = Math.random() < 0.55 ? "movie" : "tv";
+        const page = Math.floor(Math.random() * 15) + 1;
+        try {
+          const data = await api.movies(auth.token, type, page);
+          const items = (data.results || []).filter((m) => !usedIds.has(m.id) && localMatchesType(m));
+          items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
+        } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
+      }
+      return gathered;
+    } finally {
+      growingRef.current.delete(growKey);
+    }
+  }, [auth.token]);'''
+assert old in s
+s = s.replace(old, new, 1)
+
+s = s.replace(
+    '  const resetForFilter = useCallback(async (nextFilter) => {\n    setStockReady(false);',
+    '  const resetForFilter = useCallback(async (nextFilter) => {\n    const generation = ++filterGenerationRef.current;\n    activeFilterRef.current = nextFilter;\n    setStockReady(false);',
+    1,
+)
+s = s.replace(
+    '      const votedIds = await getVotedIds();\n      const fresh = preloaded.filter((m) => !votedIds.has(m.id));\n      setQueue(fresh);',
+    '      const votedIds = await getVotedIds();\n      if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;\n      const fresh = preloaded.filter((m) => !votedIds.has(m.id));\n      setQueue(fresh);',
+    1,
+)
+s = s.replace(
+    '    const gathered = await growQueue([], new Set(), nextFilter);\n    setQueue(gathered);\n    setStockReady(true);',
+    '    const gathered = await growQueue([], new Set(), nextFilter, generation);\n    if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;\n    setQueue(gathered.filter((m) => nextFilter === "All" || (nextFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));\n    setStockReady(true);',
+    1,
+)
+
+old = '''  async function replenishIfLow(restQueue, newShown) {
+    if (restQueue.length >= STOCK_TARGET) return;
+    const gathered = await growQueue(restQueue, newShown, filterType);
+    if (gathered.length > 0) setQueue((prev) => [...prev, ...gathered]);
+  }'''
+new = '''  async function replenishIfLow(restQueue, newShown) {
+    if (restQueue.length >= STOCK_TARGET) return;
+    const expectedFilter = filterType;
+    const generation = filterGenerationRef.current;
+    const gathered = await growQueue(restQueue, newShown, expectedFilter, generation);
+    if (generation !== filterGenerationRef.current || activeFilterRef.current !== expectedFilter) return;
+    if (gathered.length > 0) {
+      setQueue((prev) => {
+        const validPrev = prev.filter((m) => expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
+        const seen = new Set(validPrev.map((m) => m.id));
+        const validNew = gathered.filter((m) => !seen.has(m.id) && (expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));
+        return [...validPrev, ...validNew];
+      });
+    }
+  }'''
+assert old in s
+s = s.replace(old, new, 1)
+
+p.write_text(s)
