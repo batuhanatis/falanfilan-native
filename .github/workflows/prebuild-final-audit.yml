@@ -1,0 +1,69 @@
+name: Prebuild Final Audit
+on:
+  push:
+    paths:
+      - '.github/workflows/prebuild-final-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Expo Doctor
+        run: npx expo-doctor
+      - name: Validate Expo config and referenced assets
+        run: |
+          npx expo config --type public > /tmp/expo-config.txt
+          node - <<'NODE'
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('app.json','utf8')).expo;
+          const required = [
+            app.icon,
+            app.ios?.googleServicesFile,
+            app.android?.googleServicesFile,
+            app.android?.adaptiveIcon?.foregroundImage,
+            app.android?.adaptiveIcon?.backgroundImage,
+            app.android?.adaptiveIcon?.monochromeImage,
+          ].filter(Boolean);
+          const splash = (app.plugins || []).find(x => Array.isArray(x) && x[0] === 'expo-splash-screen');
+          if (splash?.[1]?.image) required.push(splash[1].image);
+          const missing = required.filter(p => !fs.existsSync(p.replace(/^\.\//,'')));
+          console.log('Referenced files:', required.join(', '));
+          if (missing.length) {
+            console.error('Missing referenced files:', missing.join(', '));
+            process.exit(1);
+          }
+          console.log('All referenced files exist.');
+          NODE
+      - name: Check tracked secrets and accidental env files
+        run: |
+          echo 'Tracked env/key-like files:'
+          git ls-files | grep -Ei '(^|/)(\.env($|\.)|.*\.p8$|.*\.pem$|.*\.key$|service-account.*\.json$)' || true
+      - name: TODO/FIXME scan
+        run: |
+          grep -RniE 'TODO|FIXME|HACK|XXX' src App.js app.json eas.json --exclude-dir=node_modules || true
+      - name: Production dependency audit summary
+        run: |
+          npm audit --omit=dev --json > /tmp/audit.json || true
+          node - <<'NODE'
+          const a = require('/tmp/audit.json');
+          console.log('VULNERABILITIES', JSON.stringify(a.metadata?.vulnerabilities || {}));
+          NODE
+      - name: Validate Android JS/native export
+        run: npx expo export --platform android --output-dir dist-audit-android
+      - name: Validate iOS JS/native export
+        run: npx expo export --platform ios --output-dir dist-audit-ios
+      - name: Summary
+        run: |
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "VERSION=$(node -p \"require('./app.json').expo.version\")"
+          echo "PACKAGE=$(node -p \"require('./app.json').expo.android.package\")"
+          echo "BUNDLE=$(node -p \"require('./app.json').expo.ios.bundleIdentifier\")"
