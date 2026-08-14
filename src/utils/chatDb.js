@@ -140,7 +140,7 @@ export async function saveMessages(chatId, messages) {
   // 1) State'te zaten bulunan temp mesaj NESNESİNİ gerçek server mesajına yerinde dönüştürüyoruz.
   // 2) Server mesajını `fresh` dizisinden çıkarıyoruz; merge aynı mesajı ikinci kez eklemiyor.
   // 3) SQLite transaction'ında negatif temp satırını silip pozitif gerçek satırı yazıyoruz.
-  const serverMessages = messages.slice();
+  const sourceMessages = messages.slice();
   const pending = pendingMapFor(chatId, false);
   const reconciledTempIds = [];
 
@@ -166,6 +166,14 @@ export async function saveMessages(chatId, messages) {
     if (pending.size === 0) pendingByChat.delete(chatKey(chatId));
   }
 
+  // saveMessages yalnız server snapshot'ında değil, "messages_read" gibi nadir bulk local
+  // güncellemelerde de çağrılıyor. Böyle bir dizide temp ve real aynı anda bulunmuşsa, yukarıda
+  // uzlaştırdığımız negatif temp kaydı sourceMessages içinde kalmış olabilir. Transaction'da
+  // önce silip sonra yanlışlıkla tekrar INSERT etmemek için sadece o uzlaştırılmış temp ID'leri
+  // persistence grubundan çıkarıyoruz; eşleşmemiş gerçek pending mesajlar korunmaya devam eder.
+  const reconciledSet = new Set(reconciledTempIds.map(Number));
+  const messagesToPersist = sourceMessages.filter((m) => !reconciledSet.has(Number(m.id)));
+
   await ensureInit();
   const db = await getDb();
   await db.withTransactionAsync(async () => {
@@ -177,14 +185,14 @@ export async function saveMessages(chatId, messages) {
       );
     }
 
-    for (const m of serverMessages) {
+    for (const m of messagesToPersist) {
       await db.runAsync(
         `INSERT INTO messages (id, chat_id, created_at, data) VALUES (?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET data = excluded.data, created_at = excluded.created_at`,
         [m.id, chatId, m.created_at, JSON.stringify(m)]
       );
     }
-    const positiveIds = serverMessages.map((m) => Number(m.id)).filter((id) => Number.isFinite(id) && id > 0);
+    const positiveIds = messagesToPersist.map((m) => Number(m.id)).filter((id) => Number.isFinite(id) && id > 0);
     if (positiveIds.length > 0) {
       const maxId = Math.max(...positiveIds);
       await db.runAsync(
