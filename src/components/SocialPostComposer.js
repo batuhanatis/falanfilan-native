@@ -100,9 +100,10 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     setSending(true);
     setError("");
     try {
-      const outgoingBody = mode === "thought" && initialContext
-        ? `🔥 Günün Sorusu: ${initialContext}\n\n${body.trim()}`
-        : body.trim();
+      const answer = body.trim();
+      const outgoingBody = initialContext
+        ? `🔥 Günün Sorusu: ${initialContext}${answer ? `\n\n${answer}` : ""}`
+        : answer;
       await api.socialCreatePost(auth.token, {
         type: mode,
         body: outgoingBody,
@@ -161,16 +162,17 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
             ))}
           </View>
 
-          {!!initialContext && mode === "thought" && (
+          {!!initialContext && (
             <View style={styles.contextCard}>
               <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
               <Text style={styles.contextText}>{initialContext}</Text>
+              {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? "Cevap olarak bir film veya dizi seç." : "Cevabını iki içeriği kapıştırarak ver."}</Text>}
             </View>
           )}
 
           <TextInput
             style={styles.bodyInput}
-            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
+            placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
             placeholderTextColor={c.dim}
             value={body}
             onChangeText={setBody}
@@ -250,6 +252,7 @@ function makeStyles(c) {
     contextCard: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.accent, borderRadius: 14, padding: 11, marginBottom: 10 },
     contextEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.6 },
     contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },
+    contextHint: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6 },
     bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },
     searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42, marginTop: 8 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },
