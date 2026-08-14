@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useScrollToTop } from "@react-navigation/native";
 import { Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -22,6 +23,8 @@ export default function HomeScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
+  const listRef = useRef(null);
+  useScrollToTop(listRef);
   const [feed, setFeed] = useState([]);
   const [popular, setPopular] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +115,7 @@ export default function HomeScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={feed}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.content}
@@ -155,7 +159,6 @@ function PopularNowRow({ items, c, styles, navigation }) {
           {items.map((item, index) => (
             <TouchableOpacity key={`${item.id}-${index}`} style={styles.popularItem} onPress={() => navigation.navigate("Detail", { movie: item })} activeOpacity={0.86}>
               {item.poster ? <Image source={{ uri: item.poster }} style={styles.popularPoster} /> : <View style={[styles.popularPoster, { backgroundColor: c.surface2 }]} />}
-              <View style={styles.rankBadge}><Text style={styles.rankText}>{index + 1}</Text></View>
               <Text style={styles.popularTitle} numberOfLines={1}>{item.title}</Text>
             </TouchableOpacity>
           ))}
@@ -181,8 +184,6 @@ function makeStyles(c) {
     popularRow: { gap: 9, paddingRight: 10 },
     popularItem: { width: 92 },
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
-    rankBadge: { position: "absolute", left: 6, top: 6, minWidth: 23, height: 23, paddingHorizontal: 5, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center" },
-    rankText: { color: "#fff", fontWeight: "900", fontSize: 10 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
     composerCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 13, marginBottom: 12 },
