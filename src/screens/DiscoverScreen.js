@@ -30,7 +30,13 @@ export default function DiscoverScreen({ navigation }) {
   const [queue, setQueue] = useState([]);
   const [shownIds, setShownIds] = useState(new Set());
   const [stockReady, setStockReady] = useState(false);
-  const growingRef = useRef(false);
+  // Filtreler arasında hızlı geçişte eski async öneri isteklerinin yeni filtrenin
+  // kuyruğunu ezmesini engellemek için her filtre yüklemesine bir nesil numarası veriyoruz.
+  const filterGenerationRef = useRef(0);
+  const activeFilterRef = useRef("All");
+  // Aynı filtre nesli için birden fazla eşzamanlı kuyruk büyütme isteğini engeller;
+  // farklı nesiller ise paralel çalışabilir ve eski olanlar sonuç yazamaz.
+  const growingRef = useRef(new Set());
   const cardRef = useRef(null);
   const [pickerMovie, setPickerMovie] = useState(null);
   const [sendMovie, setSendMovie] = useState(null);
@@ -69,9 +75,10 @@ export default function DiscoverScreen({ navigation }) {
     return filterType === "All" || (filterType === "Movie" ? m.type === "Film" : m.type === "Dizi");
   }
 
-  const growQueue = useCallback(async (existingQueue, existingShown, existingFilter) => {
-    if (growingRef.current) return [];
-    growingRef.current = true;
+  const growQueue = useCallback(async (existingQueue, existingShown, existingFilter, generation = filterGenerationRef.current) => {
+    const growKey = `${generation}:${existingFilter}`;
+    if (growingRef.current.has(growKey)) return [];
+    growingRef.current.add(growKey);
     try {
       const votedIds = await getVotedIds();
       const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
@@ -83,11 +90,13 @@ export default function DiscoverScreen({ navigation }) {
     } catch {
       return [];
     } finally {
-      growingRef.current = false;
+      growingRef.current.delete(growKey);
     }
   }, [auth.token]);
 
   const resetForFilter = useCallback(async (nextFilter) => {
+    const generation = ++filterGenerationRef.current;
+    activeFilterRef.current = nextFilter;
     setStockReady(false);
     setShownIds(new Set());
     setQueue([]);
@@ -104,14 +113,18 @@ export default function DiscoverScreen({ navigation }) {
       // beğenmişse, o film hâlâ bu bayat kuyrukta kalıp "az önce beğendim, neden yine çıktı?"
       // hissi yaratıyordu. Göstermeden hemen önce GÜNCEL oy verilenler listesiyle bir kez daha filtreliyoruz.
       const votedIds = await getVotedIds();
-      const fresh = preloaded.filter((m) => !votedIds.has(m.id));
+      if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;
+      const fresh = preloaded
+        .filter((m) => !votedIds.has(m.id))
+        .filter((m) => nextFilter === "All" || (nextFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
       setQueue(fresh);
       setStockReady(true);
       return;
     }
     prefetchedDiscoverRef.current = null;
-    const gathered = await growQueue([], new Set(), nextFilter);
-    setQueue(gathered);
+    const gathered = await growQueue([], new Set(), nextFilter, generation);
+    if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;
+    setQueue(gathered.filter((m) => nextFilter === "All" || (nextFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));
     setStockReady(true);
   }, [growQueue]);
 
@@ -119,8 +132,19 @@ export default function DiscoverScreen({ navigation }) {
 
   async function replenishIfLow(restQueue, newShown) {
     if (restQueue.length >= STOCK_TARGET) return;
-    const gathered = await growQueue(restQueue, newShown, filterType);
-    if (gathered.length > 0) setQueue((prev) => [...prev, ...gathered]);
+    const expectedFilter = filterType;
+    const generation = filterGenerationRef.current;
+    const gathered = await growQueue(restQueue, newShown, expectedFilter, generation);
+    if (generation !== filterGenerationRef.current || activeFilterRef.current !== expectedFilter) return;
+    if (gathered.length > 0) {
+      setQueue((prev) => {
+        // Son savunma hattı: aktif filtrenin dışındaki bir kart hiçbir koşulda kuyruğa kalmasın.
+        const validPrev = prev.filter((m) => expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
+        const seen = new Set(validPrev.map((m) => m.id));
+        const validNew = gathered.filter((m) => !seen.has(m.id) && (expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));
+        return [...validPrev, ...validNew];
+      });
+    }
   }
 
   function handleSwipe(direction) {
