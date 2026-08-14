@@ -376,10 +376,15 @@ export default function DetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
               <Send size={16} color={c.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionSquare} onPress={() => setPostComposerOpen(true)}>
-              <Share2 size={16} color={c.text} />
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity style={styles.tastePostBtn} onPress={() => setPostComposerOpen(true)} activeOpacity={0.85}>
+            <Share2 size={15} color={c.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tastePostTitle}>Taste Post olarak paylaş</Text>
+              <Text style={styles.tastePostSub}>Bu içerik hakkında fikrini sosyal akışında paylaş.</Text>
+            </View>
+          </TouchableOpacity>
 
           {/* DT2 — favori tek kişilik, özel bir slot; artık diğer aksiyon kareleriyle aynı düz
               ağırlıkta değil, aktifken altın bir gradyan + basınca kısa bir parıltı sıçraması var. */}
@@ -537,6 +542,12 @@ function makeStyles(c) {
       width: 48, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12,
       alignItems: "center", justifyContent: "center",
     },
+    tastePostBtn: {
+      marginTop: 10, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.accent, borderRadius: 12,
+      paddingHorizontal: 12, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 9,
+    },
+    tastePostTitle: { color: c.text, fontWeight: "800", fontSize: 12 },
+    tastePostSub: { color: c.dim, fontSize: 10, marginTop: 2 },
     favBtn: {
       marginTop: 10, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 11,
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,

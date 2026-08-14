@@ -166,25 +166,40 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             </TouchableOpacity>
           )}
         </View>
-      ) : primaryMovie ? (
+      ) : state.kind === "activity" ? (
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.action} onPress={() => likeActivityMovie(primaryMovie)}>
-            <ThumbsUp size={16} color={activityLiked ? c.accent2 : c.dim} fill={activityLiked ? c.accent2 : "none"} />
-            <Text style={[styles.actionText, activityLiked && { color: c.accent2 }]}>{activityLiked ? "Beğenildi" : "Ben de beğendim"}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.action, { marginLeft: "auto" }]} onPress={() => openMovie(primaryMovie)}>
-            <Text style={styles.actionLink}>Detay</Text>
-          </TouchableOpacity>
+          {!!primaryMovie && (
+            <TouchableOpacity style={styles.action} onPress={() => likeActivityMovie(primaryMovie)}>
+              <ThumbsUp size={16} color={activityLiked ? c.accent2 : c.dim} fill={activityLiked ? c.accent2 : "none"} />
+              <Text style={[styles.actionText, activityLiked && { color: c.accent2 }]}>{activityLiked ? "Beğenildi" : "Ben de beğendim"}</Text>
+            </TouchableOpacity>
+          )}
+          {!!state.activityId && (
+            <TouchableOpacity style={styles.action} onPress={() => setCommentsOpen(true)}>
+              <MessageCircle size={17} color={c.dim} />
+              <Text style={styles.actionText}>{state.commentCount || 0}</Text>
+            </TouchableOpacity>
+          )}
+          {!!primaryMovie && (
+            <TouchableOpacity style={[styles.action, { marginLeft: "auto" }]} onPress={() => openMovie(primaryMovie)}>
+              <Text style={styles.actionLink}>Detay</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
 
-      {!!post?.id && (
+      {(!!post?.id || !!state.activityId) && (
         <SocialCommentsModal
           visible={commentsOpen}
-          postId={post.id}
+          postId={post?.id}
+          activityId={state.activityId}
           onClose={() => setCommentsOpen(false)}
           onChanged={() => {
-            setState((s) => ({ ...s, post: { ...s.post, commentCount: Number(s.post?.commentCount || 0) + 1 } }));
+            if (post?.id) {
+              setState((s) => ({ ...s, post: { ...s.post, commentCount: Number(s.post?.commentCount || 0) + 1 } }));
+            } else {
+              setState((s) => ({ ...s, commentCount: Number(s.commentCount || 0) + 1 }));
+            }
             onChanged?.();
           }}
         />

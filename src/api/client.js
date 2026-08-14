@@ -230,6 +230,8 @@ export const api = {
   socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),
   socialComments: (token, id) => request(`/api/social/posts/${id}/comments`, { token }),
   socialAddComment: (token, id, body) => request(`/api/social/posts/${id}/comments`, { method: "POST", token, body: { body } }),
+  socialActivityComments: (token, id) => request(`/api/social/activities/${id}/comments`, { token }),
+  socialAddActivityComment: (token, id, body) => request(`/api/social/activities/${id}/comments`, { method: "POST", token, body: { body } }),
   socialVote: (token, id, movieId) => request(`/api/social/posts/${id}/vote`, { method: "POST", token, body: { movieId } }),
   socialUserPosts: (token, userId) => request(`/api/social/users/${userId}/posts`, { token }),
 

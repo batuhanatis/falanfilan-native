@@ -7,7 +7,7 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 
-export default function SocialCommentsModal({ visible, postId, onClose, onChanged }) {
+export default function SocialCommentsModal({ visible, postId, activityId, onClose, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
@@ -17,13 +17,17 @@ export default function SocialCommentsModal({ visible, postId, onClose, onChange
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (!visible || !postId) return;
+    const targetId = activityId || postId;
+    if (!visible || !targetId) return;
     setLoading(true);
-    api.socialComments(auth.token, postId)
+    const request = activityId
+      ? api.socialActivityComments(auth.token, activityId)
+      : api.socialComments(auth.token, postId);
+    request
       .then((data) => setComments(data.results || []))
       .catch(() => setComments([]))
       .finally(() => setLoading(false));
-  }, [visible, postId, auth.token]);
+  }, [visible, postId, activityId, auth.token]);
 
   async function send() {
     const body = text.trim();
@@ -31,7 +35,9 @@ export default function SocialCommentsModal({ visible, postId, onClose, onChange
     setSending(true);
     setText("");
     try {
-      const data = await api.socialAddComment(auth.token, postId, body);
+      const data = activityId
+        ? await api.socialAddActivityComment(auth.token, activityId, body)
+        : await api.socialAddComment(auth.token, postId, body);
       if (data.comment) setComments((prev) => [...prev, data.comment]);
       onChanged?.();
     } catch {
