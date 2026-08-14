@@ -27,7 +27,11 @@ function activityCopy(item) {
     const count = item.activityCount || item.movies?.length || 1;
     return count > 1 ? `${count} içerik beğendi` : "bir içeriği beğendi";
   }
-  if (item.activityType === "favorite_set") return "favorisini güncelledi";
+  if (item.activityType === "favorite_set") {
+    return item.payload?.liked
+      ? "bir içeriği beğendi ve favorisi yaptı"
+      : "favorisini güncelledi";
+  }
   if (item.activityType === "list_created") return `“${item.payload?.list_name || "Yeni liste"}” listesini oluşturdu`;
   return "zevk profilini güncelledi";
 }
