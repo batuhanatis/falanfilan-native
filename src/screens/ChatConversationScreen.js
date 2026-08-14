@@ -836,7 +836,18 @@ export default function ChatConversationScreen({ route, navigation }) {
     },
     openMenu: (id) => {
       const item = latestRef.current.messages.find((m) => m.id === id);
-      if (item) latestRef.current.setMenuFor(item);
+      if (!item) return;
+
+      // Klavye açıkken alttan açılan mesaj menüsü onun arkasında kalabiliyordu. Menü bir
+      // "bottom sheet" olduğu için en güvenilir davranış, önce klavyeyi kapatıp sheet'i yeni
+      // kullanılabilir ekran yüksekliğine yerleştirmek. Klavye zaten kapalıysa gecikme yok.
+      const keyboardVisible = Keyboard.isVisible?.() ?? false;
+      if (keyboardVisible) {
+        Keyboard.dismiss();
+        setTimeout(() => latestRef.current.setMenuFor(item), Platform.OS === "ios" ? 180 : 100);
+      } else {
+        latestRef.current.setMenuFor(item);
+      }
     },
     navigateDetail: (movie) => latestRef.current.navigation.navigate("Detail", { movie }),
     navigateWatchlist: (watchlistId, name) => latestRef.current.navigation.navigate("WatchlistDetail", { watchlistId, name }),
