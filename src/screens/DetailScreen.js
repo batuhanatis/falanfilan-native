@@ -49,7 +49,7 @@ export default function DetailScreen({ route, navigation }) {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
-  const [extra, setExtra] = useState({ director: null, cast: [], similar: [] });
+  const [extra, setExtra] = useState(() => api.peekMovieExtra(movie.id) || { director: null, cast: [], similar: [] });
   const scrollRef = useRef(null);
 
   // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
