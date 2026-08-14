@@ -12,6 +12,7 @@ import BlendScreen from "../screens/BlendScreen";
 import BlendLeaderboardScreen from "../screens/BlendLeaderboardScreen";
 import PremiumScreen from "../screens/PremiumScreen";
 import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
+import PellixPlayScreen from "../screens/PellixPlayScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
 import WatchlistDetailScreen from "../screens/WatchlistDetailScreen";
@@ -98,6 +99,7 @@ export default function RootNavigator() {
         <Stack.Screen name="BlendLeaderboard" component={BlendLeaderboardScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Premium" component={PremiumScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="AllLikes" component={AllLikesScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WatchlistDetail" component={WatchlistDetailScreen} options={{ presentation: "card" }} />

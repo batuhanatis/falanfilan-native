@@ -14,6 +14,7 @@ import TopBar from "../components/TopBar";
 import SendToFriendModal from "../components/SendToFriendModal";
 import ListPickerModal from "../components/ListPickerModal";
 import AIZone from "../components/AIZone";
+import PlayHubCard from "../components/PlayHubCard";
 import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
 import IslandModal from "../components/IslandModal";
@@ -629,6 +630,7 @@ export default function HomeScreen({ navigation }) {
             ListHeaderComponent={
               <>
                 {headerContent}
+                <PlayHubCard navigation={navigation} />
                 <PopularNowRow
                   items={popularNow}
                   onPress={(m) => navigation.navigate("Detail", { movie: m })}
