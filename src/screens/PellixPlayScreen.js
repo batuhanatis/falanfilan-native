@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
-import { ChevronLeft, Swords, Users, EyeOff, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";
+import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
@@ -11,6 +11,7 @@ const GAME_META = {
   taste_battle: { title: "Taste Battle", subtitle: "İki içerikten hangisini seçersin?", icon: Swords },
   friend_quiz: { title: "Arkadaşını Tanıyor musun?", subtitle: "Arkadaşının zevkini ne kadar biliyorsun?", icon: Users },
   blind_pick: { title: "Blind Pick", subtitle: "İsim ve poster yok. Sadece ipuçları.", icon: EyeOff },
+  who_said_it: { title: "Who Said It?", subtitle: "İkonik repliği hangi karakter söyledi?", icon: Quote },
 };
 
 export default function PellixPlayScreen({ navigation }) {
@@ -58,6 +59,8 @@ export default function PellixPlayScreen({ navigation }) {
         <FriendQuiz token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : activeGame === "blind_pick" ? (
         <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+      ) : activeGame === "who_said_it" ? (
+        <WhoSaidIt token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : (
         <ScrollView contentContainerStyle={styles.hubContent}>
           <Text style={styles.heroTitle}>Bugün ne oynayalım?</Text>
@@ -180,6 +183,111 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
           {feedback.correct ? <Check size={17} color={c.bg} /> : <X size={17} color={c.bg} />}
           <Text style={styles.primaryBtnText}>{feedback.correct ? "Bildin! Devam" : "Olmadı, devam et"}</Text>
         </TouchableOpacity>
+      )}
+    </ScrollView>
+  );
+}
+
+function WhoSaidIt({ token, styles, c, onDisabled }) {
+  const [questions, setQuestions] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [answering, setAnswering] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true); setIndex(0); setScore(0); setFeedback(null); setAnswering(false);
+    try {
+      const data = await playApi.whoSaidIt(token);
+      setQuestions(data.questions || []);
+    } catch (e) {
+      if (e.disabled) onDisabled();
+      setQuestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function answer(chosen) {
+    if (feedback || answering) return;
+    const q = questions[index];
+    if (!q) return;
+    setAnswering(true);
+    try {
+      const result = await playApi.answerWhoSaidIt(token, q.id, chosen);
+      if (result.correct) setScore((v) => v + 1);
+      setFeedback({ ...result, chosen });
+    } catch (e) {
+      if (e.disabled) onDisabled();
+    } finally {
+      setAnswering(false);
+    }
+  }
+
+  function next() {
+    if (index >= questions.length - 1) setIndex(questions.length);
+    else {
+      setIndex((v) => v + 1);
+      setFeedback(null);
+    }
+  }
+
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
+  if (index >= questions.length) return <GameDone styles={styles} title={`${score}/${questions.length}`} text="Kaç ikonik repliği bildiğini gördün." onAgain={load} />;
+  const q = questions[index];
+  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+
+  return (
+    <ScrollView contentContainerStyle={styles.gameContent}>
+      <Text style={styles.progressText}>{index + 1} / {questions.length} · Skor {score}</Text>
+      <View style={[styles.blindCard, { gap: 12 }]}>
+        <Quote size={32} color={c.accent} />
+        <Text style={{ color: c.text, fontSize: 22, lineHeight: 30, fontWeight: "800", textAlign: "center" }}>“{q.quote}”</Text>
+        <Text style={{ color: c.dim, fontSize: 12.5, textAlign: "center" }}>Bu repliği kim söyledi?</Text>
+      </View>
+
+      <View style={{ gap: 10, marginTop: 18 }}>
+        {q.options.map((option) => {
+          const isCorrect = feedback && option === feedback.answer;
+          const isWrong = feedback && option === feedback.chosen && !feedback.correct;
+          return (
+            <TouchableOpacity
+              key={option}
+              disabled={!!feedback || answering}
+              onPress={() => answer(option)}
+              activeOpacity={0.82}
+              style={{
+                minHeight: 52,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : c.border,
+                backgroundColor: isCorrect ? "rgba(34,197,94,0.12)" : isWrong ? "rgba(239,68,68,0.12)" : c.surface,
+                paddingHorizontal: 15,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: answering ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: c.text, fontWeight: "800", fontSize: 14, textAlign: "center" }}>{option}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {feedback && (
+        <View style={{ marginTop: 18, gap: 10 }}>
+          <Text style={{ color: feedback.correct ? "#22c55e" : "#ef4444", fontSize: 14, fontWeight: "900", textAlign: "center" }}>
+            {feedback.correct ? "Doğru!" : `Doğru cevap: ${feedback.answer}`}
+          </Text>
+          <Text style={{ color: c.dim, fontSize: 12, textAlign: "center" }}>{feedback.movie}</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={next}>
+            <Text style={styles.primaryBtnText}>{index >= questions.length - 1 ? "Sonucu Gör" : "Sonraki"}</Text>
+            <ArrowRight size={17} color={c.bg} />
+          </TouchableOpacity>
+        </View>
       )}
     </ScrollView>
   );
