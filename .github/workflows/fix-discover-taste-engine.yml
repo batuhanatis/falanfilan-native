@@ -47,3 +47,5 @@ jobs:
           git add src/api/client.js src/context/PrefetchContext.js src/screens/DiscoverScreen.js .github/workflows/fix-discover-taste-engine.yml tmp-fix-discover-engine.cjs
           git commit -m "Keşfet akışını geniş Taste Engine havuzuna geri bağla"
           git push origin HEAD:main
+
+# Retry after API-client anchor correction.
