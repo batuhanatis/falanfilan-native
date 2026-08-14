@@ -226,12 +226,14 @@ export default function HomeScreen({ navigation }) {
       Promise.all([
         api.search(auth.token, query, "movie").catch(() => ({ results: [] })),
         api.search(auth.token, query, "tv").catch(() => ({ results: [] })),
+        api.search(auth.token, query, "person").catch(() => ({ results: [] })),
       ])
-        .then(([mRes, tRes]) => {
+        .then(([mRes, tRes, pRes]) => {
           if (searchSeqRef.current !== seq) return; // bayat yanıt, daha yeni bir arama zaten başladı
-          const merged = dedupe([...(mRes.results || []), ...(tRes.results || [])])
+          const media = dedupe([...(mRes.results || []), ...(tRes.results || [])])
             .sort((a, b) => (b.votes || 0) - (a.votes || 0));
-          setSearchResults(merged);
+          const people = (pRes.results || []).slice(0, 3);
+          setSearchResults([...people, ...media]);
         })
         .finally(() => { if (searchSeqRef.current === seq) setSearchLoading(false); });
     }, 250);
@@ -454,11 +456,20 @@ export default function HomeScreen({ navigation }) {
     />
   ), [liked, disliked, watchlist, socialStats, notifySubs, stableActions]);
 
-  function selectSearchResult(m) {
+  function selectSearchResult(item) {
     setQuery("");
     setSearchFocused(false);
     Keyboard.dismiss();
-    navigation.navigate("Detail", { movie: m });
+    if (item.kind === "person") {
+      navigation.navigate("Person", {
+        personId: item.personId || item.id,
+        name: item.name,
+        photo: item.photo,
+        role: item.role || "actor",
+      });
+      return;
+    }
+    navigation.navigate("Detail", { movie: item });
   }
 
   // ÖNEMLİ (geçmiş — İKİNCİ düzeltme): Dropdown önce FlatList'in TAMAMEN dışına, pager'ın ÜSTÜNE
@@ -495,7 +506,7 @@ export default function HomeScreen({ navigation }) {
           <Search size={16} color={searchFocused ? c.accent : c.dim} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Film veya dizi ara"
+            placeholder="Film, dizi, oyuncu veya yönetmen ara"
             placeholderTextColor={c.dim}
             value={query}
             onChangeText={setQuery}
@@ -699,29 +710,37 @@ export default function HomeScreen({ navigation }) {
           ) : (
             <FlatList
               data={dropdownResults}
-              keyExtractor={(m) => String(m.id)}
+              keyExtractor={(item) => `${item.kind || item.type}-${item.id}`}
               style={styles.dropdownList}
               keyboardShouldPersistTaps="always"
               keyboardDismissMode="on-drag"
               nestedScrollEnabled
               showsVerticalScrollIndicator
-              renderItem={({ item: m }) => (
-                <TouchableOpacity style={styles.dropdownRow} onPress={() => selectSearchResult(m)} activeOpacity={0.7}>
-                  {m.poster ? (
-                    <Image source={{ uri: m.poster }} style={styles.dropdownPoster} />
-                  ) : (
-                    <View style={[styles.dropdownPoster, { backgroundColor: c.surface2 }]} />
-                  )}
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.dropdownTitle} numberOfLines={1}>{m.title}</Text>
-                    <Text style={styles.dropdownMeta} numberOfLines={1}>{m.year} · {m.type}</Text>
-                  </View>
-                  <View style={styles.dropdownRating}>
-                    <Star size={10} color={c.accent} fill={c.accent} />
-                    <Text style={styles.dropdownRatingText}>{m.imdb}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isPerson = item.kind === "person";
+                const image = isPerson ? item.photo : item.poster;
+                return (
+                  <TouchableOpacity style={styles.dropdownRow} onPress={() => selectSearchResult(item)} activeOpacity={0.7}>
+                    {image ? (
+                      <Image source={{ uri: image }} style={[styles.dropdownPoster, isPerson && styles.dropdownPersonPhoto]} />
+                    ) : (
+                      <View style={[styles.dropdownPoster, isPerson && styles.dropdownPersonPhoto, { backgroundColor: c.surface2 }]} />
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.dropdownTitle} numberOfLines={1}>{isPerson ? item.name : item.title}</Text>
+                      <Text style={styles.dropdownMeta} numberOfLines={1}>
+                        {isPerson ? item.roleLabel : `${item.year} · ${item.type}`}
+                      </Text>
+                    </View>
+                    {!isPerson && (
+                      <View style={styles.dropdownRating}>
+                        <Star size={10} color={c.accent} fill={c.accent} />
+                        <Text style={styles.dropdownRatingText}>{item.imdb}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
         </View>
@@ -776,7 +795,7 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 10,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    dropdownPoster: { width: 36, height: 52, borderRadius: 7 },
+    dropdownPoster: { width: 36, height: 52, borderRadius: 7 },\n    dropdownPersonPhoto: { width: 44, height: 44, borderRadius: 999, marginHorizontal: -4 },
     dropdownTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     dropdownMeta: { fontSize: 11, color: c.dim, marginTop: 2 },
     dropdownRating: { flexDirection: "row", alignItems: "center", gap: 3 },
