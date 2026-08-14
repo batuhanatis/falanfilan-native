@@ -1,0 +1,69 @@
+name: Pellix Play Native
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pellix-play-native.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wire Pellix Play into navigation and Home
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          home = Path('src/screens/HomeScreen.js')
+          s = home.read_text()
+          import_anchor = 'import AIZone from "../components/AIZone";\n'
+          if 'PlayHubCard' not in s:
+              if import_anchor not in s:
+                  raise SystemExit('Home import anchor bulunamadı')
+              s = s.replace(import_anchor, import_anchor + 'import PlayHubCard from "../components/PlayHubCard";\n', 1)
+          header_anchor = '''              <>
+                {headerContent}
+                <PopularNowRow'''
+          if '<PlayHubCard navigation={navigation} />' not in s:
+              if header_anchor not in s:
+                  raise SystemExit('Home header anchor bulunamadı')
+              s = s.replace(header_anchor, '''              <>
+                {headerContent}
+                <PlayHubCard navigation={navigation} />
+                <PopularNowRow''', 1)
+          home.write_text(s)
+
+          nav = Path('src/navigation/RootNavigator.js')
+          n = nav.read_text()
+          nav_import_anchor = 'import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";\n'
+          if 'PellixPlayScreen' not in n:
+              if nav_import_anchor not in n:
+                  raise SystemExit('Navigator import anchor bulunamadı')
+              n = n.replace(nav_import_anchor, nav_import_anchor + 'import PellixPlayScreen from "../screens/PellixPlayScreen";\n', 1)
+          screen_anchor = '        <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />\n'
+          if 'name="PellixPlay"' not in n:
+              if screen_anchor not in n:
+                  raise SystemExit('Navigator screen anchor bulunamadı')
+              n = n.replace(screen_anchor, screen_anchor + '        <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />\n', 1)
+          nav.write_text(n)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir dist-pellix-play-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir dist-pellix-play-ios
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/HomeScreen.js src/navigation/RootNavigator.js
+          git commit -m "Pellix Play oyunlarını ana sayfa ve navigasyona bağla"
+          git push
