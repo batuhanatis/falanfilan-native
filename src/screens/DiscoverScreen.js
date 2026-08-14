@@ -126,6 +126,12 @@ export default function DiscoverScreen({ navigation }) {
 
   useEffect(() => { resetForFilter(filterType); }, [filterType]);
 
+  // Sıradaki kartların ağır oyuncu/benzer verisini kullanıcı dokunmadan arka planda hazırla.
+  // api katmanı aynı içerik için tekrar ve paralel istekleri otomatik olarak tekilleştirir.
+  useEffect(() => {
+    queue.slice(0, 3).forEach((movie) => api.prefetchMovieExtra(auth.token, movie.id));
+  }, [queue, auth.token]);
+
   async function replenishIfLow(restQueue, newShown) {
     if (restQueue.length >= STOCK_TARGET) return;
     const expectedFilter = filterType;
