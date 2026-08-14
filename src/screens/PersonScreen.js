@@ -11,7 +11,7 @@ import { api } from "../api/client";
 // TEKRAR Detay'a (yığının üstüne) gideceği için — bu, WatchlistDetail/OtherProfile'daki gibi
 // navigasyon yığınıyla doğal olarak çalışan, geri tuşunun beklendiği gibi davrandığı bir akış.
 export default function PersonScreen({ route, navigation }) {
-  const { personId, name: initialName, photo: initialPhoto } = route.params;
+  const { personId, name: initialName, photo: initialPhoto, role = "actor" } = route.params;\n  const isDirector = role === "director";
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
@@ -23,12 +23,12 @@ export default function PersonScreen({ route, navigation }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.personCredits(auth.token, personId)
+    api.personCredits(auth.token, personId, { role })
       .then((data) => { if (!cancelled) setPerson(data); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [personId]);
+  }, [personId, role]);
 
   // ÖNEMLİ: İlk yükleme sadece en tanınan 40 rolü (havuz) işliyor, bu yüzden sonuç listesi her
   // zaman gerçek toplamdan az/eşit olabiliyor — "hasMore" varsa geri kalanını tek seferlik bir
@@ -36,7 +36,7 @@ export default function PersonScreen({ route, navigation }) {
   function loadMore() {
     if (loadingMore || !person.hasMore) return;
     setLoadingMore(true);
-    api.personCredits(auth.token, personId, { full: true })
+    api.personCredits(auth.token, personId, { full: true, role })
       .then((data) => {
         setPerson((prev) => ({ ...prev, results: [...(prev.results || []), ...(data.results || [])], hasMore: false }));
       })
@@ -44,7 +44,11 @@ export default function PersonScreen({ route, navigation }) {
       .finally(() => setLoadingMore(false));
   }
 
-  const results = person.results || [];
+  const results = [...(person.results || [])].sort((a, b) => {
+    const aDate = a.creditDate || a.releaseDate || (a.year ? `${a.year}-01-01` : "");
+    const bDate = b.creditDate || b.releaseDate || (b.year ? `${b.year}-01-01` : "");
+    return bDate.localeCompare(aDate);
+  });
   // Üstteki sayı artık her zaman GERÇEK toplamı gösteriyor (TMDB'nin ham kredi sayısı) —
   // henüz hiç zenginleştirilmemiş/gösterilmemiş olsa bile doğru.
   const totalCount = person.totalCount ?? results.length;
@@ -76,7 +80,7 @@ export default function PersonScreen({ route, navigation }) {
               <View style={styles.profileMetaRow}>
                 <Clapperboard size={12} color={c.dim} />
                 <Text style={styles.profileMeta}>
-                  {totalCount > 0 ? `${totalCount} yapımda oynadı` : "Bilinen bir yapım bulunamadı"}
+                  {totalCount > 0 ? `${totalCount} yapım ${isDirector ? "yönetti" : "oynadı"}` : "Bilinen bir yapım bulunamadı"}
                 </Text>
               </View>
             )}
@@ -101,7 +105,7 @@ export default function PersonScreen({ route, navigation }) {
             </View>
             <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
             <Text style={styles.cardMeta} numberOfLines={1}>{item.year} · {item.type}</Text>
-            {!!item.character && <Text style={styles.cardCharacter} numberOfLines={1}>{item.character} olarak</Text>}
+            {!isDirector && !!item.character && <Text style={styles.cardCharacter} numberOfLines={1}>{item.character} olarak</Text>}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
