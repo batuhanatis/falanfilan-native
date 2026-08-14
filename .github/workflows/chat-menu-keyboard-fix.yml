@@ -17,34 +17,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Fix long-press menu while keyboard is open
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('src/screens/ChatConversationScreen.js')
-          s = p.read_text()
-          old = '''    openMenu: (id) => {
-      const item = latestRef.current.messages.find((m) => m.id === id);
-      if (item) latestRef.current.setMenuFor(item);
-    },'''
-          new = '''    openMenu: (id) => {
-      const item = latestRef.current.messages.find((m) => m.id === id);
-      if (!item) return;
-
-      // Klavye açıkken alttan açılan mesaj menüsü onun arkasında kalabiliyordu. Menü bir
-      // "bottom sheet" olduğu için en güvenilir davranış, önce klavyeyi kapatıp sheet'i yeni
-      // kullanılabilir ekran yüksekliğine yerleştirmek. Klavye zaten kapalıysa gecikme yok.
-      const keyboardVisible = Keyboard.isVisible?.() ?? false;
-      if (keyboardVisible) {
-        Keyboard.dismiss();
-        setTimeout(() => latestRef.current.setMenuFor(item), Platform.OS === "ios" ? 180 : 100);
-      } else {
-        latestRef.current.setMenuFor(item);
-      }
-    },'''
-          if old not in s:
-              raise SystemExit('Beklenen openMenu bloğu bulunamadı')
-          p.write_text(s.replace(old, new, 1))
-          PY
+        run: python -c "from pathlib import Path; import base64; p=Path('src/screens/ChatConversationScreen.js'); s=p.read_text(); old=base64.b64decode('ICAgIG9wZW5NZW51OiAoaWQpID0+IHsKICAgICAgY29uc3QgaXRlbSA9IGxhdGVzdFJlZi5jdXJyZW50Lm1lc3NhZ2VzLmZpbmQoKG0pID0+IG0uaWQgPT09IGlkKTsKICAgICAgaWYgKGl0ZW0pIGxhdGVzdFJlZi5jdXJyZW50LnNldE1lbnVGb3IoaXRlbSk7CiAgICB9LA==').decode(); new=base64.b64decode('ICAgIG9wZW5NZW51OiAoaWQpID0+IHsKICAgICAgY29uc3QgaXRlbSA9IGxhdGVzdFJlZi5jdXJyZW50Lm1lc3NhZ2VzLmZpbmQoKG0pID0+IG0uaWQgPT09IGlkKTsKICAgICAgaWYgKCFpdGVtKSByZXR1cm47CgogICAgICAvLyBLbGF2eWUgYcOnxLFra2VuIGFsdHRhbiBhw6fEsWxhbiBtZXNhaiBtZW7DvHPDvCBvbnVuIGFya2FzxLFuZGEga2FsYWJpbGl5b3JkdS4gTWVuw7wgYmlyCiAgICAgIC8vICJib3R0b20gc2hlZXQiIG9sZHXEn3UgacOnaW4gZW4gZ8O8dmVuaWxpciBkYXZyYW7EscWfLCDDtm5jZSBrbGF2eWV5aSBrYXBhdMSxcCBzaGVldCdpIHllbmkKICAgICAgLy8ga3VsbGFuxLFsYWJpbGlyIGVrcmFuIHnDvGtzZWtsacSfaW5lIHllcmxlxZ90aXJtZWsuIEtsYXZ5ZSB6YXRlbiBrYXBhbMSxeXNhIGdlY2lrbWUgeW9rLgogICAgICBjb25zdCBrZXlib2FyZFZpc2libGUgPSBLZXlib2FyZC5pc1Zpc2libGU/LigpID8/IGZhbHNlOwogICAgICBpZiAoa2V5Ym9hcmRWaXNpYmxlKSB7CiAgICAgICAgS2V5Ym9hcmQuZGlzbWlzcygpOwogICAgICAgIHNldFRpbWVvdXQoKCkgPT4gbGF0ZXN0UmVmLmN1cnJlbnQuc2V0TWVudUZvcihpdGVtKSwgUGxhdGZvcm0uT1MgPT09ICJpb3MiID8gMTgwIDogMTAwKTsKICAgICAgfSBlbHNlIHsKICAgICAgICBsYXRlc3RSZWYuY3VycmVudC5zZXRNZW51Rm9yKGl0ZW0pOwogICAgICB9CiAgICB9LA==').decode(); assert old in s, 'Beklenen openMenu bloğu bulunamadı'; p.write_text(s.replace(old,new,1))"
       - name: Install dependencies
         run: npm ci
       - name: Validate Expo export
