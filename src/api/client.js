@@ -108,6 +108,32 @@ async function sendMessageRequest(token, chatId, body, replyToId, clientId) {
 // istek bitince kayıt hemen temizlenir, sonraki gerçek focus yine güncel snapshot alır.
 const messageSnapshotInflight = new Map();
 
+// Detay ekranındaki oyuncu + benzer içerikler ağır bir backend/TMDb akışından geliyor.
+// Aynı içerik için tamamlanmış sonucu bellekte tutuyor, eşzamanlı istekleri tek Promise'te
+// birleştiriyoruz. Home/Discover bu fonksiyonu önceden çağırdığı için kullanıcı detaya
+// dokunduğunda veri çoğu zaman ilk render'da hazır oluyor.
+const MOVIE_EXTRA_TTL_MS = 30 * 60 * 1000;
+const movieExtraCache = new Map(); // movieId -> { data, cachedAt }
+const movieExtraInflight = new Map();
+
+function movieExtraRequest(token, movieId) {
+  const key = Number(movieId);
+  const cached = movieExtraCache.get(key);
+  if (cached && Date.now() - cached.cachedAt < MOVIE_EXTRA_TTL_MS) return Promise.resolve(cached.data);
+  const existing = movieExtraInflight.get(key);
+  if (existing) return existing;
+  const pending = request(`/api/movies/${key}/extra`, { token })
+    .then((data) => {
+      movieExtraCache.set(key, { data, cachedAt: Date.now() });
+      return data;
+    })
+    .finally(() => {
+      if (movieExtraInflight.get(key) === pending) movieExtraInflight.delete(key);
+    });
+  movieExtraInflight.set(key, pending);
+  return pending;
+}
+
 function chatMessagesRequest(token, chatId) {
   const key = `${token}|${chatId}`;
   const existing = messageSnapshotInflight.get(key);
@@ -223,7 +249,9 @@ export const api = {
   spotlight: (token) => request("/api/spotlight", { token }),
   notifyMe: (token, movieId) => request(`/api/movies/${movieId}/notify-me`, { method: "POST", token }),
   notifySubscriptions: (token) => request("/api/me/notify-subscriptions", { token }),
-  movieExtra: (token, movieId) => request(`/api/movies/${movieId}/extra`, { token }),
+  movieExtra: (token, movieId) => movieExtraRequest(token, movieId),
+  prefetchMovieExtra: (token, movieId) => movieExtraRequest(token, movieId).catch(() => null),
+  peekMovieExtra: (movieId) => movieExtraCache.get(Number(movieId))?.data || null,
   personCredits: (token, personId, opts) => request(`/api/people/${personId}${opts?.full ? "?full=1" : ""}`, { token }),
   socialStats: (token, movieIds) => request("/api/movies/social-stats", { method: "POST", token, body: { movieIds } }),
   trackEvents: (token, events) => request("/api/analytics/events-batch", { method: "POST", token, body: { events } }),
