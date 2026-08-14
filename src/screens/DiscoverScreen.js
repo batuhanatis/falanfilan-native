@@ -79,11 +79,11 @@ export default function DiscoverScreen({ navigation }) {
 
       while (existingQueue.length + gathered.length < STOCK_TARGET && attempts < 20) {
         attempts++;
-        const type = Math.random() < 0.55 ? "movie" : "tv";
+        const type = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : (Math.random() < 0.55 ? "movie" : "tv");
         const page = Math.floor(Math.random() * 15) + 1;
         try {
           const data = await api.movies(auth.token, type, page);
-          const items = (data.results || []).filter((m) => !usedIds.has(m.id) && localMatchesType(m));
+          const items = (data.results || []).filter((m) => !usedIds.has(m.id)).map((m) => existingFilter === "Movie" ? { ...m, type: "Film" } : existingFilter === "TV Shows" ? { ...m, type: "Dizi" } : m).filter((m) => localMatchesType(m));
           items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
         } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
       }
