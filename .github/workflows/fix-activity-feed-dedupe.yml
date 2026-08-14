@@ -1,0 +1,56 @@
+name: Fix Activity Feed Dedupe
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-activity-feed-dedupe.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Add defensive activity dedupe
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/ChatListScreen.js')
+          s = p.read_text()
+          needle = """function groupActivity(items) {
+            const groups = [];
+            for (const item of items) {
+              const prev = groups[groups.length - 1];"""
+          repl = """function groupActivity(items) {
+            const groups = [];
+            // Backend güncel durumda user+movie başına tek like döndürüyor; yine de eski
+            // prefetch/cache veya geçiş dönemindeki bir response duplicate taşıyabilirse UI'da
+            // aynı içeriği ikinci kez göstermeyelim. Sıralı ilk (yani en yeni) kayıt kalır.
+            const seenLikeMovies = new Set();
+            for (const item of items) {
+              if (item.type === \"like\" && item.movie?.id != null) {
+                const likeKey = `${item.user?.id}:${item.movie.id}`;
+                if (seenLikeMovies.has(likeKey)) continue;
+                seenLikeMovies.add(likeKey);
+              }
+              const prev = groups[groups.length - 1];"""
+          assert s.count(needle) == 1, f'groupActivity anchor count={s.count(needle)}'
+          p.write_text(s.replace(needle, repl, 1))
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir dist-activity-dedupe-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir dist-activity-dedupe-ios
+      - name: Commit fix and remove temp workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/audit-activity-feed-ui.yml .github/workflows/fix-activity-feed-dedupe.yml
+          git add src/screens/ChatListScreen.js .github/workflows
+          git commit -m "Aktivite feed tekrarlarını istemcide de engelle"
+          git push origin main
