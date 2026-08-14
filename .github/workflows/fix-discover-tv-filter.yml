@@ -1,0 +1,74 @@
+name: Fix Discover TV Filter
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-discover-tv-filter.yml'
+permissions:
+  contents: write
+jobs:
+  patch-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Fix TV filter queue source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/DiscoverScreen.js')
+          s = p.read_text()
+          old = '''        const type = Math.random() < 0.55 ? "movie" : "tv";
+        const page = Math.floor(Math.random() * 15) + 1;
+        try {
+          const data = await api.movies(auth.token, type, page);
+          const items = (data.results || []).filter((m) => !usedIds.has(m.id) && localMatchesType(m));
+          items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
+        } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
+'''
+          new = '''        const type = existingFilter === "Movie"
+          ? "movie"
+          : existingFilter === "TV Shows"
+            ? "tv"
+            : (Math.random() < 0.55 ? "movie" : "tv");
+        const page = Math.floor(Math.random() * 15) + 1;
+        try {
+          const data = await api.movies(auth.token, type, page);
+          const items = (data.results || [])
+            .filter((m) => !usedIds.has(m.id))
+            .map((m) => existingFilter === "Movie"
+              ? { ...m, type: "Film" }
+              : existingFilter === "TV Shows"
+                ? { ...m, type: "Dizi" }
+                : m)
+            .filter((m) => localMatchesType(m));
+          items.forEach((m) => { usedIds.add(m.id); gathered.push(m); });
+        } catch { /* bu deneme başarısız oldu, bir sonrakini dene */ }
+'''
+          if old not in s:
+              raise SystemExit('target block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir /tmp/pellix-tv-filter-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir /tmp/pellix-tv-filter-ios
+      - name: Validate diff
+        run: git diff --check
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-discover-tv-filter.yml
+          git add src/screens/DiscoverScreen.js .github/workflows/fix-discover-tv-filter.yml
+          git commit -m "Keşfet dizi filtresini düzelt"
+          git push
