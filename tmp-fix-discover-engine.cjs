@@ -8,8 +8,8 @@ function patch(path, fn) {
 }
 
 patch('src/api/client.js', (s) => {
-  const oldText = '  recommendations: (token) => request(`/api/recommendations`, { token }),';
-  const newText = `  recommendations: (token, type = null, limit = null) => {\n    const params = new URLSearchParams();\n    if (type === "movie" || type === "tv") params.set("type", type);\n    if (Number.isFinite(Number(limit))) params.set("limit", String(Math.floor(Number(limit))));\n    const query = params.toString();\n    return request(\`/api/recommendations\${query ? \`?\${query}\` : ""}\`, { token });\n  },`;
+  const oldText = '  recommendations: (token) => request("/api/recommendations", { token }),';
+  const newText = `  recommendations: (token, type = null, limit = null) => {\n    const parts = [];\n    if (type === "movie" || type === "tv") parts.push(\`type=\${type}\`);\n    if (Number.isFinite(Number(limit))) parts.push(\`limit=\${Math.floor(Number(limit))}\`);\n    return request(\`/api/recommendations\${parts.length ? \`?\${parts.join("&")}\` : ""}\`, { token });\n  },`;
   if (!s.includes(oldText)) throw new Error('client recommendations anchor missing');
   return s.replace(oldText, newText);
 });
@@ -27,7 +27,6 @@ patch('src/context/PrefetchContext.js', (s) => {
 });
 
 patch('src/screens/DiscoverScreen.js', (s) => {
-  // Eski skip'leri sonsuza kadar yerelde elemek yerine yalnızca kesin kararları kalıcı say.\n  // Skip cooldown'ını backend yönetiyor; mevcut oturum tekrarlarını shownIds engelliyor.
   const oldVote = '          if (row.action === "like" || row.action === "dislike" || row.action === "skip") voted.add(row.movie_id);';
   const newVote = '          if (row.action === "like" || row.action === "dislike") voted.add(row.movie_id);';
   if (!s.includes(oldVote)) throw new Error('voted ids anchor missing');
