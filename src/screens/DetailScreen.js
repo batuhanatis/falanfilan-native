@@ -49,7 +49,7 @@ export default function DetailScreen({ route, navigation }) {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
-  const [extra, setExtra] = useState({ director: null, cast: [], similar: [] });
+  const [extra, setExtra] = useState(() => api.peekMovieExtra(movie.id) || { director: null, cast: [], similar: [] });
   const scrollRef = useRef(null);
 
   // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
@@ -424,7 +424,12 @@ export default function DetailScreen({ route, navigation }) {
           {(extra.director || extra.cast.length > 0) && (
             <View style={{ marginTop: 18 }}>
               {extra.director && (
-                <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={{ color: c.text, fontWeight: "700" }}>{extra.director.name}</Text></Text>
+                <TouchableOpacity
+                  activeOpacity={extra.director.id ? 0.7 : 1}
+                  onPress={() => extra.director.id && navigation.navigate("Person", { personId: extra.director.id, name: extra.director.name, photo: extra.director.photo, role: "director" })}
+                >
+                  <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={{ color: c.text, fontWeight: "700", textDecorationLine: extra.director.id ? "underline" : "none" }}>{extra.director.name}</Text></Text>
+                </TouchableOpacity>
               )}
               {extra.cast.length > 0 && (
                 <>
