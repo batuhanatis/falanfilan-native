@@ -44,6 +44,15 @@ async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_
   return data;
 }
 
+// ChatConversationScreen metin/fotoğraf retry akışında kendi clientId'sini üretip aynı değeri
+// bütün tekrar denemelerde yeniden kullanıyor. Fakat anket, film/liste paylaşımı gibi bazı
+// tek-atımlık akışlar api.sendMessage'i clientId vermeden çağırabiliyor. Bu fallback sayesinde
+// backend'in mevcut UNIQUE(client_id) idempotency koruması bu mesaj türlerinde de otomatik
+// devreye girer. Çağıran bir clientId verdiyse ASLA değiştirmiyoruz.
+function generateMessageClientId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 export const api = {
   signup: (payload) => request("/api/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/api/auth/login", { method: "POST", body: payload }),
@@ -111,13 +120,13 @@ export const api = {
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),
   markChatRead: (token, chatId) => request(`/api/chats/${chatId}/read`, { method: "POST", token }),
   consumePhoto: (token, messageId) => request(`/api/messages/${messageId}/consume-photo`, { method: "POST", token }),
-  sendChatPhoto: (token, chatId, image, once, clientId) => request(`/api/chats/${chatId}/photo`, { method: "POST", token, body: { image, once, clientId }, timeoutMs: UPLOAD_TIMEOUT_MS }),
+  sendChatPhoto: (token, chatId, image, once, clientId) => request(`/api/chats/${chatId}/photo`, { method: "POST", token, body: { image, once, clientId: clientId || generateMessageClientId() }, timeoutMs: UPLOAD_TIMEOUT_MS }),
   deleteMessage: (token, messageId) => request(`/api/messages/${messageId}`, { method: "DELETE", token }),
   unsendMessage: (token, messageId) => request(`/api/messages/${messageId}/unsend`, { method: "POST", token }),
   editMessage: (token, messageId, body) => request(`/api/messages/${messageId}`, { method: "PUT", token, body: { body } }),
   votePoll: (token, messageId, optionIndex) => request(`/api/messages/${messageId}/vote`, { method: "POST", token, body: { optionIndex } }),
   acceptPlan: (token, messageId) => request(`/api/messages/${messageId}/accept-plan`, { method: "POST", token }),
-  createPlan: (token, chatId, scheduledAt, note) => request(`/api/chats/${chatId}/plan`, { method: "POST", token, body: { scheduledAt, note } }),
+  createPlan: (token, chatId, scheduledAt, note, clientId) => request(`/api/chats/${chatId}/plan`, { method: "POST", token, body: { scheduledAt, note, clientId: clientId || generateMessageClientId() } }),
   deleteChat: (token, chatId) => request(`/api/chats/${chatId}`, { method: "DELETE", token }),
   reactToMessage: (token, messageId, emoji) => request(`/api/messages/${messageId}/react`, { method: "POST", token, body: { emoji } }),
   bulkDeleteMessages: (token, messageIds) => request("/api/messages/bulk-delete", { method: "POST", token, body: { messageIds } }),
@@ -129,7 +138,7 @@ export const api = {
   // updated_at tabanlı senkron eklenene kadar focus'ta tam snapshot çekmek bu veri kaybını kapatır.
   // ChatConversation zaten ID bazında merge ettiği için görünüm veya mesaj sırası değişmez.
   messages: (token, chatId, _after) => request(`/api/chats/${chatId}/messages`, { token }),
-  sendMessage: (token, chatId, body, replyToId, clientId) => request(`/api/chats/${chatId}/messages`, { method: "POST", token, body: { body, replyToId: replyToId || null, clientId } }),
+  sendMessage: (token, chatId, body, replyToId, clientId) => request(`/api/chats/${chatId}/messages`, { method: "POST", token, body: { body, replyToId: replyToId || null, clientId: clientId || generateMessageClientId() } }),
 
   notifications: (token) => request("/api/notifications", { token }),
   markAllRead: (token) => request("/api/notifications/read-all", { method: "POST", token }),
