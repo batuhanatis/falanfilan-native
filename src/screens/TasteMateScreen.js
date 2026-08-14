@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Heart, X, Users, PartyPopper } from "lucide-react-native";
+import { ChevronLeft, Heart, X, Users, PartyPopper } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
@@ -107,7 +107,8 @@ export default function TasteMateScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: c.bg }]}>
+        <TasteMateBackButton navigation={navigation} styles={styles} />
         <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
@@ -115,7 +116,8 @@ export default function TasteMateScreen({ navigation }) {
 
   if (mates.length === 0) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: c.bg }]}>
+        <TasteMateBackButton navigation={navigation} styles={styles} />
         <Users size={32} color={c.dim} style={{ opacity: 0.6, marginBottom: 12 }} />
         <Text style={styles.emptyTitle}>Henüz bir eşleşme yok</Text>
         <Text style={styles.emptySubtitle}>Daha fazla içerik beğendikçe zevkine uyan kullanıcılar burada görünmeye başlayacak.</Text>
@@ -125,6 +127,7 @@ export default function TasteMateScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 54 }}>
+      <TasteMateBackButton navigation={navigation} styles={styles} />
       <Text style={styles.header}>Beğendiğin içeriklere göre zevk uyumu yüksek kullanıcılar</Text>
 
       <View style={styles.stage}>
@@ -212,6 +215,20 @@ export default function TasteMateScreen({ navigation }) {
   );
 }
 
+function TasteMateBackButton({ navigation, styles }) {
+  return (
+    <TouchableOpacity
+      style={styles.backButton}
+      onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("MainTabs", { screen: "Activity" })}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel="Geri dön"
+    >
+      <ChevronLeft size={22} color="#fff" />
+    </TouchableOpacity>
+  );
+}
+
 function useMidnightCountdown(active) {
   const [label, setLabel] = useState("");
   useEffect(() => {
@@ -276,7 +293,8 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
 function makeStyles(c) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-    header: { fontSize: 12, color: c.dim, textAlign: "center", marginBottom: 12, paddingHorizontal: 16 },
+    backButton: { position: "absolute", top: 48, left: 14, zIndex: 50, width: 40, height: 40, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.62)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
+    header: { fontSize: 12, color: c.dim, textAlign: "center", marginBottom: 12, paddingHorizontal: 62, minHeight: 40, textAlignVertical: "center" },
     emptyTitle: { fontSize: 15, fontWeight: "700", color: c.text },
     emptySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 8, lineHeight: 18 },
     restartBtn: { marginTop: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
