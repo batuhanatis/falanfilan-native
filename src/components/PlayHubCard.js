@@ -12,11 +12,20 @@ export default function PlayHubCard({ navigation }) {
 
   useEffect(() => {
     let cancelled = false;
-    playApi.features(auth.token)
-      .then((d) => { if (!cancelled) setFeatures(d.features || {}); })
-      .catch(() => { if (!cancelled) setFeatures(null); });
-    return () => { cancelled = true; };
-  }, [auth.token]);
+
+    const loadFeatures = () => {
+      playApi.features(auth.token)
+        .then((d) => { if (!cancelled) setFeatures(d.features || {}); })
+        .catch(() => { if (!cancelled) setFeatures(null); });
+    };
+
+    loadFeatures();
+    const unsub = navigation.addListener("focus", loadFeatures);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [auth.token, navigation]);
 
   if (!features || !Object.values(features).some(Boolean)) return null;
   const enabledCount = Object.values(features).filter(Boolean).length;
