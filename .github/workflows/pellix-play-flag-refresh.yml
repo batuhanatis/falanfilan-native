@@ -1,0 +1,51 @@
+name: Pellix Play Flag Refresh
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pellix-play-flag-refresh.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Respect disabled flag during active games
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/PellixPlayScreen.js')
+          s = p.read_text()
+          replacements = {
+            'playApi.chooseTasteBattle(token, winner.id, loser.id).catch(() => {});': 'playApi.chooseTasteBattle(token, winner.id, loser.id).catch((e) => { if (e.disabled) onDisabled(); });',
+            'playApi.answerFriendQuiz(token, data.friend.id, movie.id, q.correctMovieId).catch(() => {});': 'playApi.answerFriendQuiz(token, data.friend.id, movie.id, q.correctMovieId).catch((e) => { if (e.disabled) onDisabled(); });',
+            'playApi.answerBlindPick(token, item.id, interested).catch(() => {});': 'playApi.answerBlindPick(token, item.id, interested).catch((e) => { if (e.disabled) onDisabled(); });',
+          }
+          for old, new in replacements.items():
+              if new in s:
+                  continue
+              if old not in s:
+                  raise SystemExit(f'Beklenen ifade bulunamadı: {old}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir dist-play-flag-android
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir dist-play-flag-ios
+      - name: Commit fix and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/pellix-play-flag-refresh.yml
+          git add src/screens/PellixPlayScreen.js
+          git commit -m "Pellix Play kapatma flaglerini aktif oyunda uygula"
+          git push
