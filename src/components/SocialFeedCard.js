@@ -36,6 +36,12 @@ function postLabel(type) {
   return "paylaştı";
 }
 
+const QUICK_REACTIONS = [
+  ["fire", "🔥"],
+  ["agree", "🤝"],
+  ["nope", "😬"],
+];
+
 export default function SocialFeedCard({ item, navigation, compact = false, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -78,6 +84,21 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
     try {
       const data = await api.socialVote(auth.token, post.id, movieId);
       setState((s) => ({ ...s, post: { ...s.post, myVote: data.myVote, pollCounts: data.pollCounts || {} } }));
+      onChanged?.();
+    } catch {}
+  }
+
+  async function react(reaction) {
+    const kind = state.kind === "post" ? "post" : "activity";
+    const id = kind === "post" ? post?.id : state.activityId;
+    if (!id) return;
+    try {
+      const data = await api.socialReact(auth.token, kind, id, reaction);
+      if (kind === "post") {
+        setState((s) => ({ ...s, post: { ...s.post, myReaction: data.myReaction || null, reactionCounts: data.reactionCounts || {} } }));
+      } else {
+        setState((s) => ({ ...s, myReaction: data.myReaction || null, reactionCounts: data.reactionCounts || {} }));
+      }
       onChanged?.();
     } catch {}
   }
@@ -149,6 +170,21 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           </View>
         </TouchableOpacity>
       ) : null}
+
+      {(!!post?.id || !!state.activityId) && (
+        <View style={styles.reactionRow}>
+          {QUICK_REACTIONS.map(([id, emoji]) => {
+            const selected = (post?.myReaction || state.myReaction) === id;
+            const count = Number((post?.reactionCounts || state.reactionCounts || {})[id] || 0);
+            return (
+              <TouchableOpacity key={id} style={[styles.reactionPill, selected && styles.reactionPillActive]} onPress={() => react(id)} activeOpacity={0.8}>
+                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                {count > 0 && <Text style={[styles.reactionCount, selected && { color: c.accent }]}>{count}</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {state.kind === "post" ? (
         <View style={styles.actions}>
@@ -233,7 +269,12 @@ function makeStyles(c) {
     pollOption: { flexDirection: "row", alignItems: "center", gap: 10, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2 },
     pollPoster: { width: 46, height: 68, borderRadius: 8 },
     pollPct: { color: c.dim, fontWeight: "800", fontSize: 10.5, marginTop: 5 },
-    actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 12, paddingTop: 11 },
+    reactionRow: { flexDirection: "row", gap: 7, marginTop: 12 },
+    reactionPill: { minWidth: 44, height: 31, paddingHorizontal: 9, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
+    reactionPillActive: { borderColor: c.accent, backgroundColor: c.surface },
+    reactionEmoji: { fontSize: 14 },
+    reactionCount: { color: c.dim, fontSize: 10, fontWeight: "800" },
+    actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 10, paddingTop: 11 },
     action: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 },
     actionText: { color: c.dim, fontSize: 11.5, fontWeight: "700" },
     actionLink: { color: c.accent, fontSize: 11.5, fontWeight: "800" },

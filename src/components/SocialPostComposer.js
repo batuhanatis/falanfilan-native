@@ -11,7 +11,7 @@ const MODES = [
   ["poll", "Anket"],
 ];
 
-export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, onClose, onCreated }) {
+export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, onClose, onCreated }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -39,7 +39,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     setQuery("");
     setResults([]);
     setError("");
-  }, [visible, initialMovie?.id, initialType]);
+  }, [visible, initialMovie?.id, initialType, initialContext]);
 
   useEffect(() => {
     if (!visible || mode === "thought" || query.trim().length < 2) {
@@ -99,9 +99,12 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     setSending(true);
     setError("");
     try {
+      const outgoingBody = mode === "thought" && initialContext
+        ? `🔥 Günün Sorusu: ${initialContext}\n\n${body.trim()}`
+        : body.trim();
       await api.socialCreatePost(auth.token, {
         type: mode,
-        body: body.trim(),
+        body: outgoingBody,
         movieId: mode === "recommend" ? movie?.id : undefined,
         pollMovieAId: mode === "poll" ? pollA?.id : undefined,
         pollMovieBId: mode === "poll" ? pollB?.id : undefined,
@@ -157,9 +160,16 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
             ))}
           </View>
 
+          {!!initialContext && mode === "thought" && (
+            <View style={styles.contextCard}>
+              <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
+              <Text style={styles.contextText}>{initialContext}</Text>
+            </View>
+          )}
+
           <TextInput
             style={styles.bodyInput}
-            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : "Aklında ne var?"}
+            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
             placeholderTextColor={c.dim}
             value={body}
             onChangeText={setBody}
@@ -234,6 +244,9 @@ function makeStyles(c) {
     modeChipActive: { backgroundColor: c.accent, borderColor: c.accent },
     modeText: { color: c.dim, fontSize: 11, fontWeight: "800" },
     modeTextActive: { color: c.bg },
+    contextCard: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.accent, borderRadius: 14, padding: 11, marginBottom: 10 },
+    contextEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.6 },
+    contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },
     bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },
     searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42, marginTop: 8 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },

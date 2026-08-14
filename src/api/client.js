@@ -228,6 +228,7 @@ export const api = {
   socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload }),
   socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
   socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),
+  socialReact: (token, kind, id, reaction) => request(`/api/social/reactions/${kind}/${id}`, { method: "POST", token, body: { reaction } }),
   socialComments: (token, id) => request(`/api/social/posts/${id}/comments`, { token }),
   socialAddComment: (token, id, body) => request(`/api/social/posts/${id}/comments`, { method: "POST", token, body: { body } }),
   socialActivityComments: (token, id) => request(`/api/social/activities/${id}/comments`, { token }),

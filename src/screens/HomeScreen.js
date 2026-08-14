@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
-import { Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Flame, Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -19,6 +20,27 @@ function interleave(a = [], b = [], limit = 20) {
   return out;
 }
 
+const DAILY_QUESTIONS = [
+  "Herkesin sevdiği ama senin sevmediğin film hangisi?",
+  "Sonu seni en çok şaşırtan film veya dizi hangisi?",
+  "Tekrar tekrar izleyebileceğin tek bir yapım seçsen hangisi olurdu?",
+  "Bir arkadaşına gözün kapalı önereceğin dizi hangisi?",
+  "Sence gereğinden az değer gören film hangisi?",
+  "İlk 10 dakikasında seni yakalayan yapım hangisiydi?",
+  "Bir karakterin hayatını yaşama şansın olsa kimi seçerdin?",
+  "Sence devam filmi orijinalinden daha iyi olan yapım hangisi?",
+  "Soundtrack'i yüzünden tekrar açtığın film hangisi?",
+  "Bir gecede bitirdiğin en iyi dizi hangisi?",
+  "Keşke hafızamdan silip ilk kez tekrar izlesem dediğin yapım hangisi?",
+  "Seni en çok sinirlendiren final hangisiydi?",
+];
+
+function getDailyQuestion() {
+  const now = new Date();
+  const dayKey = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);
+  return DAILY_QUESTIONS[Math.abs(dayKey) % DAILY_QUESTIONS.length];
+}
+
 export default function HomeScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -31,6 +53,8 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerType, setComposerType] = useState("thought");
+  const [composerContext, setComposerContext] = useState(null);
+  const dailyQuestion = useMemo(() => getDailyQuestion(), []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -60,8 +84,9 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(false);
   }
 
-  function openComposer(type) {
+  function openComposer(type, context = null) {
     setComposerType(type);
+    setComposerContext(context);
     setComposerOpen(true);
   }
 
@@ -69,29 +94,46 @@ export default function HomeScreen({ navigation }) {
     <View>
       <PopularNowRow items={popular} c={c} styles={styles} navigation={navigation} />
 
-      <View style={styles.composerCard}>
-        <TouchableOpacity style={styles.composerPrompt} onPress={() => openComposer("thought")} activeOpacity={0.85}>
-          <View style={styles.composerPlus}><Plus size={17} color={c.bg} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.composerTitle}>Zevkin hakkında bir şey paylaş</Text>
-            <Text style={styles.composerSub}>Bir yorum, öneri ya da küçük bir karşılaştırma başlat.</Text>
+      <LinearGradient
+        colors={[c.accent, "#7C3AED", c.accent2 || c.accent]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.composerGlow}
+      >
+        <View style={styles.composerCard}>
+          <TouchableOpacity style={styles.composerPrompt} onPress={() => openComposer("thought")} activeOpacity={0.85}>
+            <LinearGradient colors={[c.accent, "#7C3AED"]} style={styles.composerPlus}>
+              <Plus size={17} color="#fff" />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.composerTitle}>Ne izliyorsun, ne düşünüyorsun?</Text>
+              <Text style={styles.composerSub}>Bir film öner, fikrini söyle veya arkadaşlarına sor.</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.quickRow}>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: c.accent }]} onPress={() => openComposer("recommend")}>
+              <Sparkles size={14} color={c.accent} />
+              <Text style={[styles.quickText, { color: c.accent }]}>Öner</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: "#8B5CF6" }]} onPress={() => openComposer("poll")}>
+              <Swords size={14} color="#8B5CF6" />
+              <Text style={[styles.quickText, { color: "#8B5CF6" }]}>Kapıştır</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.quickBtn, { borderColor: c.accent2 || "#EC4899" }]} onPress={() => openComposer("thought")}>
+              <MessageCircle size={14} color={c.accent2 || "#EC4899"} />
+              <Text style={[styles.quickText, { color: c.accent2 || "#EC4899" }]}>Fikrini söyle</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-        <View style={styles.quickRow}>
-          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("recommend")}>
-            <Sparkles size={14} color={c.accent} />
-            <Text style={styles.quickText}>Öner</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("poll")}>
-            <Swords size={14} color={c.accent} />
-            <Text style={styles.quickText}>Anket</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("thought")}>
-            <MessageCircle size={14} color={c.accent} />
-            <Text style={styles.quickText}>Bir şey söyle</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
+
+      <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
+        <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>
+          <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>
+          <Text style={styles.dailyCta}>Cevabını paylaş →</Text>
+        </View>
+      </TouchableOpacity>
 
       <PlayHubCard navigation={navigation} />
 
@@ -137,7 +179,8 @@ export default function HomeScreen({ navigation }) {
       <SocialPostComposer
         visible={composerOpen}
         initialType={composerType}
-        onClose={() => setComposerOpen(false)}
+        initialContext={composerContext}
+        onClose={() => { setComposerOpen(false); setComposerContext(null); }}
         onCreated={() => load(true)}
       />
     </View>
@@ -186,14 +229,20 @@ function makeStyles(c) {
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
-    composerCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 13, marginBottom: 12 },
+    composerGlow: { borderRadius: 20, padding: 1.25, marginBottom: 12 },
+    composerCard: { backgroundColor: c.surface, borderRadius: 19, padding: 13 },
     composerPrompt: { flexDirection: "row", alignItems: "center", gap: 10 },
-    composerPlus: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
+    composerPlus: { width: 40, height: 40, borderRadius: 999, alignItems: "center", justifyContent: "center" },
     composerTitle: { color: c.text, fontSize: 13, fontWeight: "800" },
     composerSub: { color: c.dim, fontSize: 10.5, marginTop: 2, lineHeight: 14 },
     quickRow: { flexDirection: "row", gap: 7, marginTop: 11 },
     quickBtn: { flex: 1, minHeight: 34, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
     quickText: { color: c.text, fontSize: 10.5, fontWeight: "800" },
+    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginBottom: 12 },
+    dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    dailyEyebrow: { color: "#F97316", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.7 },
+    dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "850", lineHeight: 18, marginTop: 3 },
+    dailyCta: { color: c.accent, fontSize: 10.5, fontWeight: "800", marginTop: 7 },
     feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 },
     feedTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
     emptyCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },
