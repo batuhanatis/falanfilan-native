@@ -25,7 +25,7 @@ const PLATFORM_ALIASES = {
 };
 
 function canonicalPlatformName(name) {
-  const normalized = String(name || "").trim().toLocaleLowerCase("tr-TR");
+  const normalized = String(name || "").trim().toLowerCase();
   return PLATFORM_ALIASES[normalized] || String(name || "").trim();
 }
 
