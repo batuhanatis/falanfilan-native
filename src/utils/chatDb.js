@@ -141,6 +141,13 @@ export async function saveMessages(chatId, messages) {
   // 2) Server mesajını `fresh` dizisinden çıkarıyoruz; merge aynı mesajı ikinci kez eklemiyor.
   // 3) SQLite transaction'ında negatif temp satırını silip pozitif gerçek satırı yazıyoruz.
   const sourceMessages = messages.slice();
+
+  // `messages_read` gibi bulk state güncellemeleri pending mesajı `{ ...m }` ile kopyalayabilir.
+  // Registry eski nesne referansına bakarsa sonraki server snapshot'ı ekrandaki güncel temp balonu
+  // yerinde dönüştüremez. Bu nedenle saveMessages'e gelen gruptaki negatif optimistic kayıtları
+  // ilk iş yeniden register ediyoruz; server-only snapshotlarda bu döngü doğal olarak no-op.
+  for (const candidate of sourceMessages) registerPending(chatId, candidate);
+
   const pending = pendingMapFor(chatId, false);
   const reconciledTempIds = [];
 
