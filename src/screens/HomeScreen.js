@@ -124,7 +124,9 @@ export default function HomeScreen({ navigation }) {
   const [socialStats, setSocialStats] = useState({}); // movieId -> {likes, comments, watchlist, friendName}
   const statsFetchedRef = useRef(new Set());
 
-  // Sana Özel / Şu An Gösterimde / Yakında Gelecekler — aynı alanda YATAY kaydırarak geçiliyor.
+  // Sana Özel / Şu An Gösterimde / Yakında Gelecekler — iOS'ta yatay swipe ile de geçilebilir.
+  // Android'de aynı eksendeki iç yatay listelerle gesture çakışmasını tamamen önlemek için
+  // kullanıcı swipe'ı kapalı; geçiş sadece yukarıdaki simgelere dokunarak programatik yapılır.
   const [activePage, setActivePage] = useState(0);
   function goToPage(i) {
     setActivePage(i);
@@ -144,20 +146,6 @@ export default function HomeScreen({ navigation }) {
     outputRange: FEED_TABS.map((_, i) => i * TAB_W + TAB_W / 2 - UNDERLINE_W / 2),
   });
 
-  // ÖNEMLİ (Android'de "Şu An Popüler" şeridinin kilitlenmesi düzeltmesi): PopularNowRow da bu
-  // pager gibi YATAY bir ScrollView. iOS, aynı eksende iç içe iki kaydırılabilir alanı touch'un
-  // hangisine ait olduğuna göre doğru çözüyor, Android'de ise dıştaki pager jesti kapıp Popüler
-  // şeridini kullanılamaz hale getiriyor. nestedScrollEnabled bunu çözmüyor (o dikey/yatay
-  // çakışması için, bkz. aşağıdaki FlatList). Çözüm: kullanıcı Popüler şeridine dokunduğu sürece
-  // pager'ı SADECE Android'de scrollEnabled=false yapıp bırakınca geri açıyoruz — iOS bu koddan
-  // hiç etkilenmiyor.
-  const [pagerScrollEnabled, setPagerScrollEnabled] = useState(true);
-  function handlePopularTouchStart() {
-    if (Platform.OS === "android") setPagerScrollEnabled(false);
-  }
-  function handlePopularTouchEnd() {
-    if (Platform.OS === "android") setPagerScrollEnabled(true);
-  }
   // AI sonucu geldiğinde otomatik olarak Önerilenler sayfasına dön — arama artık ayrı bir
   // dropdown olduğu için (bkz. headerContent) hangi sayfada olursan ol açılabiliyor, sayfa
   // değiştirmeye gerek yok.
@@ -613,7 +601,7 @@ export default function HomeScreen({ navigation }) {
         ref={pagerRef}
         horizontal
         pagingEnabled
-        scrollEnabled={pagerScrollEnabled}
+        scrollEnabled={Platform.OS !== "android"}
         showsHorizontalScrollIndicator={false}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
@@ -644,8 +632,6 @@ export default function HomeScreen({ navigation }) {
                 <PopularNowRow
                   items={popularNow}
                   onPress={(m) => navigation.navigate("Detail", { movie: m })}
-                  onTouchStart={handlePopularTouchStart}
-                  onTouchEnd={handlePopularTouchEnd}
                 />
               </>
             }
