@@ -209,6 +209,12 @@ export default function HomeScreen({ navigation }) {
     api.notifySubscriptions(auth.token).then((data) => setNotifySubs(new Set(data.movieIds || []))).catch(() => {});
   }, []);
 
+  // İlk ekranda görülen içeriklerin oyuncu/benzer verisini kullanıcı dokunmadan hazırla.
+  // Bellek cache'i ve single-flight koruması tekrar render'larda ek ağ yükünü engeller.
+  useEffect(() => {
+    movies.slice(0, 6).forEach((movie) => api.prefetchMovieExtra(auth.token, movie.id));
+  }, [movies, auth.token]);
+
   // Film/dizi arama — 250ms bekleyip backend'e sorar (artık backend önce kendi kataloğunu
   // ANINDA sorguladığı için — bkz. /api/search — daha kısa bir debounce da makul, sonuç
   // neredeyse hep tek bir hızlı yerel sorguyla geliyor).
