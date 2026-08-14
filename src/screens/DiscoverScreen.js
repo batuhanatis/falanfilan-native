@@ -40,6 +40,7 @@ export default function DiscoverScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchRequestRef = useRef(0);
   // DC3/DC4 — beğenince küçük bir konfeti patlaması + bu turda ne kadar beğenip/geçtiğini ve
   // en çok hangi türü seçtiğini tutan bir oturum özeti (deste tükenince gösteriliyor).
   const [likeBurstKey, setLikeBurstKey] = useState(0);
@@ -147,24 +148,50 @@ export default function DiscoverScreen({ navigation }) {
     replenishIfLow(rest, newShown);
   }
 
-  async function runSearch() {
-    const q = searchQuery.trim();
-    if (q.length < 2) return;
+  async function runSearch(queryOverride = null, requestId = null) {
+    const q = String(queryOverride ?? searchQuery).trim();
+    const activeRequestId = requestId ?? ++searchRequestRef.current;
+    if (q.length < 2) {
+      if (activeRequestId === searchRequestRef.current) {
+        setSearchResults([]);
+        setSearchLoading(false);
+      }
+      return;
+    }
     setSearchLoading(true);
     try {
       const [movies, shows] = await Promise.all([
         api.search(auth.token, q, "movie"),
         api.search(auth.token, q, "tv"),
       ]);
+      if (activeRequestId !== searchRequestRef.current) return;
       const seen = new Set();
       setSearchResults([...(movies.results || []), ...(shows.results || [])].filter((item) => {
         if (!item?.id || seen.has(item.id)) return false;
         seen.add(item.id);
         return true;
       }).slice(0, 30));
-    } catch { setSearchResults([]); }
-    setSearchLoading(false);
+    } catch {
+      if (activeRequestId === searchRequestRef.current) setSearchResults([]);
+    } finally {
+      if (activeRequestId === searchRequestRef.current) setSearchLoading(false);
+    }
   }
+
+  useEffect(() => {
+    // Kullanıcı yazmayı kısa süre bıraktığında otomatik ara. Yeni sorgu geldiği anda
+    // önceki isteği mantıksal olarak geçersiz kılıyoruz; geç dönen eski sonuçlar ekrana sızmıyor.
+    const requestId = ++searchRequestRef.current;
+    if (!showSearch) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => runSearch(q, requestId), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, showSearch, auth.token]);
 
   async function applyAiResults(results, label = "AI seçimi") {
     const voted = await getVotedIds();
@@ -381,7 +408,7 @@ export default function DiscoverScreen({ navigation }) {
                   </View>
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={searchQuery.trim().length >= 2 && !searchLoading ? <Text style={styles.searchEmpty}>Aramak için klavyedeki “ara” tuşuna dokun.</Text> : null}
+              ListEmptyComponent={searchQuery.trim().length >= 2 && !searchLoading ? <Text style={styles.searchEmpty}>Sonuç bulunamadı.</Text> : null}
             />
           </View>
         </View>
