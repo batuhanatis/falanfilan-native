@@ -11,6 +11,7 @@ import { backgroundBlurAndDim } from "../utils/profileBackground";
 import RetryImage from "../components/RetryImage";
 import ReportUserModal from "../components/ReportUserModal";
 import ImageLightbox from "../components/ImageLightbox";
+import SocialFeedCard from "../components/SocialFeedCard";
 
 export default function OtherProfileScreen({ route, navigation }) {
   const { c } = useAppTheme();
@@ -49,12 +50,16 @@ export default function OtherProfileScreen({ route, navigation }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showAvatarLightbox, setShowAvatarLightbox] = useState(false);
+  const [socialPosts, setSocialPosts] = useState([]);
 
   const load = useCallback(() => {
     if (!userId) return; // henüz kullanıcı adı çözülmediyse (dış bağlantı akışı) bekle
     setLoading(true);
     api.userProfile(auth.token, userId)
-      .then(setProfile)
+      .then((data) => {
+        setProfile(data);
+        api.socialUserPosts(auth.token, userId).then((posts) => setSocialPosts(posts.results || [])).catch(() => setSocialPosts([]));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);
@@ -288,6 +293,13 @@ export default function OtherProfileScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           )}
+
+          <Text style={styles.sectionTitle}>Paylaşımlar</Text>
+          {socialPosts.length > 0 ? (
+            <View style={{ marginTop: 10 }}>
+              {socialPosts.slice(0, 8).map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
+            </View>
+          ) : <Text style={styles.emptyText}>Henüz bir paylaşımı yok.</Text>}
 
           <Text style={styles.sectionTitle}>Beğeniler</Text>
           {profile.canSeeLikes ? (

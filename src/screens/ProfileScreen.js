@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Settings, Camera, Star, PartyPopper, ChevronRight, Sparkles, Crown, Pencil, Share2,
-  X, Lock,
+  X, Lock, Eye, EyeOff,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +16,7 @@ import ShareCardModal from "../components/ShareCardModal";
 import ProfileShareCard from "../components/ProfileShareCard";
 import RetryImage from "../components/RetryImage";
 import EditProfileModal from "../components/EditProfileModal";
+import SocialFeedCard from "../components/SocialFeedCard";
 
 // PR4 — rozet kartının kenar/parıltı rengini nadirlik katmanına göre belirliyor.
 const TIER_COLORS = { bronze: "#B08D57", silver: "#9CA3AF", gold: "#F5C518" };
@@ -33,12 +34,13 @@ export default function ProfileScreen({ navigation, route }) {
   const [dislikedMovies, setDislikedMovies] = useState([]);
   const [dislikeCount, setDislikeCount] = useState(0);
   const [watchlists, setWatchlists] = useState([]);
+  const [socialPosts, setSocialPosts] = useState([]);
   const [showShareCard, setShowShareCard] = useState(false);
   const [achievements, setAchievements] = useState(null);
   const [questStreak, setQuestStreak] = useState(0);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sub, setSub] = useState(route?.params?.initialSub || "likes"); // likes | dislikes | badges
+  const [sub, setSub] = useState(route?.params?.initialSub || "posts"); // posts | likes | dislikes | badges
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [premiumStatus, setPremiumStatus] = useState(null);
@@ -73,6 +75,7 @@ export default function ProfileScreen({ navigation, route }) {
       hasLoadedRef.current = true;
     } catch { /* sessizce geç */ }
     setLoading(false);
+    api.socialUserPosts(auth.token, auth.id).then((data) => setSocialPosts(data.results || [])).catch(() => setSocialPosts([]));
     api.achievements(auth.token).then(setAchievements).catch(() => {});
     api.quests(auth.token).then((data) => setQuestStreak(data.streak || 0)).catch(() => {});
   }, [auth.token, auth.id]);
@@ -110,6 +113,16 @@ export default function ProfileScreen({ navigation, route }) {
       setProfile((prev) => ({ ...prev, [kind === "avatar" ? "avatarUrl" : "coverUrl"]: dataUrl }));
     } catch { Alert.alert("Hata", "Fotoğraf yüklenemedi, tekrar dene."); }
     setUploading(false);
+  }
+
+  async function toggleLikeVisibility(item) {
+    const hidden = !item.profileHidden;
+    setLikedMovies((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: hidden } : m));
+    try {
+      await api.setLikeProfileVisibility(auth.token, item.id, hidden);
+    } catch {
+      setLikedMovies((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: !hidden } : m));
+    }
   }
 
   if (loading || !profile) {
@@ -290,12 +303,20 @@ export default function ProfileScreen({ navigation, route }) {
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabRow}>
-          {[["likes", "Beğeniler"], ["dislikes", "Beğenmediklerim"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => (
+          {[["posts", "Paylaşımlar"], ["likes", "Beğeniler"], ["dislikes", "Beğenmediklerim"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => (
             <TouchableOpacity key={id} onPress={() => setSub(id)} style={[styles.tabBtn, sub === id && { borderBottomColor: c.accent, borderBottomWidth: 2 }]}>
               <Text style={[styles.tabText, sub === id && { color: c.accent }]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {sub === "posts" && (
+          socialPosts.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              {socialPosts.map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
+            </View>
+          ) : <Text style={styles.emptyText}>Henüz bir paylaşımın yok. Ana Sayfa’dan ilk Taste Post’unu oluşturabilirsin.</Text>
+        )}
 
         {sub === "likes" && (
           likedMovies.length > 0 ? (
@@ -308,9 +329,16 @@ export default function ProfileScreen({ navigation, route }) {
                 contentContainerStyle={{ gap: 6 }}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
-                    {item.poster ? <Image source={{ uri: item.poster }} style={styles.posterThumb} />
-                      : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }]} />}
+                  <TouchableOpacity style={{ flex: 1, position: "relative" }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+                    {item.poster ? <Image source={{ uri: item.poster }} style={[styles.posterThumb, item.profileHidden && { opacity: 0.48 }]} />
+                      : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }, item.profileHidden && { opacity: 0.48 }]} />}
+                    <TouchableOpacity
+                      style={styles.likeVisibilityBtn}
+                      onPress={(e) => { e.stopPropagation?.(); toggleLikeVisibility(item); }}
+                      hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                    >
+                      {item.profileHidden ? <EyeOff size={14} color="#fff" /> : <Eye size={14} color="#fff" />}
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 )}
               />
@@ -586,6 +614,7 @@ function makeStyles(c) {
     tabBtn: { paddingVertical: 10, marginRight: 20 },
     tabText: { fontSize: 12, fontWeight: "700", color: c.dim },
     posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
+    likeVisibilityBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center", zIndex: 5 },
     emptyText: { color: c.dim, fontSize: 12, marginTop: 14 },
     seeAllBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
     seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },

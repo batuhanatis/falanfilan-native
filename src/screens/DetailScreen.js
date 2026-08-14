@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send } from "lucide-react-native";
+import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -12,6 +12,7 @@ import { hapticLight, hapticSuccess } from "../utils/haptics";
 import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
+import SocialPostComposer from "../components/SocialPostComposer";
 
 const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
@@ -43,6 +44,7 @@ export default function DetailScreen({ route, navigation }) {
   const [favBusy, setFavBusy] = useState(false);
   const [showListPicker, setShowListPicker] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [postComposerOpen, setPostComposerOpen] = useState(false);
 
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
@@ -374,6 +376,9 @@ export default function DetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
               <Send size={16} color={c.text} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSquare} onPress={() => setPostComposerOpen(true)}>
+              <Share2 size={16} color={c.text} />
+            </TouchableOpacity>
           </View>
 
           {/* DT2 — favori tek kişilik, özel bir slot; artık diğer aksiyon kareleriyle aynı düz
@@ -489,6 +494,7 @@ export default function DetailScreen({ route, navigation }) {
 
       {showListPicker && <ListPickerModal movie={movie} onClose={() => setShowListPicker(false)} />}
       {sendOpen && <SendToFriendModal movie={movie} onClose={() => setSendOpen(false)} />}
+      <SocialPostComposer visible={postComposerOpen} initialMovie={movie} initialType="recommend" onClose={() => setPostComposerOpen(false)} />
     </View>
   );
 }

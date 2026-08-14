@@ -28,11 +28,11 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 // Ana sayfanın besleme akışını GERÇEKTEN etkileyen tek şey (arama/AI sonuçlarının listede
 // gösterilmesi) hâlâ HomeScreen'de kalıyor — bu bileşen sonuç bulunca sadece `onResults`
 // callback'iyle yukarı bildiriyor, kendi state'ine yazmıyor.
-export default function AIZone({ navigation, hasResults, onResults, onClear }) {
+export default function AIZone({ navigation, hasResults, onResults, onClear, defaultOpen = false }) {
   const { c } = useAppTheme();
   const styles = makeStyles(c);
 
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(defaultOpen);
   const [describeModalOpen, setDescribeModalOpen] = useState(false);
   const [tasteModalOpen, setTasteModalOpen] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);

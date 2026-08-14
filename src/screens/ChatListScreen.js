@@ -140,9 +140,9 @@ export default function ChatListScreen({ navigation }) {
     }
   }, [sub, refreshUnread, loadActivity]);
 
-  useEffect(() => { loadFriends(); loadActivity(); }, [loadFriends, loadActivity]);
+  useEffect(() => { loadFriends(); }, [loadFriends]);
   useEffect(() => {
-    const unsubFocus = navigation.addListener("focus", () => { loadFriends(); loadActivity(); refreshUnread(); });
+    const unsubFocus = navigation.addListener("focus", () => { loadFriends(); refreshUnread(); });
     return unsubFocus;
   }, [navigation, loadFriends, loadActivity, refreshUnread]);
 
@@ -209,12 +209,9 @@ export default function ChatListScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <TopBar />
-      <View style={styles.tabRow}>
-        {[["chats", "Sohbetler"], ["activity", "Aktivite"]].map(([id, label]) => (
-          <TouchableOpacity key={id} onPress={() => setSub(id)} style={[styles.tabBtn, sub === id && { backgroundColor: c.accent, borderColor: c.accent }]}>
-            <Text style={[styles.tabText, sub === id && { color: c.bg }]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+        <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>Sohbetler</Text>
+        <Text style={{ color: c.dim, fontSize: 10.5, marginTop: 2 }}>Arkadaş aktiviteleri artık Ana Sayfa’daki sosyal akışta.</Text>
       </View>
 
       {sub === "chats" ? (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -41,6 +41,14 @@ export default function AllLikesScreen({ route, navigation }) {
     })();
   }, [loadPage]);
 
+  async function toggleVisibility(item) {
+    if (kind !== "likes" || Number(userId) !== Number(auth.id)) return;
+    const hidden = !item.profileHidden;
+    setItems((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: hidden } : m));
+    try { await api.setLikeProfileVisibility(auth.token, item.id, hidden); }
+    catch { setItems((prev) => prev.map((m) => Number(m.id) === Number(item.id) ? { ...m, profileHidden: !hidden } : m)); }
+  }
+
   async function handleLoadMore() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -77,9 +85,14 @@ export default function AllLikesScreen({ route, navigation }) {
           onEndReachedThreshold={0.5}
           onEndReached={handleLoadMore}
           renderItem={({ item }) => (
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
-              {item.poster ? <Image source={{ uri: item.poster }} style={styles.poster} />
-                : <View style={[styles.poster, { backgroundColor: c.surface2 }]} />}
+            <TouchableOpacity style={{ flex: 1, position: "relative" }} onPress={() => navigation.navigate("Detail", { movie: item })}>
+              {item.poster ? <Image source={{ uri: item.poster }} style={[styles.poster, item.profileHidden && { opacity: 0.48 }]} />
+                : <View style={[styles.poster, { backgroundColor: c.surface2 }, item.profileHidden && { opacity: 0.48 }]} />}
+              {kind === "likes" && Number(userId) === Number(auth.id) && (
+                <TouchableOpacity style={styles.eyeBtn} onPress={(e) => { e.stopPropagation?.(); toggleVisibility(item); }}>
+                  {item.profileHidden ? <EyeOff size={14} color="#fff" /> : <Eye size={14} color="#fff" />}
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           )}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={c.accent} /> : null}
@@ -98,6 +111,7 @@ function makeStyles(c) {
     },
     headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
     poster: { flex: 1, aspectRatio: 2 / 3, borderRadius: 8 },
+    eyeBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center" },
     emptyText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 40 },
   });
 }
