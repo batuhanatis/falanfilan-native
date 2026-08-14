@@ -17,19 +17,15 @@ jobs:
           node-version: 20
       - name: Setup EAS CLI
         run: npm install -g eas-cli
-      - name: Verify production RevenueCat variables are locally readable
+      - name: Check production RevenueCat variable names without printing values
         shell: bash
         run: |
-          set +e
-          for key in EXPO_PUBLIC_REVENUECAT_IOS_KEY EXPO_PUBLIC_REVENUECAT_ANDROID_KEY; do
-            rm -f /tmp/eas-env-value /tmp/eas-env-error
-            eas env:get production --variable-name "$key" --format short --non-interactive >/tmp/eas-env-value 2>/tmp/eas-env-error
-            status=$?
-            if [ $status -eq 0 ] && [ -s /tmp/eas-env-value ]; then
-              echo "$key=READABLE"
-            else
-              echo "$key=NOT_READABLE_OR_MISSING"
-              sed -E 's/(value|Value):.*/\1: [redacted]/' /tmp/eas-env-error | head -n 5
-            fi
-          done
-          rm -f /tmp/eas-env-value /tmp/eas-env-error
+          set -e
+          eas env:list production --format long >/tmp/eas-env-list 2>/tmp/eas-env-error
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/eas-env-list').read_text(errors='replace')
+          for key in ['EXPO_PUBLIC_REVENUECAT_IOS_KEY','EXPO_PUBLIC_REVENUECAT_ANDROID_KEY']:
+              print(f'{key}=' + ('PRESENT' if key in text else 'MISSING'))
+          PY
+          rm -f /tmp/eas-env-list /tmp/eas-env-error
