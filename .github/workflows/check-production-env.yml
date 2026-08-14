@@ -17,15 +17,22 @@ jobs:
           node-version: 20
       - name: Setup EAS CLI
         run: npm install -g eas-cli
-      - name: Check production RevenueCat variable names without printing values
+      - name: Pull production env and check RevenueCat variable names without printing values
         shell: bash
         run: |
           set -e
-          eas env:list production --format long >/tmp/eas-env-list 2>/tmp/eas-env-error
+          eas env:pull --environment production --non-interactive --path /tmp/pellix-production.env >/tmp/eas-pull-log 2>/tmp/eas-pull-error
           python - <<'PY'
           from pathlib import Path
-          text = Path('/tmp/eas-env-list').read_text(errors='replace')
+          p = Path('/tmp/pellix-production.env')
+          text = p.read_text(errors='replace') if p.exists() else ''
+          names = set()
+          for raw in text.splitlines():
+              line = raw.strip()
+              if not line or line.startswith('#') or '=' not in line:
+                  continue
+              names.add(line.split('=',1)[0].strip())
           for key in ['EXPO_PUBLIC_REVENUECAT_IOS_KEY','EXPO_PUBLIC_REVENUECAT_ANDROID_KEY']:
-              print(f'{key}=' + ('PRESENT' if key in text else 'MISSING'))
+              print(f'{key}=' + ('PRESENT' if key in names else 'MISSING_OR_SECRET'))
           PY
-          rm -f /tmp/eas-env-list /tmp/eas-env-error
+          rm -f /tmp/pellix-production.env /tmp/eas-pull-log /tmp/eas-pull-error
