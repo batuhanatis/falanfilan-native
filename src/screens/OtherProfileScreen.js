@@ -51,6 +51,7 @@ export default function OtherProfileScreen({ route, navigation }) {
   const [showReport, setShowReport] = useState(false);
   const [showAvatarLightbox, setShowAvatarLightbox] = useState(false);
   const [socialPosts, setSocialPosts] = useState([]);
+  const [contentTab, setContentTab] = useState("posts");
 
   const load = useCallback(() => {
     if (!userId) return; // henüz kullanıcı adı çözülmediyse (dış bağlantı akışı) bekle
@@ -294,46 +295,42 @@ export default function OtherProfileScreen({ route, navigation }) {
             </View>
           )}
 
-          <Text style={styles.sectionTitle}>Paylaşımlar</Text>
-          {socialPosts.length > 0 ? (
-            <View style={{ marginTop: 10 }}>
-              {socialPosts.slice(0, 8).map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
-            </View>
-          ) : <Text style={styles.emptyText}>Henüz bir paylaşımı yok.</Text>}
+          <View style={styles.contentTabs}>
+            <TouchableOpacity style={[styles.contentTab, contentTab === "posts" && styles.contentTabActive]} onPress={() => setContentTab("posts")}>
+              <Text style={[styles.contentTabText, contentTab === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.contentTab, contentTab === "likes" && styles.contentTabActive]} onPress={() => setContentTab("likes")}>
+              <Text style={[styles.contentTabText, contentTab === "likes" && styles.contentTabTextActive]}>Beğeniler</Text>
+            </TouchableOpacity>
+          </View>
 
-          <Text style={styles.sectionTitle}>Beğeniler</Text>
-          {profile.canSeeLikes ? (
+          {contentTab === "posts" ? (
+            socialPosts.length > 0 ? (
+              <View style={{ marginTop: 12 }}>
+                {socialPosts.slice(0, 8).map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
+              </View>
+            ) : <Text style={styles.emptyText}>Henüz bir paylaşımı yok.</Text>
+          ) : profile.canSeeLikes ? (
             profile.likedMovies?.length > 0 ? (
               <>
-                <FlatList
-                  data={profile.likedMovies}
-                  numColumns={3}
-                  scrollEnabled={false}
-                  columnWrapperStyle={{ gap: 6 }}
-                  contentContainerStyle={{ gap: 6 }}
+                <FlatList data={profile.likedMovies} numColumns={3} scrollEnabled={false}
+                  columnWrapperStyle={{ gap: 6 }} contentContainerStyle={{ gap: 6, marginTop: 12 }}
                   keyExtractor={(item) => String(item.id)}
                   renderItem={({ item }) => (
                     <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
-                      {item.poster ? <Image source={{ uri: item.poster }} style={styles.posterThumb} />
-                        : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }]} />}
+                      {item.poster ? <Image source={{ uri: item.poster }} style={styles.posterThumb} /> : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }]} />}
                     </TouchableOpacity>
                   )}
                 />
                 {profile.likeCount > profile.likedMovies.length && (
-                  <TouchableOpacity
-                    style={styles.seeAllBtn}
-                    onPress={() => navigation.navigate("AllLikes", { userId, title: `${profile.name} — Beğeniler` })}
-                  >
+                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate("AllLikes", { userId, title: `${profile.name} — Beğeniler` })}>
                     <Text style={styles.seeAllBtnText}>Tümünü Gör ({profile.likeCount})</Text>
                   </TouchableOpacity>
                 )}
               </>
             ) : <Text style={styles.emptyText}>Henüz bir beğeni yok.</Text>
           ) : (
-            <View style={styles.lockedBox}>
-              <Lock size={20} color={c.dim} />
-              <Text style={styles.emptyText}>Bu kullanıcının beğenileri gizli.</Text>
-            </View>
+            <View style={styles.lockedBox}><Lock size={20} color={c.dim} /><Text style={styles.emptyText}>Bu kullanıcının beğenileri gizli.</Text></View>
           )}
         </View>
       </ScrollView>
@@ -454,6 +451,11 @@ function makeStyles(c) {
     funTitle: { fontSize: 14, fontWeight: "800", color: "#fff" },
     funSubtitle: { fontSize: 10.5, color: "rgba(255,255,255,0.9)", marginTop: 2, lineHeight: 14 },
     sectionTitle: { fontSize: 13, fontWeight: "700", color: c.text, marginTop: 26, marginBottom: 10 },
+    contentTabs: { flexDirection: "row", marginTop: 26, borderBottomWidth: 1, borderBottomColor: c.border },
+    contentTab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" },
+    contentTabActive: { borderBottomColor: c.accent },
+    contentTabText: { color: c.dim, fontSize: 12.5, fontWeight: "800" },
+    contentTabTextActive: { color: c.accent },
     posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
     emptyText: { color: c.dim, fontSize: 12 },
     seeAllBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
