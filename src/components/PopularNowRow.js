@@ -4,8 +4,9 @@ import { Star, Flame } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 
 // Ana Sayfa'nın en üstünde, kişiselleştirilmiş öneri akışından TAMAMEN bağımsız bir şerit —
-// sadece "şu an popüler" 10 içeriği yatay gösteriyor. Tür filtresi dışında hiçbir kişisel
-// sinyalden (beğeni, zevk vektörü vb.) etkilenmiyor — kasıtlı olarak öyle tasarlandı.
+// "Tümü" görünümünde en fazla 20 içeriği yatay gösterir; Film/Dizi filtrelerinde HomeScreen
+// zaten 10'ar içerik gönderir. Tür filtresi dışında hiçbir kişisel sinyalden
+// (beğeni, zevk vektörü vb.) etkilenmiyor — kasıtlı olarak öyle tasarlandı.
 export default function PopularNowRow({ items, onPress, onTouchStart, onTouchEnd }) {
   const { c } = useAppTheme();
   const styles = makeStyles(c);
@@ -46,7 +47,7 @@ export default function PopularNowRow({ items, onPress, onTouchStart, onTouchEnd
         onScrollEndDrag={onTouchEnd}
         onMomentumScrollEnd={onTouchEnd}
       >
-        {items.slice(0, 10).map((m) => (
+        {items.slice(0, 20).map((m) => (
           <TouchableOpacity key={m.id} style={styles.item} onPress={() => onPress(m)} activeOpacity={0.9}>
             <View style={styles.posterWrap}>
               {m.poster ? (
