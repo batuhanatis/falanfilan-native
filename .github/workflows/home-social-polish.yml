@@ -1,0 +1,128 @@
+name: Home Social Polish
+on:
+  push:
+    paths:
+      - '.github/workflows/home-social-polish.yml'
+permissions:
+  contents: write
+jobs:
+  patch-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply home social polish
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # API client: quick reactions.
+          p = Path('src/api/client.js')
+          s = p.read_text()
+          old = '  socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),\n'
+          new = old + '  socialReact: (token, kind, id, reaction) => request(`/api/social/reactions/${kind}/${id}`, { method: "POST", token, body: { reaction } }),\n'
+          assert old in s and 'socialReact:' not in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # Composer: support a daily-question context without pre-filling a submit-ready answer.
+          p = Path('src/components/SocialPostComposer.js')
+          s = p.read_text()
+          s = s.replace(
+            'export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, onClose, onCreated }) {',
+            'export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, onClose, onCreated }) {'
+          )
+          s = s.replace('  }, [visible, initialMovie?.id, initialType]);', '  }, [visible, initialMovie?.id, initialType, initialContext]);', 1)
+          old = '''      await api.socialCreatePost(auth.token, {\n        type: mode,\n        body: body.trim(),\n'''
+          new = '''      const outgoingBody = mode === "thought" && initialContext\n        ? `🔥 Günün Sorusu: ${initialContext}\\n\\n${body.trim()}`\n        : body.trim();\n      await api.socialCreatePost(auth.token, {\n        type: mode,\n        body: outgoingBody,\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''          <TextInput\n            style={styles.bodyInput}\n            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : "Aklında ne var?"}\n'''
+          new = '''          {!!initialContext && mode === "thought" && (\n            <View style={styles.contextCard}>\n              <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>\n              <Text style={styles.contextText}>{initialContext}</Text>\n            </View>\n          )}\n\n          <TextInput\n            style={styles.bodyInput}\n            placeholder={mode === "poll" ? "Sorunu yaz (isteğe bağlı)…" : mode === "recommend" ? "Neden öneriyorsun? (isteğe bağlı)…" : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''    bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },\n'''
+          new = '''    contextCard: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.accent, borderRadius: 14, padding: 11, marginBottom: 10 },\n    contextEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.6 },\n    contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },\n    bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # Feed: 3 quick reactions for both Taste Posts and activity cards.
+          p = Path('src/components/SocialFeedCard.js')
+          s = p.read_text()
+          marker = '''function postLabel(type) {\n  if (type === "recommend") return "öneriyor";\n  if (type === "poll") return "soruyor";\n  return "paylaştı";\n}\n\n'''
+          add = marker + '''const QUICK_REACTIONS = [\n  ["fire", "🔥"],\n  ["agree", "🤝"],\n  ["nope", "😬"],\n];\n\n'''
+          assert marker in s and 'QUICK_REACTIONS' not in s
+          s = s.replace(marker, add, 1)
+          marker = '''  async function vote(movieId) {\n    if (!post?.id || !movieId) return;\n    try {\n      const data = await api.socialVote(auth.token, post.id, movieId);\n      setState((s) => ({ ...s, post: { ...s.post, myVote: data.myVote, pollCounts: data.pollCounts || {} } }));\n      onChanged?.();\n    } catch {}\n  }\n\n'''
+          add = marker + '''  async function react(reaction) {\n    const kind = state.kind === "post" ? "post" : "activity";\n    const id = kind === "post" ? post?.id : state.activityId;\n    if (!id) return;\n    try {\n      const data = await api.socialReact(auth.token, kind, id, reaction);\n      if (kind === "post") {\n        setState((s) => ({ ...s, post: { ...s.post, myReaction: data.myReaction || null, reactionCounts: data.reactionCounts || {} } }));\n      } else {\n        setState((s) => ({ ...s, myReaction: data.myReaction || null, reactionCounts: data.reactionCounts || {} }));\n      }\n      onChanged?.();\n    } catch {}\n  }\n\n'''
+          assert marker in s
+          s = s.replace(marker, add, 1)
+          old = '''      {state.kind === "post" ? (\n        <View style={styles.actions}>\n'''
+          new = '''      {(!!post?.id || !!state.activityId) && (\n        <View style={styles.reactionRow}>\n          {QUICK_REACTIONS.map(([id, emoji]) => {\n            const selected = (post?.myReaction || state.myReaction) === id;\n            const count = Number((post?.reactionCounts || state.reactionCounts || {})[id] || 0);\n            return (\n              <TouchableOpacity key={id} style={[styles.reactionPill, selected && styles.reactionPillActive]} onPress={() => react(id)} activeOpacity={0.8}>\n                <Text style={styles.reactionEmoji}>{emoji}</Text>\n                {count > 0 && <Text style={[styles.reactionCount, selected && { color: c.accent }]}>{count}</Text>}\n              </TouchableOpacity>\n            );\n          })}\n        </View>\n      )}\n\n      {state.kind === "post" ? (\n        <View style={styles.actions}>\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''    actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 12, paddingTop: 11 },\n'''
+          new = '''    reactionRow: { flexDirection: "row", gap: 7, marginTop: 12 },\n    reactionPill: { minWidth: 44, height: 31, paddingHorizontal: 9, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },\n    reactionPillActive: { borderColor: c.accent, backgroundColor: c.surface },\n    reactionEmoji: { fontSize: 14 },\n    reactionCount: { color: c.dim, fontSize: 10, fontWeight: "800" },\n    actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 10, paddingTop: 11 },\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # Home: richer composer + deterministic daily question.
+          p = Path('src/screens/HomeScreen.js')
+          s = p.read_text()
+          s = s.replace('import { Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";', 'import { Flame, Heart, MessageCircle, Plus, Sparkles, Swords } from "lucide-react-native";', 1)
+          s = s.replace('import { useScrollToTop } from "@react-navigation/native";', 'import { useScrollToTop } from "@react-navigation/native";\nimport { LinearGradient } from "expo-linear-gradient";', 1)
+          marker = '''function interleave(a = [], b = [], limit = 20) {\n  const out = [];\n  for (let i = 0; out.length < limit && (i < a.length || i < b.length); i++) {\n    if (i < a.length) out.push(a[i]);\n    if (out.length < limit && i < b.length) out.push(b[i]);\n  }\n  return out;\n}\n\n'''
+          add = marker + '''const DAILY_QUESTIONS = [\n  "Herkesin sevdiği ama senin sevmediğin film hangisi?",\n  "Sonu seni en çok şaşırtan film veya dizi hangisi?",\n  "Tekrar tekrar izleyebileceğin tek bir yapım seçsen hangisi olurdu?",\n  "Bir arkadaşına gözün kapalı önereceğin dizi hangisi?",\n  "Sence gereğinden az değer gören film hangisi?",\n  "İlk 10 dakikasında seni yakalayan yapım hangisiydi?",\n  "Bir karakterin hayatını yaşama şansın olsa kimi seçerdin?",\n  "Sence devam filmi orijinalinden daha iyi olan yapım hangisi?",\n  "Soundtrack'i yüzünden tekrar açtığın film hangisi?",\n  "Bir gecede bitirdiğin en iyi dizi hangisi?",\n  "Keşke hafızamdan silip ilk kez tekrar izlesem dediğin yapım hangisi?",\n  "Seni en çok sinirlendiren final hangisiydi?",\n];\n\nfunction getDailyQuestion() {\n  const now = new Date();\n  const dayKey = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);\n  return DAILY_QUESTIONS[Math.abs(dayKey) % DAILY_QUESTIONS.length];\n}\n\n'''
+          assert marker in s and 'DAILY_QUESTIONS' not in s
+          s = s.replace(marker, add, 1)
+          old = '  const [composerType, setComposerType] = useState("thought");\n'
+          new = old + '  const [composerContext, setComposerContext] = useState(null);\n  const dailyQuestion = useMemo(() => getDailyQuestion(), []);\n'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''  function openComposer(type) {\n    setComposerType(type);\n    setComposerOpen(true);\n  }\n'''
+          new = '''  function openComposer(type, context = null) {\n    setComposerType(type);\n    setComposerContext(context);\n    setComposerOpen(true);\n  }\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''      <View style={styles.composerCard}>\n        <TouchableOpacity style={styles.composerPrompt} onPress={() => openComposer("thought")} activeOpacity={0.85}>\n          <View style={styles.composerPlus}><Plus size={17} color={c.bg} /></View>\n          <View style={{ flex: 1 }}>\n            <Text style={styles.composerTitle}>Zevkin hakkında bir şey paylaş</Text>\n            <Text style={styles.composerSub}>Bir yorum, öneri ya da küçük bir karşılaştırma başlat.</Text>\n          </View>\n        </TouchableOpacity>\n        <View style={styles.quickRow}>\n          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("recommend")}>\n            <Sparkles size={14} color={c.accent} />\n            <Text style={styles.quickText}>Öner</Text>\n          </TouchableOpacity>\n          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("poll")}>\n            <Swords size={14} color={c.accent} />\n            <Text style={styles.quickText}>Anket</Text>\n          </TouchableOpacity>\n          <TouchableOpacity style={styles.quickBtn} onPress={() => openComposer("thought")}>\n            <MessageCircle size={14} color={c.accent} />\n            <Text style={styles.quickText}>Bir şey söyle</Text>\n          </TouchableOpacity>\n        </View>\n      </View>\n\n      <PlayHubCard navigation={navigation} />\n'''
+          new = '''      <LinearGradient\n        colors={[c.accent, "#7C3AED", c.accent2 || c.accent]}\n        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}\n        style={styles.composerGlow}\n      >\n        <View style={styles.composerCard}>\n          <TouchableOpacity style={styles.composerPrompt} onPress={() => openComposer("thought")} activeOpacity={0.85}>\n            <LinearGradient colors={[c.accent, "#7C3AED"]} style={styles.composerPlus}>\n              <Plus size={17} color="#fff" />\n            </LinearGradient>\n            <View style={{ flex: 1 }}>\n              <Text style={styles.composerTitle}>Ne izliyorsun, ne düşünüyorsun?</Text>\n              <Text style={styles.composerSub}>Bir film öner, fikrini söyle veya arkadaşlarına sor.</Text>\n            </View>\n          </TouchableOpacity>\n          <View style={styles.quickRow}>\n            <TouchableOpacity style={[styles.quickBtn, { borderColor: c.accent }]} onPress={() => openComposer("recommend")}>\n              <Sparkles size={14} color={c.accent} />\n              <Text style={[styles.quickText, { color: c.accent }]}>Öner</Text>\n            </TouchableOpacity>\n            <TouchableOpacity style={[styles.quickBtn, { borderColor: "#8B5CF6" }]} onPress={() => openComposer("poll")}>\n              <Swords size={14} color="#8B5CF6" />\n              <Text style={[styles.quickText, { color: "#8B5CF6" }]}>Kapıştır</Text>\n            </TouchableOpacity>\n            <TouchableOpacity style={[styles.quickBtn, { borderColor: c.accent2 || "#EC4899" }]} onPress={() => openComposer("thought")}>\n              <MessageCircle size={14} color={c.accent2 || "#EC4899"} />\n              <Text style={[styles.quickText, { color: c.accent2 || "#EC4899" }]}>Fikrini söyle</Text>\n            </TouchableOpacity>\n          </View>\n        </View>\n      </LinearGradient>\n\n      <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>\n        <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>\n        <View style={{ flex: 1 }}>\n          <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>\n          <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>\n          <Text style={styles.dailyCta}>Cevabını paylaş →</Text>\n        </View>\n      </TouchableOpacity>\n\n      <PlayHubCard navigation={navigation} />\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''        initialType={composerType}\n        onClose={() => setComposerOpen(false)}\n'''
+          new = '''        initialType={composerType}\n        initialContext={composerContext}\n        onClose={() => { setComposerOpen(false); setComposerContext(null); }}\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''    composerCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 13, marginBottom: 12 },\n    composerPrompt: { flexDirection: "row", alignItems: "center", gap: 10 },\n    composerPlus: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },\n'''
+          new = '''    composerGlow: { borderRadius: 20, padding: 1.25, marginBottom: 12 },\n    composerCard: { backgroundColor: c.surface, borderRadius: 19, padding: 13 },\n    composerPrompt: { flexDirection: "row", alignItems: "center", gap: 10 },\n    composerPlus: { width: 40, height: 40, borderRadius: 999, alignItems: "center", justifyContent: "center" },\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''    quickText: { color: c.text, fontSize: 10.5, fontWeight: "800" },\n    feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 },\n'''
+          new = '''    quickText: { color: c.text, fontSize: 10.5, fontWeight: "800" },\n    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginBottom: 12 },\n    dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },\n    dailyEyebrow: { color: "#F97316", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.7 },\n    dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "850", lineHeight: 18, marginTop: 3 },\n    dailyCta: { color: c.accent, fontSize: 10.5, fontWeight: "800", marginTop: 7 },\n    feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 },\n'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir /tmp/pellix-android-export
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir /tmp/pellix-ios-export
+      - name: Validate diff
+        run: git diff --check
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/api/client.js src/components/SocialPostComposer.js src/components/SocialFeedCard.js src/screens/HomeScreen.js
+          git commit -m "Ana sayfa composerini, günün sorusunu ve reaksiyonları ekle"
+          git push
