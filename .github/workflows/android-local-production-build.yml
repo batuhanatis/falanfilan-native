@@ -1,0 +1,60 @@
+name: Android Local Production Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/android-local-production-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Android SDK and NDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android production locally
+        run: |
+          mkdir -p dist
+          eas build --platform android --profile production --local --non-interactive --output ./dist/pellix-production.aab
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-android-production-aab
+          path: dist/pellix-production.aab
+          retention-days: 14
