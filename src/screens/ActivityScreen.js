@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame, Heart, Plus, Sparkles, Users } from "lucide-react-native";
+import { Flame, Heart, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -92,10 +92,10 @@ export default function ActivityScreen({ navigation }) {
   const header = (
     <View>
       <View style={styles.topActions}>
-        <TouchableOpacity style={styles.topActionTouch} onPress={() => openComposer("thought")} activeOpacity={0.88}>
+        <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("GroupParty")} activeOpacity={0.88}>
           <LinearGradient colors={["#FF3D81", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.topActionCard}>
-            <View style={styles.topActionIcon}><Plus size={20} color="#fff" /></View>
-            <View><Text style={styles.topActionEyebrow}>YENİ</Text><Text style={styles.topActionTitle}>Paylaş</Text></View>
+            <View style={styles.topActionIcon}><PartyPopper size={19} color="#fff" /></View>
+            <View><Text style={styles.topActionEyebrow}>BİRLİKTE SEÇ</Text><Text style={styles.topActionTitle}>MatchParty</Text></View>
           </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.88}>
@@ -128,7 +128,14 @@ export default function ActivityScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar centerLabel="Aktivite" />
+      <TopBar
+        centerLabel="Aktivite"
+        leftAction={{
+          icon: <Plus size={20} color={c.text} />,
+          onPress: () => openComposer("thought"),
+          accessibilityLabel: "Paylaşım oluştur",
+        }}
+      />
       {loading && feed.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={c.accent} />
