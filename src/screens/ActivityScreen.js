@@ -31,6 +31,21 @@ function getDailyQuestion() {
   return DAILY_QUESTIONS[Math.abs(dayKey) % DAILY_QUESTIONS.length];
 }
 
+function expandActivityItems(items) {
+  return (items || []).flatMap((item) => {
+    if (item.kind !== "activity" || !Array.isArray(item.movies) || item.movies.length <= 1) {
+      return [{ ...item, feedKey: String(item.id) }];
+    }
+    return item.movies.map((movie) => ({
+      ...item,
+      id: `${item.id}:${movie.id}`,
+      feedKey: `${item.id}:${movie.id}`,
+      activityCount: 1,
+      movies: [movie],
+    }));
+  });
+}
+
 export default function ActivityScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -49,7 +64,7 @@ export default function ActivityScreen({ navigation }) {
     if (!silent) setLoading(true);
     try {
       const data = await api.socialFeed(auth.token);
-      setFeed(data.results || []);
+      setFeed(expandActivityItems(data.results));
     } catch {
       setFeed([]);
     }
@@ -159,7 +174,7 @@ export default function ActivityScreen({ navigation }) {
         <FlatList
           ref={listRef}
           data={feed}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item) => item.feedKey || String(item.id)}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
