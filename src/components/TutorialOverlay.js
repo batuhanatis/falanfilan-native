@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Home, Compass, Users, MessageCircle, User, ChevronRight, X } from "lucide-react-native";
+import { Home, Compass, Activity, MessageCircle, User, ChevronRight, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -16,7 +16,7 @@ const TAB_BAR_HEIGHT_BASE = Platform.OS === "ios" ? 49 : 56;
 const STEPS = [
   { icon: Home, title: "Ana Sayfa", desc: "Senin için seçilmiş öneriler ve arkadaşlarının neler izlediğini burada görürsün." },
   { icon: Compass, title: "Discover", desc: "Film ve dizileri kaydırarak keşfet — sağa kaydır beğen, sola kaydır geç." },
-  { icon: Users, title: "TasteMate", desc: "Zevkine yakın kullanıcıları kaydırarak keşfet, yeni arkadaşlıklar kur." },
+  { icon: Activity, title: "Aktivite", desc: "Arkadaşlarının beğenilerini ve Taste Post’larını gör, yorum yap ve hızlı reaksiyon bırak." },
   { icon: MessageCircle, title: "Sohbet", desc: "Arkadaşlarınla sohbet et, film önerileri paylaş, MatchParty başlatıp birlikte karar verin." },
   { icon: User, title: "Profil", desc: "Profilini düzenle, Blend ile arkadaşlarınla zevk uyumunu gör, Premium'a geç." },
 ];

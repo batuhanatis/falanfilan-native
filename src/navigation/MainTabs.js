@@ -1,11 +1,11 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Home, Compass, Users, MessageCircle, User } from "lucide-react-native";
+import { Home, Compass, Activity, MessageCircle, User } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useUnread } from "../context/UnreadContext";
 import HomeScreen from "../screens/HomeScreen";
 import DiscoverScreen from "../screens/DiscoverScreen";
-import TasteMateScreen from "../screens/TasteMateScreen";
+import ActivityScreen from "../screens/ActivityScreen";
 import ChatStack from "./ChatStack";
 import ProfileScreen from "../screens/ProfileScreen";
 
@@ -30,8 +30,8 @@ export default function MainTabs() {
           "Profil") — TasteMate marka/özellik adı olduğu için İngilizce kalıyor, diğerleri Türkçe. */}
       <Tab.Screen name="Discover" component={DiscoverScreen}
         options={{ title: "Keşfet", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
-      <Tab.Screen name="TasteMate" component={TasteMateScreen}
-        options={{ title: "TasteMate", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
+      <Tab.Screen name="Activity" component={ActivityScreen}
+        options={{ title: "Aktivite", tabBarIcon: ({ color, size }) => <Activity color={color} size={size} /> }} />
       <Tab.Screen name="Chat" component={ChatStack}
         options={{
           title: "Sohbet",

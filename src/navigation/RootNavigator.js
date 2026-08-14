@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAppTheme } from "../context/ThemeContext";
 import { trackScreen } from "../utils/analytics";
 import MainTabs from "./MainTabs";
+import TasteMateScreen from "../screens/TasteMateScreen";
 import DetailScreen from "../screens/DetailScreen";
 import OtherProfileScreen from "../screens/OtherProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -91,6 +92,7 @@ export default function RootNavigator() {
     >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="TasteMate" component={TasteMateScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Detail" component={DetailScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "card" }} />
