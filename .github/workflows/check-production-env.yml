@@ -1,0 +1,35 @@
+name: Check Production Build Environment
+on:
+  push:
+    paths:
+      - '.github/workflows/check-production-env.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+      - name: Verify production RevenueCat variables are locally readable
+        shell: bash
+        run: |
+          set +e
+          for key in EXPO_PUBLIC_REVENUECAT_IOS_KEY EXPO_PUBLIC_REVENUECAT_ANDROID_KEY; do
+            rm -f /tmp/eas-env-value /tmp/eas-env-error
+            eas env:get production --variable-name "$key" --format short --non-interactive >/tmp/eas-env-value 2>/tmp/eas-env-error
+            status=$?
+            if [ $status -eq 0 ] && [ -s /tmp/eas-env-value ]; then
+              echo "$key=READABLE"
+            else
+              echo "$key=NOT_READABLE_OR_MISSING"
+              sed -E 's/(value|Value):.*/\1: [redacted]/' /tmp/eas-env-error | head -n 5
+            fi
+          done
+          rm -f /tmp/eas-env-value /tmp/eas-env-error
