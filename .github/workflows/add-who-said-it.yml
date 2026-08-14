@@ -1,0 +1,195 @@
+name: Add Who Said It Native
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-who-said-it.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Who Said It to Pellix Play
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          api = Path('src/api/play.js')
+          p = api.read_text()
+          if 'whoSaidIt:' not in p:
+              anchor = '  blindPick: (token) => playRequest("/api/play/blind-pick", token),\n'
+              if anchor not in p:
+                  raise SystemExit('play.js blindPick anchor bulunamadı')
+              p = p.replace(anchor, '  whoSaidIt: (token) => playRequest("/api/play/who-said-it", token),\n  answerWhoSaidIt: (token, questionId, chosen) => playRequest("/api/play/who-said-it/answer", token, { method: "POST", body: { questionId, chosen } }),\n' + anchor, 1)
+          api.write_text(p)
+
+          screen = Path('src/screens/PellixPlayScreen.js')
+          s = screen.read_text()
+
+          old_import = 'import { ChevronLeft, Swords, Users, EyeOff, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";'
+          new_import = 'import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X } from "lucide-react-native";'
+          if old_import in s:
+              s = s.replace(old_import, new_import, 1)
+          elif 'Quote,' not in s and ' Quote ' not in s:
+              raise SystemExit('lucide import anchor bulunamadı')
+
+          if 'who_said_it:' not in s:
+              anchor = '  blind_pick: { title: "Blind Pick", subtitle: "İsim ve poster yok. Sadece ipuçları.", icon: EyeOff },\n'
+              if anchor not in s:
+                  raise SystemExit('GAME_META anchor bulunamadı')
+              s = s.replace(anchor, anchor + '  who_said_it: { title: "Who Said It?", subtitle: "İkonik repliği hangi karakter söyledi?", icon: Quote },\n', 1)
+
+          if 'activeGame === "who_said_it"' not in s:
+              anchor = '''      ) : activeGame === "blind_pick" ? (
+        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+      ) : ('''
+              replacement = '''      ) : activeGame === "blind_pick" ? (
+        <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+      ) : activeGame === "who_said_it" ? (
+        <WhoSaidIt token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+      ) : ('''
+              if anchor not in s:
+                  raise SystemExit('activeGame anchor bulunamadı')
+              s = s.replace(anchor, replacement, 1)
+
+          if 'function WhoSaidIt(' not in s:
+              anchor = 'function BlindPick({ token, styles, c, onDisabled }) {'
+              if anchor not in s:
+                  raise SystemExit('BlindPick component anchor bulunamadı')
+              component = r'''function WhoSaidIt({ token, styles, c, onDisabled }) {
+  const [questions, setQuestions] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [answering, setAnswering] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true); setIndex(0); setScore(0); setFeedback(null); setAnswering(false);
+    try {
+      const data = await playApi.whoSaidIt(token);
+      setQuestions(data.questions || []);
+    } catch (e) {
+      if (e.disabled) onDisabled();
+      setQuestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function answer(chosen) {
+    if (feedback || answering) return;
+    const q = questions[index];
+    if (!q) return;
+    setAnswering(true);
+    try {
+      const result = await playApi.answerWhoSaidIt(token, q.id, chosen);
+      if (result.correct) setScore((v) => v + 1);
+      setFeedback({ ...result, chosen });
+    } catch (e) {
+      if (e.disabled) onDisabled();
+    } finally {
+      setAnswering(false);
+    }
+  }
+
+  function next() {
+    if (index >= questions.length - 1) setIndex(questions.length);
+    else {
+      setIndex((v) => v + 1);
+      setFeedback(null);
+    }
+  }
+
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
+  if (index >= questions.length) return <GameDone styles={styles} title={`${score}/${questions.length}`} text="Kaç ikonik repliği bildiğini gördün." onAgain={load} />;
+  const q = questions[index];
+  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+
+  return (
+    <ScrollView contentContainerStyle={styles.gameContent}>
+      <Text style={styles.progressText}>{index + 1} / {questions.length} · Skor {score}</Text>
+      <View style={[styles.blindCard, { gap: 12 }]}> 
+        <Quote size={32} color={c.accent} />
+        <Text style={{ color: c.text, fontSize: 22, lineHeight: 30, fontWeight: "800", textAlign: "center" }}>“{q.quote}”</Text>
+        <Text style={{ color: c.dim, fontSize: 12.5, textAlign: "center" }}>Bu repliği kim söyledi?</Text>
+      </View>
+
+      <View style={{ gap: 10, marginTop: 18 }}>
+        {q.options.map((option) => {
+          const isCorrect = feedback && option === feedback.answer;
+          const isWrong = feedback && option === feedback.chosen && !feedback.correct;
+          return (
+            <TouchableOpacity
+              key={option}
+              disabled={!!feedback || answering}
+              onPress={() => answer(option)}
+              activeOpacity={0.82}
+              style={{
+                minHeight: 52,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: isCorrect ? "#22c55e" : isWrong ? "#ef4444" : c.border,
+                backgroundColor: isCorrect ? "rgba(34,197,94,0.12)" : isWrong ? "rgba(239,68,68,0.12)" : c.surface,
+                paddingHorizontal: 15,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: answering ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: c.text, fontWeight: "800", fontSize: 14, textAlign: "center" }}>{option}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {feedback && (
+        <View style={{ marginTop: 18, gap: 10 }}>
+          <Text style={{ color: feedback.correct ? "#22c55e" : "#ef4444", fontSize: 14, fontWeight: "900", textAlign: "center" }}>
+            {feedback.correct ? "Doğru!" : `Doğru cevap: ${feedback.answer}`}
+          </Text>
+          <Text style={{ color: c.dim, fontSize: 12, textAlign: "center" }}>{feedback.movie}</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={next}>
+            <Text style={styles.primaryBtnText}>{index >= questions.length - 1 ? "Sonucu Gör" : "Sonraki"}</Text>
+            <ArrowRight size={17} color={c.bg} />
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+'''
+              s = s.replace(anchor, component + anchor, 1)
+
+          screen.write_text(s)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Android export
+        run: npx expo export --platform android --output-dir dist-who-said-it-android
+
+      - name: Validate iOS export
+        run: npx expo export --platform ios --output-dir dist-who-said-it-ios
+
+      - name: Commit changes and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/api/play.js src/screens/PellixPlayScreen.js
+          git rm .github/workflows/add-who-said-it.yml
+          git commit -m "Who Said It oyununu Pellix Play'e ekle"
+          git push
