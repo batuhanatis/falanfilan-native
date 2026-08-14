@@ -411,6 +411,13 @@ export default function ProfileScreen({ navigation, route }) {
           onClose={() => setShowShareCard(false)}
           shareMessage={`${profile.name} pellix'te profilini paylaştı 🎬`}
           shareUrl={profile.username ? `https://open.pellix.app/u/${profile.username}` : undefined}
+          socialCard={{
+            kind: "profile", userId: auth.id, name: profile.name, username: profile.username, avatarUrl: profile.avatarUrl,
+            likeCount, friendCount: profile.friendCount || 0, listCount: watchlists.length,
+            favoriteMovie: profile.favoriteMovie ? { id: profile.favoriteMovie.id, title: profile.favoriteMovie.title, poster: profile.favoriteMovie.poster } : null,
+            favoriteShow: profile.favoriteShow ? { id: profile.favoriteShow.id, title: profile.favoriteShow.title, poster: profile.favoriteShow.poster } : null,
+            isPremium: !!premiumStatus?.isPremium,
+          }}
           pages={
             showPremiumBackground
               ? [
