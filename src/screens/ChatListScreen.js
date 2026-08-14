@@ -21,7 +21,16 @@ import TopBar from "../components/TopBar";
 // BİTİŞİK (ardışık), AYNI kullanıcıdan gelen "like" tipi aktiviteler gruplanıyor.
 function groupActivity(items) {
   const groups = [];
+  // Backend güncel durumda user+movie başına tek like döndürüyor; yine de eski
+  // prefetch/cache veya geçiş dönemindeki bir response duplicate taşıyabilirse UI'da
+  // aynı içeriği ikinci kez göstermeyelim. Sıralı ilk (yani en yeni) kayıt kalır.
+  const seenLikeMovies = new Set();
   for (const item of items) {
+    if (item.type === "like" && item.movie?.id != null) {
+      const likeKey = `${item.user?.id}:${item.movie.id}`;
+      if (seenLikeMovies.has(likeKey)) continue;
+      seenLikeMovies.add(likeKey);
+    }
     const prev = groups[groups.length - 1];
     if (item.type === "like" && prev && prev.type === "like" && prev.user.id === item.user.id) {
       if (item.movie) prev.movies.push(item.movie);
