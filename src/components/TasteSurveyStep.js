@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Heart, Check, Sparkles } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -18,6 +19,7 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
 
   const [selectedGenres, setSelectedGenres] = useState(new Set());
   const [favMovie, setFavMovie] = useState(null);
@@ -118,7 +120,7 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
           <Text style={styles.skipText}>{skipLabel}</Text>
         </TouchableOpacity>

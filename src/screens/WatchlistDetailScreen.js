@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndi
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, X, Share2, Lock, Globe, Wand2, Pencil, Check, ListChecks, Dices, Search, UserPlus, LogOut } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
@@ -18,6 +19,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
   const { watchlistId } = route.params;
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(c);
 
   const [items, setItems] = useState([]);
@@ -58,6 +60,9 @@ export default function WatchlistDetailScreen({ route, navigation }) {
   const [collabBusyId, setCollabBusyId] = useState(null);
 
   const canEdit = listInfo.isOwner || listInfo.isCollaborator;
+  const availableCollabFriends = friends.filter(
+    (f) => !listInfo.collaborators.some((u) => u.id === f.id)
+  );
 
   const load = useCallback(() => {
     setLoading(true);
@@ -448,25 +453,47 @@ export default function WatchlistDetailScreen({ route, navigation }) {
       {showCollabPicker && (
         <View style={styles.collabPickerOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowCollabPicker(false)} />
-          <View style={styles.collabPickerSheet}>
+          <View style={[styles.collabPickerSheet, { paddingBottom: 16 + insets.bottom }]}>
             <View style={styles.collabPickerHeader}>
-              <Text style={styles.collabPickerTitle}>Ortak düzenleyici ekle</Text>
-              <TouchableOpacity onPress={() => setShowCollabPicker(false)}><X size={18} color={c.text} /></TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.collabPickerTitle}>Ortak düzenleyici ekle</Text>
+                <Text style={styles.collabPickerSubtitle}>Arkadaşlarından birini seç</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCollabPicker(false)} style={styles.collabPickerClose}>
+                <X size={18} color={c.text} />
+              </TouchableOpacity>
             </View>
-            {friends.length === 0 ? (
+            {availableCollabFriends.length === 0 ? (
               <Text style={styles.emptyText}>Ekleyebileceğin bir arkadaşın yok.</Text>
             ) : (
-              friends
-                .filter((f) => !listInfo.collaborators.some((u) => u.id === f.id))
-                .map((f) => (
-                  <View key={f.id} style={styles.collabPickerRow}>
+              <FlatList
+                data={availableCollabFriends}
+                keyExtractor={(item) => String(item.id)}
+                numColumns={3}
+                style={styles.collabPickerList}
+                contentContainerStyle={styles.collabPickerListContent}
+                columnWrapperStyle={styles.collabPickerColumn}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                persistentScrollbar
+                indicatorStyle="white"
+                renderItem={({ item: f }) => (
+                  <TouchableOpacity
+                    style={styles.collabPickerCell}
+                    onPress={() => addCollaborator(f.id)}
+                    disabled={collabBusyId === f.id}
+                    activeOpacity={0.75}
+                  >
                     <RetryImage source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.collabPickerAvatar} />
                     <Text style={styles.collabPickerName} numberOfLines={1}>{f.name}</Text>
-                    <TouchableOpacity onPress={() => addCollaborator(f.id)} disabled={collabBusyId === f.id}>
-                      {collabBusyId === f.id ? <ActivityIndicator size="small" color={c.accent} /> : <Text style={styles.collabPickerAdd}>Ekle</Text>}
-                    </TouchableOpacity>
-                  </View>
-                ))
+                    {collabBusyId === f.id ? (
+                      <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 5 }} />
+                    ) : (
+                      <Text style={styles.collabPickerAdd}>Ekle</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
             )}
           </View>
         </View>
@@ -543,12 +570,23 @@ function makeStyles(c) {
     },
     emptyText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 10 },
     collabPickerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-    collabPickerSheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: "60%" },
-    collabPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+    collabPickerSheet: {
+      backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      paddingHorizontal: 16, paddingTop: 18, maxHeight: "72%",
+    },
+    collabPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 },
     collabPickerTitle: { fontSize: 15, fontWeight: "800", color: c.text },
-    collabPickerRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
-    collabPickerAvatar: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },
-    collabPickerName: { flex: 1, fontSize: 13, color: c.text, fontWeight: "600" },
-    collabPickerAdd: { fontSize: 12, fontWeight: "800", color: c.accent },
+    collabPickerSubtitle: { fontSize: 11, color: c.dim, marginTop: 2 },
+    collabPickerClose: { width: 30, height: 30, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    collabPickerList: { flexGrow: 0 },
+    collabPickerListContent: { gap: 12, paddingRight: 3, paddingBottom: 6 },
+    collabPickerColumn: { gap: 10 },
+    collabPickerCell: {
+      flex: 1, minWidth: 0, alignItems: "center", borderRadius: 14, backgroundColor: c.surface2,
+      borderWidth: 1, borderColor: c.border, paddingHorizontal: 6, paddingVertical: 11,
+    },
+    collabPickerAvatar: { width: 58, height: 58, borderRadius: 999, backgroundColor: c.surface2 },
+    collabPickerName: { width: "100%", fontSize: 11.5, color: c.text, fontWeight: "700", textAlign: "center", marginTop: 7 },
+    collabPickerAdd: { fontSize: 10.5, fontWeight: "800", color: c.accent, marginTop: 5 },
   });
 }

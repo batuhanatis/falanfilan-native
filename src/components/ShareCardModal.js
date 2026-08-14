@@ -90,7 +90,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
           </TouchableOpacity>
 
           <TouchableWithoutFeedback onPress={() => {}}>
-            <DismissableSheet onClose={onClose} style={{}} showGrabber={false}>
+            <DismissableSheet onClose={onClose} style={{}} showGrabber={false} respectBottomInset={false}>
               <TouchableWithoutFeedback onPress={cycleCard} disabled={!isMultiPage}>
                 <Animated.View style={{ opacity: fadeAnim }}>
                   <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>

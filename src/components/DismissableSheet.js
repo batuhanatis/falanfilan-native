@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { Animated, PanResponder, View, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 
 // ÖNEMLİ: Uygulamadaki TÜM popup/alt sayfa (arkadaş ekleme, bildirimler, MatchParty daveti,
@@ -30,8 +31,22 @@ import { useAppTheme } from "../context/ThemeContext";
 // vb.) kendi kaydırma/dokunma davranışını serbestçe kullanabiliyor. Bu, "style" prop'unu
 // DOĞRUDAN görünür sheet kutusuna uygulayan tüketiciler için işliyor — yerleşik tutamaç zaten o
 // kutunun İÇİNDE render edildiği için handleOnly eklemek tek satırlık bir değişiklik.
-export default function DismissableSheet({ onClose, style, children, dismissThreshold = 120, direction = "down", showGrabber = true, handleOnly = false }) {
+export default function DismissableSheet({ onClose, style, children, dismissThreshold = 120, direction = "down", showGrabber = true, handleOnly = false, respectBottomInset = true }) {
   const { c } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  // Android edge-to-edge / gesture-navigation ve iOS home-indicator alanında sheet'in en
+  // altındaki butonların sistem çubuğunun arkasında kalmaması için, aşağıdan açılan TÜM
+  // DismissableSheet'lere varsayılan olarak güvenli alt boşluk ekliyoruz. Tüketici zaten
+  // paddingBottom ile safe-area uyguluyorsa Math.max sayesinde ikinci kez eklenmiyor.
+  const flatStyle = StyleSheet.flatten(style) || {};
+  const baseBottomPadding = Number(
+    flatStyle.paddingBottom ?? flatStyle.paddingVertical ?? flatStyle.padding ?? 0
+  ) || 0;
+  const safeBottomPadding =
+    respectBottomInset && direction === "down"
+      ? Math.max(baseBottomPadding, insets.bottom + 12)
+      : null;
   const sign = direction === "up" ? -1 : 1;
   const translateY = useRef(new Animated.Value(0)).current;
   // ÖNEMLİ: "şu an nerede olduğumuzu" ayrıca bir ref'te de senkron takip ediyoruz, jest
@@ -80,7 +95,11 @@ export default function DismissableSheet({ onClose, style, children, dismissThre
 
   return (
     <Animated.View
-      style={[style, { transform: [{ translateY }] }]}
+      style={[
+        style,
+        safeBottomPadding != null && { paddingBottom: safeBottomPadding },
+        { transform: [{ translateY }] },
+      ]}
       {...bodyHandlers}
     >
       {showGrabber && direction === "down" && (

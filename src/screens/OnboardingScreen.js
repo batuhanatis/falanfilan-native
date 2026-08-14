@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
 import { Heart, ChevronLeft, Sparkles } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -17,6 +18,7 @@ export default function OnboardingScreen() {
   const { c } = useAppTheme();
   const { auth, markOnboardingComplete } = useAuth();
   const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
   // OB1 — eskiden hiçbir karşılama/marka anı olmadan direkt forma düşülüyordu. Artık kısa bir
   // "0. adım" var: logo + tagline, dokununca gerçek akış (zevk anketi) başlıyor.
   const [step, setStep] = useState(0);
@@ -26,7 +28,7 @@ export default function OnboardingScreen() {
   }
 
   if (step === 0) {
-    return <WelcomeStep c={c} styles={styles} name={auth?.name?.split(" ")[0]} onContinue={() => setStep(1)} />;
+    return <WelcomeStep c={c} styles={styles} insets={insets} name={auth?.name?.split(" ")[0]} onContinue={() => setStep(1)} />;
   }
 
   if (step === 1) {
@@ -46,6 +48,7 @@ export default function OnboardingScreen() {
       c={c}
       styles={styles}
       auth={auth}
+      insets={insets}
       onBack={() => setStep(1)}
       onSkip={finishOnboarding}
       onFinish={finishOnboarding}
@@ -54,7 +57,7 @@ export default function OnboardingScreen() {
 }
 
 // ---- Adım 0: karşılama/marka anı (OB1) ----
-function WelcomeStep({ c, styles, name, onContinue }) {
+function WelcomeStep({ c, styles, insets, name, onContinue }) {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -73,7 +76,7 @@ function WelcomeStep({ c, styles, name, onContinue }) {
         <Text style={styles.welcomeTitle}>{name ? `Hoş geldin, ${name}` : "Hoş geldin"}</Text>
         <Text style={styles.welcomeSubtitle}>Birkaç soru soralım, sana özel bir akış kuralım.</Text>
       </Animated.View>
-      <TouchableOpacity style={styles.welcomeBtn} onPress={onContinue}>
+      <TouchableOpacity style={[styles.welcomeBtn, { bottom: Math.max(24, insets.bottom + 16) }]} onPress={onContinue}>
         <Text style={styles.welcomeBtnText}>Başlayalım</Text>
       </TouchableOpacity>
     </View>
@@ -81,7 +84,7 @@ function WelcomeStep({ c, styles, name, onContinue }) {
 }
 
 // ---- Adım 2: en az 5 içerik beğen (mevcut akış, aynen korunuyor) ----
-function LikePicksStep({ c, styles, auth, onBack, onSkip, onFinish }) {
+function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   const [movies, setMovies] = useState([]);
   const [picked, setPicked] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -182,7 +185,7 @@ function LikePicksStep({ c, styles, auth, onBack, onSkip, onFinish }) {
         }}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
           <Text style={styles.skipText}>Atla</Text>
         </TouchableOpacity>
