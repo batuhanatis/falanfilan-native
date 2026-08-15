@@ -8,7 +8,7 @@ import * as FileSystem from "expo-file-system";
 import {
   ChevronLeft, Send, Film, MessageCircle, Camera, Image as ImageIcon, X, Timer,
   Infinity as InfinityIcon, Download, Check, Reply, Trash2, Pencil, CheckSquare, Sparkles, BarChart2,
-  CalendarClock, Plus, ChevronDown,
+  CalendarClock, Plus, ChevronDown, MoreVertical, Flag, Ban,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -34,6 +34,7 @@ import DismissableSheet from "../components/DismissableSheet";
 import TypingBubble from "../components/TypingBubble";
 import Confetti from "../components/Confetti";
 import ChatMessageRow from "../components/ChatMessageRow";
+import ReportUserModal from "../components/ReportUserModal";
 import { dayLabel, timeLabel } from "../utils/chatTimeLabels";
 
 const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
@@ -173,6 +174,12 @@ export default function ChatConversationScreen({ route, navigation }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [highlightedId, setHighlightedId] = useState(null); // alıntıya tıklayınca kısaca vurgulanan mesaj
+  // ÖNEMLİ: Eskiden bu kişiyi şikayet etmek/engellemek için önce profiline gitmek gerekiyordu —
+  // App Store'un kullanıcı-kullanıcı mesajlaşmada istediği DOĞRUDAN bir yol için, header'a kısa
+  // yoldan bir menü ekledik (bkz. OtherProfileScreen'deki aynı desen).
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   const messagesById = useMemo(() => {
     const map = new Map();
@@ -769,6 +776,32 @@ export default function ChatConversationScreen({ route, navigation }) {
     navigation.navigate("MatchParty", { friend: { id: friendId, name: friendName, avatarUrl: friendAvatar } });
   }
 
+  // OtherProfileScreen'deki confirmBlock ile aynı akış — burada engellendikten sonra bu sohbette
+  // kalmanın bir anlamı kalmıyor, o yüzden geri (sohbet listesine) dönüyoruz.
+  function confirmBlockFromChat() {
+    setShowChatMenu(false);
+    Alert.alert(
+      "Engelle",
+      `${friendName} kişisini engellemek istediğine emin misin? Artık birbirinize mesaj gönderemezsiniz, arkadaşsanız arkadaşlık da kalkar.`,
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Engelle",
+          style: "destructive",
+          onPress: async () => {
+            setBlocking(true);
+            try {
+              await api.blockUser(auth.token, friendId);
+              navigation.goBack();
+            } catch {
+              setBlocking(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   const flatData = useMemo(() => {
     // Gün ayırıcılarını mesaj listesinin arasına serpiştiriyoruz.
     const out = [];
@@ -927,9 +960,31 @@ export default function ChatConversationScreen({ route, navigation }) {
             {/* CH3 — bu arkadaşla bekleyen/aktif bir oturum varken nabız atan bir nokta. */}
             {partyActive && <Animated.View style={[styles.partyPulseDot, { opacity: partyPulse }]} />}
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowChatMenu(true)} style={{ padding: 2 }} disabled={blocking}>
+            <MoreVertical size={20} color={c.text} />
+          </TouchableOpacity>
         </View>
       )}
 
+      {showChatMenu && (
+        <View style={styles.chatMenuOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowChatMenu(false)} />
+          <View style={styles.chatMenuSheet}>
+            <TouchableOpacity style={styles.chatMenuRow} onPress={() => { setShowChatMenu(false); setShowReportModal(true); }}>
+              <View style={styles.chatMenuIconWrap}><Flag size={16} color={c.text} /></View>
+              <Text style={styles.chatMenuText}>Şikayet Et</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.chatMenuRow} onPress={confirmBlockFromChat}>
+              <View style={styles.chatMenuIconWrap}><Ban size={16} color={c.danger} /></View>
+              <Text style={[styles.chatMenuText, { color: c.danger }]}>Engelle</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {showReportModal && (
+        <ReportUserModal userId={friendId} userName={friendName} onClose={() => setShowReportModal(false)} />
+      )}
 
       {/* ÖNEMLİ DÜZELTME: "behavior" burada Android için hâlâ "height" idi — bu, Android'in
           zaten varsayılan olarak (windowSoftInputMode: resize) kendi native yeniden-boyutlandırmasıyla
@@ -1289,6 +1344,19 @@ function makeStyles(c, insets) {
       position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 999,
       backgroundColor: "#4ADE80", borderWidth: 1.5, borderColor: c.bg,
     },
+    chatMenuOverlay: {
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+      backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-start", alignItems: "flex-end",
+      paddingTop: 90, paddingRight: 16,
+    },
+    chatMenuSheet: {
+      backgroundColor: c.surface, borderRadius: 14, paddingVertical: 6, width: 200,
+      borderWidth: 1, borderColor: c.border,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+    },
+    chatMenuRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
+    chatMenuIconWrap: { width: 26, alignItems: "center" },
+    chatMenuText: { fontSize: 13, fontWeight: "600", color: c.text },
     bubble: {
       maxWidth: "100%", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, overflow: "hidden",
       shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2,
