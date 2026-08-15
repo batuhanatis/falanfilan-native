@@ -9,6 +9,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import { encodeMovieShare } from "../utils/movieShare";
 import { encodeListShare } from "../utils/listShare";
+import { encodeActivityShare } from "../utils/activityShare";
 import { getStoreLink } from "../utils/appLinks";
 import DismissableSheet from "./DismissableSheet";
 import { updateLocalMessage } from "../utils/chatDb";
@@ -18,7 +19,7 @@ import { appendPrefetchedMessage } from "../utils/chatMessagesPrefetch";
 // prop'larından SADECE biri verilir. İki ayrı, neredeyse birebir aynı dosya oluşturmak yerine
 // tek bir yerde tutmak, gelecekte yapılacak değişikliklerin (ör. tasarım güncellemesi) iki
 // dosyada da tekrarlanması gerekmesin diye.
-export default function SendToFriendModal({ movie, list, onClose, onSent }) {
+export default function SendToFriendModal({ movie, list, activity, onClose, onSent }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -50,7 +51,9 @@ export default function SendToFriendModal({ movie, list, onClose, onSent }) {
     setSending(true);
     try {
       const { chat_id } = await api.chatWith(auth.token, selectedFriend.id);
-      const body = list
+      const body = activity
+        ? encodeActivityShare(activity)
+        : list
         ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
         : encodeMovieShare(movie);
       const msg = await api.sendMessage(auth.token, chat_id, body);
@@ -99,7 +102,19 @@ export default function SendToFriendModal({ movie, list, onClose, onSent }) {
           </View>
 
           <View style={styles.moviePreview}>
-            {list ? (
+            {activity ? (
+              <>
+                {(activity.post?.movie || activity.movies?.[0])?.poster
+                  ? <Image source={{ uri: (activity.post?.movie || activity.movies?.[0]).poster }} style={styles.moviePoster} />
+                  : <View style={[styles.moviePoster, { backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }]}><Send size={18} color={c.dim} /></View>}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.movieTitle} numberOfLines={1}>{activity.user?.name || "Aktivite paylaşımı"}</Text>
+                  <Text style={styles.movieMeta} numberOfLines={2}>
+                    {activity.post?.body || (activity.activityType === "favorite_set" ? "Favorisini güncelledi" : activity.activityType === "like" ? "Bir içeriği beğendi" : "Bir paylaşım yaptı")}
+                  </Text>
+                </View>
+              </>
+            ) : list ? (
               <>
                 {list.previewPoster
                   ? <Image source={{ uri: list.previewPoster }} style={styles.moviePoster} />
@@ -207,7 +222,7 @@ export default function SendToFriendModal({ movie, list, onClose, onSent }) {
 
           {/* Dış paylaşım (WhatsApp vb.) sadece FİLM paylaşımında var — listeler gizlilik
               ayarına bağlı olduğu ve henüz bir web sayfası olmadığı için sadece uygulama içi. */}
-          {!list && (
+          {!list && !activity && (
             <>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
