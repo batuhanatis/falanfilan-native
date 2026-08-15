@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2 } from "lucide-react-native";
+import * as WebBrowser from "expo-web-browser";
+import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2, Play } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -49,7 +50,7 @@ export default function DetailScreen({ route, navigation }) {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
-  const [extra, setExtra] = useState({ director: null, cast: [], similar: [] });
+  const [extra, setExtra] = useState({ director: null, cast: [], similar: [], trailers: [] });
   const scrollRef = useRef(null);
 
   // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
@@ -261,6 +262,14 @@ export default function DetailScreen({ route, navigation }) {
     }
   }
 
+  function openTrailer(trailer) {
+    if (!trailer?.key) return;
+    hapticLight();
+    WebBrowser.openBrowserAsync(`https://www.youtube.com/watch?v=${trailer.key}`, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+    }).catch(() => {});
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* Poster: kabı sabit boyutta, ama içindeki görsel translateY'e bağlı hafif bir
@@ -421,6 +430,27 @@ export default function DetailScreen({ route, navigation }) {
 
           <View style={styles.divider} />
 
+          {extra.trailers?.length > 0 && (
+            <View style={{ marginTop: 18 }}>
+              <Text style={styles.castSectionLabel}>FRAGMANLAR</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, marginTop: 8 }}>
+                {extra.trailers.map((trailer) => (
+                  <TouchableOpacity key={trailer.key} style={styles.trailerCard} activeOpacity={0.86} onPress={() => openTrailer(trailer)}>
+                    <Image source={{ uri: trailer.thumbnail }} style={styles.trailerImage} />
+                    <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFillObject} />
+                    <View style={styles.trailerPlay}>
+                      <Play size={18} color="#fff" fill="#fff" />
+                    </View>
+                    <View style={styles.trailerCopy}>
+                      <Text style={styles.trailerTitle} numberOfLines={2}>{trailer.name}</Text>
+                      <Text style={styles.trailerMeta}>{trailer.language === "tr" ? "Türkçe" : "Orijinal"} · {trailer.type === "Teaser" ? "Tanıtım" : "Fragman"}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {(extra.director || extra.cast.length > 0) && (
             <View style={{ marginTop: 18 }}>
               {extra.director && (
@@ -537,6 +567,12 @@ function makeStyles(c) {
     platformPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
     platformPillLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     platformPillText: { fontSize: 11, color: c.text },
+    trailerCard: { width: 230, height: 130, borderRadius: 14, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
+    trailerImage: { width: "100%", height: "100%" },
+    trailerPlay: { position: "absolute", left: "50%", top: "50%", marginLeft: -21, marginTop: -21, width: 42, height: 42, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.66)", alignItems: "center", justifyContent: "center", paddingLeft: 2 },
+    trailerCopy: { position: "absolute", left: 11, right: 11, bottom: 9 },
+    trailerTitle: { color: "#fff", fontSize: 11.5, fontWeight: "800" },
+    trailerMeta: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, fontWeight: "700", marginTop: 2 },
     divider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: c.border, marginVertical: 18 },
     castSectionLabel: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5 },
     directorLink: { alignSelf: "flex-start", paddingVertical: 5, paddingRight: 10 },
