@@ -97,25 +97,16 @@ export default function OtherProfileScreen({ route, navigation }) {
   async function startChat() {
     try {
       const { chat_id } = await api.chatWith(auth.token, userId);
-      // ÖNEMLİ: OtherProfile, kök stack'te MainTabs'ın KARDEŞİ (içinde değil) — "Chat" adı
-      // sadece MainTabs'ın bir sekmesi olarak var. Doğrudan navigation.navigate("Chat", ...)
-      // kök stack'te böyle bir rota bulamadığı için sessizce hiçbir şey yapmıyordu (boş ekran
-      // gibi görünüyordu). Önce MainTabs'a, sonra onun içindeki Chat sekmesine iniyoruz.
-      //
-      // ÖNEMLİ DÜZELTME (2): Sohbetler sekmesi bu oturumda hiç ziyaret edilmediyse, doğrudan
-      // "ChatConversation"a atlamak ChatList'i hiç OLUŞTURMADAN o sekmenin TEK rotası yapıyordu
-      // — geri tuşu Ana Sayfa'ya düşüyordu, alt sekmeden tekrar Sohbetler'e basınca da hep AYNI
-      // sohbet açılıyordu (App.js'teki push bildirimi akışında AYNI hatayı zaten çözmüştük,
-      // buradaki de birebir aynı kök neden). Önce ChatList'i temel olarak kuruyoruz, hemen
-      // ardından (liste artık temelde dururken) sohbeti ÜSTÜNE ekliyoruz.
-      const friendParams = { chatId: chat_id, friendId: userId, friendName: profile.name, friendAvatar: avatarOr(profile.avatarUrl, userId) };
-      // ÖNEMLİ DÜZELTME: Sabit 300ms yerine, navigasyon state'inin GERÇEKTEN değiştiğini
-      // dinleyip ikinci adımı ancak o zaman tetikliyoruz — cihaz hızından bağımsız, deterministik.
-      navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatList" } });
-      const unsub = navigation.addListener("state", () => {
-        unsub();
-        navigation.navigate("MainTabs", { screen: "Chat", params: { screen: "ChatConversation", params: friendParams } });
-      });
+      // Profil kaynaklı sohbeti Chat sekmesinin kendi stack'ine koymuyoruz. Kök stack'te
+      // profil ekranının ÜSTÜNE açıldığı için geri hareketi deterministik biçimde bu profile döner;
+      // ayrıca alt bardaki Sohbet sekmesinin son rotasını kirletmez.
+      const friendParams = {
+        chatId: chat_id,
+        friendId: userId,
+        friendName: profile.name,
+        friendAvatar: avatarOr(profile.avatarUrl, userId),
+      };
+      navigation.navigate("ProfileChat", friendParams);
     } catch {}
   }
 
