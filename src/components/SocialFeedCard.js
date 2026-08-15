@@ -157,7 +157,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
   const mood = state.kind === "activity" ? activityMood(state) : null;
-  const isOwnPost = state.kind === "post" && Number(user.id) === Number(auth.id);
+  const isOwnPost = state.kind === "post" && Number(user.id) === Number(auth.id);\n  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");
 
   if (removed) return null;
 
@@ -221,7 +221,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             );
           })}
         </View>
-      ) : state.kind === "activity" && primaryMovie ? (
+      ) : (state.kind === "activity" || isDailyQuestionPost) && primaryMovie ? (
         <TouchableOpacity style={styles.activityMovieCard} onPress={() => openMovie(primaryMovie)} activeOpacity={0.88}>
           {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.activityPoster} resizeMode="contain" /> : <View style={[styles.activityPoster, { backgroundColor: c.surface2 }]} />}
           <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={styles.activityPosterShade} />
