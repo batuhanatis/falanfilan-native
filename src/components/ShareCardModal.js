@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated } from "react-native";
+import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated, useWindowDimensions } from "react-native";
 import ViewShot from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
 import { X, Share2, Download, Check, Radio } from "lucide-react-native";
@@ -29,11 +29,18 @@ const APP_LINK = "https://www.pellix.app";
 // muhtemelen üstteki TouchableWithoutFeedback katmanlarıyla ilişkiliydi). Basit bir dokunuş,
 // hiçbir gesture-negotiation riski taşımadığı için kesin çalışıyor — ayrıca DismissableSheet'in
 // aşağı-çekerek-kapatması da artık HİÇBİR kullanımda (Blend/MatchParty/Profil) engellenmiyor.
-export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK, socialCard, onSocialShared }) {
+export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK, socialCard, onSocialShared, previewHeight }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const styles = makeStyles(c);
+  // Büyük, dışa aktarılacak kartın gerçek çözünürlüğünü değiştirmeden yalnızca ekrandaki
+  // önizlemesini Android'in kullanılabilir yüksekliğine sığdır.
+  const previewScale = previewHeight
+    ? Math.min(1, Math.max(0.58, (windowHeight - insets.top - insets.bottom - 150) / previewHeight))
+    : 1;
+  const previewMargin = previewHeight ? -((previewHeight * (1 - previewScale)) / 2) : 0;
   const shotRef = useRef(null);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -108,7 +115,13 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={{}} showGrabber={false} respectBottomInset={false}>
               <TouchableWithoutFeedback onPress={cycleCard} disabled={!isMultiPage}>
-                <Animated.View style={{ opacity: fadeAnim }}>
+                <Animated.View
+                  style={{
+                    opacity: fadeAnim,
+                    transform: [{ scale: previewScale }],
+                    marginVertical: previewMargin,
+                  }}
+                >
                   <ViewShot ref={shotRef} options={{ format: "png", quality: 1 }}>
                     {items ? items[activeIndex] : children}
                   </ViewShot>
