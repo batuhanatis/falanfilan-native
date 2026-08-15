@@ -9,6 +9,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
 import SocialSharedCard from "./SocialSharedCard";
+import { reportSocialContent } from "../utils/socialReporting";
 import SendToFriendModal from "./SendToFriendModal";
 
 function relativeTime(value) {
@@ -159,7 +160,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         text: reason,
         onPress: async () => {
           try {
-            await api.socialReportContent(auth.token, targetType, targetId, reason);
+            await reportSocialContent(auth.token, targetType, targetId, reason);
             Alert.alert("Teşekkürler", "Şikâyetin incelenmek üzere alındı.");
           } catch (error) {
             Alert.alert("Gönderilemedi", error?.message || "Şikâyet gönderilirken bir sorun oluştu.");
