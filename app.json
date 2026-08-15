@@ -52,6 +52,7 @@
       "expo-web-browser",
       "expo-font",
       "./plugins/withAndroidInstagramQueries",
+      "./plugins/withAndroidGradleMemory",
       "expo-apple-authentication",
       [
         "expo-image-picker",
