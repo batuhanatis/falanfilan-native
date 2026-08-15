@@ -94,7 +94,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
     setSaving(true);
     try {
       const uri = await shotRef.current.capture();
-      const perm = await MediaLibrary.requestPermissionsAsync();
+      const perm = Platform.OS === "ios" ? await MediaLibrary.requestPermissionsAsync(true) : { granted: true };
       if (perm.granted) {
         await MediaLibrary.saveToLibraryAsync(uri);
         setSaved(true);
