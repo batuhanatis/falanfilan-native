@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Constants from "expo-constants";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Crown, EyeOff, FileText, Lock, Mail, Moon, Palette, Shield, Sun, UserRound } from "lucide-react-native";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Crown, EyeOff, FileText, Lock, Mail, Moon, Palette, Shield, Sun, Trophy, UserRound, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, API_BASE } from "../api/client";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 const SUPPORT_EMAIL = "destek@pellix.app";
+const TIER_COLORS = { bronze: "#B08D57", silver: "#9CA3AF", gold: "#F5C518" };
+const TIER_LABELS = { bronze: "🥉 Bronz", silver: "🥈 Gümüş", gold: "🥇 Altın" };
 
 export default function SettingsScreen({ navigation }) {
   const { c, mode, setMode } = useAppTheme();
@@ -18,6 +20,8 @@ export default function SettingsScreen({ navigation }) {
   const [tastemateVisible, setTastemateVisible] = useState(true);
   const [dislikeCount, setDislikeCount] = useState(0);
   const [premiumStatus, setPremiumStatus] = useState(null);
+  const [achievements, setAchievements] = useState(null);
+  const [selectedBadge, setSelectedBadge] = useState(null);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [pwState, setPwState] = useState({ saving: false, error: "", success: false });
@@ -31,6 +35,7 @@ export default function SettingsScreen({ navigation }) {
       setDislikeCount(me.dislikeCount || 0);
     }).catch(() => {});
     api.premiumStatus(auth.token).then(setPremiumStatus).catch(() => {});
+    api.achievements(auth.token).then(setAchievements).catch(() => {});
   }, [auth.token]);
 
   async function savePrivacy(next) {
@@ -69,6 +74,7 @@ export default function SettingsScreen({ navigation }) {
 
   const groupProps = { openSection, setOpenSection, styles, c };
   return (
+    <>
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: 30 }}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}><ChevronLeft size={20} color={c.text} /></TouchableOpacity>
@@ -105,6 +111,41 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </Group>
 
+        <Group
+          id="badges"
+          title="Rozetler"
+          subtitle={achievements ? `${achievements.unlockedCount}/${achievements.totalCount} rozet açıldı` : "Başarılarını ve ilerlemeni görüntüle"}
+          Icon={Trophy}
+          {...groupProps}
+        >
+          {!achievements ? (
+            <Text style={styles.badgeLoading}>Rozetler yükleniyor…</Text>
+          ) : (
+            <View style={styles.badgeGrid}>
+              {achievements.badges.map((badge) => {
+                const tierColor = badge.unlocked ? TIER_COLORS[badge.tier] : c.border;
+                return (
+                  <TouchableOpacity
+                    key={badge.id}
+                    style={[styles.badgeCard, { borderColor: tierColor }, !badge.unlocked && styles.badgeCardLocked]}
+                    onPress={() => setSelectedBadge(badge)}
+                    activeOpacity={0.8}
+                  >
+                    {!badge.unlocked && <View style={styles.badgeLockIcon}><Lock size={9} color={c.dim} /></View>}
+                    <Text style={[styles.badgeIcon, !badge.unlocked && { opacity: 0.2 }]}>{badge.icon}</Text>
+                    <Text style={[styles.badgeName, !badge.unlocked && { color: c.dim }]} numberOfLines={1}>
+                      {badge.unlocked ? badge.name : "???"}
+                    </Text>
+                    <Text style={styles.badgeDesc} numberOfLines={2}>
+                      {badge.unlocked ? badge.desc : `${badge.progress.current}/${badge.progress.target}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </Group>
+
         <Group id="security" title="Güvenlik" subtitle="Şifre, oturum ve hesap yönetimi" Icon={Lock} {...groupProps}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Şifre Değiştir</Text>
@@ -132,6 +173,35 @@ export default function SettingsScreen({ navigation }) {
         <Text style={styles.version}>pellix · Sürüm {APP_VERSION}</Text>
       </View>
     </ScrollView>
+    <Modal visible={!!selectedBadge} transparent animationType="fade" onRequestClose={() => setSelectedBadge(null)}>
+      <TouchableOpacity style={styles.badgeModalBackdrop} activeOpacity={1} onPress={() => setSelectedBadge(null)}>
+        {selectedBadge && (
+          <View style={styles.badgeModalCard} onStartShouldSetResponder={() => true}>
+            <TouchableOpacity style={styles.badgeModalClose} onPress={() => setSelectedBadge(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={16} color={c.dim} />
+            </TouchableOpacity>
+            <Text style={[styles.badgeModalIcon, !selectedBadge.unlocked && { opacity: 0.3 }]}>{selectedBadge.icon}</Text>
+            <Text style={styles.badgeModalName}>{selectedBadge.unlocked ? selectedBadge.name : "??? Rozeti"}</Text>
+            {selectedBadge.unlocked && (
+              <View style={[styles.tierChip, { backgroundColor: `${TIER_COLORS[selectedBadge.tier]}22` }]}>
+                <Text style={[styles.tierChipText, { color: TIER_COLORS[selectedBadge.tier] }]}>{TIER_LABELS[selectedBadge.tier]}</Text>
+              </View>
+            )}
+            <Text style={styles.badgeModalDesc}>
+              {selectedBadge.unlocked ? selectedBadge.desc : "Bu rozeti henüz açmadın. Nasıl açılacağı, kilidini açtığında ortaya çıkacak."}
+            </Text>
+            <View style={styles.badgeModalProgressTrack}>
+              <View style={[styles.badgeModalProgressFill, {
+                width: `${Math.min(selectedBadge.progress.current / selectedBadge.progress.target, 1) * 100}%`,
+                backgroundColor: selectedBadge.unlocked ? "#4ADE80" : c.accent,
+              }]} />
+            </View>
+            <Text style={styles.badgeModalProgressLabel}>{selectedBadge.progress.current}/{selectedBadge.progress.target}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 }
 
@@ -147,5 +217,24 @@ function makeStyles(c) { return StyleSheet.create({
   group: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, marginBottom: 10, overflow: "hidden" }, groupHeader: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 14 }, groupIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }, groupTitle: { color: c.text, fontSize: 14, fontWeight: "800" }, groupSubtitle: { color: c.dim, fontSize: 10.5, marginTop: 2 }, groupBody: { padding: 12, borderTopWidth: 1, borderTopColor: c.border },
   card: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 13, marginBottom: 10 }, row: { flexDirection: "row", alignItems: "center", gap: 9 }, rowText: { flex: 1, color: c.text, fontSize: 12, fontWeight: "600" }, cardTitle: { color: c.text, fontSize: 13, fontWeight: "700", marginBottom: 3 }, cardSubtitle: { color: c.dim, fontSize: 11, lineHeight: 16 }, actionIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
   optionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border }, optionText: { color: c.text, fontSize: 13 }, switchRow: { flexDirection: "row", alignItems: "center" }, fieldLabel: { fontSize: 10, fontWeight: "700", color: c.dim, marginTop: 8, marginBottom: 4 }, input: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: c.text, fontSize: 13 }, error: { color: c.danger, fontSize: 11, marginTop: 6 }, success: { color: c.accent2, fontSize: 11, marginTop: 6 },
+  badgeLoading: { color: c.dim, fontSize: 12, textAlign: "center", paddingVertical: 18 },
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  badgeCard: { width: "31%", minHeight: 104, backgroundColor: c.surface2, borderWidth: 1.5, borderRadius: 14, padding: 9, alignItems: "center", justifyContent: "center", position: "relative" },
+  badgeCardLocked: { opacity: 0.72 },
+  badgeLockIcon: { position: "absolute", top: 6, right: 6, width: 16, height: 16, borderRadius: 999, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
+  badgeIcon: { fontSize: 26 },
+  badgeName: { fontSize: 10, fontWeight: "800", color: c.text, marginTop: 6, textAlign: "center" },
+  badgeDesc: { fontSize: 9, color: c.dim, marginTop: 3, textAlign: "center", lineHeight: 12 },
+  badgeModalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 30 },
+  badgeModalCard: { width: "100%", maxWidth: 300, backgroundColor: c.surface, borderRadius: 22, padding: 24, alignItems: "center", borderWidth: 1, borderColor: c.border },
+  badgeModalClose: { position: "absolute", top: 12, right: 12, padding: 4 },
+  badgeModalIcon: { fontSize: 44, marginBottom: 10 },
+  badgeModalName: { fontSize: 17, fontWeight: "800", color: c.text, textAlign: "center" },
+  tierChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 8 },
+  tierChipText: { fontSize: 10.5, fontWeight: "800" },
+  badgeModalDesc: { fontSize: 12, color: c.dim, marginTop: 10, textAlign: "center", lineHeight: 17 },
+  badgeModalProgressTrack: { width: "100%", height: 6, borderRadius: 999, backgroundColor: c.surface2, marginTop: 16, overflow: "hidden" },
+  badgeModalProgressFill: { height: "100%", borderRadius: 999 },
+  badgeModalProgressLabel: { fontSize: 10.5, color: c.dim, marginTop: 6, fontWeight: "700" },
   secondaryBtn: { marginTop: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 10, paddingVertical: 10, alignItems: "center" }, secondaryText: { color: c.text, fontWeight: "700", fontSize: 12 }, logoutBtn: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 12, alignItems: "center", marginBottom: 10 }, deleteBtn: { marginTop: 10, backgroundColor: c.danger, borderRadius: 10, paddingVertical: 12, alignItems: "center" }, deleteText: { color: "#fff", fontWeight: "800", fontSize: 12 }, linkRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11 }, linkBorder: { borderTopWidth: 1, borderTopColor: c.border }, version: { textAlign: "center", color: c.dim, fontSize: 11, marginTop: 12 },
 }); }
