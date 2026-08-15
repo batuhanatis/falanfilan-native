@@ -336,10 +336,10 @@ export default function ChatConversationScreen({ route, navigation }) {
           return updated;
         }));
       } else if (msg.type === "message_edited" && msg.chat_id === chatId) {
-        setMessages((prev) => prev.map((m) => (m.id === msg.message.id ? msg.message : m)));
+        setMessages((prev) => prev.map((m) => (String(m.id) === String(msg.message.id) ? msg.message : m)));
         updateLocalMessage(chatId, msg.message).catch(() => {});
       } else if (msg.type === "message_reacted" && msg.chat_id === chatId) {
-        setMessages((prev) => prev.map((m) => (m.id === msg.message.id ? msg.message : m)));
+        setMessages((prev) => prev.map((m) => (String(m.id) === String(msg.message.id) ? msg.message : m)));
         updateLocalMessage(chatId, msg.message).catch(() => {});
       }
     });
@@ -588,7 +588,7 @@ export default function ChatConversationScreen({ route, navigation }) {
 
     // İyimser güncelleme: dokunur dokunmaz rozeti göster.
     setMessages((prev) => prev.map((m) => {
-      if (m.id !== item.id) return m;
+      if (String(m.id) !== String(item.id)) return m;
       const reactions = { ...normalizeReactions(m.reactions) };
       if (reactions[key] === emoji) delete reactions[key]; else reactions[key] = emoji;
       const updated = { ...m, reactions };
@@ -601,12 +601,12 @@ export default function ChatConversationScreen({ route, navigation }) {
       // tahmin ile sunucu sonucu ayrışınca reaksiyon boşalmış gibi görünüyordu.
       const serverMessage = await api.reactToMessage(auth.token, item.id, emoji);
       const updated = { ...serverMessage, reactions: normalizeReactions(serverMessage.reactions) };
-      setMessages((prev) => prev.map((m) => (m.id === item.id ? updated : m)));
+      setMessages((prev) => prev.map((m) => (String(m.id) === String(item.id) ? updated : m)));
       updateLocalMessage(chatId, updated).catch(() => {});
     } catch (e) {
       // Tüm sohbeti yeniden yükleyip rozeti sessizce yok etmek yerine sadece bu mesajı geri al.
       setMessages((prev) => prev.map((m) => {
-        if (m.id !== item.id) return m;
+        if (String(m.id) !== String(item.id)) return m;
         const restored = { ...m, reactions: previousReactions };
         updateLocalMessage(chatId, restored).catch(() => {});
         return restored;
@@ -1131,12 +1131,18 @@ export default function ChatConversationScreen({ route, navigation }) {
           katman (position: absolute) bu çakışma ihtimalini tamamen ortadan kaldırıyor. */}
       {menuFor && (
         <View style={styles.chooserOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setMenuFor(null)} />
+          <TouchableOpacity style={styles.chooserBackdrop} activeOpacity={1} onPress={() => setMenuFor(null)} />
           <DismissableSheet onClose={() => setMenuFor(null)} style={styles.chooserSheet} handleOnly>
             <View style={styles.reactionRow}>
               {QUICK_REACTIONS.map((emoji) => (
-                <TouchableOpacity key={emoji} style={styles.reactionOption} onPress={() => react(menuFor, emoji)}>
-                  <Text style={{ fontSize: 24 }}>{emoji}</Text>
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionOption}
+                  hitSlop={{ top: 6, bottom: 6, left: 3, right: 3 }}
+                  activeOpacity={0.65}
+                  onPress={() => react(menuFor, emoji)}
+                >
+                  <Text style={styles.reactionOptionText}>{emoji}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1490,12 +1496,14 @@ function makeStyles(c, insets) {
     // ÖNEMLİ: Sabit "paddingBottom: 30" kullanılıyordu — Android'in sistem çubuğunu hesaba
     // katmıyordu, menünün alt kısmı (özellikle ikinci satırdaki seçenek) çubuğun arkasında
     // kalabiliyordu. Artık cihazın gerçek güvenli alan boşluğuna göre ayarlanıyor.
-    chooserSheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 20 + insets.bottom },
+    chooserBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+    chooserSheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 20 + insets.bottom, zIndex: 2, elevation: 52 },
     reactionRow: {
       flexDirection: "row", justifyContent: "space-between", backgroundColor: c.surface2,
       borderRadius: 999, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 14,
     },
-    reactionOption: { padding: 4 },
+    reactionOption: { minWidth: 40, minHeight: 40, padding: 4, alignItems: "center", justifyContent: "center", zIndex: 3 },
+    reactionOptionText: { fontSize: 24, lineHeight: 30 },
     chooserRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
     chooserIconWrap: { width: 36, height: 36, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     chooserText: { fontSize: 14, fontWeight: "600", color: c.text },
