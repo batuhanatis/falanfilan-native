@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Send, X } from "lucide-react-native";
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Send, Trash2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -8,7 +8,7 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 
-export default function SocialCommentsModal({ visible, postId, activityId, onClose, onChanged }) {
+export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, onClose, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -17,6 +17,7 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     const targetId = activityId || postId;
@@ -41,11 +42,42 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
         ? await api.socialAddActivityComment(auth.token, activityId, body)
         : await api.socialAddComment(auth.token, postId, body);
       if (data.comment) setComments((prev) => [...prev, data.comment]);
-      onChanged?.();
+      onChanged?.({ type: "comment_added" });
     } catch {
       setText(body);
     }
     setSending(false);
+  }
+
+  function requestDelete(comment) {
+    const allowed = canModerate || Number(comment.user_id) === Number(auth.id);
+    if (!allowed || deletingId) return;
+    Alert.alert(
+      "Yorum silinsin mi?",
+      canModerate && Number(comment.user_id) !== Number(auth.id)
+        ? "Bu yorum senin paylaşımından kalıcı olarak kaldırılacak."
+        : "Yorumun kalıcı olarak silinecek.",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Sil",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingId(comment.id);
+            try {
+              if (activityId) await api.socialDeleteActivityComment(auth.token, activityId, comment.id);
+              else await api.socialDeleteComment(auth.token, postId, comment.id);
+              setComments((prev) => prev.filter((item) => Number(item.id) !== Number(comment.id)));
+              onChanged?.({ type: "comment_deleted" });
+            } catch (error) {
+              Alert.alert("Silinemedi", error?.message || "Yorum silinirken bir sorun oluştu.");
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -77,6 +109,19 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.body}>{item.body}</Text>
                   </View>
+                  {(canModerate || Number(item.user_id) === Number(auth.id)) && (
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => requestDelete(item)}
+                      disabled={deletingId === item.id}
+                      accessibilityRole="button"
+                      accessibilityLabel="Yorumu sil"
+                    >
+                      {deletingId === item.id
+                        ? <ActivityIndicator size="small" color={c.dim} />
+                        : <Trash2 size={14} color={c.dim} />}
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
               ListEmptyComponent={<Text style={styles.empty}>Henüz yorum yok. İlk yorumu sen bırak.</Text>}
@@ -113,7 +158,8 @@ function makeStyles(c, bottomInset = 0) {
     center: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 220 },
     list: { padding: 16, gap: 14 },
     emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-    commentRow: { flexDirection: "row", gap: 10 },
+    commentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+    deleteBtn: { width: 30, height: 30, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2 },
     avatar: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },
     name: { color: c.text, fontWeight: "800", fontSize: 12 },
     body: { color: c.text, fontSize: 13, lineHeight: 18, marginTop: 2 },
