@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
+import { reportSocialContent } from "../utils/socialReporting";
 
 export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, onClose, onChanged }) {
   const { c } = useAppTheme();
@@ -88,7 +89,7 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
         text: reason,
         onPress: async () => {
           try {
-            await api.socialReportContent(auth.token, targetType, comment.id, reason);
+            await reportSocialContent(auth.token, targetType, comment.id, reason);
             Alert.alert("Teşekkürler", "Şikâyetin incelenmek üzere alındı.");
           } catch (error) {
             Alert.alert("Gönderilemedi", error?.message || "Şikâyet gönderilemedi.");
