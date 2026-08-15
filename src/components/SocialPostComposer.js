@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
 import { Check, Search, Send, Sparkles, Swords, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -26,6 +26,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const searchInputRef = useRef(null);
   const island = presentation === "island";
 
   useEffect(() => {
@@ -128,8 +129,17 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
         </TouchableOpacity>
       );
     }
+    const editSelection = () => {
+      setQuery("");
+      setResults([]);
+      setSelecting(slot);
+      if (mode === "recommend") setMovie(null);
+      else if (slot === "a") setPollA(null);
+      else setPollB(null);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    };
     return (
-      <TouchableOpacity style={[styles.selectedCard, mode === "poll" && selecting === slot && { borderColor: c.accent }]} onPress={() => setSelecting(slot)}>
+      <TouchableOpacity style={[styles.selectedCard, mode === "poll" && selecting === slot && { borderColor: c.accent }]} onPress={editSelection}>
         {item.poster ? <Image source={{ uri: item.poster }} style={styles.selectedPoster} /> : <View style={[styles.selectedPoster, { backgroundColor: c.surface2 }]} />}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.selectedTitle} numberOfLines={2}>{item.title}</Text>
@@ -190,36 +200,42 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
           )}
 
           {mode !== "thought" && ((mode === "recommend" && !movie) || mode === "poll") && (
-            <View style={styles.searchWrap}>
-              <Search size={15} color={c.dim} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
-                placeholderTextColor={c.dim}
-                value={query}
-                onChangeText={setQuery}
-                autoCorrect={false}
-              />
-              {searching && <ActivityIndicator size="small" color={c.accent} />}
-            </View>
-          )}
+            <View style={styles.searchArea}>
+              <View style={styles.searchWrap}>
+                <Search size={15} color={c.dim} />
+                <TextInput
+                  ref={searchInputRef}
+                  style={styles.searchInput}
+                  placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
+                  placeholderTextColor={c.dim}
+                  value={query}
+                  onChangeText={setQuery}
+                  autoCorrect={false}
+                />
+                {searching && <ActivityIndicator size="small" color={c.accent} />}
+              </View>
 
-          {results.length > 0 && (
-            <FlatList
-              data={results}
-              keyExtractor={(item) => String(item.id)}
-              style={styles.results}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.resultRow} onPress={() => choose(item)}>
-                  {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
-                  </View>
-                </TouchableOpacity>
+              {results.length > 0 && (
+                <FlatList
+                  data={results}
+                  keyExtractor={(item) => String(item.id)}
+                  style={styles.results}
+                  keyboardShouldPersistTaps="always"
+                  keyboardDismissMode="on-drag"
+                  onScrollBeginDrag={Keyboard.dismiss}
+                  nestedScrollEnabled
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.resultRow} onPress={() => choose(item)}>
+                      {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
               )}
-            />
+            </View>
           )}
 
           {!!error && <Text style={styles.error}>{error}</Text>}
@@ -254,9 +270,10 @@ function makeStyles(c) {
     contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },
     contextHint: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6 },
     bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },
-    searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42, marginTop: 8 },
+    searchArea: { position: "relative", zIndex: 40, elevation: 40, marginTop: 8 },
+    searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },
-    results: { maxHeight: 235, marginTop: 6, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface },
+    results: { position: "absolute", top: 48, left: 0, right: 0, maxHeight: 260, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface, zIndex: 50, elevation: 50, shadowColor: "#000", shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
     resultRow: { flexDirection: "row", alignItems: "center", gap: 9, padding: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
     resultPoster: { width: 36, height: 53, borderRadius: 6 },
     resultTitle: { color: c.text, fontWeight: "800", fontSize: 12 },
