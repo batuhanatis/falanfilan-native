@@ -96,6 +96,12 @@
         "projectId": "409c97e3-29fb-41d4-a231-5cb5f7f8b833"
       }
     },
-    "owner": "batuhanatis"
+    "owner": "batuhanatis",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/409c97e3-29fb-41d4-a231-5cb5f7f8b833"
+    }
   }
 }
