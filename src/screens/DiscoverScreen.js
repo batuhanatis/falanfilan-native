@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, Heart, X, Star, ListVideo, Send } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -27,6 +27,11 @@ export default function DiscoverScreen({ navigation }) {
 
   const [filterType, setFilterType] = useState("All"); // All | Movie | TV Shows
   const [queue, setQueue] = useState([]);
+  const [baseBackdrop, setBaseBackdrop] = useState(null);
+  const [incomingBackdrop, setIncomingBackdrop] = useState(null);
+  const backdropUriRef = useRef(null);
+  const backdropGenerationRef = useRef(0);
+  const backdropProgress = useRef(new Animated.Value(0)).current;
   const [shownIds, setShownIds] = useState(new Set());
   const [stockReady, setStockReady] = useState(false);
   const filterGenerationRef = useRef(0);
@@ -170,8 +175,51 @@ export default function DiscoverScreen({ navigation }) {
   const current = queue[0];
   const next = queue[1];
 
+  useEffect(() => {
+    const poster = current?.poster;
+    if (!poster || poster === backdropUriRef.current) return;
+    if (!backdropUriRef.current) {
+      backdropUriRef.current = poster;
+      setBaseBackdrop(poster);
+      return;
+    }
+
+    const generation = ++backdropGenerationRef.current;
+    backdropProgress.stopAnimation();
+    backdropProgress.setValue(0);
+    setIncomingBackdrop(poster);
+    Animated.timing(backdropProgress, {
+      toValue: 1,
+      duration: 560,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished || generation !== backdropGenerationRef.current) return;
+      backdropUriRef.current = poster;
+      setBaseBackdrop(poster);
+      setIncomingBackdrop(null);
+      backdropProgress.setValue(0);
+    });
+  }, [current?.poster, backdropProgress]);
+
   return (
     <View style={styles.container}>
+      <View pointerEvents="none" style={styles.backdrop}>
+        {!!baseBackdrop && <Image source={{ uri: baseBackdrop }} style={styles.backdropImage} blurRadius={48} resizeMode="cover" />}
+        {!!incomingBackdrop && (
+          <Animated.Image
+            source={{ uri: incomingBackdrop }}
+            style={[styles.backdropImage, { opacity: backdropProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.62] }) }]}
+            blurRadius={48}
+            resizeMode="cover"
+          />
+        )}
+        <LinearGradient
+          colors={["rgba(13,13,16,0.42)", "rgba(13,13,16,0.18)", "rgba(13,13,16,0.68)"]}
+          locations={[0, 0.48, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
       {!stockReady ? (
         // DC5 — Home'daki AYNI "İçerikler hazırlanıyor..." metni kullanılıyordu; Discover kendi
         // sesine kavuştu (kaydırma/keşif temalı).
@@ -330,16 +378,18 @@ export default function DiscoverScreen({ navigation }) {
 function makeStyles(c) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
+    backdrop: { ...StyleSheet.absoluteFillObject, overflow: "hidden", backgroundColor: c.bg },
+    backdropImage: { ...StyleSheet.absoluteFillObject, opacity: 0.62, transform: [{ scale: 1.16 }] },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     restartBtn: {
       marginTop: 20, backgroundColor: c.accent, borderRadius: 999,
       paddingHorizontal: 24, paddingVertical: 12,
     },
     restartBtnText: { color: c.bg, fontWeight: "800", fontSize: 13.5 },
-    stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 10, paddingTop: 104, paddingBottom: 92 },
+    stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 21, paddingTop: 123, paddingBottom: 111 },
     card: {
-      position: "absolute", top: 104, bottom: 92, left: 10, right: 10,
-      borderRadius: 22, overflow: "hidden", backgroundColor: c.surface2,
+      position: "absolute", top: 123, bottom: 111, left: 21, right: 21,
+      borderRadius: 22, overflow: "hidden", backgroundColor: "rgba(13,13,16,0.55)",
     },
     cardBehind: { transform: [{ scale: 0.96 }] },
     // ÖNEMLİ: Kartın GERÇEKTEN sağ alt köşesinde dursun diye cardInfo'yla (bottom:14) aynı
