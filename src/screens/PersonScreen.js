@@ -11,7 +11,8 @@ import { api } from "../api/client";
 // TEKRAR Detay'a (yığının üstüne) gideceği için — bu, WatchlistDetail/OtherProfile'daki gibi
 // navigasyon yığınıyla doğal olarak çalışan, geri tuşunun beklendiği gibi davrandığı bir akış.
 export default function PersonScreen({ route, navigation }) {
-  const { personId, name: initialName, photo: initialPhoto, role = "actor" } = route.params;\n  const isDirector = role === "director";
+  const { personId, name: initialName, photo: initialPhoto, role = "actor" } = route.params;
+  const isDirector = role === "director";
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
