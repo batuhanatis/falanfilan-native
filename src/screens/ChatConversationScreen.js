@@ -19,6 +19,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import { decodeMovieShare } from "../utils/movieShare";
 import { decodeListShare } from "../utils/listShare";
+import { decodeActivityShare } from "../utils/activityShare";
 import { decodePhotoMessage } from "../utils/photoShare";
 import { decodePoll, decodePlan, encodePoll, formatPlanTime } from "../utils/richMessage";
 import { encodePhotoMessage } from "../utils/photoShare";
@@ -49,6 +50,8 @@ function messageSnippet(msg) {
   if (shared) return `🎬 ${shared.title}`;
   const listShared = decodeListShare(msg.body);
   if (listShared) return `📋 ${listShared.name}`;
+  const activityShared = decodeActivityShare(msg.body);
+  if (activityShared) return `✨ ${activityShared.text}`;
   const poll = decodePoll(msg.body);
   if (poll) return `🗳️ ${poll.question}`;
   const plan = decodePlan(msg.body);
@@ -851,6 +854,7 @@ export default function ChatConversationScreen({ route, navigation }) {
     },
     navigateDetail: (movie) => latestRef.current.navigation.navigate("Detail", { movie }),
     navigateWatchlist: (watchlistId, name) => latestRef.current.navigation.navigate("WatchlistDetail", { watchlistId, name }),
+    navigateActivity: () => latestRef.current.navigation.navigate("MainTabs", { screen: "Activity" }),
     measureLayout: (id, y) => { rowOffsets.current[id] = y; },
     setSwipeRef: (id, ref) => { swipeRefs.current[id] = ref; },
   }).current;
@@ -1332,6 +1336,18 @@ function makeStyles(c, insets) {
     // Tür/yıl bilgisinin altındaki boşluğu dolduran platform logoları (Netflix/Prime vb.).
     movieBubblePlatformsRow: { flexDirection: "row", gap: 4, marginTop: 7, flexWrap: "wrap" },
     movieBubblePlatformLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
+    activityShareBubble: { width: 300, borderRadius: 16, overflow: "hidden", paddingBottom: 26 },
+    activityShareHeader: { height: 32, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
+    activityShareHeaderText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+    activityShareBody: { flexDirection: "row", gap: 11, padding: 11 },
+    activitySharePoster: { width: 82, height: 120, borderRadius: 10 },
+    activityShareInfo: { flex: 1, minWidth: 0 },
+    activityShareUserRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    activityShareAvatar: { width: 22, height: 22, borderRadius: 999 },
+    activityShareUser: { fontSize: 11, fontWeight: "800", flexShrink: 1 },
+    activityShareText: { fontSize: 12.5, fontWeight: "800", lineHeight: 16, marginTop: 8 },
+    activityShareCaption: { fontSize: 10.5, fontStyle: "italic", opacity: 0.78, lineHeight: 14, marginTop: 6 },
+    activityShareMovieTitle: { fontSize: 11, fontWeight: "900", marginTop: 8 },
     // Saat artık metin akışının bir parçası değil — poster/gövde ne kadar uzun olursa olsun
     // baloncuğun TAM sağ alt köşesine sabit kalıyor (film/liste/anket/plan kartlarının hepsinde ortak).
     movieBubbleTimeCorner: { position: "absolute", bottom: 8, right: 10 },

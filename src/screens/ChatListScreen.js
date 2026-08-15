@@ -14,6 +14,7 @@ import { decodeMovieShare } from "../utils/movieShare";
 import { decodePhotoMessage } from "../utils/photoShare";
 import { decodePoll, decodePlan } from "../utils/richMessage";
 import { decodeListShare } from "../utils/listShare";
+import { decodeActivityShare } from "../utils/activityShare";
 import TopBar from "../components/TopBar";
 
 // Aynı arkadaş art arda birden fazla şeyi beğenirse (ör. bir "beğeni oturumu") bunları tek tek
@@ -59,6 +60,7 @@ function messagePreviewInfo(lastMessage) {
   if (decodePoll(lastMessage)) return { text: "Mini Anket", dotColor: "#F97316" };
   if (decodePlan(lastMessage)) return { text: "İzleme Planı", dotColor: "#06B6D4" };
   if (decodeListShare(lastMessage)) return { text: "Liste Paylaşıldı", dotColor: "#14B8A6" };
+  if (decodeActivityShare(lastMessage)) return { text: "Aktivite Paylaşıldı", dotColor: "#EC4899" };
   return { text: lastMessage || "Henüz mesaj yok", dotColor: null };
 }
 

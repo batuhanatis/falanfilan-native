@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Heart, MessageCircle, Sparkles, Star, ThumbsUp } from "lucide-react-native";
+import { Heart, MessageCircle, Send, Sparkles, Star, ThumbsUp } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -9,6 +9,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
 import SocialSharedCard from "./SocialSharedCard";
+import SendToFriendModal from "./SendToFriendModal";
 
 function relativeTime(value) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -63,6 +64,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const [state, setState] = useState(item);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [activityLiked, setActivityLiked] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   useEffect(() => setState(item), [item]);
 
@@ -234,6 +236,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
               <Text style={styles.actionLink}>İçeriğe git</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.action} onPress={() => setSendOpen(true)}>
+            <Send size={17} color={c.dim} />
+          </TouchableOpacity>
         </View>
       ) : state.kind === "activity" ? (
         <View style={styles.actions}>
@@ -249,6 +254,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
               <Text style={styles.actionText}>{state.commentCount || 0}</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={[styles.action, { marginLeft: "auto" }]} onPress={() => setSendOpen(true)}>
+            <Send size={17} color={c.dim} />
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -268,6 +276,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           }}
         />
       )}
+      {sendOpen && <SendToFriendModal activity={state} onClose={() => setSendOpen(false)} />}
     </View>
   );
 }

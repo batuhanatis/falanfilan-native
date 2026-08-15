@@ -55,6 +55,10 @@ export default function GlobalPopups() {
         else if (body.startsWith("__POLL__")) preview = "🗳️ Mini anket gönderdi";
         else if (body.startsWith("__PLAN__")) preview = "📅 İzleme planı önerdi";
         else if (body.startsWith("__LIST_SHARE__")) preview = "📋 Bir liste paylaştı";
+        else if (body.startsWith("__ACTIVITY_SHARE__")) {
+          try { preview = `✨ ${JSON.parse(body.slice("__ACTIVITY_SHARE__".length)).text || "Bir aktivite paylaştı"}`; }
+          catch { preview = "✨ Bir aktivite paylaştı"; }
+        }
         else preview = body.length > 60 ? body.slice(0, 60) + "…" : body;
         setBanner({ senderName: msg.from?.name || "Yeni mesaj", preview, chatId: msg.chat_id });
       } else if (msg.type === "badge_unlocked") {

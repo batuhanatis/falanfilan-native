@@ -4,13 +4,14 @@ import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Star, Film, ListVideo, BarChart2, Crown, Check, CalendarClock, Clock, AlertCircle,
-  RotateCcw, X, Eye, EyeOff, Reply,
+  RotateCcw, X, Eye, EyeOff, Reply, Sparkles,
 } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 import { platformLogo } from "../utils/platform";
 import { timeLabel } from "../utils/chatTimeLabels";
 import { decodeMovieShare } from "../utils/movieShare";
 import { decodeListShare } from "../utils/listShare";
+import { decodeActivityShare } from "../utils/activityShare";
 import { decodePhotoMessage } from "../utils/photoShare";
 import { decodePoll, decodePlan, formatPlanTime } from "../utils/richMessage";
 import RetryImage from "./RetryImage";
@@ -108,10 +109,11 @@ function ChatMessageRow({
 
   const shared = decodeMovieShare(body);
   const listShared = decodeListShare(body);
+  const activityShared = decodeActivityShare(body);
   const photo = decodePhotoMessage(body);
   const poll = decodePoll(body);
   const plan = decodePlan(body);
-  const maxWidthPct = poll || plan ? "92%" : "84%";
+  const maxWidthPct = poll || plan || activityShared ? "92%" : "84%";
 
   let bubbleContent;
 
@@ -237,6 +239,47 @@ function ChatMessageRow({
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
             {listShared.ownerName} · {listShared.count} içerik
           </Text>
+        </View>
+        <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
+        {renderReactionBadge(reactionsKey, isMine, styles)}
+      </TouchableOpacity>
+    );
+  } else if (activityShared) {
+    const activityMovie = activityShared.movie;
+    bubbleContent = (
+      <TouchableOpacity
+        style={[styles.activityShareBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+        activeOpacity={0.82}
+        onPress={() => (selectionMode ? actions.toggleSelected(id) : actions.navigateActivity())}
+        onLongPress={handleLongPress}
+      >
+        <LinearGradient colors={["#EC4899", "#8B5CF6", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
+          <Sparkles size={12} color="#fff" />
+          <Text style={styles.activityShareHeaderText}>AKTİVİTE PAYLAŞIMI</Text>
+        </LinearGradient>
+        <View style={styles.activityShareBody}>
+          {activityMovie?.poster ? (
+            <Image source={{ uri: activityMovie.poster }} style={styles.activitySharePoster} />
+          ) : (
+            <LinearGradient colors={["#EC4899", "#6366F1"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
+              <Sparkles size={24} color="#fff" />
+            </LinearGradient>
+          )}
+          <View style={styles.activityShareInfo}>
+            <View style={styles.activityShareUserRow}>
+              {!!activityShared.user && <RetryImage source={{ uri: avatarOr(activityShared.user.avatar_url, activityShared.user.id) }} style={styles.activityShareAvatar} />}
+              <Text style={[styles.activityShareUser, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
+                {activityShared.user?.name || "Pellix"}
+              </Text>
+            </View>
+            <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={3}>{activityShared.text}</Text>
+            {!!activityShared.body && (
+              <Text style={[styles.activityShareCaption, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>“{activityShared.body}”</Text>
+            )}
+            {!!activityMovie?.title && (
+              <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{activityMovie.title}</Text>
+            )}
+          </View>
         </View>
         <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
         {renderReactionBadge(reactionsKey, isMine, styles)}
