@@ -31,6 +31,14 @@ function getDailyQuestion() {
   return DAILY_QUESTIONS[Math.abs(dayKey) % DAILY_QUESTIONS.length];
 }
 
+function localDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function expandActivityItems(items) {
   return (items || []).flatMap((item) => {
     if (item.kind !== "activity" || !Array.isArray(item.movies) || item.movies.length <= 1) {
@@ -58,16 +66,22 @@ export default function ActivityScreen({ navigation }) {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerType, setComposerType] = useState("thought");
   const [composerContext, setComposerContext] = useState(null);
-  const dailyQuestion = useMemo(() => getDailyQuestion(), []);
+  const [dailyQuestion, setDailyQuestion] = useState(() => getDailyQuestion());
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    try {
-      const data = await api.socialFeed(auth.token);
-      setFeed(expandActivityItems(data.results));
-    } catch {
-      setFeed([]);
-    }
+    const fallbackQuestion = getDailyQuestion();
+    const [feedResult, questionResult] = await Promise.allSettled([
+      api.socialFeed(auth.token),
+      api.dailyQuestion(localDateKey()),
+    ]);
+    if (feedResult.status === "fulfilled") setFeed(expandActivityItems(feedResult.value.results));
+    else setFeed([]);
+    setDailyQuestion(
+      questionResult.status === "fulfilled" && questionResult.value?.question
+        ? questionResult.value.question
+        : fallbackQuestion
+    );
     setLoading(false);
   }, [auth.token]);
 
