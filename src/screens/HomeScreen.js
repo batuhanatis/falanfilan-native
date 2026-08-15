@@ -231,8 +231,24 @@ export default function HomeScreen({ navigation }) {
       ])
         .then(([mRes, tRes, pRes]) => {
           if (searchSeqRef.current !== seq) return; // bayat yanıt, daha yeni bir arama zaten başladı
+          // ÖNEMLİ DÜZELTME: Backend (/api/search) artık tam eşleşmeyi öne alacak şekilde
+          // sıralı dönüyor, ama movie+tv sonuçlarını burada birleştirirken salt oy sayısına göre
+          // yeniden sıralamak o düzeltmeyi eziyordu (ör. "Furious" araması yine Fast & Furious
+          // serisinin altında kayboluyordu). Backend'deki AYNI kademeyi (tam eşleşme > baştan
+          // eşleşme > içeren) burada da uyguluyoruz, oy sayısı yalnızca aynı kademe içinde geçerli.
+          const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+          function matchTier(title) {
+            const normalizedTitle = (title || "").trim().toLocaleLowerCase("tr-TR");
+            if (normalizedTitle === normalizedQuery) return 0;
+            if (normalizedTitle.startsWith(normalizedQuery)) return 1;
+            return 2;
+          }
           const media = dedupe([...(mRes.results || []), ...(tRes.results || [])])
-            .sort((a, b) => (b.votes || 0) - (a.votes || 0));
+            .sort((a, b) => {
+              const tierDiff = matchTier(a.title) - matchTier(b.title);
+              if (tierDiff !== 0) return tierDiff;
+              return (b.votes || 0) - (a.votes || 0);
+            });
           const people = (pRes.results || []).slice(0, 3);
           // İçerik sonuçları daima oyuncu/yönetmen sonuçlarının önünde.
           setSearchResults([...media, ...people]);
