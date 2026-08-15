@@ -116,14 +116,14 @@ export default function GlobalPopups() {
 
   function openBadgeCelebration() {
     if (navigationRef.isReady()) {
-      navigationRef.navigate("MainTabs", { screen: "Profile", params: { initialSub: "badges" } });
+      navigationRef.navigate("Settings", { initialSection: "badges" });
     }
     setBadgeCelebration(null);
   }
 
   function openCelebration() {
     if (!celebration || !navigationRef.isReady()) return;
-    navigationRef.navigate("MainTabs", { screen: "Profile", params: { initialSub: "badges" } });
+    navigationRef.navigate("Settings", { initialSection: "badges" });
     if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
     setCelebration(null);
   }
