@@ -322,9 +322,6 @@ export default function ProfileScreen({ navigation, route }) {
         )}
 
       </View>
-          )
-        )}
-      </View>
       {showEditProfile && (
         <EditProfileModal
           profile={profile}
