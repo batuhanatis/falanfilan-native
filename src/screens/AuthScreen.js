@@ -121,7 +121,7 @@ export default function AuthScreen() {
       const fullName = credential.fullName
         ? `${credential.fullName.givenName || ""} ${credential.fullName.familyName || ""}`.trim()
         : null;
-      const data = await api.appleAuth(credential.identityToken, fullName);
+      const data = await api.appleAuth(credential.identityToken, fullName, credential.authorizationCode);
       if (data.isNewUser) {
         setPendingSignup({ ticket: data.ticket, email: data.email, suggestedName: data.suggestedName, completeFn: api.appleCompleteSignup });
       } else {
