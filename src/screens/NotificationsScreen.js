@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndi
 import { Swipeable } from "react-native-gesture-handler";
 import {
   ChevronLeft, Trash2, UserPlus, UserCheck, Film, PartyPopper, Gift, ListVideo, Bell,
+  Heart, MessageCircle, Sparkles,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -22,6 +23,12 @@ function notificationText(n) {
     case "referral_completed": return "Davet tamamlandı — 5 ekstra AI önerisi hakkı kazandın 🎁";
     case "referral_bonus_received": return "Hoş geldin bonusu — 3 ekstra AI önerisi hakkı kazandın 🎁";
     case "watchlist_collaborator_added": return `${p.by?.name} seni "${p.listName}" listesine ortak düzenleyici ekledi`;
+    case "social_post_like": return `${p.by?.name} paylaşımını beğendi ❤️`;
+    case "social_comment": return `${p.by?.name} ${p.targetKind === "activity" ? "aktivine" : "paylaşımına"} yorum yaptı: ${p.comment || ""}`;
+    case "social_reaction": {
+      const emoji = { fire: "🔥", agree: "🤝", nope: "👎" }[p.reaction] || "✨";
+      return `${p.by?.name} ${p.targetKind === "activity" ? "aktivine" : "paylaşımına"} ${emoji} tepkisi verdi`;
+    }
     default: return "Yeni bildirim";
   }
 }
@@ -41,6 +48,9 @@ function notificationMeta(n) {
     case "referral_completed": return { person: null, icon: Gift, color: "#c9a44c" };
     case "referral_bonus_received": return { person: null, icon: Gift, color: "#14B8A6" };
     case "watchlist_collaborator_added": return { person: p.by, icon: ListVideo, color: "#14B8A6" };
+    case "social_post_like": return { person: p.by, icon: Heart, color: "#FF3D81" };
+    case "social_comment": return { person: p.by, icon: MessageCircle, color: "#2563EB" };
+    case "social_reaction": return { person: p.by, icon: Sparkles, color: "#F97316" };
     default: return { person: null, icon: Bell, color: "#8f8a9c" };
   }
 }
@@ -92,6 +102,9 @@ export default function NotificationsScreen({ navigation }) {
     const p = n.payload || {};
     if (n.type === "party_accepted" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id, friend: p.by });
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
+    else if (["social_post_like", "social_comment", "social_reaction"].includes(n.type)) {
+      navigation.navigate("MainTabs", { screen: "Activity" });
+    }
   }
 
   function renderRightActions(n, progress, dragX) {
@@ -129,7 +142,9 @@ export default function NotificationsScreen({ navigation }) {
           ListHeaderComponent={notifications.length > 0 ? <Text style={styles.hint}>Silmek için sola kaydır</Text> : null}
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
-            const clickable = item.type === "party_accepted" || item.type === "party_match";
+            const clickable = item.type === "party_accepted"
+              || item.type === "party_match"
+              || ["social_post_like", "social_comment", "social_reaction"].includes(item.type);
             const meta = notificationMeta(item);
             const Icon = meta.icon;
             return (
