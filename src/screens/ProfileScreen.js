@@ -31,8 +31,6 @@ export default function ProfileScreen({ navigation, route }) {
   const [friends, setFriends] = useState([]);
   const [likedMovies, setLikedMovies] = useState([]);
   const [likeCount, setLikeCount] = useState(0);
-  const [dislikedMovies, setDislikedMovies] = useState([]);
-  const [dislikeCount, setDislikeCount] = useState(0);
   const [watchlists, setWatchlists] = useState([]);
   const [socialPosts, setSocialPosts] = useState([]);
   const [showShareCard, setShowShareCard] = useState(false);
@@ -40,7 +38,7 @@ export default function ProfileScreen({ navigation, route }) {
   const [questStreak, setQuestStreak] = useState(0);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sub, setSub] = useState(route?.params?.initialSub || "posts"); // posts | likes | dislikes | badges
+  const [sub, setSub] = useState(route?.params?.initialSub === "dislikes" ? "posts" : (route?.params?.initialSub || "posts")); // posts | likes | badges
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [premiumStatus, setPremiumStatus] = useState(null);
@@ -51,7 +49,7 @@ export default function ProfileScreen({ navigation, route }) {
   // yönlendirilirse (ör. rozet popup'ına tıklayınca) — useState'in ilk değeri artık işe yaramaz,
   // bu yüzden parametre her değiştiğinde de sekmeyi güncelliyoruz.
   useEffect(() => {
-    if (route?.params?.initialSub) setSub(route.params.initialSub);
+    if (route?.params?.initialSub) setSub(route.params.initialSub === "dislikes" ? "posts" : route.params.initialSub);
   }, [route?.params?.initialSub]);
 
   const load = useCallback(async () => {
@@ -68,8 +66,6 @@ export default function ProfileScreen({ navigation, route }) {
       setProfile({ ...me, friendCount: friendsData.friends?.length || 0 });
       setLikedMovies(selfProfile.likedMovies || []);
       setLikeCount(selfProfile.likeCount ?? (selfProfile.likedMovies || []).length);
-      setDislikedMovies(selfProfile.dislikedMovies || []);
-      setDislikeCount(me.dislikeCount ?? (selfProfile.dislikedMovies || []).length);
       setFriends(friendsData.friends || []);
       setWatchlists(watchlistsData.results || []);
       hasLoadedRef.current = true;
@@ -282,7 +278,7 @@ export default function ProfileScreen({ navigation, route }) {
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabRow}>
-          {[["posts", "Paylaşımlar"], ["likes", "Beğeniler"], ["dislikes", "Beğenmediklerim"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => (
+          {[["posts", "Paylaşımlar"], ["likes", "Beğeniler"], ["badges", `Rozetler${achievements ? ` (${achievements.unlockedCount}/${achievements.totalCount})` : ""}`]].map(([id, label]) => (
             <TouchableOpacity key={id} onPress={() => setSub(id)} style={[styles.tabBtn, sub === id && { borderBottomColor: c.accent, borderBottomWidth: 2 }]}>
               <Text style={[styles.tabText, sub === id && { color: c.accent }]}>{label}</Text>
             </TouchableOpacity>
@@ -331,35 +327,6 @@ export default function ProfileScreen({ navigation, route }) {
               )}
             </>
           ) : <Text style={styles.emptyText}>Henüz bir beğeni yok.</Text>
-        )}
-
-        {sub === "dislikes" && (
-          dislikedMovies.length > 0 ? (
-            <>
-              <FlatList
-                data={dislikedMovies}
-                numColumns={3}
-                scrollEnabled={false}
-                columnWrapperStyle={{ gap: 6 }}
-                contentContainerStyle={{ gap: 6 }}
-                keyExtractor={(item) => String(item.id)}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("Detail", { movie: item })}>
-                    {item.poster ? <Image source={{ uri: item.poster }} style={styles.posterThumb} />
-                      : <View style={[styles.posterThumb, { backgroundColor: c.surface2 }]} />}
-                  </TouchableOpacity>
-                )}
-              />
-              {dislikeCount > dislikedMovies.length && (
-                <TouchableOpacity
-                  style={styles.seeAllBtn}
-                  onPress={() => navigation.navigate("AllLikes", { kind: "dislikes", title: "Beğenmediklerim" })}
-                >
-                  <Text style={styles.seeAllBtnText}>Tümünü Gör ({dislikeCount})</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          ) : <Text style={styles.emptyText}>Henüz bir beğenmeme yok.</Text>
         )}
 
         {sub === "badges" && (
