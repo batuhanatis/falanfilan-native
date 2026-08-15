@@ -233,7 +233,8 @@ export default function HomeScreen({ navigation }) {
           const media = dedupe([...(mRes.results || []), ...(tRes.results || [])])
             .sort((a, b) => (b.votes || 0) - (a.votes || 0));
           const people = (pRes.results || []).slice(0, 3);
-          setSearchResults([...people, ...media]);
+          // İçerik sonuçları daima oyuncu/yönetmen sonuçlarının önünde.
+          setSearchResults([...media, ...people]);
         })
         .finally(() => { if (searchSeqRef.current === seq) setSearchLoading(false); });
     }, 250);
@@ -482,7 +483,8 @@ export default function HomeScreen({ navigation }) {
   // pager'ın TAMAMEN DIŞINDA, bağımsız bir overlay (bkz. aşağıdaki dropdownTop ölçümü + return
   // içindeki mutlak konumlu render). Böylece dropdown satırlarına dokunmak hiçbir ScrollView/
   // FlatList jest ağacından geçmiyor, çakışma ihtimali kalmıyor.
-  const dropdownOpen = searchFocused && query.trim().length > 0;
+  // Focus/klavye değişimi dropdown'u kapatmaz; yalnızca seçim veya sorguyu silme kapatır.
+  const dropdownOpen = query.trim().length > 0;
   const dropdownResults = (searchResults || []).slice(0, 8);
 
   // Dropdown açılırken: aktif listeyi en üste kaydırıp arama kutusunun ekrandaki konumunu SABİT
@@ -511,11 +513,7 @@ export default function HomeScreen({ navigation }) {
             value={query}
             onChangeText={setQuery}
             onFocus={() => setSearchFocused(true)}
-            // ÖNEMLİ: Dropdown'daki bir satıra dokunulduğunda TextInput önce odağını kaybediyor —
-            // onBlur BURADA senkron çalışsaydı dropdown, satırın onPress'i tetiklenmeden ÖNCE
-            // kaybolur, bu da hem dokunmayı hem kaydırma jestini "yutardı". Kısa bir gecikme,
-            // dokunmanın tamamlanmasına yetecek kadar zaman tanıyor.
-            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+            onBlur={() => setSearchFocused(false)}
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -714,6 +712,7 @@ export default function HomeScreen({ navigation }) {
               style={styles.dropdownList}
               keyboardShouldPersistTaps="always"
               keyboardDismissMode="on-drag"
+              onScrollBeginDrag={Keyboard.dismiss}
               nestedScrollEnabled
               showsVerticalScrollIndicator
               renderItem={({ item }) => {
