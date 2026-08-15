@@ -14,6 +14,7 @@ import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
 import SocialPostComposer from "../components/SocialPostComposer";
 import TrailerPlayerModal from "../components/TrailerPlayerModal";
+import SocialProofRow from "../components/SocialProofRow";
 
 const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
@@ -52,6 +53,7 @@ export default function DetailScreen({ route, navigation }) {
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [extra, setExtra] = useState({ director: null, cast: [], similar: [], trailers: [] });
+  const [socialStats, setSocialStats] = useState(null);
   const scrollRef = useRef(null);
 
   // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
@@ -198,6 +200,7 @@ export default function DetailScreen({ route, navigation }) {
     }).catch(() => {});
     api.comments(auth.token, movie.id).then((data) => setComments(data.results || [])).catch(() => {}).finally(() => setCommentsLoading(false));
     api.movieExtra(auth.token, movie.id).then((data) => setExtra(data)).catch(() => {});
+    api.socialStats(auth.token, [movie.id]).then((data) => setSocialStats(data.results?.[movie.id] || null)).catch(() => {});
   }, []);
 
   const isFavorite = movie.type === "Film" ? favMovieId === movie.id : favShowId === movie.id;
@@ -207,6 +210,7 @@ export default function DetailScreen({ route, navigation }) {
     hapticLight();
     if (!wasLiked) popLike();
     setLiked((v) => !v); setDisliked(false);
+    setSocialStats((prev) => prev ? { ...prev, likes: Math.max(0, Number(prev.likes || 0) + (wasLiked ? -1 : 1)) } : prev);
     if (wasLiked) api.removeInteraction(auth.token, movie.id, "like").catch(() => {});
     else api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
   }
@@ -214,6 +218,7 @@ export default function DetailScreen({ route, navigation }) {
     const wasDisliked = disliked;
     hapticLight();
     setDisliked((v) => !v); setLiked(false);
+    if (liked) setSocialStats((prev) => prev ? { ...prev, likes: Math.max(0, Number(prev.likes || 0) - 1) } : prev);
     if (wasDisliked) api.removeInteraction(auth.token, movie.id, "dislike").catch(() => {});
     else api.recordInteraction(auth.token, movie.id, "dislike").catch(() => {});
   }
@@ -229,6 +234,7 @@ export default function DetailScreen({ route, navigation }) {
       // Bir içeriği "favorim" olarak seçmek, onu zaten beğenmiş olman demek — otomatik like say.
       if (!isFavorite && !liked) {
         setLiked(true); setDisliked(false);
+        setSocialStats((prev) => prev ? { ...prev, likes: Number(prev.likes || 0) + 1 } : prev);
         api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
       }
       if (becomingFavorite) {
@@ -360,6 +366,10 @@ export default function DetailScreen({ route, navigation }) {
             ) : (
               <Text style={styles.metaText}>Şu an TR'de bir platformda yayında değil.</Text>
             )}
+          </View>
+
+          <View style={styles.socialProofSection}>
+            <SocialProofRow stats={socialStats} />
           </View>
 
           {/* Aksiyon butonları (like/dislike/paylaş/favorile) — eskiden oyuncular ve benzer
@@ -571,6 +581,7 @@ function makeStyles(c) {
     ratingNum: { fontWeight: "800", color: c.text },
     overview: { fontSize: 13, color: c.dim, lineHeight: 20, marginTop: 14 },
     platformsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 14 },
+    socialProofSection: { marginTop: 14 },
     platformPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
     platformPillLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     platformPillText: { fontSize: 11, color: c.text },
