@@ -66,3 +66,4 @@ jobs:
 
 # Manual trigger: 2026-08-15T14:09:13.446Z production AAB retriggered after ProfileScreen JSX build fix.
 # Manual trigger: 2026-08-15T21:30:00.000Z production AAB retriggered — search ranking fix, EAS Update setup, chat report/block, push primer, privacy copy fix.
+# Manual trigger: 2026-08-15T22:00:00.000Z production AAB retriggered — fixed Gradle Metaspace OOM in lintVitalAnalyzeRelease (org.gradle.jvmargs raised via withAndroidGradleMemory plugin).
