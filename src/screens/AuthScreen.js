@@ -8,7 +8,6 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, API_BASE } from "../api/client";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
-import PhoneAuthModal from "../components/PhoneAuthModal";
 import CompleteProfileModal from "../components/CompleteProfileModal";
 import { appleAuthWithCode } from "../utils/appleAuth";
 
@@ -44,7 +43,6 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showPhoneAuth, setShowPhoneAuth] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -211,9 +209,6 @@ export default function AuthScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Telefonla kayıt şimdilik ekrandan kaldırıldı — SMS sağlayıcısına (Netgsm vb.)
-            karar verilince PhoneAuthModal'ı geri açmak yeterli, backend zaten hazır. */}
-
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>ya da e-posta ile</Text>
@@ -280,12 +275,6 @@ export default function AuthScreen() {
         </TouchableOpacity>
       </ScrollView>
       {showForgotPassword && <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />}
-      {showPhoneAuth && (
-        <PhoneAuthModal
-          onClose={() => setShowPhoneAuth(false)}
-          onAuthed={async (data) => { setShowPhoneAuth(false); await finishAuth(data); }}
-        />
-      )}
       {pendingSignup && (
         <CompleteProfileModal
           ticket={pendingSignup.ticket}
@@ -319,11 +308,6 @@ function makeStyles(c) {
       paddingVertical: 13, marginBottom: 10,
     },
     googleBtnText: { color: "#1f1f1f", fontWeight: "600", fontSize: 14 },
-    phoneBtn: {
-      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12,
-      paddingVertical: 13, alignItems: "center", marginBottom: 16,
-    },
-    phoneBtnText: { color: c.text, fontWeight: "700", fontSize: 13.5 },
     dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
     dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
     dividerText: { fontSize: 11, color: c.dim },
