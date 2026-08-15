@@ -11,6 +11,7 @@ import SwipeableCard from "../components/SwipeableCard";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
 import Confetti from "../components/Confetti";
+import SocialProofRow from "../components/SocialProofRow";
 
 const STOCK_TARGET = 10;
 
@@ -47,6 +48,7 @@ export default function DiscoverScreen({ navigation }) {
   const [sessionLikes, setSessionLikes] = useState(0);
   const [sessionSkips, setSessionSkips] = useState(0);
   const [sessionGenreCounts, setSessionGenreCounts] = useState({});
+  const [socialStats, setSocialStats] = useState({});
   // Daha önce like/dislike/skip ile "oy verilmiş" içerikler — Discover kuyruğuna hiç girmesinler.
   // Promise'i ref'te önbelleğe alıyoruz: growQueue her çağrıldığında bunu BEKLİYOR, bu yüzden
   // interactions isteği henüz bitmeden ilk kuyruk oluşturulursa bile oy verilenler sızmıyor.
@@ -174,6 +176,20 @@ export default function DiscoverScreen({ navigation }) {
 
   const current = queue[0];
   const next = queue[1];
+  const socialQueueKey = queue.slice(0, STOCK_TARGET).map((item) => item.id).join(",");
+
+  // İlk 10 kartın sosyal kanıtını tek toplu istekle hazırla. Kuyruk ilerledikçe yalnızca daha
+  // önce alınmamış ID'ler istenir; böylece swipe başına ağ isteği oluşmaz.
+  useEffect(() => {
+    const ids = socialQueueKey.split(",").map(Number).filter(Boolean);
+    const missingIds = ids.filter((id) => !Object.prototype.hasOwnProperty.call(socialStats, id));
+    if (missingIds.length === 0) return;
+    let cancelled = false;
+    api.socialStats(auth.token, missingIds).then((data) => {
+      if (!cancelled) setSocialStats((prev) => ({ ...prev, ...(data.results || {}) }));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [socialQueueKey, auth.token]);
 
   useEffect(() => {
     const poster = current?.poster;
@@ -336,6 +352,9 @@ export default function DiscoverScreen({ navigation }) {
                   </Animated.View>
 
                   <View style={styles.cardInfo} pointerEvents="none">
+                    <View style={styles.socialProofWrap}>
+                      <SocialProofRow stats={socialStats[current.id]} overlay compact />
+                    </View>
                     <Text style={styles.cardTitle} numberOfLines={1}>{current.title}</Text>
                     <View style={styles.cardMetaRow}>
                       <Star size={11} color={c.accent} fill={c.accent} />
@@ -437,6 +456,7 @@ function makeStyles(c) {
     },
     stampSkipText: { color: c.danger, fontWeight: "800", fontSize: 18 },
     cardInfo: { position: "absolute", left: 16, right: 16, bottom: 14 },
+    socialProofWrap: { marginBottom: 9, paddingRight: 54 },
     cardTitle: { color: "#fff", fontSize: 19, fontWeight: "700" },
     cardMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
     cardMeta: { color: "rgba(255,255,255,0.85)", fontSize: 12 },
