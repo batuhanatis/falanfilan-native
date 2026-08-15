@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Heart, MessageCircle, MoreHorizontal, Send, Sparkles, Star, ThumbsUp } from "lucide-react-native";
+import { Heart, MessageCircle, MoreHorizontal, Send, Sparkles, Star } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -63,14 +63,12 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const styles = useMemo(() => makeStyles(c), [c]);
   const [state, setState] = useState(item);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [activityLiked, setActivityLiked] = useState(!!item?.movieLikedByMe);
   const [sendOpen, setSendOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removed, setRemoved] = useState(false);
 
   useEffect(() => {
     setState(item);
-    setActivityLiked(!!item?.movieLikedByMe);
   }, [item]);
 
   const user = state.user || {};
@@ -122,18 +120,6 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
       }
       onChanged?.();
     } catch {}
-  }
-
-  async function likeActivityMovie(movie) {
-    if (!movie || activityLiked) return;
-    setActivityLiked(true);
-    setState((s) => ({ ...s, movieLikedByMe: true }));
-    try {
-      await api.recordInteraction(auth.token, movie.id, "like");
-    } catch {
-      setActivityLiked(false);
-      setState((s) => ({ ...s, movieLikedByMe: false }));
-    }
   }
 
   function requestDeletePost() {
@@ -303,12 +289,6 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         </View>
       ) : state.kind === "activity" ? (
         <View style={styles.actions}>
-          {!!primaryMovie && (
-            <TouchableOpacity style={styles.action} onPress={() => likeActivityMovie(primaryMovie)}>
-              <ThumbsUp size={16} color={activityLiked ? c.accent2 : c.dim} fill={activityLiked ? c.accent2 : "none"} />
-              <Text style={[styles.actionText, activityLiked && { color: c.accent2 }]}>{activityLiked ? "Beğenildi" : "Ben de beğendim"}</Text>
-            </TouchableOpacity>
-          )}
           {!!state.activityId && (
             <TouchableOpacity style={styles.action} onPress={() => setCommentsOpen(true)}>
               <MessageCircle size={17} color={c.dim} />
