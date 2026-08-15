@@ -10,6 +10,7 @@ import { api, API_BASE } from "../api/client";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import PhoneAuthModal from "../components/PhoneAuthModal";
 import CompleteProfileModal from "../components/CompleteProfileModal";
+import { appleAuthWithCode } from "../utils/appleAuth";
 
 // ÖNEMLİ (kökten düzeltme): expo-auth-session, Google ile girişte HER ZAMAN tarayıcı üzerinden
 // (accounts.google.com'u açıp geri yönlendirerek) çalışıyordu. Google'ın güncel OAuth
@@ -121,7 +122,7 @@ export default function AuthScreen() {
       const fullName = credential.fullName
         ? `${credential.fullName.givenName || ""} ${credential.fullName.familyName || ""}`.trim()
         : null;
-      const data = await api.appleAuth(credential.identityToken, fullName, credential.authorizationCode);
+      const data = await appleAuthWithCode(credential.identityToken, fullName, credential.authorizationCode);
       if (data.isNewUser) {
         setPendingSignup({ ticket: data.ticket, email: data.email, suggestedName: data.suggestedName, completeFn: api.appleCompleteSignup });
       } else {
