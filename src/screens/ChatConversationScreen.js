@@ -751,7 +751,7 @@ export default function ChatConversationScreen({ route, navigation }) {
     if (!viewerImage?.uri || downloading) return;
     setDownloading(true);
     try {
-      const perm = await MediaLibrary.requestPermissionsAsync();
+      const perm = Platform.OS === "ios" ? await MediaLibrary.requestPermissionsAsync(true) : { granted: true };
       if (!perm.granted) { Alert.alert("İzin gerekli", "Fotoğrafı kaydetmek için galeri izni vermelisin."); setDownloading(false); return; }
       const fileUri = FileSystem.cacheDirectory + `falanfilan-${Date.now()}.jpg`;
       const base64Data = viewerImage.uri.split(",")[1];
