@@ -63,12 +63,15 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const styles = useMemo(() => makeStyles(c), [c]);
   const [state, setState] = useState(item);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [activityLiked, setActivityLiked] = useState(false);
+  const [activityLiked, setActivityLiked] = useState(!!item?.movieLikedByMe);
   const [sendOpen, setSendOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removed, setRemoved] = useState(false);
 
-  useEffect(() => setState(item), [item]);
+  useEffect(() => {
+    setState(item);
+    setActivityLiked(!!item?.movieLikedByMe);
+  }, [item]);
 
   const user = state.user || {};
   const post = state.post;
@@ -124,7 +127,13 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   async function likeActivityMovie(movie) {
     if (!movie || activityLiked) return;
     setActivityLiked(true);
-    try { await api.recordInteraction(auth.token, movie.id, "like"); } catch { setActivityLiked(false); }
+    setState((s) => ({ ...s, movieLikedByMe: true }));
+    try {
+      await api.recordInteraction(auth.token, movie.id, "like");
+    } catch {
+      setActivityLiked(false);
+      setState((s) => ({ ...s, movieLikedByMe: false }));
+    }
   }
 
   function requestDeletePost() {
