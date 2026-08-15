@@ -188,24 +188,45 @@ export default function DiscoverScreen({ navigation }) {
     backdropProgress.stopAnimation();
     backdropProgress.setValue(0);
     setIncomingBackdrop(poster);
-    Animated.timing(backdropProgress, {
-      toValue: 1,
-      duration: 560,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (!finished || generation !== backdropGenerationRef.current) return;
-      backdropUriRef.current = poster;
-      setBaseBackdrop(poster);
-      setIncomingBackdrop(null);
-      backdropProgress.setValue(0);
+
+    // Yeni katman render edildikten sonra cross-fade'i başlat. Böylece native animasyon,
+    // görsel henüz ekrana yerleşmeden ilerlemeye başlamıyor.
+    const frame = requestAnimationFrame(() => {
+      Animated.timing(backdropProgress, {
+        toValue: 1,
+        duration: 560,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished || generation !== backdropGenerationRef.current) return;
+        backdropUriRef.current = poster;
+        setBaseBackdrop(poster);
+        setIncomingBackdrop(null);
+        // Burada progress'i 0'a çekmiyoruz. State commit edilmeden değer sıfırlanırsa
+        // eski backdrop bir kareliğine geri görünerek "şimşek" etkisi oluşturuyordu.
+        // Değer bir sonraki geçiş başlarken, incoming katman yokken sıfırlanıyor.
+      });
     });
+
+    return () => cancelAnimationFrame(frame);
   }, [current?.poster, backdropProgress]);
 
   return (
     <View style={styles.container}>
       <View pointerEvents="none" style={styles.backdrop}>
-        {!!baseBackdrop && <Image source={{ uri: baseBackdrop }} style={styles.backdropImage} blurRadius={48} resizeMode="cover" />}
+        {!!baseBackdrop && (
+          <Animated.Image
+            source={{ uri: baseBackdrop }}
+            style={[
+              styles.backdropImage,
+              incomingBackdrop && {
+                opacity: backdropProgress.interpolate({ inputRange: [0, 1], outputRange: [0.62, 0] }),
+              },
+            ]}
+            blurRadius={48}
+            resizeMode="cover"
+          />
+        )}
         {!!incomingBackdrop && (
           <Animated.Image
             source={{ uri: incomingBackdrop }}
