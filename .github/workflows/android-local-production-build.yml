@@ -64,4 +64,4 @@ jobs:
           path: dist/pellix-production.aab
           retention-days: 14
 
-# Manual trigger: 2026-08-15 RevenueCat Android and iOS release build.
+# Manual trigger: 2026-08-15T14:05:16.226Z production AAB requested after chat reaction and daily question fixes.
