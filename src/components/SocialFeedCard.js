@@ -38,10 +38,10 @@ function activityCopy(item) {
 }
 
 function activityMood(item) {
-  if (item.activityType === "like") return { emoji: "🍿", label: "YENİ KEŞİF", colors: ["#FF3D81", "#8B5CF6"] };
-  if (item.activityType === "favorite_set") return { emoji: "💘", label: "FAVORİ DEĞİŞTİ", colors: ["#F97316", "#EF4444"] };
+  if (item.activityType === "like") return { emoji: "🍿", label: "BEĞENDİ", colors: ["#FF3D81", "#8B5CF6"] };
+  if (item.activityType === "favorite_set") return { emoji: "💘", label: "FAVORİSİ YAPTI", colors: ["#F97316", "#EF4444"] };
   if (item.activityType === "list_created") return { emoji: "🎬", label: "YENİ LİSTE", colors: ["#06B6D4", "#2563EB"] };
-  return { emoji: "✨", label: "ZEVK GÜNCELLENDİ", colors: ["#8B5CF6", "#2563EB"] };
+  return { emoji: "✨", label: "ZEVKİNİ GÜNCELLEDİ", colors: ["#8B5CF6", "#2563EB"] };
 }
 
 function postLabel(type) {
@@ -157,13 +157,14 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
   const mood = state.kind === "activity" ? activityMood(state) : null;
-  const isOwnPost = state.kind === "post" && Number(user.id) === Number(auth.id);\n  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");
+  const isOwnPost = state.kind === "post" && Number(user.id) === Number(auth.id);
+  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");
 
   if (removed) return null;
 
   return (
     <View style={[styles.card, state.kind === "activity" && styles.activityCard, compact && styles.cardCompact]}>
-      {mood && <LinearGradient colors={mood.colors} style={styles.activityRail} />}
+      {mood && !primaryMovie && <LinearGradient colors={mood.colors} style={styles.activityRail} />}
       <View style={styles.header}>
         <TouchableOpacity onPress={openProfile} activeOpacity={0.8}>
           <RetryImage source={{ uri: avatarOr(user.avatar_url, user.id) }} style={styles.avatar} />
@@ -189,7 +190,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         )}
       </View>
 
-      {mood && (
+      {mood && !primaryMovie && (
         <View style={styles.activityHeadline}>
           <LinearGradient colors={mood.colors} style={styles.activityEmoji}><Text style={styles.activityEmojiText}>{mood.emoji}</Text></LinearGradient>
           <View style={{ flex: 1 }}>
@@ -225,6 +226,14 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         <TouchableOpacity style={styles.activityMovieCard} onPress={() => openMovie(primaryMovie)} activeOpacity={0.88}>
           {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.activityPoster} resizeMode="contain" /> : <View style={[styles.activityPoster, { backgroundColor: c.surface2 }]} />}
           <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={styles.activityPosterShade} />
+          <LinearGradient
+            colors={isDailyQuestionPost ? ["#F97316", "#EF4444"] : (mood?.colors || ["#8B5CF6", "#2563EB"])}
+            style={styles.activityImageTag}
+          >
+            <Text style={styles.activityImageTagText}>
+              {isDailyQuestionPost ? "🔥 GÜNÜN SORUSU" : `${mood?.emoji || "✨"} ${mood?.label || ""}`}
+            </Text>
+          </LinearGradient>
           <View style={styles.activityMovieCopy}>
             <Text style={styles.activityMovieTitle} numberOfLines={2}>{primaryMovie.title}</Text>
             <View style={styles.activityMovieMetaRow}>
@@ -348,6 +357,8 @@ function makeStyles(c) {
     activityMovieCard: { height: 330, aspectRatio: 2 / 3, alignSelf: "center", marginTop: 12, borderRadius: 15, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
     activityPoster: { width: "100%", height: "100%" },
     activityPosterShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 120 },
+    activityImageTag: { position: "absolute", left: 12, top: 12, zIndex: 2, minHeight: 28, paddingHorizontal: 10, borderRadius: 999, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+    activityImageTagText: { color: "#fff", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.55 },
     activityMovieCopy: { position: "absolute", left: 14, right: 14, bottom: 13 },
     activityMovieTitle: { color: "#fff", fontWeight: "900", fontSize: 19, lineHeight: 23 },
     activityMovieMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
