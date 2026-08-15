@@ -11,11 +11,11 @@ const SUPPORT_EMAIL = "destek@pellix.app";
 const TIER_COLORS = { bronze: "#B08D57", silver: "#9CA3AF", gold: "#F5C518" };
 const TIER_LABELS = { bronze: "🥉 Bronz", silver: "🥈 Gümüş", gold: "🥇 Altın" };
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen({ navigation, route }) {
   const { c, mode, setMode } = useAppTheme();
   const { auth, logout, handleAuthed } = useAuth();
   const styles = makeStyles(c);
-  const [openSection, setOpenSection] = useState(null);
+  const [openSection, setOpenSection] = useState(route?.params?.initialSection || null);
   const [privacy, setPrivacy] = useState("everyone");
   const [tastemateVisible, setTastemateVisible] = useState(true);
   const [dislikeCount, setDislikeCount] = useState(0);
@@ -27,6 +27,10 @@ export default function SettingsScreen({ navigation }) {
   const [pwState, setPwState] = useState({ saving: false, error: "", success: false });
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteState, setDeleteState] = useState({ deleting: false, error: "" });
+
+  useEffect(() => {
+    if (route?.params?.initialSection) setOpenSection(route.params.initialSection);
+  }, [route?.params?.initialSection]);
 
   useEffect(() => {
     api.me(auth.token).then((me) => {
