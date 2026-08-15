@@ -64,4 +64,4 @@ jobs:
           path: dist/pellix-production.aab
           retention-days: 14
 
-# Manual trigger: 2026-08-15T14:05:16.226Z production AAB requested after chat reaction and daily question fixes.
+# Manual trigger: 2026-08-15T14:09:13.446Z production AAB retriggered after ProfileScreen JSX build fix.
