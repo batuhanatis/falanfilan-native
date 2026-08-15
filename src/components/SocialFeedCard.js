@@ -178,7 +178,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         </View>
       ) : state.kind === "activity" && primaryMovie ? (
         <TouchableOpacity style={styles.activityMovieCard} onPress={() => openMovie(primaryMovie)} activeOpacity={0.88}>
-          {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.activityPoster} resizeMode="cover" /> : <View style={[styles.activityPoster, { backgroundColor: c.surface2 }]} />}
+          {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.activityPoster} resizeMode="contain" /> : <View style={[styles.activityPoster, { backgroundColor: c.surface2 }]} />}
           <LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={styles.activityPosterShade} />
           <View style={styles.activityMovieCopy}>
             <Text style={styles.activityMovieTitle} numberOfLines={2}>{primaryMovie.title}</Text>
@@ -292,7 +292,7 @@ function makeStyles(c) {
     activityEmojiText: { fontSize: 18 },
     activityLabel: { fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
     activityTitle: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 2 },
-    activityMovieCard: { height: 330, marginTop: 12, borderRadius: 15, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
+    activityMovieCard: { height: 330, aspectRatio: 2 / 3, alignSelf: "center", marginTop: 12, borderRadius: 15, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
     activityPoster: { width: "100%", height: "100%" },
     activityPosterShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 120 },
     activityMovieCopy: { position: "absolute", left: 14, right: 14, bottom: 13 },
