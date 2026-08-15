@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Send, Trash2, X } from "lucide-react-native";
+import { Flag, Send, Trash2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -80,6 +80,25 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
     );
   }
 
+  function requestReport(comment) {
+    const targetType = activityId ? "activity_comment" : "post_comment";
+    const reasons = ["Uygunsuz/müstehcen içerik", "Taciz veya nefret söylemi", "Spam", "Diğer"];
+    Alert.alert("Yorumu şikâyet et", "Nedeni seç", [
+      ...reasons.map((reason) => ({
+        text: reason,
+        onPress: async () => {
+          try {
+            await api.socialReportContent(auth.token, targetType, comment.id, reason);
+            Alert.alert("Teşekkürler", "Şikâyetin incelenmek üzere alındı.");
+          } catch (error) {
+            Alert.alert("Gönderilemedi", error?.message || "Şikâyet gönderilemedi.");
+          }
+        },
+      })),
+      { text: "Vazgeç", style: "cancel" },
+    ]);
+  }
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -120,6 +139,16 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
                       {deletingId === item.id
                         ? <ActivityIndicator size="small" color={c.dim} />
                         : <Trash2 size={14} color={c.dim} />}
+                    </TouchableOpacity>
+                  )}
+                  {!canModerate && Number(item.user_id) !== Number(auth.id) && (
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => requestReport(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Yorumu şikâyet et"
+                    >
+                      <Flag size={14} color={c.dim} />
                     </TouchableOpacity>
                   )}
                 </View>
