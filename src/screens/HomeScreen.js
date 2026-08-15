@@ -50,6 +50,7 @@ export default function HomeScreen({ navigation }) {
   const [searchResults, setSearchResults] = useState(null); // null = arama aktif değil
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const screenRootRef = useRef(null);
   const searchBoxRef = useRef(null);
   const [dropdownTop, setDropdownTop] = useState(null);
 
@@ -487,19 +488,40 @@ export default function HomeScreen({ navigation }) {
   const dropdownOpen = query.trim().length > 0;
   const dropdownResults = (searchResults || []).slice(0, 8);
 
-  // Dropdown açılırken: aktif listeyi en üste kaydırıp arama kutusunun ekrandaki konumunu SABİT
-  // hale getiriyoruz, sonra gerçek konumunu ölçüp overlay'i tam altına yerleştiriyoruz.
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    const refs = [mainListRef, newReleasesListRef, upcomingListRef];
-    refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: false });
-    const raf = requestAnimationFrame(() => {
-      searchBoxRef.current?.measureInWindow((x, y, width, height) => {
-        setDropdownTop(y + height + 8);
+  // Overlay, ekran koordinatında değil bu ekranın kök View'ına göre absolute konumlanıyor.
+  // Android'de status bar/klavye inset'i nedeniyle measureInWindow değerini doğrudan kullanmak
+  // paneli arama kutusunun üzerine taşıyabiliyor; iki ölçümün farkı gerçek yerel konumu verir.
+  const measureDropdownPosition = useCallback(() => {
+    if (!screenRootRef.current || !searchBoxRef.current) return;
+    screenRootRef.current.measureInWindow((rootX, rootY) => {
+      searchBoxRef.current?.measureInWindow((searchX, searchY, width, height) => {
+        setDropdownTop(Math.max(0, searchY - rootY + height + 8));
       });
     });
-    return () => cancelAnimationFrame(raf);
-  }, [dropdownOpen, activePage]);
+  }, []);
+
+  // Dropdown açılırken aktif listeyi en üste al, ardından hem ilk yerleşimde hem de Android
+  // klavye animasyonu tamamlandığında konumu yeniden ölç.
+  useEffect(() => {
+    if (!dropdownOpen) {
+      setDropdownTop(null);
+      return undefined;
+    }
+    const refs = [mainListRef, newReleasesListRef, upcomingListRef];
+    refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: false });
+
+    const raf = requestAnimationFrame(measureDropdownPosition);
+    const timer = setTimeout(measureDropdownPosition, 120);
+    const keyboardSubscription = Platform.OS === "android"
+      ? Keyboard.addListener("keyboardDidShow", measureDropdownPosition)
+      : null;
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      keyboardSubscription?.remove();
+    };
+  }, [dropdownOpen, activePage, measureDropdownPosition]);
 
   const headerContent = (
     <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
@@ -590,7 +612,7 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View ref={screenRootRef} style={{ flex: 1, backgroundColor: c.bg }} onLayout={dropdownOpen ? measureDropdownPosition : undefined}>
       <TopBar centerLabel={FEED_TABS[activePage].label} />
 
       {/* Sana Özel / Şu An Gösterimde / Yakında Gelecekler sembolleri — tek ve sabit, kaydırılabilir
