@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Send, X } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -10,7 +11,8 @@ import RetryImage from "./RetryImage";
 export default function SocialCommentsModal({ visible, postId, activityId, onClose, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets.bottom);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
@@ -48,7 +50,11 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
@@ -62,6 +68,8 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
               data={comments}
               keyExtractor={(item) => String(item.id)}
               contentContainerStyle={comments.length ? styles.list : styles.emptyList}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
               renderItem={({ item }) => (
                 <View style={styles.commentRow}>
                   <RetryImage source={{ uri: avatarOr(item.avatar_url, item.user_id) }} style={styles.avatar} />
@@ -95,7 +103,7 @@ export default function SocialCommentsModal({ visible, postId, activityId, onClo
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, bottomInset = 0) {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
     sheet: { maxHeight: "72%", minHeight: 360, backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, overflow: "hidden" },
@@ -110,7 +118,16 @@ function makeStyles(c) {
     name: { color: c.text, fontWeight: "800", fontSize: 12 },
     body: { color: c.text, fontSize: 13, lineHeight: 18, marginTop: 2 },
     empty: { color: c.dim, fontSize: 12, textAlign: "center" },
-    inputRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Platform.OS === "ios" ? 28 : 14, borderTopWidth: 1, borderTopColor: c.border },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      paddingBottom: Math.max(bottomInset, Platform.OS === "ios" ? 20 : 14),
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
     input: { flex: 1, minHeight: 40, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 14, color: c.text, fontSize: 13 },
     sendBtn: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
   });
