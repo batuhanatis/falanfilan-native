@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check, Trophy } from "lucide-react-native";
@@ -22,7 +22,12 @@ import ShareCardModal from "../components/ShareCardModal";
 import MatchShareCard from "../components/MatchShareCard";
 import MatchCelebration from "../components/MatchCelebration";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+const MATCH_SHARE_CARD_HEIGHT = 320 * 1.72;
+const SUMMARY_CARD_SCALE = Platform.OS === "android"
+  ? (SCREEN_H < 720 ? 0.6 : SCREEN_H < 800 ? 0.65 : 0.68)
+  : 0.72;
+const SUMMARY_CARD_MARGIN = -((MATCH_SHARE_CARD_HEIGHT * (1 - SUMMARY_CARD_SCALE)) / 2);
 const SWIPE_THRESHOLD = 110;
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
 const STOCK_TARGET = 10; // Discover'daki gibi: kuyrukta her zaman en az bu kadar film kalsın
@@ -444,7 +449,14 @@ export default function MatchPartyScreen({ route, navigation }) {
       )}
 
       {stage === "summary" && (
-        <ScrollView style={{ padding: 18 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            padding: 18,
+            paddingBottom: Math.max(insets.bottom, 16) + 28,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.summaryTitle}>Ortak Eşleşmeleriniz</Text>
           <Text style={styles.summarySubtitle}>{displayName} ile {matches.length} içerikte anlaştınız</Text>
           {matches.length === 0 ? (
@@ -509,7 +521,7 @@ export default function MatchPartyScreen({ route, navigation }) {
       )}
 
       {showShareCard && matches.length > 0 && (
-        <ShareCardModal onClose={() => setShowShareCard(false)}>
+        <ShareCardModal onClose={() => setShowShareCard(false)} previewHeight={MATCH_SHARE_CARD_HEIGHT}>
           <MatchShareCard
             myAvatar={myAvatarUrl}
             myId={auth.id}
@@ -610,7 +622,10 @@ function makeStyles(c) {
     // Kart 320×550 sabit boyutta tasarlanmış (dışa aktarılan görsel) — burada sadece küçültülmüş
     // bir önizleme olarak gösteriliyor; transform:scale layout boyutunu değiştirmediği için
     // negatif dikey margin ile fazladan boşluğu topluyoruz.
-    sharePreviewScale: { transform: [{ scale: 0.72 }], marginVertical: -77 },
+    sharePreviewScale: {
+      transform: [{ scale: SUMMARY_CARD_SCALE }],
+      marginVertical: SUMMARY_CARD_MARGIN,
+    },
     shareResultBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
       backgroundColor: "#DB2777", borderRadius: 14, paddingVertical: 13, marginBottom: 16,
