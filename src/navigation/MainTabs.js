@@ -1,5 +1,6 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { StackActions } from "@react-navigation/native";
 import { Home, Compass, Activity, MessageCircle, User } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useUnread } from "../context/UnreadContext";
@@ -32,7 +33,20 @@ export default function MainTabs() {
         options={{ title: "Keşfet", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
       <Tab.Screen name="Activity" component={ActivityScreen}
         options={{ title: "Aktivite", tabBarIcon: ({ color, size }) => <Activity color={color} size={size} /> }} />
-      <Tab.Screen name="Chat" component={ChatStack}
+      <Tab.Screen
+        name="Chat"
+        component={ChatStack}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            // Sohbet sekmesi daha önce bir konuşmada bırakılmış olsa bile tab ikonuna basmak
+            // her zaman nested stack'in köküne, yani tüm sohbetlerin listesine döner.
+            const chatRoute = navigation.getState().routes.find((route) => route.name === "Chat");
+            const chatStackKey = chatRoute?.state?.key;
+            if (chatStackKey) {
+              navigation.dispatch({ ...StackActions.popToTop(), target: chatStackKey });
+            }
+          },
+        })}
         options={{
           title: "Sohbet",
           tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
