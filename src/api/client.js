@@ -241,8 +241,10 @@ export const api = {
   socialReact: (token, kind, id, reaction) => request(`/api/social/reactions/${kind}/${id}`, { method: "POST", token, body: { reaction } }),
   socialComments: (token, id) => request(`/api/social/posts/${id}/comments`, { token }),
   socialAddComment: (token, id, body) => request(`/api/social/posts/${id}/comments`, { method: "POST", token, body: { body } }),
+  socialDeleteComment: (token, postId, commentId) => request(`/api/social/posts/${postId}/comments/${commentId}`, { method: "DELETE", token }),
   socialActivityComments: (token, id) => request(`/api/social/activities/${id}/comments`, { token }),
   socialAddActivityComment: (token, id, body) => request(`/api/social/activities/${id}/comments`, { method: "POST", token, body: { body } }),
+  socialDeleteActivityComment: (token, activityId, commentId) => request(`/api/social/activities/${activityId}/comments/${commentId}`, { method: "DELETE", token }),
   socialVote: (token, id, movieId) => request(`/api/social/posts/${id}/vote`, { method: "POST", token, body: { movieId } }),
   socialUserPosts: (token, userId) => request(`/api/social/users/${userId}/posts`, { token }),
 
