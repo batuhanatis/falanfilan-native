@@ -15,6 +15,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Sistem izin diyaloğunu TETİKLEMEDEN mevcut durumu okur — "granted" | "denied" | "undetermined"
+// | "unsupported" (simülatör/emülatör). Gate() bunu, kullanıcıya önce KENDİ ekranımızda
+// (NotificationPrimerModal) sorup sorulmayacağına karar vermek için kullanıyor: "undetermined"
+// dışındaki durumlarda sistem diyaloğu zaten ya cevaplanmış ya da bu cihazda mümkün değil,
+// gösterecek bir şey yok.
+export async function getPushPermissionStatus() {
+  if (!Device.isDevice) return "unsupported";
+  const { status } = await Notifications.getPermissionsAsync();
+  return status;
+}
+
 export async function clearDeliveredNotifications() {
   try {
     await Notifications.dismissAllNotificationsAsync();

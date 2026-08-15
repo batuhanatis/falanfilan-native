@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, AppState, Animated, Easing, Image, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from "@expo-google-fonts/baloo-2";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -14,10 +15,11 @@ import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RootNavigator from "./src/navigation/RootNavigator";
 import TutorialOverlay from "./src/components/TutorialOverlay";
 import TasteSurveyStep from "./src/components/TasteSurveyStep";
+import NotificationPrimerModal from "./src/components/NotificationPrimerModal";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { api } from "./src/api/client";
 import { setAnalyticsToken, startSession, endSession } from "./src/utils/analytics";
-import { registerForPushNotifications, clearDeliveredNotifications, setupNotificationTapHandling } from "./src/utils/pushNotifications";
+import { registerForPushNotifications, getPushPermissionStatus, clearDeliveredNotifications, setupNotificationTapHandling } from "./src/utils/pushNotifications";
 import { configurePurchases } from "./src/utils/purchases";
 import { emitLocalEvent } from "./src/utils/localEvents";
 import { navigationRef } from "./src/navigation/RootNavigator";
@@ -56,20 +58,56 @@ function LoadingLogo() {
   );
 }
 
+const PUSH_PRIMER_DISMISSED_KEY = "push_primer_dismissed_v1";
+
 function Gate() {
   const { c, mode } = useAppTheme();
   const { auth, checking, markTutorialSeen, markTasteSurveySeen } = useAuth();
+  // ÖNEMLİ: Bildirim izni artık login olur olmaz bağlamsızca istenmiyor — önce KENDİ ekranımızda
+  // (NotificationPrimerModal) "neden" soruyoruz, sistemin tek seferlik diyaloğunu ancak kullanıcı
+  // "Bildirimleri Aç" dedikten sonra tetikliyoruz. Bu, izin (Notifications API) ve "kartı daha
+  // önce kapattın mı" (AsyncStorage) durumu HESAPLANANA kadar null — o ana kadar hiçbir şey
+  // göstermiyoruz, "hesaplanmadı" ile "gösterilmemeli" birbirine karışmasın diye.
+  const [showPushPrimer, setShowPushPrimer] = useState(null);
 
   // Analitik: hangi kullanıcıya ait olduğunu bilelim, uygulama ön plana/arka plana
   // geçtiğinde oturum başlasın/bitsin (bitişte son ekran + oturum süresi kaydediliyor).
   useEffect(() => {
     setAnalyticsToken(auth?.token || null);
     if (auth?.token) {
-      registerForPushNotifications(auth.token);
       clearDeliveredNotifications();
       configurePurchases(auth.id); // RevenueCat'in appUserID'sini bizim kullanıcı ID'mize eşitliyor
+
+      (async () => {
+        const status = await getPushPermissionStatus();
+        if (status === "granted") {
+          // Zaten izin verilmiş (ör. önceki bir sürümde ya da bu ekran kurulmadan önce) —
+          // kullanıcıya tekrar bir şey sormaya gerek yok, sessizce jetonu kaydet.
+          registerForPushNotifications(auth.token);
+          setShowPushPrimer(false);
+          return;
+        }
+        if (status !== "undetermined") {
+          // "denied" (daha önce sistem diyaloğunda reddetmiş) ya da "unsupported" (simülatör) —
+          // ikisinde de kendi ekranımızı göstermenin bir anlamı yok.
+          setShowPushPrimer(false);
+          return;
+        }
+        const dismissed = await AsyncStorage.getItem(PUSH_PRIMER_DISMISSED_KEY);
+        setShowPushPrimer(!dismissed);
+      })();
     }
   }, [auth?.token]);
+
+  function handleEnablePush() {
+    setShowPushPrimer(false);
+    registerForPushNotifications(auth.token);
+  }
+
+  function handleDismissPush() {
+    setShowPushPrimer(false);
+    AsyncStorage.setItem(PUSH_PRIMER_DISMISSED_KEY, "1").catch(() => {});
+  }
 
   useEffect(() => {
     startSession();
@@ -214,6 +252,12 @@ function Gate() {
             onContinue={markTasteSurveySeen}
           />
         </View>
+      )}
+      {/* Onboarding zinciri (tur + zevk anketi) bitmeden bindirmiyoruz ki aynı anda iki tam ekran
+          katman üst üste binmesin — bildirim izni bunların EN SONUNDA, tek seferlik sorulan
+          üçüncü adım. */}
+      {auth?.onboardingCompleted && auth?.tutorialSeen && auth?.tasteSurveySeen && showPushPrimer && (
+        <NotificationPrimerModal onEnable={handleEnablePush} onDismiss={handleDismissPush} />
       )}
     </>
   );
