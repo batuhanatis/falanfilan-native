@@ -25,6 +25,7 @@ import GroupPartyScreen from "../screens/GroupPartyScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import FriendsListScreen from "../screens/FriendsListScreen";
 import MyWatchlistsScreen from "../screens/MyWatchlistsScreen";
+import ChatConversationScreen from "../screens/ChatConversationScreen";
 import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
@@ -95,6 +96,7 @@ export default function RootNavigator() {
         <Stack.Screen name="TasteMate" component={TasteMateScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Detail" component={DetailScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="ProfileChat" component={ChatConversationScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Blend" component={BlendScreen} options={{ presentation: "card" }} />
