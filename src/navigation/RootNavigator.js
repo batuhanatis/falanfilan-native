@@ -18,7 +18,6 @@ import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
 import WatchlistDetailScreen from "../screens/WatchlistDetailScreen";
 import MatchPartyScreen from "../screens/MatchPartyScreen";
-import ComingSoonScreen from "../screens/ComingSoonScreen";
 import FriendSearchScreen from "../screens/FriendSearchScreen";
 import PersonScreen from "../screens/PersonScreen";
 import GroupPartyScreen from "../screens/GroupPartyScreen";
@@ -114,7 +113,6 @@ export default function RootNavigator() {
         <Stack.Screen name="FriendsList" component={FriendsListScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="MyWatchlists" component={MyWatchlistsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="MatchParty" component={MatchPartyScreen} options={{ presentation: "fullScreenModal" }} />
-        <Stack.Screen name="ComingSoon" component={ComingSoonScreen} options={{ presentation: "modal" }} />
       </Stack.Navigator>
       <GlobalPopups />
     </NavigationContainer>
