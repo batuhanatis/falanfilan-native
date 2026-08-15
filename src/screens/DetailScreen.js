@@ -424,7 +424,18 @@ export default function DetailScreen({ route, navigation }) {
           {(extra.director || extra.cast.length > 0) && (
             <View style={{ marginTop: 18 }}>
               {extra.director && (
-                <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={{ color: c.text, fontWeight: "700" }}>{extra.director.name}</Text></Text>
+                <TouchableOpacity
+                  style={styles.directorLink}
+                  activeOpacity={extra.director.id ? 0.7 : 1}
+                  onPress={() => extra.director.id && navigation.navigate("Person", {
+                    personId: extra.director.id,
+                    name: extra.director.name,
+                    photo: extra.director.photo,
+                    role: "director",
+                  })}
+                >
+                  <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={styles.directorName}>{extra.director.name}</Text></Text>
+                </TouchableOpacity>
               )}
               {extra.cast.length > 0 && (
                 <>
@@ -528,6 +539,8 @@ function makeStyles(c) {
     platformPillText: { fontSize: 11, color: c.text },
     divider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: c.border, marginVertical: 18 },
     castSectionLabel: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5 },
+    directorLink: { alignSelf: "flex-start", paddingVertical: 5, paddingRight: 10 },
+    directorName: { color: c.text, fontWeight: "800", textDecorationLine: "underline" },
     castPhoto: { width: 56, height: 56, borderRadius: 999 },
     castName: { fontSize: 10, fontWeight: "700", color: c.text, marginTop: 5, textAlign: "center" },
     castCharacter: { fontSize: 9, color: c.dim, marginTop: 1, textAlign: "center" },
