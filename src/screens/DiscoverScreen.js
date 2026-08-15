@@ -216,11 +216,14 @@ export default function DiscoverScreen({ navigation }) {
       <View pointerEvents="none" style={styles.backdrop}>
         {!!baseBackdrop && (
           <Animated.Image
+            key={`base-${baseBackdrop}`}
             source={{ uri: baseBackdrop }}
             style={[
               styles.backdropImage,
-              incomingBackdrop && {
-                opacity: backdropProgress.interpolate({ inputRange: [0, 1], outputRange: [0.62, 0] }),
+              {
+                opacity: incomingBackdrop
+                  ? backdropProgress.interpolate({ inputRange: [0, 1], outputRange: [0.62, 0] })
+                  : 0.62,
               },
             ]}
             blurRadius={48}
@@ -229,6 +232,7 @@ export default function DiscoverScreen({ navigation }) {
         )}
         {!!incomingBackdrop && (
           <Animated.Image
+            key={`incoming-${incomingBackdrop}`}
             source={{ uri: incomingBackdrop }}
             style={[styles.backdropImage, { opacity: backdropProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.62] }) }]}
             blurRadius={48}
@@ -400,7 +404,7 @@ function makeStyles(c) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
     backdrop: { ...StyleSheet.absoluteFillObject, overflow: "hidden", backgroundColor: c.bg },
-    backdropImage: { ...StyleSheet.absoluteFillObject, opacity: 0.62, transform: [{ scale: 1.16 }] },
+    backdropImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.16 }] },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     restartBtn: {
       marginTop: 20, backgroundColor: c.accent, borderRadius: 999,
