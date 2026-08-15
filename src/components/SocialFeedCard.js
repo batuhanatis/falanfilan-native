@@ -317,14 +317,19 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           visible={commentsOpen}
           postId={post?.id}
           activityId={state.activityId}
+          canModerate={Number(user.id) === Number(auth.id)}
           onClose={() => setCommentsOpen(false)}
-          onChanged={() => {
+          onChanged={(event) => {
+            const delta = event?.type === "comment_deleted" ? -1 : 1;
             if (post?.id) {
-              setState((s) => ({ ...s, post: { ...s.post, commentCount: Number(s.post?.commentCount || 0) + 1 } }));
+              setState((s) => ({
+                ...s,
+                post: { ...s.post, commentCount: Math.max(0, Number(s.post?.commentCount || 0) + delta) },
+              }));
             } else {
-              setState((s) => ({ ...s, commentCount: Number(s.commentCount || 0) + 1 }));
+              setState((s) => ({ ...s, commentCount: Math.max(0, Number(s.commentCount || 0) + delta) }));
             }
-            onChanged?.();
+            onChanged?.(event);
           }}
         />
       )}
