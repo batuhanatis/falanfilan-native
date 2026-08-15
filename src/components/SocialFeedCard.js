@@ -54,7 +54,7 @@ function postLabel(type) {
 const QUICK_REACTIONS = [
   ["fire", "🔥"],
   ["agree", "🤝"],
-  ["nope", "😬"],
+  ["nope", "👎"],
 ];
 
 export default function SocialFeedCard({ item, navigation, compact = false, onChanged }) {
