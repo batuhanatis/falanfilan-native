@@ -89,6 +89,11 @@ export default function ActivityScreen({ navigation }) {
     setComposerOpen(true);
   }
 
+  function handleFeedChanged(event) {
+    if (event?.type !== "deleted") return;
+    setFeed((items) => items.filter((item) => Number(item.post?.id) !== Number(event.postId)));
+  }
+
   const header = (
     <View>
       <View style={styles.topActions}>
@@ -149,7 +154,7 @@ export default function ActivityScreen({ navigation }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
-          renderItem={({ item }) => <SocialFeedCard item={item} navigation={navigation} />}
+          renderItem={({ item }) => <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />}
           ListEmptyComponent={
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
