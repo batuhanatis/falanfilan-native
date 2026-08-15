@@ -64,7 +64,8 @@
         "expo-media-library",
         {
           "photosPermission": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor.",
-          "savePhotosPermission": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor."
+          "savePhotosPermission": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor.",
+          "granularPermissions": []
         }
       ],
       [
