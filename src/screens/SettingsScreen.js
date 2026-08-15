@@ -95,8 +95,8 @@ export default function SettingsScreen({ navigation, route }) {
 
         <Group id="privacy" title="Gizlilik & Sosyal" subtitle="Profil, TasteMate ve engeller" Icon={Shield} {...groupProps}>
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Profilimi kimler görebilir</Text>
-            <Text style={styles.cardSubtitle}>Beğenilerin ve profilin bu ayara göre gösterilir.</Text>
+            <Text style={styles.cardTitle}>Beğendiklerimi kimler görebilir</Text>
+            <Text style={styles.cardSubtitle}>Bu ayar yalnızca beğendiğin film/dizileri gizler — isim, biyografi, fotoğrafların ve favorilerin her zaman herkese açıktır.</Text>
             {[["everyone", "Herkes"], ["friends", "Sadece arkadaşlarım"], ["onlyme", "Sadece ben"]].map(([value, label]) => (
               <TouchableOpacity key={value} style={styles.optionRow} onPress={() => savePrivacy(value)}><Text style={styles.optionText}>{label}</Text>{privacy === value && <Check size={16} color={c.accent} />}</TouchableOpacity>
             ))}
