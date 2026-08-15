@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Heart, MessageCircle, Send, Sparkles, Star, ThumbsUp } from "lucide-react-native";
+import { Alert, ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Heart, MessageCircle, MoreHorizontal, Send, Sparkles, Star, ThumbsUp } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -65,6 +65,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [activityLiked, setActivityLiked] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [removed, setRemoved] = useState(false);
 
   useEffect(() => setState(item), [item]);
 
@@ -125,9 +127,39 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
     try { await api.recordInteraction(auth.token, movie.id, "like"); } catch { setActivityLiked(false); }
   }
 
+  function requestDeletePost() {
+    if (!post?.id || deleting) return;
+    Alert.alert(
+      "Paylaşım silinsin mi?",
+      "Bu paylaşım sosyal akıştan kalıcı olarak kaldırılacak.",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Paylaşımı sil",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await api.socialDeletePost(auth.token, post.id);
+              setRemoved(true);
+              onChanged?.({ type: "deleted", postId: post.id });
+            } catch (error) {
+              Alert.alert("Silinemedi", error?.message || "Paylaşım silinirken bir sorun oluştu.");
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
   const mood = state.kind === "activity" ? activityMood(state) : null;
+  const isOwnPost = state.kind === "post" && Number(user.id) === Number(auth.id);
+
+  if (removed) return null;
 
   return (
     <View style={[styles.card, state.kind === "activity" && styles.activityCard, compact && styles.cardCompact]}>
@@ -144,6 +176,17 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           <Text style={styles.meta}>{state.kind === "post" ? `${postLabel(post?.type)} · ` : ""}{relativeTime(state.created_at)}</Text>
         </TouchableOpacity>
         {post?.type === "recommend" && <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>ÖNERİ</Text></View>}
+        {isOwnPost && (
+          <TouchableOpacity
+            style={styles.postMenuButton}
+            onPress={requestDeletePost}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Paylaşım seçenekleri"
+          >
+            {deleting ? <ActivityIndicator size="small" color={c.dim} /> : <MoreHorizontal size={19} color={c.dim} />}
+          </TouchableOpacity>
+        )}
       </View>
 
       {mood && (
@@ -295,6 +338,7 @@ function makeStyles(c) {
     meta: { color: c.dim, fontSize: 10.5, marginTop: 2 },
     typeChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 },
     typeChipText: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
+    postMenuButton: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
     body: { color: c.text, fontSize: 14, lineHeight: 20, marginTop: 12 },
     activityHeadline: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
     activityEmoji: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
