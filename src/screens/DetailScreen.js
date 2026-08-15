@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import * as WebBrowser from "expo-web-browser";
 import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2, Play } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -14,6 +13,7 @@ import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
 import SocialPostComposer from "../components/SocialPostComposer";
+import TrailerPlayerModal from "../components/TrailerPlayerModal";
 
 const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
@@ -46,6 +46,7 @@ export default function DetailScreen({ route, navigation }) {
   const [showListPicker, setShowListPicker] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [postComposerOpen, setPostComposerOpen] = useState(false);
+  const [selectedTrailer, setSelectedTrailer] = useState(null);
 
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
@@ -265,9 +266,7 @@ export default function DetailScreen({ route, navigation }) {
   function openTrailer(trailer) {
     if (!trailer?.key) return;
     hapticLight();
-    WebBrowser.openBrowserAsync(`https://www.youtube.com/watch?v=${trailer.key}`, {
-      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-    }).catch(() => {});
+    setSelectedTrailer(trailer);
   }
 
   return (
@@ -541,6 +540,7 @@ export default function DetailScreen({ route, navigation }) {
       {showListPicker && <ListPickerModal movie={movie} onClose={() => setShowListPicker(false)} />}
       {sendOpen && <SendToFriendModal movie={movie} onClose={() => setSendOpen(false)} />}
       <SocialPostComposer visible={postComposerOpen} initialMovie={movie} initialType="recommend" onClose={() => setPostComposerOpen(false)} />
+      <TrailerPlayerModal trailer={selectedTrailer} onClose={() => setSelectedTrailer(null)} />
     </View>
   );
 }
