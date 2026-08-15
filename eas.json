@@ -16,12 +16,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_onoNWVFZmxVZzlZSlBBWatYEfXn"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_onoNWVFZmxVZzlZSlBBWatYEfXn"
+      },
       "android": {
         "buildType": "app-bundle"
       }
