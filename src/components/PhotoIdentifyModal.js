@@ -74,6 +74,10 @@ function ResultRow({ m, index, isTop, onPress, styles, c }) {
             <Star size={10} color={c.accent} fill={c.accent} />
             <Text style={styles.resultMeta}>{m.imdb} · {m.year} · {m.type}</Text>
           </View>
+          {Number.isFinite(Number(m.matchConfidence)) && (
+            <Text style={styles.confidenceText}>Eşleşme güveni %{Math.round(Number(m.matchConfidence) * 100)}</Text>
+          )}
+          {!!m.matchReason && <Text style={styles.matchReason} numberOfLines={2}>{m.matchReason}</Text>}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -88,11 +92,13 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
   const styles = makeStyles(c);
 
   async function pickImage(fromCamera) {
     setError("");
     setResults(null);
+    setAnalysis(null);
     const perm = fromCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -101,7 +107,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
     const launch = fromCamera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
     const result = await launch({
       mediaTypes: ['images'],
-      quality: 0.5,
+      quality: 0.75,
       base64: true,
       allowsEditing: true,
     });
@@ -117,8 +123,11 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
     try {
       const dataUrl = `data:image/jpeg;base64,${imageBase64}`;
       const data = await api.identifyPhoto(auth.token, dataUrl);
+      setAnalysis(data);
       if ((data.results || []).length === 0) {
-        setError(data.guess ? `"${data.guess}" olabilir diye düşündüm ama kataloğumuzda bulamadım.` : "Bu fotoğraftan hangi film/dizi olduğunu çıkaramadım, başka bir kare dener misin?");
+        setError(data.needsClearerImage
+          ? "Bu kare için yeterince güçlü bir eşleşme bulamadım. Yüzün, mekânın veya ekrandaki yazının daha net göründüğü başka bir kare deneyebilir misin?"
+          : "Bu fotoğraftan hangi film/dizi olduğunu çıkaramadım, başka bir kare dener misin?");
       } else {
         hapticSuccess(); // PH4 — fotoğrafın filme dönüştüğü an artık fiziksel olarak da hissediliyor.
         setResults(data.results);
@@ -169,6 +178,13 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
 
+      {results && analysis?.confidenceLevel === "medium" && (
+        <View style={styles.uncertainBox}>
+          <Text style={styles.uncertainTitle}>Tam emin değilim</Text>
+          <Text style={styles.uncertainText}>En olası üç eşleşmeyi sıraladım. Doğru olanı seçebilirsin.</Text>
+        </View>
+      )}
+
       {imageUri && !results && (
         <TouchableOpacity activeOpacity={0.88} onPress={identify} disabled={loading}>
           <LinearGradient colors={PHOTO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
@@ -188,7 +204,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
       {/* PH5 — sonuç yanlışsa/eminsen değilse, fotoğrafı baştan seçmeye gerek kalmadan
           aynı kareyle tekrar deneyebiliyorsun. */}
       {results && (
-        <TouchableOpacity onPress={() => setResults(null)} style={{ alignSelf: "center", marginTop: 14 }}>
+        <TouchableOpacity onPress={() => { setResults(null); setAnalysis(null); }} style={{ alignSelf: "center", marginTop: 14 }}>
           <Text style={styles.retryText}>Tekrar dene</Text>
         </TouchableOpacity>
       )}
@@ -212,6 +228,11 @@ function makeStyles(c) {
     resultPoster: { width: 46, height: 66, borderRadius: 8 },
     resultTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     resultMeta: { fontSize: 11, color: c.dim },
+    confidenceText: { fontSize: 9.5, fontWeight: "800", color: c.accent2, marginTop: 5 },
+    matchReason: { fontSize: 9.5, lineHeight: 12.5, color: c.dim, marginTop: 3 },
+    uncertainBox: { marginTop: 13, padding: 11, borderRadius: 12, backgroundColor: "rgba(248,87,166,0.10)", borderWidth: 1, borderColor: "rgba(248,87,166,0.28)" },
+    uncertainTitle: { color: c.text, fontSize: 11.5, fontWeight: "800" },
+    uncertainText: { color: c.dim, fontSize: 10.5, lineHeight: 14, marginTop: 3 },
     topMatchPill: {
       flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f857a6",
       alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4,
