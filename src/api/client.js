@@ -234,6 +234,7 @@ export const api = {
   trackEvents: (token, events) => request("/api/analytics/events-batch", { method: "POST", token, body: { events } }),
   achievements: (token) => request("/api/achievements", { token }),
   activityFeed: (token) => request("/api/activity-feed", { token }),
+  dailyQuestion: (date) => request(`/api/daily-question?date=${encodeURIComponent(date)}`),
   socialFeed: (token) => request("/api/social/feed", { token }),
   socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload }),
   socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
