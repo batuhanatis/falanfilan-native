@@ -320,7 +320,15 @@ export default function OtherProfileScreen({ route, navigation }) {
               <View style={{ marginTop: 12 }}>
                 {socialPosts.slice(0, 8).map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
               </View>
-            ) : <Text style={styles.emptyText}>Henüz bir paylaşımı yok.</Text>
+            ) : (
+              <View style={styles.emptyPosts}>
+                <View style={styles.emptyPostsIcon}>
+                  <Sparkles size={24} color={c.dim} />
+                </View>
+                <Text style={styles.emptyPostsTitle}>Henüz paylaşım yok</Text>
+                <Text style={styles.emptyPostsText}>Bu kullanıcı daha hiçbir şey paylaşmadı.</Text>
+              </View>
+            )
           ) : profile.canSeeLikes ? (
             profile.likedMovies?.length > 0 ? (
               <>
@@ -480,6 +488,10 @@ function makeStyles(c) {
     contentTabTextActive: { color: c.accent },
     posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
     emptyText: { color: c.dim, fontSize: 12 },
+    emptyPosts: { minHeight: 190, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+    emptyPostsIcon: { width: 58, height: 58, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
+    emptyPostsTitle: { color: c.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
+    emptyPostsText: { color: c.dim, fontSize: 11, textAlign: "center", marginTop: 4 },
     seeAllBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
     seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
     lockedBox: { alignItems: "center", paddingVertical: 20, gap: 8 },
