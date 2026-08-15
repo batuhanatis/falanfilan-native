@@ -453,18 +453,25 @@ export default function DetailScreen({ route, navigation }) {
           {(extra.director || extra.cast.length > 0) && (
             <View style={{ marginTop: 18 }}>
               {extra.director && (
-                <TouchableOpacity
-                  style={styles.directorLink}
-                  activeOpacity={extra.director.id ? 0.7 : 1}
-                  onPress={() => extra.director.id && navigation.navigate("Person", {
-                    personId: extra.director.id,
-                    name: extra.director.name,
-                    photo: extra.director.photo,
-                    role: "director",
-                  })}
-                >
-                  <Text style={styles.castSectionLabel}>YÖNETMEN: <Text style={styles.directorName}>{extra.director.name}</Text></Text>
-                </TouchableOpacity>
+                <>
+                  <Text style={styles.castSectionLabel}>YÖNETMEN</Text>
+                  <TouchableOpacity
+                    style={styles.directorCard}
+                    activeOpacity={extra.director.id ? 0.7 : 1}
+                    onPress={() => extra.director.id && navigation.navigate("Person", {
+                      personId: extra.director.id,
+                      name: extra.director.name,
+                      photo: extra.director.photo,
+                      role: "director",
+                    })}
+                  >
+                    {extra.director.photo
+                      ? <Image source={{ uri: extra.director.photo }} style={styles.castPhoto} />
+                      : <View style={[styles.castPhoto, { backgroundColor: c.surface2 }]} />}
+                    <Text style={styles.castName} numberOfLines={2}>{extra.director.name}</Text>
+                    <Text style={styles.castCharacter}>Yönetmen</Text>
+                  </TouchableOpacity>
+                </>
               )}
               {extra.cast.length > 0 && (
                 <>
@@ -575,8 +582,7 @@ function makeStyles(c) {
     trailerMeta: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, fontWeight: "700", marginTop: 2 },
     divider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: c.border, marginVertical: 18 },
     castSectionLabel: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5 },
-    directorLink: { alignSelf: "flex-start", paddingVertical: 5, paddingRight: 10 },
-    directorName: { color: c.text, fontWeight: "800", textDecorationLine: "underline" },
+    directorCard: { width: 72, alignItems: "center", marginTop: 8 },
     castPhoto: { width: 56, height: 56, borderRadius: 999 },
     castName: { fontSize: 10, fontWeight: "700", color: c.text, marginTop: 5, textAlign: "center" },
     castCharacter: { fontSize: 9, color: c.dim, marginTop: 1, textAlign: "center" },
