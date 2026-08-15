@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown } from "lucide-react-native";
+import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown, Mail, UserMinus } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -78,9 +78,21 @@ export default function OtherProfileScreen({ route, navigation }) {
     setBusy(false);
   }
   async function unfriend() {
+    setShowMenu(false);
     setBusy(true);
     try { await api.unfriend(auth.token, userId); load(); } catch {}
     setBusy(false);
+  }
+  function confirmUnfriend() {
+    setShowMenu(false);
+    Alert.alert(
+      "Arkadaşlıktan Çık",
+      `${profile.name} ile arkadaşlığını sonlandırmak istediğine emin misin?`,
+      [
+        { text: "Vazgeç", style: "cancel" },
+        { text: "Arkadaşlıktan Çık", style: "destructive", onPress: unfriend },
+      ]
+    );
   }
   async function startChat() {
     try {
@@ -164,6 +176,11 @@ export default function OtherProfileScreen({ route, navigation }) {
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{profile.name}</Text>
+        {profile.relationship === "friends" && (
+          <TouchableOpacity onPress={startChat} style={styles.headerActionBtn} accessibilityRole="button" accessibilityLabel="Mesaj gönder">
+            <Mail size={17} color={c.text} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.backBtn}>
           <MoreVertical size={20} color={c.text} />
         </TouchableOpacity>
@@ -209,15 +226,19 @@ export default function OtherProfileScreen({ route, navigation }) {
                 <Text style={styles.statNum}>{profile.friendCount}</Text>
                 <Text style={styles.statLabel}>Arkadaş</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{profile.likeCount}</Text>
                 <Text style={styles.statLabel}>Beğeni</Text>
               </View>
               {profile.matchPercent != null && (
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNum, { color: c.accent }]}>%{profile.matchPercent}</Text>
-                  <Text style={styles.statLabel}>Uyum</Text>
-                </View>
+                <>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statNum, { color: c.accent }]}>%{profile.matchPercent}</Text>
+                    <Text style={styles.statLabel}>Uyum</Text>
+                  </View>
+                </>
               )}
             </View>
           </View>
@@ -233,17 +254,7 @@ export default function OtherProfileScreen({ route, navigation }) {
             </View>
           )}
 
-          <View style={styles.actionsRow}>
-            {profile.relationship === "friends" && (
-              <>
-                <TouchableOpacity style={styles.primaryBtn} onPress={startChat}>
-                  <Text style={styles.primaryBtnText}>Mesaj Gönder</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={unfriend} disabled={busy}>
-                  <Text style={styles.secondaryBtnText}>Arkadaşlıktan Çık</Text>
-                </TouchableOpacity>
-              </>
-            )}
+          {profile.relationship !== "friends" && <View style={styles.actionsRow}>
             {profile.relationship === "pending_sent" && (
               <View style={[styles.primaryBtn, { backgroundColor: c.surface2 }]}>
                 <Text style={[styles.primaryBtnText, { color: c.dim }]}>İstek Gönderildi</Text>
@@ -259,7 +270,7 @@ export default function OtherProfileScreen({ route, navigation }) {
                 <Text style={styles.primaryBtnText}>Arkadaş Ekle</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </View>}
 
           {profile.relationship === "friends" && (
             <View style={styles.funRow}>
@@ -339,6 +350,12 @@ export default function OtherProfileScreen({ route, navigation }) {
         <View style={styles.menuOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowMenu(false)} />
           <View style={styles.menuSheet}>
+            {profile.relationship === "friends" && (
+              <TouchableOpacity style={styles.menuRow} onPress={confirmUnfriend} disabled={busy}>
+                <View style={styles.menuIconWrap}><UserMinus size={16} color={c.danger} /></View>
+                <Text style={[styles.menuText, { color: c.danger }]}>Arkadaşlıktan Çık</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMenu(false); setShowReport(true); }}>
               <View style={styles.menuIconWrap}><Flag size={16} color={c.text} /></View>
               <Text style={styles.menuText}>Şikayet Et</Text>
@@ -396,6 +413,10 @@ function makeStyles(c) {
       borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg,
     },
     backBtn: { padding: 2 },
+    headerActionBtn: {
+      width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+    },
     headerTitle: { fontSize: 14, fontWeight: "700", color: c.text, flex: 1 },
     blockedBanner: {
       flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2,
@@ -416,19 +437,20 @@ function makeStyles(c) {
     menuRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
     menuIconWrap: { width: 26, alignItems: "center" },
     menuText: { fontSize: 13, fontWeight: "600", color: c.text },
-    cover: { height: 90 },
-    topRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-    avatar: { width: 76, height: 76, borderRadius: 999, marginTop: -40, borderWidth: 4, borderColor: c.bg },
+    cover: { height: 100 },
+    topRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginTop: -40, zIndex: 5, elevation: 5 },
+    avatar: { width: 76, height: 76, borderRadius: 999, borderWidth: 4, borderColor: c.bg },
     avatarPremiumRing: { borderColor: "#F5C518" },
     premiumCrownBadge: {
       position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: 999,
       backgroundColor: "#F5C518", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg,
     },
-    statsRow: { flex: 1, flexDirection: "row", justifyContent: "space-evenly" },
-    statBox: { alignItems: "center" },
-    statNum: { fontSize: 18, fontWeight: "800", color: c.text },
-    statLabel: { fontSize: 11, color: c.dim, marginTop: 2 },
-    name: { fontSize: 20, fontWeight: "700", color: c.text, marginTop: 14 },
+    statsRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 16 },
+    statBox: { minWidth: 46, alignItems: "center" },
+    statDivider: { width: 1, height: 24, backgroundColor: c.border },
+    statNum: { fontSize: 16, fontWeight: "800", color: c.text },
+    statLabel: { fontSize: 10, color: c.dim, marginTop: 1 },
+    name: { fontSize: 20, fontWeight: "700", color: c.text, marginTop: 12 },
     username: { fontSize: 12, color: c.dim, marginTop: 2 },
     bio: { fontSize: 13, color: c.dim, marginTop: 6, lineHeight: 19 },
     favRow: { flexDirection: "row", gap: 10, marginTop: 14 },
@@ -442,7 +464,7 @@ function makeStyles(c) {
       flex: 1, borderRadius: 18,
       shadowColor: "#6366F1", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.28, shadowRadius: 12, elevation: 6,
     },
-    funCard: { borderRadius: 18, padding: 14, overflow: "hidden", minHeight: 96, justifyContent: "flex-end" },
+    funCard: { borderRadius: 18, padding: 13, overflow: "hidden", minHeight: 86, justifyContent: "flex-end" },
     funSparkle: { position: "absolute", top: -6, right: -6 },
     funIconWrap: {
       width: 34, height: 34, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)",
