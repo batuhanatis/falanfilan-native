@@ -38,6 +38,17 @@ import { dayLabel, timeLabel } from "../utils/chatTimeLabels";
 
 const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
 
+function normalizeReactions(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch { return {}; }
+  }
+  return {};
+}
+
 // Bir mesajın (film/liste/anket/plan/fotoğraf/silinmiş) kısa, tek satırlık bir önizlemesi —
 // hem "X yanıtlanıyor" çubuğunda hem de bir mesaj başka birine ALINTI olarak eklendiğinde
 // (ChatMessageRow'daki yanıt önizlemesi) AYNI mantıkla kullanılıyor.
@@ -565,7 +576,8 @@ export default function ChatConversationScreen({ route, navigation }) {
   async function react(item, emoji) {
     setMenuFor(null);
     const key = String(auth.id);
-    const wasReacting = item.reactions?.[key] === emoji;
+    const previousReactions = normalizeReactions(item.reactions);
+    const wasReacting = previousReactions[key] === emoji;
     // CH2 — sadece EKLERKEN (kaldırırken değil) küçük bir haptic + konfeti sıçraması.
     if (!wasReacting) {
       hapticLight();
@@ -573,16 +585,34 @@ export default function ChatConversationScreen({ route, navigation }) {
       setShowReactionBurst(true);
       setTimeout(() => setShowReactionBurst(false), 700);
     }
-    // iyimser güncelleme
+
+    // İyimser güncelleme: dokunur dokunmaz rozeti göster.
     setMessages((prev) => prev.map((m) => {
       if (m.id !== item.id) return m;
-      const reactions = { ...(m.reactions || {}) };
+      const reactions = { ...normalizeReactions(m.reactions) };
       if (reactions[key] === emoji) delete reactions[key]; else reactions[key] = emoji;
       const updated = { ...m, reactions };
       updateLocalMessage(chatId, updated).catch(() => {});
       return updated;
     }));
-    try { await api.reactToMessage(auth.token, item.id, emoji); } catch { loadMessages(); }
+
+    try {
+      // Sunucunun atomik toggle sonucunu esas al. Önceden cevap yok sayıldığı için yerel
+      // tahmin ile sunucu sonucu ayrışınca reaksiyon boşalmış gibi görünüyordu.
+      const serverMessage = await api.reactToMessage(auth.token, item.id, emoji);
+      const updated = { ...serverMessage, reactions: normalizeReactions(serverMessage.reactions) };
+      setMessages((prev) => prev.map((m) => (m.id === item.id ? updated : m)));
+      updateLocalMessage(chatId, updated).catch(() => {});
+    } catch (e) {
+      // Tüm sohbeti yeniden yükleyip rozeti sessizce yok etmek yerine sadece bu mesajı geri al.
+      setMessages((prev) => prev.map((m) => {
+        if (m.id !== item.id) return m;
+        const restored = { ...m, reactions: previousReactions };
+        updateLocalMessage(chatId, restored).catch(() => {});
+        return restored;
+      }));
+      Alert.alert("Reaksiyon eklenemedi", e.message || "Lütfen tekrar dene.");
+    }
   }
 
   function enterSelection(item) {
@@ -991,7 +1021,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             const itemHasReaction = item.reactions && Object.keys(item.reactions).length > 0;
             const nextHasReaction = nextItem && nextItem.reactions && Object.keys(nextItem.reactions).length > 0;
             const rowSpacing = (isGroupedWithPrevious ? 2 : 12) + (itemHasReaction || nextHasReaction ? 14 : 0);
-            const reactions = item.reactions || {};
+            const reactions = normalizeReactions(item.reactions);
             // ÖNEMLİ (performans): tek bir STRING'e indirgeniyor — ChatMessageRow'a obje yerine
             // ilkel bir değer geçiyoruz ki React.memo'nun varsayılan sığ karşılaştırması "bu satır
             // gerçekten değişti mi" sorusunu doğru cevaplayabilsin (bkz. ChatMessageRow.js).
