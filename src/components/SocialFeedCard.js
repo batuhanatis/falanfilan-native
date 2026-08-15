@@ -149,6 +149,27 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
     );
   }
 
+  function requestReportContent() {
+    const targetType = state.kind === "post" ? "post" : "activity";
+    const targetId = targetType === "post" ? post?.id : state.activityId;
+    if (!targetId) return;
+    const reasons = ["Uygunsuz/müstehcen içerik", "Taciz veya nefret söylemi", "Spam veya yanıltıcı içerik", "Diğer"];
+    Alert.alert("İçeriği şikâyet et", "Nedeni seç", [
+      ...reasons.map((reason) => ({
+        text: reason,
+        onPress: async () => {
+          try {
+            await api.socialReportContent(auth.token, targetType, targetId, reason);
+            Alert.alert("Teşekkürler", "Şikâyetin incelenmek üzere alındı.");
+          } catch (error) {
+            Alert.alert("Gönderilemedi", error?.message || "Şikâyet gönderilirken bir sorun oluştu.");
+          }
+        },
+      })),
+      { text: "Vazgeç", style: "cancel" },
+    ]);
+  }
+
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
   const mood = state.kind === "activity" ? activityMood(state) : null;
@@ -172,10 +193,10 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           <Text style={styles.meta}>{state.kind === "post" ? `${postLabel(post?.type)} · ` : ""}{relativeTime(state.created_at)}</Text>
         </TouchableOpacity>
         {post?.type === "recommend" && <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>ÖNERİ</Text></View>}
-        {isOwnPost && (
+        {(isOwnPost || Number(user.id) !== Number(auth.id)) && (
           <TouchableOpacity
             style={styles.postMenuButton}
-            onPress={requestDeletePost}
+            onPress={isOwnPost ? requestDeletePost : requestReportContent}
             disabled={deleting}
             accessibilityRole="button"
             accessibilityLabel="Paylaşım seçenekleri"
