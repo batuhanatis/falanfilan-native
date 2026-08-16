@@ -9,6 +9,8 @@ import { api } from "../api/client";
 import TopBar from "../components/TopBar";
 import SocialFeedCard from "../components/SocialFeedCard";
 import SocialPostComposer from "../components/SocialPostComposer";
+import NudgeCard from "../components/NudgeCard";
+import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
 
 const DAILY_QUESTIONS = [
   "Herkesin sevdiği ama senin sevmediğin film hangisi?",
@@ -67,6 +69,7 @@ export default function ActivityScreen({ navigation }) {
   const [composerType, setComposerType] = useState("thought");
   const [composerContext, setComposerContext] = useState(null);
   const [dailyQuestion, setDailyQuestion] = useState(() => getDailyQuestion());
+  const [blendPickerNudge, setBlendPickerNudge] = useState(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -106,6 +109,13 @@ export default function ActivityScreen({ navigation }) {
   function handleFeedChanged(event) {
     if (event?.type !== "deleted") return;
     setFeed((items) => items.filter((item) => Number(item.post?.id) !== Number(event.postId)));
+  }
+
+  // Sunucu, bir nudge'ı akışa dahil ettiği anda kendi tarafında zaten kısa süreliğine
+  // bastırıyor (bkz. backend nudge_dismissals) — burada sadece bu ekrandan anında kaldırmak
+  // için yerel state'i güncelliyoruz, ayrı bir ağ isteği gerekmiyor.
+  function dismissNudge(nudgeId) {
+    setFeed((items) => items.filter((item) => item.id !== nudgeId));
   }
 
   const header = (
@@ -168,7 +178,18 @@ export default function ActivityScreen({ navigation }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
-          renderItem={({ item }) => <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />}
+          renderItem={({ item }) =>
+            item.kind === "nudge" ? (
+              <NudgeCard
+                item={item}
+                navigation={navigation}
+                onOpenPicker={setBlendPickerNudge}
+                onDismiss={() => dismissNudge(item.id)}
+              />
+            ) : (
+              <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />
+            )
+          }
           ListEmptyComponent={
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
@@ -189,6 +210,15 @@ export default function ActivityScreen({ navigation }) {
         onClose={() => { setComposerOpen(false); setComposerContext(null); }}
         onCreated={() => load(true)}
       />
+
+      {blendPickerNudge && (
+        <BlendFriendPickerSheet
+          movie={blendPickerNudge.movie}
+          highlightFriends={blendPickerNudge.friends}
+          navigation={navigation}
+          onClose={() => setBlendPickerNudge(null)}
+        />
+      )}
     </View>
   );
 }
