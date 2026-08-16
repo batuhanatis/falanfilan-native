@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Heart, Check, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +24,19 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
   const [selectedGenres, setSelectedGenres] = useState(new Set());
   const [favMovie, setFavMovie] = useState(null);
   const [favShow, setFavShow] = useState(null);
+
+  // Bir FavoritePicker'ın dropdown'u açıldığında (bkz. FavoritePicker'daki onDropdownOpen),
+  // o alanı klavyenin üstüne kaydırmak için — her alanın ScrollView içeriğine göre y konumunu
+  // kendi sarmalayıcısının onLayout'undan öğreniyoruz (doğrudan çocuk olduğu için layout.y zaten
+  // ScrollView'ın içerik konumuyla aynı referans çerçevesinde).
+  const scrollRef = useRef(null);
+  const movieFieldY = useRef(0);
+  const showFieldY = useRef(0);
+  function scrollToField(yRef) {
+    // Klavye animasyonunun başlaması için küçük bir pay — hemen kaydırırsak klavye henüz
+    // açılmadan hesaplanan konum, klavye açılırken tekrar kayan içerikle çakışıyordu.
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, yRef.current - 16), animated: true }), 120);
+  }
 
   // Daha önce kısmen yanıtlanmış olabilir (ör. bir kullanıcı bu ekranı görüp bir şey seçtikten
   // sonra "Atla" demiş, sonra geriye dönük hatırlatmayla tekrar karşılaştıysa) — mevcut cevapları
@@ -68,6 +81,7 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 30 }}
         keyboardShouldPersistTaps="handled"
@@ -102,20 +116,22 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
         </View>
         <Text style={styles.sectionHint}>İstersen boş bırakabilirsin, sonra profilinden de ekleyebilirsin</Text>
 
-        <View style={{ marginTop: 14 }}>
+        <View style={{ marginTop: 14 }} onLayout={(e) => { movieFieldY.current = e.nativeEvent.layout.y; }}>
           <FavoritePicker
             label="En sevdiğin film"
             type="Film"
             value={favMovie}
             onSelect={(m) => pickFavorite("Film", m)}
+            onDropdownOpen={() => scrollToField(movieFieldY)}
           />
         </View>
-        <View style={{ marginTop: 18 }}>
+        <View style={{ marginTop: 18 }} onLayout={(e) => { showFieldY.current = e.nativeEvent.layout.y; }}>
           <FavoritePicker
             label="En sevdiğin dizi"
             type="Dizi"
             value={favShow}
             onSelect={(m) => pickFavorite("Dizi", m)}
+            onDropdownOpen={() => scrollToField(showFieldY)}
           />
         </View>
       </ScrollView>

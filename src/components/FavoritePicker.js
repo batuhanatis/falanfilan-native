@@ -8,7 +8,7 @@ import { api } from "../api/client";
 // Onboarding'deki "en sevdiğin film/dizi" alanları için — Ana Sayfa'daki arama dropdown'uyla
 // AYNI görsel dil: kutunun altında, popülerliğe göre sıralı bir sonuç listesi. Bir şey
 // seçildiğinde arama kutusu yerini, seçimi net gösteren "onaylandı" kartına bırakıyor.
-export default function FavoritePicker({ label, type, value, onSelect }) {
+export default function FavoritePicker({ label, type, value, onSelect, onDropdownOpen }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
@@ -37,6 +37,16 @@ export default function FavoritePicker({ label, type, value, onSelect }) {
   }
 
   const dropdownOpen = focused && query.trim().length > 0;
+
+  // ÖNEMLİ: RN, odaklanan TextInput'un kendisini klavyenin üstünde tutmak için otomatik
+  // kaydırma yapıyor — ama bunun altına position:absolute ile açılan dropdown'u HESABA
+  // KATMIYOR (input'un kendi sınırlarının dışında bir kardeş). Ekranda alt sıralardaki bir
+  // FavoritePicker'da (ör. "en sevdiğin dizi") dropdown bu yüzden klavyenin arkasında kalıyordu.
+  // Ebeveyne "dropdown şimdi açıldı" sinyalini veriyoruz, o da kendi ScrollView'ını bu alanın
+  // tam altına kaydırıyor.
+  useEffect(() => {
+    if (dropdownOpen) onDropdownOpen?.();
+  }, [dropdownOpen]);
 
   // ÖNEMLİ: Aynı ekranda birden fazla FavoritePicker alt alta dururken (ör. "en sevdiğin film" +
   // "en sevdiğin dizi"), dropdown'u açık olan hangisiyse o, SONRAKİ kardeşinin (aynı zIndex'teki
