@@ -100,6 +100,44 @@ export default function ActivityScreen({ navigation }) {
     setRefreshing(false);
   }
 
+  // Bir kart ekranda GERÇEKTEN görününce (indirildiği an değil) backend'e bildiriyoruz, ki
+  // sıralama sonraki yüklemede onu hafifçe geriye itebilsin — bkz. social-routes.js'teki
+  // seen_by_viewer/SEEN_PENALTY_MS. Her kart için ayrı istek atmak yerine biriktirip (4sn'de bir,
+  // ekrandan çıkarken de) TOPLU gönderiyoruz; nudge kartları bu takibin dışında çünkü onların
+  // kendi ayrı bastırma mekanizması (nudge_dismissals) zaten var.
+  const seenPending = useRef(new Set());
+  const seenSent = useRef(new Set());
+  const flushSeen = useCallback(() => {
+    const ids = [...seenPending.current].filter((id) => !seenSent.current.has(id));
+    if (!ids.length) return;
+    seenPending.current.clear();
+    ids.forEach((id) => seenSent.current.add(id));
+    api.markFeedSeen(auth.token, ids).catch(() => {
+      ids.forEach((id) => seenSent.current.delete(id));
+    });
+  }, [auth.token]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    for (const v of viewableItems) {
+      const key = v.item?.feedKey || v.item?.id;
+      if (key && v.item?.kind !== "nudge") seenPending.current.add(key);
+    }
+  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 500 }).current;
+
+  useEffect(() => {
+    const timer = setInterval(flushSeen, 4000);
+    return () => {
+      clearInterval(timer);
+      flushSeen();
+    };
+  }, [flushSeen]);
+
+  useEffect(() => {
+    const unsub = navigation.addListener("blur", flushSeen);
+    return unsub;
+  }, [navigation, flushSeen]);
+
   function openComposer(type, context = null) {
     setComposerType(type);
     setComposerContext(context);
@@ -178,6 +216,8 @@ export default function ActivityScreen({ navigation }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           renderItem={({ item }) =>
             item.kind === "nudge" ? (
               <NudgeCard
