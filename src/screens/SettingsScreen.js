@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Crown, EyeOff, FileText, Lock, Mail, Moon, Palette, Shield, Sun, Trophy, UserRound, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, API_BASE } from "../api/client";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
+// Debug amaçlı — hangi build'in (gömülü mü, yoksa hangi OTA update'i) o an çalıştığını gösteriyor.
+// "Kullanıcıda değişiklik görünmüyor" şikayetlerinde, OTA'nın cihaza gerçekten ulaşıp
+// ulaşmadığını telemetri gecikmesini beklemeden anında doğrulamak için eklendi.
+const UPDATE_DEBUG = `${Updates.isEmbeddedLaunch ? "gömülü" : "OTA"} · ${Updates.channel || "-"} · ${Updates.updateId ? Updates.updateId.slice(0, 8) : "-"}`;
 const SUPPORT_EMAIL = "destek@pellix.app";
 const TIER_COLORS = { bronze: "#B08D57", silver: "#9CA3AF", gold: "#F5C518" };
 const TIER_LABELS = { bronze: "🥉 Bronz", silver: "🥈 Gümüş", gold: "🥇 Altın" };
@@ -175,6 +180,7 @@ export default function SettingsScreen({ navigation, route }) {
           </View>
         </Group>
         <Text style={styles.version}>pellix · Sürüm {APP_VERSION}</Text>
+        <Text style={[styles.version, { marginTop: 2, opacity: 0.6 }]}>{UPDATE_DEBUG}</Text>
       </View>
     </ScrollView>
     <Modal visible={!!selectedBadge} transparent animationType="fade" onRequestClose={() => setSelectedBadge(null)}>
