@@ -1,0 +1,51 @@
+name: Publish OTA Update (production)
+
+# ÖNEMLİ: eas update BURADAN (GitHub'ın macOS runner'ından) çalışmalı, yerel bir Windows
+# makinesinden DEĞİL — "fingerprint" runtimeVersion politikası, iOS için gerçek Xcode/CocoaPods
+# araçlarının ürettiği native proje çıktısına bakıyor. Windows'ta bu araçlar hiç olmadığı için
+# oradan hesaplanan fingerprint, production build'in (macOS'ta, aynı runner tipinde derlenen)
+# GERÇEK fingerprint'iyle hiçbir zaman eşleşmiyor — sonuç: sunucuya doğru update yüklenir ama
+# cihaz kendi fingerprint'i için hiç eşleşen bir update bulamadığından sessizce hiçbir şey olmaz.
+# Bu workflow, production build'i üreten AYNI runner tipinde (macos-26) çalışarak fingerprint'in
+# birebir eşleşmesini garanti ediyor.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ota-trigger'
+      - '.github/workflows/publish-ota-update.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish OTA update to production channel
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update
+        run: eas update --channel production --platform all --non-interactive --message "OTA publish from macOS runner (fingerprint-safe)"
