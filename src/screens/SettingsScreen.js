@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Crown, EyeOff, FileText, Lock, Mail, Moon, Palette, Shield, Sun, Trophy, UserRound, X } from "lucide-react-native";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Crown, EyeOff, FileText, Info, Lock, Mail, Moon, Palette, Shield, Sun, Trophy, UserRound, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, API_BASE } from "../api/client";
@@ -177,6 +177,9 @@ export default function SettingsScreen({ navigation, route }) {
             <LinkRow icon={Mail} label={`Destek — ${SUPPORT_EMAIL}`} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} styles={styles} c={c} />
             <LinkRow icon={Shield} label="Gizlilik Politikası" onPress={() => Linking.openURL(`${API_BASE}/privacy`)} styles={styles} c={c} border />
             <LinkRow icon={FileText} label="Kullanım Şartları" onPress={() => Linking.openURL(`${API_BASE}/terms`)} styles={styles} c={c} border />
+            {/* TMDB'nin API kullanım şartları, veri/görsellerini kullanan uygulamalarda görünür bir
+                atıf bulunmasını zorunlu kılıyor — bu satır o yükümlülüğü karşılıyor. */}
+            <LinkRow icon={Info} label="Film/dizi verileri TMDB API ile sağlanmaktadır" onPress={() => Linking.openURL("https://www.themoviedb.org/")} styles={styles} c={c} border />
           </View>
         </Group>
         <Text style={styles.version}>pellix · Sürüm {APP_VERSION}</Text>
