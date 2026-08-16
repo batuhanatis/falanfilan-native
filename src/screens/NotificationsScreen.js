@@ -27,7 +27,8 @@ function notificationText(n) {
     case "social_comment": return `${p.by?.name} ${p.targetKind === "activity" ? "aktivine" : "paylaşımına"} yorum yaptı: ${p.comment || ""}`;
     case "social_reaction": {
       const emoji = { fire: "🔥", agree: "🤝", nope: "👎" }[p.reaction] || "✨";
-      return `${p.by?.name} ${p.targetKind === "activity" ? "aktivine" : "paylaşımına"} ${emoji} tepkisi verdi`;
+      const target = p.contentTitle ? `"${p.contentTitle}" içeriğine` : (p.targetKind === "activity" ? "aktivine" : "paylaşımına");
+      return `${p.by?.name} ${target} ${emoji} tepkisi verdi`;
     }
     default: return "Yeni bildirim";
   }
