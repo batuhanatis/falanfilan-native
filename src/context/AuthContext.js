@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { api } from "../api/client";
 import { clearPrefetchCache } from "../utils/chatMessagesPrefetch";
 import { clearAllLocalMessages } from "../utils/chatDb";
@@ -121,6 +122,12 @@ export function AuthProvider({ children }) {
         clearLocalChatList(),
         logoutPurchases(),
         clearPushSession(sessionToken),
+        // ÖNEMLİ: Bunu çağırmazsak native Google SDK'sı hesabı "hatırlamaya" devam ediyor —
+        // çıkış yapıp tekrar "Google ile Devam Et" dendiğinde bazen gerçekten taze bir oturum
+        // yerine önceki oturumdan kalma, artık SÜRESİ GEÇMİŞ bir idToken dönebiliyor; backend
+        // bunu Google'a doğrulatınca "Geçersiz Google jetonu" hatasıyla reddediyor. Google ile
+        // hiç giriş yapılmamışsa bu çağrı zaten sessizce no-op.
+        GoogleSignin.signOut().catch(() => {}),
       ]);
       await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
     })();
