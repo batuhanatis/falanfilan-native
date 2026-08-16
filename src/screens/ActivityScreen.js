@@ -54,7 +54,7 @@ function expandActivityItems(items) {
   });
 }
 
-export default function ActivityScreen({ navigation, route }) {
+export default function ActivityScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -67,7 +67,6 @@ export default function ActivityScreen({ navigation, route }) {
   const [composerType, setComposerType] = useState("thought");
   const [composerContext, setComposerContext] = useState(null);
   const [dailyQuestion, setDailyQuestion] = useState(() => getDailyQuestion());
-  const [highlightedKey, setHighlightedKey] = useState(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -91,30 +90,6 @@ export default function ActivityScreen({ navigation, route }) {
     const unsub = navigation.addListener("focus", () => load(true));
     return unsub;
   }, [navigation, load]);
-
-  // ÖNEMLİ DÜZELTME: Bir bildirime (push ya da Bildirimler ekranından) dokunulunca eskiden
-  // sadece Aktivite sekmesinin köküne düşülüyordu — hangi paylaşıma/aktiviteye tepki/yorum/
-  // beğeni geldiği hiç yansıtılmıyordu. server.js (pushNavTarget) ve NotificationsScreen artık
-  // focusKind/focusId taşıyor; burada akış yüklendikten sonra o öğeyi bulup direkt oraya
-  // kaydırıyor ve kısaca vurguluyoruz. Akışta henüz yoksa (çok eski bir öğeyse) sessizce geçiyoruz
-  // — eskisinden kötü değil, sadece kaydırma/vurgulama olmuyor.
-  useEffect(() => {
-    const focusKind = route?.params?.focusKind;
-    const focusId = route?.params?.focusId;
-    if (!focusKind || !focusId || feed.length === 0) return;
-    const index = feed.findIndex((item) => (
-      item.kind === focusKind
-        && (focusKind === "activity" ? item.activityId === focusId : item.post?.id === focusId)
-    ));
-    navigation.setParams({ focusKind: undefined, focusId: undefined });
-    if (index === -1) return;
-    setHighlightedKey(feed[index].feedKey || String(feed[index].id));
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.25 });
-    });
-    const timer = setTimeout(() => setHighlightedKey(null), 2500);
-    return () => clearTimeout(timer);
-  }, [feed, route?.params?.focusKind, route?.params?.focusId]);
 
   async function refresh() {
     setRefreshing(true);
@@ -193,19 +168,7 @@ export default function ActivityScreen({ navigation, route }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <SocialFeedCard
-              item={item}
-              navigation={navigation}
-              onChanged={handleFeedChanged}
-              highlighted={highlightedKey != null && (item.feedKey || String(item.id)) === highlightedKey}
-            />
-          )}
-          onScrollToIndexFailed={({ index }) => {
-            // Header'ın yüksekliği ilk render'da henüz ölçülmemiş olabilir — kısa bir gecikmeyle
-            // tekrar deniyoruz (RN'in bilinen bir davranışı, bkz. FlatList dokümantasyonu).
-            setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.25 }), 250);
-          }}
+          renderItem={({ item }) => <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />}
           ListEmptyComponent={
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>

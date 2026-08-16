@@ -236,6 +236,8 @@ export const api = {
   activityFeed: (token) => request("/api/activity-feed", { token }),
   dailyQuestion: (date) => request(`/api/daily-question?date=${encodeURIComponent(date)}`),
   socialFeed: (token) => request("/api/social/feed", { token }),
+  socialPostById: (token, id) => request(`/api/social/posts/${id}`, { token }),
+  socialActivityById: (token, id) => request(`/api/social/activities/${id}`, { token }),
   socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload }),
   socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
   socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),
