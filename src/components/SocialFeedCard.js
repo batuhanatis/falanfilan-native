@@ -58,7 +58,7 @@ const QUICK_REACTIONS = [
   ["nope", "👎"],
 ];
 
-export default function SocialFeedCard({ item, navigation, compact = false, onChanged }) {
+export default function SocialFeedCard({ item, navigation, compact = false, onChanged, highlighted = false }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -180,7 +180,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   if (removed) return null;
 
   return (
-    <View style={[styles.card, state.kind === "activity" && styles.activityCard, compact && styles.cardCompact]}>
+    <View style={[styles.card, state.kind === "activity" && styles.activityCard, compact && styles.cardCompact, highlighted && styles.cardHighlighted]}>
       {mood && !primaryMovie && <LinearGradient colors={mood.colors} style={styles.activityRail} />}
       <View style={styles.header}>
         <TouchableOpacity onPress={openProfile} activeOpacity={0.8}>
@@ -355,6 +355,9 @@ function makeStyles(c) {
     activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
     activityRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
     cardCompact: { marginBottom: 10, padding: 12 },
+    // Bir bildirimden gelip akışta hedef aktivite/paylaşıma kaydırıldığında, "işte bu" diye
+    // kısaca vurgulamak için — bkz. ActivityScreen'deki focusKind/focusId işlenişi.
+    cardHighlighted: { borderColor: c.accent, borderWidth: 2 },
     header: { flexDirection: "row", alignItems: "center", gap: 10 },
     avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2 },
     nameRow: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },

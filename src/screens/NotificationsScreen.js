@@ -103,7 +103,9 @@ export default function NotificationsScreen({ navigation }) {
     if (n.type === "party_accepted" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id, friend: p.by });
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
     else if (["social_post_like", "social_comment", "social_reaction"].includes(n.type)) {
-      navigation.navigate("MainTabs", { screen: "Activity" });
+      // Push bildirimiyle AYNI hedef (bkz. server.js pushNavTarget) — akıştaki ilgili
+      // paylaşıma/aktiviteye direkt kaydırılsın diye targetKind/targetId taşıyoruz.
+      navigation.navigate("MainTabs", { screen: "Activity", params: { focusKind: p.targetKind, focusId: p.targetId } });
     }
   }
 
