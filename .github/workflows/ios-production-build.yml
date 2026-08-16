@@ -54,3 +54,4 @@ jobs:
 
 # Manual trigger: 2026-08-15 RevenueCat Android and iOS release build.
 # Manual trigger: 2026-08-16 production build+submit retriggered — Activity feed redesign (hero cards, nudge cards, seen/type-weighted ranking).
+# Manual trigger: 2026-08-16b production build+submit retriggered — eas.json environment:production link fixes Google/RevenueCat client IDs (also bumps fingerprint/runtimeVersion).
