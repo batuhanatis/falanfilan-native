@@ -53,3 +53,4 @@ jobs:
         run: eas submit --platform ios --profile production --path ./pellix-production.ipa --non-interactive --wait
 
 # Manual trigger: 2026-08-15 RevenueCat Android and iOS release build.
+# Manual trigger: 2026-08-16 production build+submit retriggered — Activity feed redesign (hero cards, nudge cards, seen/type-weighted ranking).
