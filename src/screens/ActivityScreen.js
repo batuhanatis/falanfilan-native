@@ -88,11 +88,13 @@ export default function ActivityScreen({ navigation }) {
     setLoading(false);
   }, [auth.token]);
 
+  // ÖNEMLİ: Eskiden ekran her odaklandığında (başka bir sayfadan geri dönüşte, hatta sekmeler
+  // arası geçişte) feed'i sessizce yeniden çekiyorduk — sıralama (bump/görülme/nudge) her
+  // seferinde değişebildiği için kullanıcı kaldığı yerden değil, karışmış/kaymış bir listeyle
+  // karşılaşıyordu. Artık SADECE ilk girişte (mount), kullanıcı en üstten çekip yenilediğinde
+  // (refresh()) veya oturum kapatılıp açıldığında (bu ekran o zaman zaten yeniden mount olur)
+  // yeniliyoruz — basit bir geri dönüşte liste olduğu gibi kalıyor.
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    const unsub = navigation.addListener("focus", () => load(true));
-    return unsub;
-  }, [navigation, load]);
 
   async function refresh() {
     setRefreshing(true);
