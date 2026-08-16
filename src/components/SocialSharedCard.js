@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Heart, ListVideo, Users } from "lucide-react-native";
+import { Heart, ListVideo, Users, Quote } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 
 export default function SocialSharedCard({ payload, navigation, currentUserId }) {
@@ -65,6 +65,22 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
             <Text style={styles.compatibility}>TANIMA SKORU</Text>
           </View>
           <Text style={styles.subtitle}>{Number(payload.score || 0)}/{Number(payload.total || 0)} doğru cevap</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  if (payload.kind === "who_said_it") {
+    const open = () => navigation.navigate("PellixPlay", { initialGame: "who_said_it" });
+    return (
+      <TouchableOpacity onPress={open} activeOpacity={0.9}>
+        <LinearGradient colors={["#F97316", "#DB2777", "#7C3AED"]} style={styles.card}>
+          <Text style={styles.eyebrow}>SAHNEYİ HATIRLA, KARAKTERİ BUL</Text>
+          <Quote size={22} color="rgba(255,255,255,0.85)" style={{ marginTop: 12 }} />
+          <View style={[styles.percentWrap, { marginTop: 12 }]}>
+            <Text style={styles.percent}>{Number(payload.score || 0)}/{Number(payload.total || 0)}</Text>
+            <Text style={styles.compatibility}>{payload.isDaily ? "GÜNÜN CHALLENGE'I" : "DOĞRU CEVAP"}</Text>
+          </View>
         </LinearGradient>
       </TouchableOpacity>
     );

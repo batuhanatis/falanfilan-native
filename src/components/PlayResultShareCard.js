@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Sparkles, Swords, Users, Trophy, Film } from "lucide-react-native";
+import { Sparkles, Swords, Users, Trophy, Film, Quote } from "lucide-react-native";
 import RetryImage from "./RetryImage";
 import { avatarOr } from "../utils/avatar";
 
@@ -10,6 +10,13 @@ function friendVerdict(percent) {
   if (percent >= 70) return "Aynı frekanstasınız ✨";
   if (percent >= 50) return "Fena değil, biraz daha keşif 🎬";
   return "Sürprizlerle dolu bir arkadaşlık 👀";
+}
+
+function quoteVerdict(percent) {
+  if (percent >= 90) return "Sinema hafızan efsane 🧠";
+  if (percent >= 70) return "Gözün kulağın sahnelerde ✨";
+  if (percent >= 50) return "Fena değil, biraz daha pratik 🎬";
+  return "Yeniden izleme zamanı 👀";
 }
 
 function tasteVerdict(topGenre) {
@@ -33,13 +40,17 @@ export default function PlayResultShareCard({
   friend,
   score = 0,
   total = 0,
+  isDaily = false,
 }) {
   const isFriend = mode === "friend";
+  const isQuote = mode === "quote";
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
   const colors = isFriend
     ? ["#EC4899", "#F97316", "#F59E0B"]
+    : isQuote
+    ? ["#F97316", "#DB2777", "#7C3AED"]
     : ["#7C3AED", "#2563EB", "#0891B2"];
-  const Icon = isFriend ? Users : Swords;
+  const Icon = isFriend ? Users : isQuote ? Quote : Swords;
 
   return (
     <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
@@ -54,7 +65,7 @@ export default function PlayResultShareCard({
       <View style={styles.iconBubble}>
         <Icon size={26} color="#fff" />
       </View>
-      <Text style={styles.eyebrow}>{isFriend ? "ARKADAŞINI TANIYOR MUSUN?" : "TASTE BATTLE"}</Text>
+      <Text style={styles.eyebrow}>{isFriend ? "ARKADAŞINI TANIYOR MUSUN?" : isQuote ? "SAHNEYİ HATIRLA" : "TASTE BATTLE"}</Text>
 
       {isFriend ? (
         <>
@@ -66,6 +77,14 @@ export default function PlayResultShareCard({
           </View>
           <Text style={styles.verdict}>{friendVerdict(percent)}</Text>
           <View style={styles.chip}><Trophy size={12} color="#fff" /><Text style={styles.chipText}>{score}/{total} DOĞRU</Text></View>
+        </>
+      ) : isQuote ? (
+        <>
+          <View style={styles.bigNumberWrap}>
+            <Text style={styles.bigNumber}>{score}/{total}</Text>
+            <Text style={styles.bigLabel}>{isDaily ? "GÜNÜN CHALLENGE'I" : "DOĞRU CEVAP"}</Text>
+          </View>
+          <Text style={styles.verdict}>{quoteVerdict(percent)}</Text>
         </>
       ) : (
         <>

@@ -45,12 +45,14 @@ const GAME_META = {
   },
 };
 
-export default function PellixPlayScreen({ navigation }) {
+export default function PellixPlayScreen({ navigation, route }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
   const [features, setFeatures] = useState(null);
-  const [activeGame, setActiveGame] = useState(null);
+  // Sosyal akıştaki bir oyun sonuç kartına dokunulunca (bkz. SocialSharedCard) doğrudan o
+  // oyuna düşülsün diye — hub'da durup tekrar seçmeye gerek kalmıyor.
+  const [activeGame, setActiveGame] = useState(route?.params?.initialGame || null);
 
   const refreshFeatures = useCallback(async () => {
     try {
@@ -425,6 +427,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
   const [round, setRound] = useState(null);
   const [started, setStarted] = useState(false);
   const [stats, setStats] = useState(null);
+  const [showShare, setShowShare] = useState(false);
 
   const startRound = useCallback(async (mode = "classic") => {
     const nextKind = mode === "daily" ? "all" : kind;
@@ -435,6 +438,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
     setScore(0);
     setFeedback(null);
     setAnswering(false);
+    setShowShare(false);
     try {
       const data = await playApi.whoSaidIt(token, { mode, kind: nextKind, difficulty: nextDifficulty });
       setQuestions(data.questions || []);
@@ -544,20 +548,40 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
   if (loading) return <View style={styles.center}><ActivityIndicator color="#C084FC" /></View>;
 
   if (index >= questions.length) {
+    const isDaily = round?.mode === "daily";
     return (
       <View style={styles.centerPad}>
         <LinearGradient colors={GAME_META.who_said_it.colors} style={styles.compactResultCircle}>
           <Text style={styles.compactResultScore}>{score}/{questions.length}</Text>
         </LinearGradient>
         <Text style={[styles.doneTitle, { marginTop: 18 }]}>Tur tamamlandı</Text>
-        <Text style={styles.doneText}>{round?.mode === "daily" ? "Bugünün challenge'ını tamamladın." : "Bu turdaki sinema hafızanı test ettin."}</Text>
+        <Text style={styles.doneText}>{isDaily ? "Bugünün challenge'ını tamamladın." : "Bu turdaki sinema hafızanı test ettin."}</Text>
         {stats?.promptVariants ? <Text style={{ color: c.dim, fontSize: 11, marginTop: 4 }}>{stats.promptVariants}+ soru varyasyonu içinden oynadın.</Text> : null}
+        <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]} onPress={() => setShowShare(true)}>
+          <Share2 size={17} color="#fff" />
+          <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#7C3AED" }]} onPress={() => startRound(round?.mode || "classic")}>
           <RotateCcw size={16} color="#fff" /><Text style={[styles.retryText, { color: "#fff" }]}>Tekrar Oyna</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={backToSetup} style={{ marginTop: 14, padding: 10 }}>
           <Text style={{ color: c.dim, fontSize: 12.5, fontWeight: "800" }}>Mod / Filtre Değiştir</Text>
         </TouchableOpacity>
+
+        {showShare && (
+          <ShareCardModal
+            onClose={() => setShowShare(false)}
+            shareMessage={`Sahneyi Hatırla, Karakteri Bul'da ${score}/${questions.length} yaptım 🎬 Sen de dene.`}
+            socialCard={{
+              kind: "who_said_it",
+              score,
+              total: questions.length,
+              isDaily,
+            }}
+          >
+            <PlayResultShareCard mode="quote" score={score} total={questions.length} isDaily={isDaily} />
+          </ShareCardModal>
+        )}
       </View>
     );
   }
