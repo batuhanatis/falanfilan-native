@@ -47,6 +47,29 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     );
   }
 
+  if (payload.kind === "friend_quiz") {
+    const friend = payload.friend || {};
+    const percent = Math.round(Number(payload.percent ?? (payload.total ? (payload.score / payload.total) * 100 : 0)));
+    const open = () => {
+      if (!friend?.id || Number(friend.id) === Number(currentUserId)) return;
+      navigation.navigate("OtherProfile", { userId: friend.id });
+    };
+    return (
+      <TouchableOpacity onPress={open} activeOpacity={0.9}>
+        <LinearGradient colors={["#4C1D95", "#EC4899", "#F59E0B"]} style={styles.card}>
+          <Text style={styles.eyebrow}>ARKADAŞINI TANIYOR MUSUN?</Text>
+          <Avatar uri={friend.avatarUrl} id={friend.id} large />
+          <Text style={styles.profileName}>{friend.name}</Text>
+          <View style={styles.percentWrap}>
+            <Text style={styles.percent}>%{percent}</Text>
+            <Text style={styles.compatibility}>TANIMA SKORU</Text>
+          </View>
+          <Text style={styles.subtitle}>{Number(payload.score || 0)}/{Number(payload.total || 0)} doğru cevap</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   const openProfile = () => {
     if (Number(payload.userId) === Number(currentUserId)) {
       navigation.navigate("MainTabs", { screen: "Profile" });

@@ -372,6 +372,13 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
           <ShareCardModal
             onClose={() => setShowShare(false)}
             shareMessage={`${data.friend.name}'i ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`}
+            socialCard={{
+              kind: "friend_quiz",
+              friend: { id: data.friend.id, name: data.friend.name, avatarUrl: data.friend.avatarUrl },
+              score,
+              total: data.questions.length,
+              percent,
+            }}
           >
             <PlayResultShareCard mode="friend" friend={data.friend} score={score} total={data.questions.length} />
           </ShareCardModal>
