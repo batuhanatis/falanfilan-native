@@ -426,7 +426,11 @@ function makeStyles(c) {
     activityTitle: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 2 },
 
     // ---- hero: poster kartı büyütülüp kişi bilgisi + menü doğrudan görselin içinde ----
-    heroMedia: { position: "relative", width: "100%", aspectRatio: 2 / 3 },
+    // width YOK: sabit "100%" kullanılırsa ebeveynin padding'li kutusuna göre sabitlenir ve
+    // aşağıdaki negatif marginHorizontal'ı genişliği büyütmeden sadece sola kaydırır — sonuç
+    // sağda padding kadar boşluk. Genişliksiz bırakınca View'in varsayılan alignItems:"stretch"
+    // davranışı devreye giriyor, negatif margin de genişliği doğru şekilde büyütüyor.
+    heroMedia: { position: "relative", aspectRatio: 2 / 3 },
     heroPoster: { width: "100%", height: "100%" },
     heroShadeTop: { position: "absolute", left: 0, right: 0, top: 0, height: 90 },
     heroShadeBottom: { position: "absolute", left: 0, right: 0, bottom: 0, height: 150 },
