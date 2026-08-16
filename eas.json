@@ -27,6 +27,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "env": {
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_onoNWVFZmxVZzlZSlBBWatYEfXn"
       },

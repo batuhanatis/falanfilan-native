@@ -48,4 +48,11 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Publish OTA update
-        run: eas update --channel production --platform all --non-interactive --message "OTA publish from macOS runner (fingerprint-safe)"
+        # ÖNEMLİ (kökten düzeltme): --environment olmadan, EAS'ta tanımlı sunucu taraflı ortam
+        # değişkenleri (Google client ID'leri, RevenueCat iOS key) BUNDLE'A HİÇ enjekte edilmiyor
+        # — "eas update" bunu "eas build"in aksine PROFİLDEN otomatik çıkaramıyor, açıkça
+        # istiyor (eas-cli: "Required for projects using Expo SDK 55 or greater"). Bu bayrak
+        # olmadan yayınlanan HER OTA güncellemesi, GoogleSignin.configure()'a webClientId/
+        # iosClientId=undefined geçiriyordu — bu da Google ile girişte backend'in "Geçersiz
+        # Google jetonu" ile reddettiği, audience'ı eşleşmeyen bir idToken üretiyordu.
+        run: eas update --channel production --platform all --environment production --non-interactive --message "OTA publish from macOS runner (fingerprint-safe)"
