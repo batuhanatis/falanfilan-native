@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap, Gift, Minus } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap, Gift, Minus, Palette } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, API_BASE } from "../api/client";
@@ -13,6 +13,7 @@ const BENEFITS = [
   { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Zevkine Göre Öner, Fotoğraftan Bul)" },
   { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
   { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
+  { icon: Palette, text: "Zevkine özel, AI ile üretilen profil arka planı" },
   { icon: Zap, text: "Yeni özelliklere öncelikli erişim" },
 ];
 
@@ -22,6 +23,7 @@ const COMPARISON_ROWS = [
   { label: "AI önerisi (günlük)", free: "Sınırlı", premium: "Sınırsız" },
   { label: "TasteMate kaydırma", free: "Sınırlı", premium: "Sınırsız" },
   { label: "Profil çerçevesi", free: false, premium: true },
+  { label: "AI profil arka planı", free: false, premium: true },
   { label: "Yeni özelliklere öncelik", free: false, premium: true },
 ];
 
