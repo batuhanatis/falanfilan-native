@@ -28,8 +28,31 @@ export default function PollCreatorModal({ visible, onClose, onSubmit }) {
     if (!query.trim()) { setResults([]); return; }
     const t = setTimeout(() => {
       setLoading(true);
-      api.search(auth.token, query.trim(), "movie")
-        .then((data) => setResults(data.results || []))
+      // ÖNEMLİ DÜZELTME: Eskiden sadece "movie" aranıyordu, diziler bu ankete hiç seçenek
+      // olamıyordu. Ana sayfadaki aramayla aynı mantık: film+dizi birleştir, alaka düzeyine
+      // (tam eşleşme > baştan eşleşme > içeren, eşitlikte oy sayısı) göre sırala.
+      Promise.all([
+        api.search(auth.token, query.trim(), "movie"),
+        api.search(auth.token, query.trim(), "tv"),
+      ])
+        .then(([movies, shows]) => {
+          const byId = new Map();
+          [...(movies.results || []), ...(shows.results || [])].forEach((item) => {
+            if (item?.id) byId.set(item.id, item);
+          });
+          const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+          function matchTier(title) {
+            const normalizedTitle = (title || "").trim().toLocaleLowerCase("tr-TR");
+            if (normalizedTitle === normalizedQuery) return 0;
+            if (normalizedTitle.startsWith(normalizedQuery)) return 1;
+            return 2;
+          }
+          setResults([...byId.values()].sort((a, b) => {
+            const tierDiff = matchTier(a.title) - matchTier(b.title);
+            if (tierDiff !== 0) return tierDiff;
+            return (b.votes || 0) - (a.votes || 0);
+          }));
+        })
         .catch(() => setResults([]))
         .finally(() => setLoading(false));
     }, 350);

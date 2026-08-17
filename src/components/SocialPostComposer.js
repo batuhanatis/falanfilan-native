@@ -58,12 +58,30 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
           api.search(auth.token, query.trim(), "tv"),
         ]);
         if (cancelled) return;
-        const seen = new Set();
-        const merged = [...(movies.results || []), ...(shows.results || [])].filter((item) => {
-          if (!item?.id || seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        }).slice(0, 12);
+        // ÖNEMLİ DÜZELTME: Eskiden film sonuçları dizi sonuçlarından ÖNCE ekleyip listeyi 12'ye
+        // kesiyordu — popüler bir aramada 12'den fazla film sonucu geldiğinde diziler listeye hiç
+        // giremiyordu (kullanıcı "hiç dizi gelmiyor" diye bildirdi). Ana sayfadaki aramayla AYNI
+        // mantığa geçtik: önce birleştir+tekilleştir, sonra alaka düzeyine (tam eşleşme > baştan
+        // eşleşme > içeren, eşitlikte oy sayısı) göre sırala — tür ayrımı yapmadan en alakalı 12
+        // sonuç, o sonuçlar arasında film de dizi de olabilir.
+        const byId = new Map();
+        [...(movies.results || []), ...(shows.results || [])].forEach((item) => {
+          if (item?.id) byId.set(item.id, item);
+        });
+        const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+        function matchTier(title) {
+          const normalizedTitle = (title || "").trim().toLocaleLowerCase("tr-TR");
+          if (normalizedTitle === normalizedQuery) return 0;
+          if (normalizedTitle.startsWith(normalizedQuery)) return 1;
+          return 2;
+        }
+        const merged = [...byId.values()]
+          .sort((a, b) => {
+            const tierDiff = matchTier(a.title) - matchTier(b.title);
+            if (tierDiff !== 0) return tierDiff;
+            return (b.votes || 0) - (a.votes || 0);
+          })
+          .slice(0, 12);
         setResults(merged);
       } catch {
         if (!cancelled) setResults([]);
