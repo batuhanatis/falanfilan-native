@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Dimensions, Animated, Alert, Keyboard, Platform } from "react-native";
-import { Search, Filter, Sparkles, Flame, Clock, X, Star } from "lucide-react-native";
+import { Search, Filter, Sparkles, Clock, X, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -20,11 +20,11 @@ import FilterFields from "../components/FilterFields";
 import IslandModal from "../components/IslandModal";
 
 const { width: SCREEN_W } = Dimensions.get("window");
+// ÖNEMLİ: "Şu An Gösterimde" sekmesi kaldırıldı — Ana Sayfa'daki "Şu An Popüler" şeridi
+// (PopularNowRow, Trakt'ın gerçek/güncel trend verisine dayanıyor) zaten aynı ihtiyacı
+// karşılıyordu, iki ayrı yer aynı şeyi gösteriyordu.
 const FEED_TABS = [
   { icon: Sparkles, label: "Sana Özel" },
-  { icon: Flame, label: "Şu An Gösterimde" }, // NOT: eskiden "Yeni Çıkanlar" — ama TMDB'nin
-  // now_playing/on_the_air listeleri gerçekten "yeni çıkan" değil, hâlâ vizyonda/yayında olan
-  // (bazen yıllar önce çıkmış) içerikleri de kapsıyor. İsim, gerçekte gösterdiği şeyle uyuşsun diye düzeltildi.
   { icon: Clock, label: "Yakında Gelecekler" },
 ];
 
@@ -34,7 +34,6 @@ export default function HomeScreen({ navigation }) {
   const styles = makeStyles(c);
   const pagerRef = useRef(null);
   const mainListRef = useRef(null);
-  const newReleasesListRef = useRef(null);
   const upcomingListRef = useRef(null);
 
   const [movies, setMovies] = useState([]);
@@ -121,7 +120,7 @@ export default function HomeScreen({ navigation }) {
 
   const [sendMovie, setSendMovie] = useState(null); // gönderilecek film
   const [pickerMovie, setPickerMovie] = useState(null); // liste seçici popup'ı için
-  const [spotlight, setSpotlight] = useState({ upcoming: [], newReleases: [] });
+  const [spotlight, setSpotlight] = useState({ upcoming: [] });
   const [notifySubs, setNotifySubs] = useState(new Set());
   const [socialStats, setSocialStats] = useState({}); // movieId -> {likes, comments, watchlist, friendName}
   const statsFetchedRef = useRef(new Set());
@@ -161,7 +160,7 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const unsub = navigation.addListener("tabPress", () => {
       if (!navigation.isFocused()) return;
-      const refs = [mainListRef, newReleasesListRef, upcomingListRef];
+      const refs = [mainListRef, upcomingListRef];
       refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: true });
     });
     return unsub;
@@ -206,7 +205,7 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
       prefetchNextPage(1);
     })();
-    api.spotlight(auth.token).then((data) => setSpotlight({ upcoming: data.upcoming || [], newReleases: data.newReleases || [] })).catch(() => {});
+    api.spotlight(auth.token).then((data) => setSpotlight({ upcoming: data.upcoming || [] })).catch(() => {});
     api.notifySubscriptions(auth.token).then((data) => setNotifySubs(new Set(data.movieIds || []))).catch(() => {});
   }, []);
 
@@ -383,7 +382,7 @@ export default function HomeScreen({ navigation }) {
   }, [list, fetchStatsFor]);
 
   useEffect(() => {
-    const ids = [...spotlight.newReleases, ...spotlight.upcoming].map((m) => m.id);
+    const ids = spotlight.upcoming.map((m) => m.id);
     if (ids.length > 0) fetchStatsFor(ids);
   }, [spotlight, fetchStatsFor]);
 
@@ -437,22 +436,6 @@ export default function HomeScreen({ navigation }) {
       compact
     />
   ), [liked, disliked, describeResults, moviesById, stableActions]);
-
-  const renderMovieCard = useCallback(({ item, index }) => (
-    <MovieCard
-      movie={item}
-      liked={liked.has(item.id)}
-      disliked={disliked.has(item.id)}
-      watchlisted={watchlist.has(item.id)}
-      onLike={stableActions.onLike}
-      onDislike={stableActions.onDislike}
-      onAddToList={stableActions.onAddToList}
-      onSend={stableActions.onSend}
-      onPress={stableActions.onPress}
-      reason={!describeResults && index < 8 ? recommendationReason(item, liked, moviesById) : null}
-      stats={socialStats[item.id]}
-    />
-  ), [liked, disliked, watchlist, describeResults, moviesById, socialStats, stableActions]);
 
   // "Yakında Çıkacaklar" sayfasına özel — diğer kartlardan farklı olarak bir zil/bildirim
   // butonu gösteriyor, henüz yayınlanmamış içerikler için beğeni/beğenmeme anlamsız olduğundan.
@@ -523,7 +506,7 @@ export default function HomeScreen({ navigation }) {
       setDropdownTop(null);
       return undefined;
     }
-    const refs = [mainListRef, newReleasesListRef, upcomingListRef];
+    const refs = [mainListRef, upcomingListRef];
     refs[activePage]?.current?.scrollToOffset?.({ offset: 0, animated: false });
 
     const raf = requestAnimationFrame(measureDropdownPosition);
@@ -539,7 +522,19 @@ export default function HomeScreen({ navigation }) {
     };
   }, [dropdownOpen, activePage, measureDropdownPosition]);
 
-  const headerContent = (
+  // ÖNEMLİ DÜZELTME (dropdown/filtre paneli tuhaf davranışları): Bu blok eskiden TEK bir
+  // "headerContent" olarak 3 ayrı FlatList'in (Sana Özel / Şu An Gösterimde / Yakında
+  // Gelecekler) ListHeaderComponent'ine AYNEN veriliyordu. Yatay pager'daki 3 sayfa da AYNI ANDA
+  // mount edildiği için bu, arama kutusunun (searchBoxRef) ve filtre panelinin (IslandModal,
+  // kendi içinde bir RN <Modal>) 3 KOPYA halinde var olması demekti — tek bir ref/tek bir
+  // "visible" state'i 3 kopyayı aynı anda takip edemiyordu. searchBoxRef bazen görünmeyen bir
+  // sayfadaki kopyaya bağlanıp measureInWindow'dan tutarsız/sıfıra yakın konum döndürüyordu
+  // (dropdown'un "ekranın en üstünden açılması" bundandı); showFilters=true olduğunda da 3 Modal
+  // birden açılıyordu. Şimdi: her sayfa SADECE kendi tetikleyicisini (arama kutusu / filtre
+  // butonu) kendi header'ında barındırıyor, IslandModal ise return'ün en altında TEK SEFER
+  // render ediliyor (bkz. aşağıdaki <IslandModal> kullanımı) — hiçbir overlay birden fazla kopya
+  // halinde var olmuyor.
+  const mainHeaderContent = (
     <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
       <View style={styles.searchRow}>
         <View ref={searchBoxRef} style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
@@ -568,34 +563,6 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* ÖNEMLİ: Eskiden sayfaya gömülü, açılınca altındaki her şeyi aşağı iten bir akordeon
-          paneldi — artık ekranın ortasında kendi başına beliren bir "ada" (IslandModal), ne
-          alttan ne üstten kayıyor. Aynı bileşen (FilterFields) MatchParty davetinde ve "Zevkine
-          Göre Öner"de de kullanılıyor — üç ayrı filtre implementasyonu yerine tek kaynak. */}
-      <IslandModal
-        visible={showFilters}
-        onClose={() => setShowFilters(false)}
-        title="Filtrele"
-        icon={Filter}
-        gradientColors={["#7C3AED", "#DB2777", "#F97316"]}
-        subtitle="Ana sayfa akışını daralt"
-      >
-        <FilterFields
-          typeValue={typeFilter}
-          onTypeChange={setTypeFilter}
-          genreValue={genreFilter}
-          onGenreChange={setGenreFilter}
-          yearSet={yearFilters}
-          onToggleYear={toggleYear}
-          platformSet={platformFilters}
-          onTogglePlatform={togglePlatform}
-          platforms={availablePlatformObjs}
-          onShuffleGenre={shuffleGenre}
-          anyActive={anyFilterActive}
-          onClear={clearFilters}
-        />
-      </IslandModal>
-
       {/* Yapay Zeka Köşesi — artık izole bir bileşen (AIZone.js), Ana Sayfa'nın geri kalanını
           yeniden render etmeden kendi içinde açılıp kapanıyor. */}
       <AIZone
@@ -615,6 +582,21 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
+  // Yakında Gelecekler'de arama kutusu ve Yapay Zeka Köşesi yok — sadece filtre butonu kalıyor.
+  const upcomingHeaderContent = (
+    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
+      <View style={styles.searchRow}>
+        <TouchableOpacity
+          style={[styles.filterBtn, styles.filterBtnStandalone, showFilters && { backgroundColor: c.accent }]}
+          onPress={() => setShowFilters((v) => !v)}
+        >
+          <Filter size={16} color={showFilters ? c.bg : c.text} />
+          {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -631,8 +613,8 @@ export default function HomeScreen({ navigation }) {
     <View ref={screenRootRef} style={{ flex: 1, backgroundColor: c.bg }} onLayout={dropdownOpen ? measureDropdownPosition : undefined}>
       <TopBar centerLabel={FEED_TABS[activePage].label} />
 
-      {/* Sana Özel / Şu An Gösterimde / Yakında Gelecekler sembolleri — tek ve sabit, kaydırılabilir
-          alanın dışında, satırın tamamına eşit üçe bölünmüş (flex:1 her biri). */}
+      {/* Sana Özel / Yakında Gelecekler sembolleri — tek ve sabit, kaydırılabilir
+          alanın dışında, satırın tamamına eşit ikiye bölünmüş (flex:1 her biri). */}
       <View style={styles.feedTabRow}>
         {FEED_TABS.map(({ icon: Icon, label }, i) => (
           <TouchableOpacity key={label} onPress={() => goToPage(i)} style={styles.feedTabBtn}>
@@ -658,7 +640,7 @@ export default function HomeScreen({ navigation }) {
       >
         {/* Sayfa 1: Önerilenler — kişiselleştirilmiş 2 sütunlu ızgara, sonsuz kaydırma destekli.
             AI sonuçları da (describeResults) aynı ızgarada gösteriliyor. Arama artık burayı hiç
-            etkilemiyor, kendi dropdown'unda (headerContent içinde) kalıyor. */}
+            etkilemiyor, kendi dropdown'unda (mainHeaderContent içinde) kalıyor. */}
         <View style={{ width: SCREEN_W, flex: 1 }}>
           <FlatList
             ref={mainListRef}
@@ -676,7 +658,7 @@ export default function HomeScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <>
-                {headerContent}
+                {mainHeaderContent}
                 <PlayHubCard navigation={navigation} />
                 <PopularNowRow
                   items={popularNow}
@@ -693,27 +675,7 @@ export default function HomeScreen({ navigation }) {
           />
         </View>
 
-        {/* Sayfa 2: Şu An Gösterimde */}
-        <View style={{ width: SCREEN_W, flex: 1 }}>
-          <FlatList
-            ref={newReleasesListRef}
-            data={spotlight.newReleases}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={{ padding: 16, paddingTop: 0 }}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={headerContent}
-            renderItem={renderMovieCard}
-            ListEmptyComponent={
-              <EmptyState
-                icon={Flame}
-                title="Şu an gösterimde bir şey yok"
-                text="Vizyondaki/yayındaki içerikler burada toplanır — yakında yenileri eklenecek."
-              />
-            }
-          />
-        </View>
-
-        {/* Sayfa 3: Yakında Çıkacaklar */}
+        {/* Sayfa 2: Yakında Çıkacaklar */}
         <View style={{ width: SCREEN_W, flex: 1 }}>
           <FlatList
             ref={upcomingListRef}
@@ -721,7 +683,7 @@ export default function HomeScreen({ navigation }) {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{ padding: 16, paddingTop: 0 }}
             keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={headerContent}
+            ListHeaderComponent={upcomingHeaderContent}
             renderItem={renderUpcomingCard}
             ListEmptyComponent={
               <EmptyState
@@ -733,6 +695,37 @@ export default function HomeScreen({ navigation }) {
           />
         </View>
       </Animated.ScrollView>
+
+      {/* Filtre paneli — return'ün en altında TEK SEFER render ediliyor (bkz. yukarıdaki
+          mainHeaderContent/upcomingHeaderContent yorumu); her iki sayfanın filtre butonu da
+          aynı showFilters state'ini açıp bu TEK paneli tetikliyor. Eskiden sayfaya gömülü,
+          açılınca altındaki her şeyi aşağı iten bir akordeon paneldi — artık ekranın ortasında
+          kendi başına beliren bir "ada" (IslandModal), ne alttan ne üstten kayıyor. Aynı bileşen
+          (FilterFields) MatchParty davetinde ve "Zevkine Göre Öner"de de kullanılıyor — üç ayrı
+          filtre implementasyonu yerine tek kaynak. */}
+      <IslandModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        title="Filtrele"
+        icon={Filter}
+        gradientColors={["#7C3AED", "#DB2777", "#F97316"]}
+        subtitle="Ana sayfa akışını daralt"
+      >
+        <FilterFields
+          typeValue={typeFilter}
+          onTypeChange={setTypeFilter}
+          genreValue={genreFilter}
+          onGenreChange={setGenreFilter}
+          yearSet={yearFilters}
+          onToggleYear={toggleYear}
+          platformSet={platformFilters}
+          onTogglePlatform={togglePlatform}
+          platforms={availablePlatformObjs}
+          onShuffleGenre={shuffleGenre}
+          anyActive={anyFilterActive}
+          onClear={clearFilters}
+        />
+      </IslandModal>
 
       {/* Arama sonuçları — pager/FlatList'lerin TAMAMEN DIŞINDA, bağımsız bir overlay (bkz.
           dropdownTop ölçümü). Hiçbir ScrollView'ın jest ağacına dahil olmadığı için satırlara
@@ -809,6 +802,10 @@ function makeStyles(c) {
       width: 42, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       alignItems: "center", justifyContent: "center",
     },
+    // Normalde searchBox'ın yanında, satırın (stretch ile belirlenen) yüksekliğini paylaşıyor —
+    // yalnız başına (Yakında Gelecekler'de arama kutusu olmadan) kullanıldığında kendi
+    // yüksekliğini açıkça belirtmesi gerekiyor, yoksa içeriğine göre çöküyor.
+    filterBtnStandalone: { height: 42, alignSelf: "flex-start" },
     filterDot: { position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2 },
 
     // Arama dropdown'u — kutunun hemen altında, listeye hiç dokunmadan açılıp kapanıyor.
