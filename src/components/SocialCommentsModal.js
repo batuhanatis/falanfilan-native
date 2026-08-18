@@ -9,7 +9,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import { reportSocialContent } from "../utils/socialReporting";
 
-export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, onClose, onChanged }) {
+export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, originalNote = null, onClose, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -119,9 +119,24 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
             <FlatList
               data={comments}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={comments.length ? styles.list : styles.emptyList}
+              contentContainerStyle={comments.length || originalNote ? styles.list : styles.emptyList}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              ListHeaderComponent={
+                originalNote ? (
+                  // Instagram'daki "caption ilk yorum gibi sabitlenir" deseni — kartta 2 satırla
+                  // kırpılan öneri notunun TAM halini burada, yorumların en üstünde sabit gösteriyoruz.
+                  // Bu bir yorum DEĞİL (silinemez/şikayet edilemez, sayaca dahil değil), sadece
+                  // paylaşımın kendi metni.
+                  <View style={styles.originalNoteRow}>
+                    <RetryImage source={{ uri: avatarOr(originalNote.authorAvatar, originalNote.authorId) }} style={styles.avatar} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.name}>{originalNote.authorName}</Text>
+                      <Text style={styles.body}>{originalNote.text}</Text>
+                    </View>
+                  </View>
+                ) : null
+              }
               renderItem={({ item }) => (
                 <View style={styles.commentRow}>
                   <RetryImage source={{ uri: avatarOr(item.avatar_url, item.user_id) }} style={styles.avatar} />
@@ -189,6 +204,7 @@ function makeStyles(c, bottomInset = 0) {
     list: { padding: 16, gap: 14 },
     emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
     commentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+    originalNoteRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingBottom: 14, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: c.border },
     deleteBtn: { width: 30, height: 30, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2 },
     avatar: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },
     name: { color: c.text, fontWeight: "800", fontSize: 12 },

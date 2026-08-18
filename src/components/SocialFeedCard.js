@@ -382,6 +382,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           visible={commentsOpen}
           postId={post?.id}
           activityId={state.activityId}
+          originalNote={state.kind === "post" && !!body ? { authorId: user.id, authorName: user.name, authorAvatar: user.avatar_url, text: body } : null}
           canModerate={Number(user.id) === Number(auth.id)}
           onClose={() => setCommentsOpen(false)}
           onChanged={(event) => {
