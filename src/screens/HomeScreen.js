@@ -582,20 +582,10 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
-  // Yakında Gelecekler'de arama kutusu ve Yapay Zeka Köşesi yok — sadece filtre butonu kalıyor.
-  const upcomingHeaderContent = (
-    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
-      <View style={styles.searchRow}>
-        <TouchableOpacity
-          style={[styles.filterBtn, styles.filterBtnStandalone, showFilters && { backgroundColor: c.accent }]}
-          onPress={() => setShowFilters((v) => !v)}
-        >
-          <Filter size={16} color={showFilters ? c.bg : c.text} />
-          {anyFilterActive && !showFilters && <View style={styles.filterDot} />}
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  // ÖNEMLİ: Yakında Gelecekler'de artık hiçbir header yok (arama kutusu, Yapay Zeka Köşesi VE
+  // filtre butonu kaldırıldı) — zaten typeFilter/genreFilter/platformFilters/yearFilters
+  // filtreleri bu sayfanın verisini (spotlight.upcoming) hiç etkilemiyordu, buton orada işlevsiz
+  // duruyordu.
 
   if (loading) {
     return (
@@ -681,9 +671,8 @@ export default function HomeScreen({ navigation }) {
             ref={upcomingListRef}
             data={spotlight.upcoming}
             keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={{ padding: 16, paddingTop: 0 }}
+            contentContainerStyle={{ padding: 16 }}
             keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={upcomingHeaderContent}
             renderItem={renderUpcomingCard}
             ListEmptyComponent={
               <EmptyState
@@ -697,8 +686,9 @@ export default function HomeScreen({ navigation }) {
       </Animated.ScrollView>
 
       {/* Filtre paneli — return'ün en altında TEK SEFER render ediliyor (bkz. yukarıdaki
-          mainHeaderContent/upcomingHeaderContent yorumu); her iki sayfanın filtre butonu da
-          aynı showFilters state'ini açıp bu TEK paneli tetikliyor. Eskiden sayfaya gömülü,
+          mainHeaderContent yorumu); Ana Sayfa'nın filtre butonu bu TEK paneli tetikliyor
+          (Yakında Gelecekler'de filtre butonu yok — filtreler o sayfanın verisini zaten
+          etkilemiyordu). Eskiden sayfaya gömülü,
           açılınca altındaki her şeyi aşağı iten bir akordeon paneldi — artık ekranın ortasında
           kendi başına beliren bir "ada" (IslandModal), ne alttan ne üstten kayıyor. Aynı bileşen
           (FilterFields) MatchParty davetinde ve "Zevkine Göre Öner"de de kullanılıyor — üç ayrı
@@ -802,10 +792,6 @@ function makeStyles(c) {
       width: 42, borderRadius: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       alignItems: "center", justifyContent: "center",
     },
-    // Normalde searchBox'ın yanında, satırın (stretch ile belirlenen) yüksekliğini paylaşıyor —
-    // yalnız başına (Yakında Gelecekler'de arama kutusu olmadan) kullanıldığında kendi
-    // yüksekliğini açıkça belirtmesi gerekiyor, yoksa içeriğine göre çöküyor.
-    filterBtnStandalone: { height: 42, alignSelf: "flex-start" },
     filterDot: { position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2 },
 
     // Arama dropdown'u — kutunun hemen altında, listeye hiç dokunmadan açılıp kapanıyor.
