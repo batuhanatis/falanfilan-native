@@ -527,7 +527,14 @@ export default function DetailScreen({ route, navigation }) {
               <Text style={styles.noCommentsText}>Henüz yorum yok, ilk yorumu sen yaz.</Text>
             ) : comments.map((cm) => (
               <View key={cm.id} style={styles.commentRow}>
-                <RetryImage source={{ uri: avatarOr(cm.avatar_url, cm.user_id || cm.id) }} style={styles.commentAvatar} />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Number(cm.user_id) === Number(auth.id)) navigation.navigate("MainTabs", { screen: "Profile" });
+                    else navigation.navigate("OtherProfile", { userId: cm.user_id });
+                  }}
+                >
+                  <RetryImage source={{ uri: avatarOr(cm.avatar_url, cm.user_id || cm.id) }} style={styles.commentAvatar} />
+                </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.commentUser}>{cm.name}</Text>
                   <Text style={styles.commentText}>{cm.body}</Text>

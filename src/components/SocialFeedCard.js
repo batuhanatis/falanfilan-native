@@ -384,6 +384,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           activityId={state.activityId}
           originalNote={state.kind === "post" && !!body ? { authorId: user.id, authorName: user.name, authorAvatar: user.avatar_url, text: body } : null}
           canModerate={Number(user.id) === Number(auth.id)}
+          navigation={navigation}
           onClose={() => setCommentsOpen(false)}
           onChanged={(event) => {
             const delta = event?.type === "comment_deleted" ? -1 : 1;

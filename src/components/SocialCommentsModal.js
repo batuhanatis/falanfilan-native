@@ -9,7 +9,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import { reportSocialContent } from "../utils/socialReporting";
 
-export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, originalNote = null, onClose, onChanged }) {
+export default function SocialCommentsModal({ visible, postId, activityId, canModerate = false, originalNote = null, navigation, onClose, onChanged }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -18,6 +18,15 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Yorumdaki profil fotoğrafına dokununca modalı kapatıp o kişinin (kendisiyse kendi) profiline
+  // götürüyor — arka planda açık kalan bir modalın üstüne yeni bir ekran binmesin diye önce onClose.
+  function openProfile(userId) {
+    if (!navigation || !userId) return;
+    onClose?.();
+    if (Number(userId) === Number(auth.id)) navigation.navigate("MainTabs", { screen: "Profile" });
+    else navigation.navigate("OtherProfile", { userId });
+  }
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
@@ -129,7 +138,9 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
                   // Bu bir yorum DEĞİL (silinemez/şikayet edilemez, sayaca dahil değil), sadece
                   // paylaşımın kendi metni.
                   <View style={styles.originalNoteRow}>
-                    <RetryImage source={{ uri: avatarOr(originalNote.authorAvatar, originalNote.authorId) }} style={styles.avatar} />
+                    <TouchableOpacity onPress={() => openProfile(originalNote.authorId)}>
+                      <RetryImage source={{ uri: avatarOr(originalNote.authorAvatar, originalNote.authorId) }} style={styles.avatar} />
+                    </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.name}>{originalNote.authorName}</Text>
                       <Text style={styles.body}>{originalNote.text}</Text>
@@ -139,7 +150,9 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
               }
               renderItem={({ item }) => (
                 <View style={styles.commentRow}>
-                  <RetryImage source={{ uri: avatarOr(item.avatar_url, item.user_id) }} style={styles.avatar} />
+                  <TouchableOpacity onPress={() => openProfile(item.user_id)}>
+                    <RetryImage source={{ uri: avatarOr(item.avatar_url, item.user_id) }} style={styles.avatar} />
+                  </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.body}>{item.body}</Text>
