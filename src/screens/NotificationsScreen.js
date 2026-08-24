@@ -3,13 +3,18 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndi
 import { Swipeable } from "react-native-gesture-handler";
 import {
   ChevronLeft, Trash2, UserPlus, UserCheck, Film, PartyPopper, Gift, ListVideo, Bell,
-  Heart, MessageCircle, Sparkles,
+  Heart, MessageCircle, Sparkles, Users,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
+
+// SharedItem'a (bkz. server.js pushNavTarget) giden tüm bildirim tipleri — tek yerde tutuyoruz
+// ki yeni bir tip eklenince tıklanabilirlik/yönlendirme kontrolü ikişer yerde ayrı ayrı
+// güncellenip biri unutulmasın diye.
+const SHARED_ITEM_TYPES = ["social_post_like", "social_comment", "social_reaction", "friend_quiz_shared"];
 
 function notificationText(n) {
   const p = n.payload || {};
@@ -30,6 +35,7 @@ function notificationText(n) {
       const target = p.contentTitle ? `"${p.contentTitle}" içeriğine` : (p.targetKind === "activity" ? "aktivine" : "paylaşımına");
       return `${p.by?.name} ${target} ${emoji} tepkisi verdi`;
     }
+    case "friend_quiz_shared": return `${p.by?.name}, "Arkadaşını Tanıyor musun?" oyununda seni %${p.percent} tahmin etti 🎮`;
     default: return "Yeni bildirim";
   }
 }
@@ -52,6 +58,7 @@ function notificationMeta(n) {
     case "social_post_like": return { person: p.by, icon: Heart, color: "#FF3D81" };
     case "social_comment": return { person: p.by, icon: MessageCircle, color: "#2563EB" };
     case "social_reaction": return { person: p.by, icon: Sparkles, color: "#F97316" };
+    case "friend_quiz_shared": return { person: p.by, icon: Users, color: "#FB7185" };
     default: return { person: null, icon: Bell, color: "#8f8a9c" };
   }
 }
@@ -103,7 +110,7 @@ export default function NotificationsScreen({ navigation }) {
     const p = n.payload || {};
     if (n.type === "party_accepted" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id, friend: p.by });
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
-    else if (["social_post_like", "social_comment", "social_reaction"].includes(n.type)) {
+    else if (SHARED_ITEM_TYPES.includes(n.type)) {
       // Push bildirimiyle AYNI hedef (bkz. server.js pushNavTarget) — ilgili paylaşımın/
       // aktivitenin kendi tek öğelik detay sayfasına gidiyor.
       navigation.navigate("SharedItem", { kind: p.targetKind, id: p.targetId });
@@ -147,7 +154,7 @@ export default function NotificationsScreen({ navigation }) {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
             const clickable = item.type === "party_accepted"
               || item.type === "party_match"
-              || ["social_post_like", "social_comment", "social_reaction"].includes(item.type);
+              || SHARED_ITEM_TYPES.includes(item.type);
             const meta = notificationMeta(item);
             const Icon = meta.icon;
             return (
