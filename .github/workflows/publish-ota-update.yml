@@ -35,7 +35,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # ÖNEMLİ DÜZELTME: eas-cli@latest (expo/expo-github-action'ın kurduğu), bir bağımlılığı
+          # (@oclif/plugin-autocomplete) üzerinden artık Node >=22 istiyor — 20 ile "yarn add
+          # eas-cli" "incompatible module" hatasıyla patlıyordu (Setup EAS adımı). eas-cli
+          # "latest" sabitlendiği için bu eşik bizim kontrolümüz dışında ileride yine değişebilir.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
