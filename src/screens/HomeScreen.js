@@ -37,6 +37,11 @@ export default function HomeScreen({ navigation }) {
   const upcomingListRef = useRef(null);
 
   const [movies, setMovies] = useState([]);
+  // Şu ana kadar çekilmiş TÜM film/dizi id'leri — loadPage bunu backend'e excludeIds olarak
+  // gönderiyor (bkz. loadPage), RANDOM() sıralı /api/movies'in aynı içeriği iki ayrı sayfada
+  // tekrar çekmesini (ve dolayısıyla zaten gösterilen bir kartın "yeniden yükleniyormuş" gibi
+  // görünmesini) engellemek için.
+  const loadedIdsRef = useRef(new Set());
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -180,11 +185,16 @@ export default function HomeScreen({ navigation }) {
   }, [auth.token]);
 
   const loadPage = useCallback(async (pageNum) => {
+    // Son 500 id'yle sınırlı tutuyoruz — aksi halde çok uzun bir kaydırma oturumunda URL sonsuza
+    // kadar büyür. 500, pratikte (sayfa başı ~60 içerik) aşılması çok zor bir eşik.
+    const excludeIds = [...loadedIdsRef.current].slice(-500);
     const [movieRes, tvRes] = await Promise.all([
-      api.movies(auth.token, "movie", pageNum).catch(() => ({ results: [] })),
-      api.movies(auth.token, "tv", pageNum).catch(() => ({ results: [] })),
+      api.movies(auth.token, "movie", pageNum, null, excludeIds).catch(() => ({ results: [] })),
+      api.movies(auth.token, "tv", pageNum, null, excludeIds).catch(() => ({ results: [] })),
     ]);
-    return [...(movieRes.results || []), ...(tvRes.results || [])];
+    const items = [...(movieRes.results || []), ...(tvRes.results || [])];
+    items.forEach((m) => loadedIdsRef.current.add(m.id));
+    return items;
   }, [auth.token]);
 
   // Kullanıcı mevcut partiyi (sayfayı) bitirmeden BİR SONRAKİNİ arka planda önceden yüklemeye
@@ -277,6 +287,7 @@ export default function HomeScreen({ navigation }) {
     setRefreshing(true);
     try {
       await loadInteractions();
+      loadedIdsRef.current.clear(); // baştan taze bir karışım çekelim, eski oturumun id'leri dışlanmasın
       const items = await loadPage(1);
       setMovies(dedupe(items));
       setPage(1);
