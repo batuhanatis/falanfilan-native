@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ListVideo } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api/client";
+import { avatarOr } from "../utils/avatar";
+import RetryImage from "./RetryImage";
 
 function relativeTime(value) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -25,16 +29,17 @@ function activityCopy(item) {
   return "beğendi";
 }
 
-function activityIcon(item) {
-  if (item.activityType === "favorite_set") return "💘";
-  if (item.activityType === "list_created") return "🎬";
-  return "❤️";
-}
-
 function ActivityRow({ item, navigation, isLast }) {
   const { c } = useAppTheme();
+  const { auth } = useAuth();
   const styles = makeStyles(c);
   const movie = item.movies?.[0] || null;
+  // Sunucudan gelen ilk tepki/sayaç durumu — SocialFeedCard'daki ReactionButton'la aynı desen,
+  // sadece burada tek varsayılan tepki (🔥) var, uzun-basılı seçici yok (bkz. tasarım kararı:
+  // kompakt satırlar bunu hak etmiyor, tam kartlardaki picker'ı burada tekrarlamıyoruz).
+  const [myReaction, setMyReaction] = useState(item.myReaction || null);
+  const [reactionCounts, setReactionCounts] = useState(item.reactionCounts || {});
+  const total = Object.values(reactionCounts || {}).reduce((s, v) => s + Number(v || 0), 0);
 
   function handlePress() {
     if (movie) navigation.navigate("Detail", { movie });
@@ -43,12 +48,29 @@ function ActivityRow({ item, navigation, isLast }) {
     }
   }
 
+  async function toggleReaction() {
+    if (!item.activityId) return;
+    try {
+      const data = await api.socialReact(auth.token, "activity", item.activityId, "fire");
+      setMyReaction(data.myReaction || null);
+      setReactionCounts(data.reactionCounts || {});
+    } catch {}
+  }
+
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && styles.rowDivider]}
       onPress={handlePress}
       activeOpacity={0.7}
     >
+      <RetryImage source={{ uri: avatarOr(item.user?.avatar_url) }} style={styles.avatar} />
+
+      <Text style={styles.text} numberOfLines={1}>
+        <Text style={styles.name}>{item.user?.name}</Text>
+        <Text style={styles.action}> {activityCopy(item)}</Text>
+        {!!movie && <Text style={styles.title}> · {movie.title}</Text>}
+      </Text>
+
       {movie?.poster ? (
         <Image source={{ uri: movie.poster }} style={styles.thumb} />
       ) : (
@@ -56,14 +78,14 @@ function ActivityRow({ item, navigation, isLast }) {
           <ListVideo size={14} color={c.dim} />
         </View>
       )}
-      <Text style={styles.text} numberOfLines={1}>
-        <Text style={styles.name}>{item.user?.name}</Text>
-        <Text style={styles.action}> {activityCopy(item)}</Text>
-        {!!movie && <Text style={styles.title}> · {movie.title}</Text>}
-      </Text>
-      <Text style={styles.icon}>{activityIcon(item)}</Text>
-      {Number(item.commentCount) > 0 && <Text style={styles.commentDot}>💬 {item.commentCount}</Text>}
-      <Text style={styles.time}>{relativeTime(item.created_at)}</Text>
+
+      <View style={styles.metaCol}>
+        <TouchableOpacity style={styles.reactBtn} onPress={toggleReaction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.icon}>{myReaction ? "🔥" : "🤍"}</Text>
+          {total > 0 && <Text style={[styles.reactCount, !!myReaction && { color: c.accent }]}>{total}</Text>}
+        </TouchableOpacity>
+        <Text style={styles.time}>{relativeTime(item.created_at)}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -96,16 +118,19 @@ function makeStyles(c) {
       marginBottom: 12,
       overflow: "hidden",
     },
-    row: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 13, paddingVertical: 12 },
+    row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingVertical: 12 },
     rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
-    thumb: { width: 40, height: 58, borderRadius: 7, backgroundColor: c.surface2 },
-    thumbFallback: { alignItems: "center", justifyContent: "center" },
+    avatar: { width: 32, height: 32, borderRadius: 999, backgroundColor: c.surface2 },
     text: { flex: 1, fontSize: 13.5, color: c.text, lineHeight: 18 },
     name: { fontWeight: "800", color: c.text },
     action: { color: c.dim },
     title: { color: c.text, fontWeight: "600" },
+    thumb: { width: 40, height: 58, borderRadius: 7, backgroundColor: c.surface2 },
+    thumbFallback: { alignItems: "center", justifyContent: "center" },
+    metaCol: { alignItems: "flex-end", gap: 4 },
+    reactBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
     icon: { fontSize: 14 },
-    commentDot: { fontSize: 11, color: c.dim },
-    time: { fontSize: 11, color: c.dim },
+    reactCount: { fontSize: 10.5, color: c.dim, fontWeight: "700" },
+    time: { fontSize: 10.5, color: c.dim },
   });
 }
