@@ -65,7 +65,7 @@ function ActivityRow({ item, navigation, isLast }) {
     >
       <RetryImage source={{ uri: avatarOr(item.user?.avatar_url) }} style={styles.avatar} />
 
-      <Text style={styles.text} numberOfLines={1}>
+      <Text style={styles.text} numberOfLines={2}>
         <Text style={styles.name}>{item.user?.name}</Text>
         <Text style={styles.action}> {activityCopy(item)}</Text>
         {!!movie && <Text style={styles.title}> · {movie.title}</Text>}
@@ -127,7 +127,12 @@ function makeStyles(c) {
     title: { color: c.text, fontWeight: "600" },
     thumb: { width: 40, height: 58, borderRadius: 7, backgroundColor: c.surface2 },
     thumbFallback: { alignItems: "center", justifyContent: "center" },
-    metaCol: { alignItems: "flex-end", gap: 4 },
+    // ÖNEMLİ DÜZELTME: Tepki ikonu ile süre metnini dar bir sütunda alt alta ORTALAMAYA
+    // çalışmak tuhaf duruyordu — emoji karakterinin görsel ağırlık merkezi ile "3 gün" gibi
+    // değişken genişlikteki metnin ortası hiçbir zaman tam örtüşmüyordu. Artık ikisi ayrı ayrı
+    // sağa yaslı, sütun posterle aynı yükseklikte (thumb: 58) — tepki üstte, süre altta, kendi
+    // aralarında hizalanmaya çalışmıyorlar.
+    metaCol: { alignItems: "flex-end", justifyContent: "space-between", height: 58 },
     reactBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
     icon: { fontSize: 14 },
     reactCount: { fontSize: 10.5, color: c.dim, fontWeight: "700" },
