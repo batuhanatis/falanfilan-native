@@ -34,18 +34,16 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
     <View style={styles.wrap}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         <View style={styles.item}>
-          <TouchableOpacity
-            style={styles.ringTouch}
-            onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))}
-            activeOpacity={0.85}
-          >
-            <View style={styles.ring}>
-              <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Plus size={12} color={c.bg} strokeWidth={3} />
-          </TouchableOpacity>
+          <View style={styles.ringWrap}>
+            <TouchableOpacity onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))} activeOpacity={0.85}>
+              <View style={styles.ring}>
+                <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Plus size={12} color={c.bg} strokeWidth={3} />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.label} numberOfLines={1}>Sen</Text>
         </View>
 
@@ -92,11 +90,11 @@ function makeStyles(c) {
     wrap: { marginBottom: 14 },
     row: { gap: 14, paddingRight: 6 },
     item: { width: 62, alignItems: "center" },
-    ringTouch: { position: "relative" },
+    ringWrap: { width: 60, height: 60 },
     ring: { width: 60, height: 60, borderRadius: 999, padding: 2.5, alignItems: "center", justifyContent: "center", backgroundColor: c.border },
     ringSeen: { backgroundColor: c.border },
     avatar: { width: "100%", height: "100%", borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2.5, borderColor: c.bg },
-    addBadge: { position: "absolute", bottom: 0, right: 0, width: 19, height: 19, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
+    addBadge: { position: "absolute", bottom: -2, right: -2, width: 19, height: 19, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
     label: { fontSize: 10, color: c.dim, marginTop: 5, maxWidth: 62, textAlign: "center" },
     caption: { fontSize: 10, color: c.accent, fontWeight: "700", marginTop: 5, maxWidth: 62, textAlign: "center" },
   });
