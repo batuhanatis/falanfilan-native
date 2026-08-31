@@ -12,6 +12,8 @@ import SocialActivityGroup from "../components/SocialActivityGroup";
 import SocialPostComposer from "../components/SocialPostComposer";
 import NudgeCard from "../components/NudgeCard";
 import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
+import StoryBar from "../components/StoryBar";
+import LeaderboardCard from "../components/LeaderboardCard";
 
 // ÖNEMLİ DÜZELTME: Havuz eskiden sadece 12 soruydu — gün numarası % 12 ile seçildiği için tam
 // 12 günde bir baştan tekrarlıyordu ("başa sardı" şikayeti buradan geliyordu). 60'a çıkarıldı,
@@ -145,13 +147,29 @@ export default function ActivityScreen({ navigation }) {
   const [composerContext, setComposerContext] = useState(null);
   const [dailyQuestion, setDailyQuestion] = useState(() => getDailyQuestion());
   const [blendPickerNudge, setBlendPickerNudge] = useState(null);
+  const [stories, setStories] = useState({ myStories: [], friends: [] });
+  const [leaderboard, setLeaderboard] = useState(null);
+  const [myAvatar, setMyAvatar] = useState(null);
+
+  // Story şeridi ve liderlik tablosu, ana feed'in refresh() akışından BAĞIMSIZ hafif bir
+  // yeniden çekme fonksiyonuna sahip — bir story paylaşıldığında/silindiğinde/izlendiğinde
+  // tüm feed'i yeniden yüklemeye (ve sıralamasını karıştırmaya) gerek yok.
+  const refreshStories = useCallback(async () => {
+    try {
+      const data = await api.socialStories(auth.token);
+      setStories({ myStories: data.myStories || [], friends: data.friends || [] });
+    } catch {}
+  }, [auth.token]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const fallbackQuestion = getDailyQuestion();
-    const [feedResult, questionResult] = await Promise.allSettled([
+    const [feedResult, questionResult, storiesResult, leaderboardResult, meResult] = await Promise.allSettled([
       api.socialFeed(auth.token),
       api.dailyQuestion(localDateKey()),
+      api.socialStories(auth.token),
+      api.socialLeaderboard(auth.token),
+      api.me(auth.token),
     ]);
     if (feedResult.status === "fulfilled") setFeed(groupActivities(expandActivityItems(feedResult.value.results)));
     else setFeed([]);
@@ -160,6 +178,11 @@ export default function ActivityScreen({ navigation }) {
         ? questionResult.value.question
         : fallbackQuestion
     );
+    if (storiesResult.status === "fulfilled") {
+      setStories({ myStories: storiesResult.value.myStories || [], friends: storiesResult.value.friends || [] });
+    }
+    if (leaderboardResult.status === "fulfilled") setLeaderboard(leaderboardResult.value);
+    if (meResult.status === "fulfilled") setMyAvatar(meResult.value.avatarUrl || null);
     setLoading(false);
   }, [auth.token]);
 
@@ -259,6 +282,16 @@ export default function ActivityScreen({ navigation }) {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      <StoryBar
+        myAvatar={myAvatar}
+        myStories={stories.myStories}
+        friends={stories.friends}
+        navigation={navigation}
+        onChanged={refreshStories}
+      />
+
+      <LeaderboardCard data={leaderboard} />
 
       <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
         <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>
