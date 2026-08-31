@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import TopBar from "../components/TopBar";
 import SocialFeedCard from "../components/SocialFeedCard";
+import SocialActivityGroup from "../components/SocialActivityGroup";
 import SocialPostComposer from "../components/SocialPostComposer";
 import NudgeCard from "../components/NudgeCard";
 import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
@@ -108,6 +109,28 @@ function expandActivityItems(items) {
   });
 }
 
+// Ardışık "activity" öğelerini (not/anket/kart taşımayan, otomatik üretilen beğendi/favorisi
+// yaptı/liste oluşturdu aktiviteleri) tek bir "activity-group" öğesine topluyor —
+// SocialActivityGroup bunları kompakt satırlar halinde tek bir kart içinde gösteriyor. Gerçek
+// içerikli paylaşımlar (post) ve nudge kartları bir grubu böler, kendi ayrı öğeleri olarak kalır.
+function groupActivities(items) {
+  const result = [];
+  let run = [];
+  function flush() {
+    if (!run.length) return;
+    const first = run[0];
+    const key = `group-${first.feedKey || first.id}`;
+    result.push({ kind: "activity-group", id: key, feedKey: key, items: run });
+    run = [];
+  }
+  for (const item of items) {
+    if (item.kind === "activity") run.push(item);
+    else { flush(); result.push(item); }
+  }
+  flush();
+  return result;
+}
+
 export default function ActivityScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -130,7 +153,7 @@ export default function ActivityScreen({ navigation }) {
       api.socialFeed(auth.token),
       api.dailyQuestion(localDateKey()),
     ]);
-    if (feedResult.status === "fulfilled") setFeed(expandActivityItems(feedResult.value.results));
+    if (feedResult.status === "fulfilled") setFeed(groupActivities(expandActivityItems(feedResult.value.results)));
     else setFeed([]);
     setDailyQuestion(
       questionResult.status === "fulfilled" && questionResult.value?.question
@@ -173,8 +196,17 @@ export default function ActivityScreen({ navigation }) {
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     for (const v of viewableItems) {
-      const key = v.item?.feedKey || v.item?.id;
-      if (key && v.item?.kind !== "nudge") seenPending.current.add(key);
+      const it = v.item;
+      if (!it || it.kind === "nudge") continue;
+      // Bir grup görününce, backend'in "görüldü" cezasını (bkz. social-routes.js SEEN_PENALTY_MS)
+      // grubun sentetik anahtarına değil, İÇİNDEKİ HER aktivitenin gerçek anahtarına uygulaması
+      // gerekiyor — yoksa kompakt satırlar hiç "görülmüş" sayılmaz, akışta hep en üstte kalırlar.
+      if (it.kind === "activity-group") {
+        it.items.forEach((sub) => { if (sub.feedKey) seenPending.current.add(sub.feedKey); });
+      } else {
+        const key = it.feedKey || it.id;
+        if (key) seenPending.current.add(key);
+      }
     }
   }).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 500 }).current;
@@ -280,6 +312,8 @@ export default function ActivityScreen({ navigation }) {
                 onOpenPicker={setBlendPickerNudge}
                 onDismiss={() => dismissNudge(item.id)}
               />
+            ) : item.kind === "activity-group" ? (
+              <SocialActivityGroup items={item.items} navigation={navigation} />
             ) : (
               <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />
             )
