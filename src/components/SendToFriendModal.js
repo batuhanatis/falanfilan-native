@@ -11,7 +11,6 @@ import { encodeMovieShare } from "../utils/movieShare";
 import { encodeListShare } from "../utils/listShare";
 import { encodeActivityShare } from "../utils/activityShare";
 import { getStoreLink } from "../utils/appLinks";
-import DismissableSheet from "./DismissableSheet";
 import { updateLocalMessage } from "../utils/chatDb";
 import { appendPrefetchedMessage } from "../utils/chatMessagesPrefetch";
 
@@ -96,7 +95,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
       <TouchableWithoutFeedback onPress={onClose}>
         <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <TouchableWithoutFeedback onPress={() => {}}>
-            <DismissableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} handleOnly>
+            <View style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Arkadaşına Gönder</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color={c.text} /></TouchableOpacity>
@@ -246,7 +245,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
               </TouchableOpacity>
             </>
           )}
-        </DismissableSheet>
+        </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
