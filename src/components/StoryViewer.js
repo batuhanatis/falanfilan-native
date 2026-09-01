@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Animated, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform,
+  ActivityIndicator, Animated, Dimensions, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { GestureHandlerRootView, PanGestureHandler, State } from "react-native-gesture-handler";
@@ -14,6 +14,8 @@ import RetryImage from "./RetryImage";
 import { avatarOr } from "../utils/avatar";
 
 const DURATION = 5000;
+const { width: SCREEN_W } = Dimensions.get("window");
+const TAP_MAX_MOVEMENT = 15;
 
 function relativeTime(value) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -129,6 +131,17 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
     setDragging(false);
   }
 
+  // ÖNEMLİ DÜZELTME: dragY, jest sırasında translationY'yi DOĞRUDAN taşıyor (hem yukarı hem
+  // aşağı yön için) — cardScale/backdropOpacity bunu 0'ın altında "clamp" ile görmezden geliyor
+  // (yukarı sürüklerken kart küçülmesin diye) ama dragY'nin KENDİSİ hiç sıfırlanmıyordu. Yukarı
+  // kaydırıp izleyiciler/yanıt açıldığında bu, kartın translateY:dragY yüzünden EKRANDA YUKARI
+  // KAYMIŞ, "asılı" görünmesine yol açıyordu — izleyiciler popup'ı kapansa bile düzelmiyordu.
+  // Bu, SADECE görsel konumu sıfırlıyor; paused/dragging state'lerine dokunmuyor çünkü onlar
+  // izleyiciler/yanıt akışı tarafından ayrı yönetiliyor (openViewers/closeViewers).
+  function resetDragPosition() {
+    Animated.spring(dragY, { toValue: 0, useNativeDriver: true, speed: 16, bounciness: 5 }).start();
+  }
+
   // ÖNEMLİ DÜZELTME (1. deneme): RN'in kendi PanResponder'ı Modal içinde güvenilmezdi —
   // sürükleme ekranın sadece dar bir bölgesinden tetikleniyordu. Gerçek native jest
   // tanıyıcılar kullanan react-native-gesture-handler'a geçildi.
@@ -148,7 +161,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   ).current;
 
   function handlePanStateChange(event) {
-    const { state, translationY, velocityY } = event.nativeEvent;
+    const { state, translationX, translationY, velocityY, x } = event.nativeEvent;
     if (state === State.ACTIVE) {
       if (translationY > 0) {
         downStartedRef.current = true;
@@ -162,6 +175,18 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
       if (downStartedRef.current) {
         if (translationY > 130 || velocityY > 800) dismissWithDrag();
         else cancelDrag();
+      } else if (upFiredRef.current) {
+        resetDragPosition();
+      } else if (Math.abs(translationX) < TAP_MAX_MOVEMENT && Math.abs(translationY) < TAP_MAX_MOVEMENT) {
+        // ÖNEMLİ DÜZELTME: Eskiden dokunarak ilerleme/geri gitme AYRI TouchableOpacity'lerle
+        // (tapZones) yapılıyordu — bu, onları saran PanGestureHandler ile aynı native dokunma
+        // akışını paylaşıyordu ve jest tanıyıcı hiç aktifleşmese bile (düz bir dokunma olsa
+        // bile) touch'u bazen TouchableOpacity'ye güvenilir şekilde bırakmıyordu, tıklama
+        // çalışmıyordu. Artık dokunma da AYNI jestin bir parçası: hiçbir yöne eşiği aşacak
+        // kadar hareket olmadıysa (düz bir dokunma), x konumuna göre sol üçte bir = geri,
+        // geri kalanı = ileri (ya da sonraki story yoksa kapatma) — advance() bunu zaten yapıyor.
+        if (x < SCREEN_W * 0.35) advance(-1);
+        else advance(1);
       }
       downStartedRef.current = false;
       upFiredRef.current = false;
@@ -233,11 +258,6 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           locations={[0, 0.35, 1]}
           style={StyleSheet.absoluteFillObject}
         />
-
-        <View style={styles.tapZones} pointerEvents={dismissing ? "none" : "auto"}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => advance(-1)} />
-          <TouchableOpacity style={{ flex: 2 }} activeOpacity={1} onPress={() => advance(1)} />
-        </View>
 
         <View style={styles.top}>
           <View style={styles.segRow}>
@@ -380,7 +400,6 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
 function makeStyles(c, insets) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: "#000" },
-    tapZones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
     top: { position: "absolute", top: insets.top + 8, left: 12, right: 12 },
     segRow: { flexDirection: "row", gap: 4 },
     segTrack: { flex: 1, height: 2.5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)", overflow: "hidden" },
