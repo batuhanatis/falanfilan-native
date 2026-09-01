@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Animated, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform,
+  ActivityIndicator, Animated, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
+import { GestureHandlerRootView, PanGestureHandler, State } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Check, ChevronDown, Eye, Info, Send, Trash2, X } from "lucide-react-native";
@@ -55,7 +56,8 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   // yuvarlaklığı ise (borderRadius native driver ile animasyona ALINAMADIĞI için) ayrı bir
   // state ile sürükleme başlar başlamaz aniden açılıyor/kapanıyor.
   const dragY = useRef(new Animated.Value(0)).current;
-  const dragDirRef = useRef(null); // 'up' | 'down' | null
+  const downStartedRef = useRef(false);
+  const upFiredRef = useRef(false);
 
   const group = groups[groupIndex];
   const story = group?.stories?.[storyIndex];
@@ -116,75 +118,59 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
     });
   }
 
-  // ÖNEMLİ: PanResponder.create sadece BİR KEZ (useRef ile) oluşturuluyor — handler'ları
-  // oluşturulduğu andaki (mount zamanındaki) group/story değerlerini KALICI olarak kapatıyor
-  // (closure). groupIndex/storyIndex zamanla değiştiği için (arkadaş değişince ya da AYNI kendi
-  // story grubunda birden fazla story arasında geçince), handler'ın DOĞRUDAN group/story'yi
-  // okuması eski/yanlış bir story'ye işaret ederdi. Bunun yerine her render'da güncellenen bir
-  // ref üzerinden en GÜNCEL değerlere bakıyoruz.
-  const latestRef = useRef({});
-  latestRef.current = { isOwn: group?.isOwn, viewersOpen, openViewers: () => openViewers() };
-
   function dismissWithDrag() {
     setDismissing(true);
     Animated.timing(dragY, { toValue: 900, duration: 220, useNativeDriver: true }).start(() => onClose?.());
   }
 
   function cancelDrag() {
-    dragDirRef.current = null;
     Animated.spring(dragY, { toValue: 0, useNativeDriver: true, speed: 16, bounciness: 5 }).start();
     setPaused(false);
     setDragging(false);
   }
 
-  // Tek bir PanResponder iki farklı dikey jesti ayırt ediyor:
-  //  - Yukarı, NET bir eşikten sonra (dy < -28): eski davranış — dokunarak ilerleme/geri gitme
-  //    alanlarının önüne geçmeden, tek seferlik bir eylem tetikliyor (izleyici listesi / yanıt
-  //    kutusuna odaklanma). Eşik yüksek tutuluyor ki kaza eseri küçük bir titreme tap'i bozmasın.
-  //  - Aşağı, çok daha DÜŞÜK bir eşikle (dy > 10): Instagram'daki "tut ve aşağı sürükle" kapatma
-  //    hareketi — parmak takip edilerek story SÜREKLİ küçülüp yuvarlaklaşıyor (dragY), bırakınca
-  //    yeterince sürüklenmişse (mesafe ya da hız) kapanmaya devam ediyor, değilse yerine geri
-  //    zıplıyor.
-  // ÖNEMLİ DÜZELTME: panHandlers eskiden SADECE tapZones'a (ekranın bir "kardeşi") takılıydı —
-  // top/center/bottom/replyBarWrap gibi diğer bölgeler kendi pointerEvents="box-none"
-  // ayarlarıyla dokunmaları tapZones'a "geçirmesi" gerekiyordu ama bu miras/negotiation zinciri
-  // güvenilir değildi (ör. ekranın ortasından/altından sürükleme hiç yakalanmıyordu, sadece en
-  // üstteki boşluktan çalışıyordu). Artık panHandlers KÖK sarmalayıcının (bkz. return içindeki
-  // Animated.View) kendisinde — ekrandaki HER buton/alan (X, sil, detay, yanıt kutusu, izleyici
-  // rozeti dahil) artık bu responder'ın gerçek TORUNU, kardeşi değil. Bir dokunma nereden
-  // başlarsa başlasın, kök her zaman ata zincirinde olduğu için "yeterince hareket var mı"
-  // sorusu HER YERDEN güvenilir şekilde soruluyor; basit bir dokunma (buton/tap alanı) yine
-  // kendi Touchable'ına ait kalıyor, sadece net bir sürükleme başladığında devralıyor.
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_evt, gesture) => {
-        if (latestRef.current.viewersOpen) return false;
-        if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) return false;
-        return gesture.dy > 10 || gesture.dy < -28;
-      },
-      onPanResponderGrant: (_evt, gesture) => {
-        dragDirRef.current = gesture.dy < 0 ? "up" : "down";
-        if (dragDirRef.current === "up") {
-          latestRef.current.isOwn ? latestRef.current.openViewers() : replyInputRef.current?.focus();
-        } else {
+  // ÖNEMLİ DÜZELTME: RN'in kendi PanResponder'ı (JS thread üzerinden, bridge ile) burada
+  // GÜVENİLMEZ çıktı — Modal içindeki içerikte sürükleme sadece ekranın hiçbir alt bileşenin
+  // kaplamadığı dar bir boşluktan (en üst) çalışıyordu, ekranın geri kalanında (poster, alt
+  // barlar vb. "üstünde" kalan alanlarda) hiç tetiklenmiyordu — PanResponder'ın responder
+  // "devralma" müzakeresi iç içe Touchable/Modal kombinasyonunda tutarsız davranıyor. Bunun
+  // yerine gerçek NATİF jest tanıyıcılar kullanan react-native-gesture-handler'a geçtik (proje
+  // zaten bir bağımlılık, Swipeable'da kullanılıyor) — activeOffsetY ile iki farklı eşiği
+  // (yukarı -28, aşağı +10) NATİF tarafta bildiriyoruz, böylece küçük bir dokunuş asla
+  // "çalınmıyor" ama gerçek bir sürükleme HER YERDEN güvenilir şekilde yakalanıyor.
+  const handlePanGestureEvent = Animated.event(
+    [{ nativeEvent: { translationY: dragY } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        const { translationX, translationY } = event.nativeEvent;
+        if (Math.abs(translationX) > Math.abs(translationY)) return;
+        if (translationY > 10 && !downStartedRef.current) {
+          downStartedRef.current = true;
           setPaused(true);
           setDragging(true);
         }
+        if (translationY < -28 && !upFiredRef.current) {
+          upFiredRef.current = true;
+          group?.isOwn ? openViewers() : replyInputRef.current?.focus();
+        }
       },
-      onPanResponderMove: (_evt, gesture) => {
-        if (dragDirRef.current === "down") dragY.setValue(Math.max(0, gesture.dy));
-      },
-      onPanResponderRelease: (_evt, gesture) => {
-        if (dragDirRef.current !== "down") return;
-        if (gesture.dy > 130 || gesture.vy > 0.9) dismissWithDrag();
+    }
+  );
+
+  function handlePanStateChange(event) {
+    const { state, translationY, velocityY } = event.nativeEvent;
+    if (state === State.BEGAN) {
+      downStartedRef.current = false;
+      upFiredRef.current = false;
+    } else if (state === State.END || state === State.CANCELLED || state === State.FAILED) {
+      if (downStartedRef.current) {
+        if (translationY > 130 || velocityY > 800) dismissWithDrag();
         else cancelDrag();
-      },
-      onPanResponderTerminate: () => {
-        if (dragDirRef.current === "down") cancelDrag();
-      },
-    })
-  ).current;
+      }
+      downStartedRef.current = false;
+    }
+  }
 
   const cardScale = dragY.interpolate({ inputRange: [0, 400], outputRange: [1, 0.78], extrapolate: "clamp" });
   const backdropOpacity = dragY.interpolate({ inputRange: [0, 300], outputRange: [1, 0.3], extrapolate: "clamp" });
@@ -223,15 +209,26 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#000", opacity: backdropOpacity }]} />
-      <Animated.View
-        style={[
-          styles.root,
-          { borderRadius: dragging ? 28 : 0, overflow: "hidden" },
-          { transform: [{ translateY: dragY }, { scale: cardScale }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
+      {/* ÖNEMLİ: Modal, ayrı bir native pencere/kök olarak sunuluyor — uygulamanın en dışındaki
+          GestureHandlerRootView (App.js) bu ayrı kökü KAPSAMIYOR. react-native-gesture-handler'ın
+          kendisi de belgelerinde bunu bir sınırlama olarak not ediyor: Modal içeriğinin jestleri
+          doğru çalışsın diye Modal'ın İÇİNE AYRICA bir GestureHandlerRootView gerekiyor. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#000", opacity: backdropOpacity }]} />
+        <PanGestureHandler
+          onGestureEvent={handlePanGestureEvent}
+          onHandlerStateChange={handlePanStateChange}
+          activeOffsetY={[-28, 10]}
+          failOffsetX={[-30, 30]}
+          enabled={!viewersOpen && !dismissing}
+        >
+          <Animated.View
+            style={[
+              styles.root,
+              { borderRadius: dragging ? 28 : 0, overflow: "hidden" },
+              { transform: [{ translateY: dragY }, { scale: cardScale }] },
+            ]}
+          >
         {!!story.movie?.poster && (
           <Image source={{ uri: story.movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={3} />
         )}
@@ -377,7 +374,9 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
             </Animated.View>
           </View>
         )}
-      </Animated.View>
+          </Animated.View>
+        </PanGestureHandler>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
