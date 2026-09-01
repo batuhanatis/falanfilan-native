@@ -52,10 +52,10 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
     try {
       const { chat_id } = await api.chatWith(auth.token, selectedFriend.id);
       const body = activity
-        ? encodeActivityShare(activity, note)
+        ? encodeActivityShare(activity)
         : list
-        ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name, note })
-        : encodeMovieShare(movie, note);
+        ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
+        : encodeMovieShare(movie);
       const msg = await api.sendMessage(auth.token, chat_id, body);
       // ÖNEMLİ: Bu ekran ChatConversationScreen'in DIŞINDA gönderim yapıyor — bu yüzden o
       // ekranın normal gönderim akışının (attemptSend) otomatik yaptığı yerel önbellek
@@ -68,6 +68,14 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
       // önbelleği burada da anında güncelliyoruz.
       updateLocalMessage(chat_id, msg).catch(() => {});
       appendPrefetchedMessage(chat_id, msg);
+      // ÖNEMLİ: Not, kartın İÇİNE gömülü bir alan DEĞİL — kartla AYNI anda ama AYRI, düz bir
+      // metin mesajı olarak gönderiliyor, kartın hemen ALTINDA kendi balonunda görünsün diye
+      // (kartın kendisi hâlâ tek başına, sade bir öneri/paylaşım kartı olarak kalıyor).
+      if (note.trim()) {
+        const noteMsg = await api.sendMessage(auth.token, chat_id, note.trim());
+        updateLocalMessage(chat_id, noteMsg).catch(() => {});
+        appendPrefetchedMessage(chat_id, noteMsg);
+      }
       setSent(true);
       onSent?.(selectedFriend);
       setTimeout(onClose, 700); // kısa bir onay animasyonu görünsün, sonra kapansın

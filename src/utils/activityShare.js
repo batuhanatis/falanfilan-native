@@ -21,7 +21,7 @@ function activityText(item) {
   return `${userName} zevk profilini güncelledi`;
 }
 
-export function encodeActivityShare(item, note) {
+export function encodeActivityShare(item) {
   const movie = item?.post?.movie || item?.movies?.[0] || null;
   const payload = {
     kind: item?.kind || "activity",
@@ -31,7 +31,6 @@ export function encodeActivityShare(item, note) {
     createdAt: item?.created_at || null,
     text: activityText(item),
     body: item?.post?.body?.trim() || null,
-    note: note?.trim() || null,
     user: item?.user ? {
       id: item.user.id,
       name: item.user.name,
