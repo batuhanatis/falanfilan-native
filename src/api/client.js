@@ -188,6 +188,8 @@ export const api = {
   friendRequest: (token, toUserId) => request("/api/friends/request", { method: "POST", token, body: { to_user_id: toUserId } }),
   friendRespond: (token, fromUserId, accept) => request("/api/friends/respond", { method: "POST", token, body: { from_user_id: fromUserId, accept } }),
   unfriend: (token, userId) => request(`/api/friends/${userId}`, { method: "DELETE", token }),
+  friendSuggestions: (token) => request("/api/friends/suggestions", { token }),
+  storyReply: (token, storyId, note) => request(`/api/stories/${storyId}/reply`, { method: "POST", token, body: { note } }),
 
   chats: (token) => request("/api/chats", { token }),
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),

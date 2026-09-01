@@ -22,6 +22,7 @@ import { decodeListShare } from "../utils/listShare";
 import { decodeActivityShare } from "../utils/activityShare";
 import { decodePhotoMessage } from "../utils/photoShare";
 import { decodePoll, decodePlan, encodePoll, formatPlanTime } from "../utils/richMessage";
+import { decodeStoryReply } from "../utils/storyReplyShare";
 import { encodePhotoMessage } from "../utils/photoShare";
 import PollCreatorModal from "../components/PollCreatorModal";
 import PlanCreatorModal from "../components/PlanCreatorModal";
@@ -68,6 +69,8 @@ function messageSnippet(msg) {
   if (poll) return `🗳️ ${poll.question}`;
   const plan = decodePlan(msg.body);
   if (plan) return `📅 ${formatPlanTime(plan.scheduledAt)}`;
+  const storyReply = decodeStoryReply(msg.body);
+  if (storyReply) return `💬 ${storyReply.note}`;
   return msg.body;
 }
 
@@ -1103,6 +1106,7 @@ export default function ChatConversationScreen({ route, navigation }) {
                 selectionMode={selectionMode}
                 friendId={friendId}
                 friendAvatar={friendAvatar}
+                storyActive={item.storyActive}
                 c={c}
                 styles={styles}
                 actions={rowActions}

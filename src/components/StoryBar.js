@@ -1,8 +1,10 @@
-import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Plus } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Check, Plus, UserPlus } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api/client";
 import RetryImage from "./RetryImage";
 import StoryComposer from "./StoryComposer";
 import StoryViewer from "./StoryViewer";
@@ -15,11 +17,37 @@ const RING_GRADIENT = ["#FF3D81", "#8B5CF6", "#6fc4b3"];
 // veriyi (myStories/friends) ve bir değişiklik olduğunda yenilemesi için onChanged'i veriyor.
 export default function StoryBar({ myAvatar, myStories, friends, navigation, onChanged }) {
   const { c } = useAppTheme();
+  const { auth } = useAuth();
   const styles = makeStyles(c);
   const [composerOpen, setComposerOpen] = useState(false);
   const [viewer, setViewer] = useState(null); // { groups, startIndex }
+  const [suggestions, setSuggestions] = useState(null); // null = henüz çekilmedi
+  const [requestedIds, setRequestedIds] = useState(() => new Set());
 
   const hasMine = myStories && myStories.length > 0;
+  const noActiveStories = friends.length === 0;
+
+  // Kimsenin aktif story'si yoksa o şerit boş kalıyordu — Instagram'daki gibi, aynı yatay
+  // alanda "tanıyor olabileceklerin" önerileri gösteriyoruz. Sadece gerçekten gerektiğinde
+  // (şerit boşken) çekiyoruz, her ActivityScreen açılışında değil.
+  useEffect(() => {
+    if (!noActiveStories || suggestions !== null) return;
+    let cancelled = false;
+    api.friendSuggestions(auth.token)
+      .then((data) => { if (!cancelled) setSuggestions(data.results || []); })
+      .catch(() => { if (!cancelled) setSuggestions([]); });
+    return () => { cancelled = true; };
+  }, [noActiveStories, suggestions, auth.token]);
+
+  async function addSuggested(userId) {
+    if (requestedIds.has(userId)) return;
+    setRequestedIds((prev) => new Set(prev).add(userId));
+    try {
+      await api.friendRequest(auth.token, userId);
+    } catch {
+      setRequestedIds((prev) => { const next = new Set(prev); next.delete(userId); return next; });
+    }
+  }
 
   function openViewerForFriend(index) {
     const groups = friends.map((f) => ({ user: f.user, stories: f.stories, isOwn: false }));
@@ -65,6 +93,37 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
             )}
           </TouchableOpacity>
         ))}
+
+        {noActiveStories && suggestions === null && (
+          <View style={styles.suggestLoading}><ActivityIndicator size="small" color={c.dim} /></View>
+        )}
+
+        {noActiveStories && suggestions?.map((s) => {
+          const requested = requestedIds.has(s.id);
+          return (
+            <TouchableOpacity
+              key={s.id}
+              style={styles.item}
+              onPress={() => navigation.navigate("OtherProfile", { userId: s.id })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.ringWrap}>
+                <View style={[styles.ring, styles.ringSeen]}>
+                  <RetryImage source={{ uri: avatarOr(s.avatar_url) }} style={styles.avatar} />
+                </View>
+                <TouchableOpacity
+                  style={[styles.addBadge, requested && styles.addBadgeDone]}
+                  onPress={() => addSuggested(s.id)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  disabled={requested}
+                >
+                  {requested ? <Check size={11} color={c.bg} strokeWidth={3} /> : <UserPlus size={11} color={c.bg} strokeWidth={2.5} />}
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.label} numberOfLines={1}>{s.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <StoryComposer
@@ -95,7 +154,9 @@ function makeStyles(c) {
     ringSeen: { backgroundColor: c.border },
     avatar: { width: "100%", height: "100%", borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2.5, borderColor: c.bg },
     addBadge: { position: "absolute", bottom: -2, right: -2, width: 19, height: 19, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
+    addBadgeDone: { backgroundColor: c.dim },
     label: { fontSize: 10, color: c.dim, marginTop: 5, maxWidth: 62, textAlign: "center" },
     caption: { fontSize: 10, color: c.accent, fontWeight: "700", marginTop: 5, maxWidth: 62, textAlign: "center" },
+    suggestLoading: { width: 62, height: 60, alignItems: "center", justifyContent: "center" },
   });
 }

@@ -4,7 +4,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Star, Film, ListVideo, BarChart2, Crown, Check, CalendarClock, Clock, AlertCircle,
-  RotateCcw, X, Eye, EyeOff, Reply, Sparkles,
+  RotateCcw, X, Eye, EyeOff, Reply, Sparkles, MessageCircle,
 } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 import { platformLogo } from "../utils/platform";
@@ -14,6 +14,7 @@ import { decodeListShare } from "../utils/listShare";
 import { decodeActivityShare } from "../utils/activityShare";
 import { decodePhotoMessage } from "../utils/photoShare";
 import { decodePoll, decodePlan, formatPlanTime } from "../utils/richMessage";
+import { decodeStoryReply } from "../utils/storyReplyShare";
 import RetryImage from "./RetryImage";
 
 // CH2 — bir mesaja reaksiyon eklendiğinde/değiştiğinde rozet artık sabit belirmiyor, küçük bir
@@ -74,7 +75,7 @@ function renderLeftActions(dragX, c, styles) {
 function ChatMessageRow({
   id, body, isMine, myId, createdAt, editedAt, deletedForEveryone, status, reactionsKey, showSeenTick,
   replyToId, replySnippet, rowSpacing, isSelected, isHighlighted, selectionMode,
-  friendId, friendAvatar, c, styles, actions,
+  friendId, friendAvatar, storyActive, c, styles, actions,
 }) {
   const isFailed = status === "failed";
   const isSending = status === "sending";
@@ -113,7 +114,8 @@ function ChatMessageRow({
   const photo = decodePhotoMessage(body);
   const poll = decodePoll(body);
   const plan = decodePlan(body);
-  const maxWidthPct = poll || plan || activityShared ? "92%" : "84%";
+  const storyReplyShared = decodeStoryReply(body);
+  const maxWidthPct = poll || plan || activityShared || storyReplyShared ? "92%" : "84%";
 
   let bubbleContent;
 
@@ -284,6 +286,55 @@ function ChatMessageRow({
         <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
         {renderReactionBadge(reactionsKey, isMine, styles)}
       </TouchableOpacity>
+    );
+  } else if (storyReplyShared) {
+    const storyMovie = storyReplyShared.movie;
+    bubbleContent = (
+      <View style={[styles.activityShareBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+        <LinearGradient colors={["#F59E0B", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
+          <MessageCircle size={12} color="#fff" />
+          <Text style={styles.activityShareHeaderText}>{isMine ? "STORY'YE YANIT VERDİN" : "STORY'NE YANIT VERDİ"}</Text>
+        </LinearGradient>
+        <View style={styles.activityShareBody}>
+          {storyActive ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => (selectionMode ? actions.toggleSelected(id) : actions.navigateDetail(storyMovie))}
+              onLongPress={handleLongPress}
+            >
+              {storyMovie?.poster ? (
+                <Image source={{ uri: storyMovie.poster }} style={styles.activitySharePoster} />
+              ) : (
+                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
+                  <Film size={22} color="#fff" />
+                </LinearGradient>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center", backgroundColor: "rgba(120,120,130,0.25)" }]}>
+              <EyeOff size={18} color={isMine ? "rgba(20,18,10,0.55)" : c.dim} />
+            </View>
+          )}
+          <View style={styles.activityShareInfo}>
+            <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={4}>
+              {storyReplyShared.note}
+            </Text>
+            {storyActive ? (
+              !!storyMovie?.title && (
+                <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                  {storyMovie.title}
+                </Text>
+              )
+            ) : (
+              <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                Bu story artık görüntülenemiyor
+              </Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
+        {renderReactionBadge(reactionsKey, isMine, styles)}
+      </View>
     );
   } else if (poll) {
     const myVote = poll.votes?.[String(myId)] ?? poll.votes?.[myId];

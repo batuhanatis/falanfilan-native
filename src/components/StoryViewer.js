@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Info, Trash2, X } from "lucide-react-native";
+import { Check, Info, Send, Trash2, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -31,9 +34,16 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
   const styles = makeStyles(c, insets);
   const [groupIndex, setGroupIndex] = useState(startGroupIndex || 0);
   const [storyIndex, setStoryIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replySent, setReplySent] = useState(false);
+  const [replyError, setReplyError] = useState("");
   const progress = useRef(new Animated.Value(0)).current;
   const animRef = useRef(null);
   const seenSent = useRef(new Set());
+  const replyInputRef = useRef(null);
+  const sentTimer = useRef(null);
 
   const group = groups[groupIndex];
   const story = group?.stories?.[storyIndex];
@@ -55,7 +65,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
   }
 
   useEffect(() => {
-    if (!story) return;
+    if (!story || paused) return;
     if (!seenSent.current.has(story.id)) {
       seenSent.current.add(story.id);
       api.markFeedSeen(auth.token, [story.id]).catch(() => seenSent.current.delete(story.id));
@@ -65,7 +75,21 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
     animRef.current.start(({ finished }) => { if (finished) advance(1); });
     return () => animRef.current?.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupIndex, storyIndex]);
+  }, [groupIndex, storyIndex, paused]);
+
+  useEffect(() => () => clearTimeout(sentTimer.current), []);
+
+  // Şerit yukarı doğru net bir şekilde sürüklenirse (klavyeyi açıp yanıt yazmanın kısayolu),
+  // dokunarak ilerleme/geri gitme alanlarının önüne geçmeden yanıt kutusuna odaklanıyoruz —
+  // eşik aşılana kadar responder'ı hiç talep etmiyoruz, bu yüzden normal dokunmalar (tapZones)
+  // etkilenmiyor.
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_evt, gesture) => gesture.dy < -28 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderGrant: () => replyInputRef.current?.focus(),
+    })
+  ).current;
 
   async function deleteMine() {
     if (!story || !group.isOwn) return;
@@ -77,6 +101,24 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
 
   function openDetail() {
     if (story?.movie) navigation.navigate("Detail", { movie: story.movie });
+  }
+
+  async function submitReply() {
+    const text = replyText.trim();
+    if (!text || !story || replySending) return;
+    setReplySending(true);
+    setReplyError("");
+    try {
+      await api.storyReply(auth.token, story.storyId, text);
+      setReplyText("");
+      Keyboard.dismiss();
+      setPaused(false);
+      setReplySent(true);
+      sentTimer.current = setTimeout(() => setReplySent(false), 1600);
+    } catch (e) {
+      setReplyError(e.message || "Yanıt gönderilemedi.");
+    }
+    setReplySending(false);
   }
 
   if (!story) return null;
@@ -93,7 +135,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
           style={StyleSheet.absoluteFillObject}
         />
 
-        <View style={styles.tapZones}>
+        <View style={styles.tapZones} {...panResponder.panHandlers}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => advance(-1)} />
           <TouchableOpacity style={{ flex: 2 }} activeOpacity={1} onPress={() => advance(1)} />
         </View>
@@ -139,7 +181,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
           {!!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
         </View>
 
-        <View style={styles.bottom} pointerEvents="box-none">
+        <View style={[styles.bottom, !group.isOwn && styles.bottomWithReply]} pointerEvents="box-none">
           {!!story.note && <Text style={styles.note}>{story.note}</Text>}
           {!!story.movie && (
             <TouchableOpacity style={styles.detailBtn} onPress={openDetail}>
@@ -148,6 +190,44 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
             </TouchableOpacity>
           )}
         </View>
+
+        {!group.isOwn && (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.replyBarWrap}
+            pointerEvents="box-none"
+          >
+            {replySent ? (
+              <View style={styles.replySentPill}>
+                <Check size={13} color="#fff" />
+                <Text style={styles.replySentText}>Yanıtın gönderildi</Text>
+              </View>
+            ) : (
+              <View style={styles.replyBar}>
+                <TextInput
+                  ref={replyInputRef}
+                  style={styles.replyInput}
+                  placeholder="Yanıt gönder…"
+                  placeholderTextColor="rgba(255,255,255,0.55)"
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  onFocus={() => setPaused(true)}
+                  onBlur={() => setPaused(false)}
+                  maxLength={300}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.replySendBtn, (!replyText.trim() || replySending) && { opacity: 0.4 }]}
+                  onPress={submitReply}
+                  disabled={!replyText.trim() || replySending}
+                >
+                  <Send size={15} color="#000" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {!!replyError && <Text style={styles.replyErrorText}>{replyError}</Text>}
+          </KeyboardAvoidingView>
+        )}
       </View>
     </Modal>
   );
@@ -169,8 +249,16 @@ function makeStyles(c, insets) {
     center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, paddingTop: 70, paddingBottom: 110 },
     poster: { width: "100%", height: "100%", borderRadius: 16 },
     bottom: { position: "absolute", bottom: insets.bottom + 22, left: 16, right: 16, alignItems: "center" },
+    bottomWithReply: { bottom: insets.bottom + 78 },
     note: { color: "#fff", fontSize: 13.5, fontWeight: "600", textAlign: "center", marginBottom: 10, lineHeight: 19 },
     detailBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, maxWidth: "90%" },
     detailText: { color: c.bg, fontWeight: "800", fontSize: 12.5 },
+    replyBarWrap: { position: "absolute", left: 14, right: 14, bottom: insets.bottom + 12 },
+    replyBar: { flexDirection: "row", alignItems: "flex-end", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", borderRadius: 22, paddingLeft: 15, paddingRight: 5, paddingVertical: 5 },
+    replyInput: { flex: 1, color: "#fff", fontSize: 13, maxHeight: 80, paddingVertical: 6 },
+    replySendBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+    replyErrorText: { color: "#FF6B6B", fontSize: 11, fontWeight: "700", textAlign: "center", marginTop: 6 },
+    replySentPill: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(34,197,94,0.85)", borderRadius: 999, paddingVertical: 10, alignSelf: "center", paddingHorizontal: 16 },
+    replySentText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
   });
 }

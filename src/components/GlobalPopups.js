@@ -59,6 +59,10 @@ export default function GlobalPopups() {
           try { preview = `✨ ${JSON.parse(body.slice("__ACTIVITY_SHARE__".length)).text || "Bir aktivite paylaştı"}`; }
           catch { preview = "✨ Bir aktivite paylaştı"; }
         }
+        else if (body.startsWith("__STORY_REPLY__")) {
+          try { preview = `💬 Story'ne yanıt verdi: "${JSON.parse(body.slice("__STORY_REPLY__".length)).note || ""}"`; }
+          catch { preview = "💬 Story'ne yanıt verdi"; }
+        }
         else preview = body.length > 60 ? body.slice(0, 60) + "…" : body;
         setBanner({ senderName: msg.from?.name || "Yeni mesaj", preview, chatId: msg.chat_id });
       } else if (msg.type === "badge_unlocked") {

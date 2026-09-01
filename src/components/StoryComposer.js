@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Check, Search, Send, X } from "lucide-react-native";
+import { Check, CheckCircle2, Search, Send, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -17,8 +17,10 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
+  const [posted, setPosted] = useState(false);
   const [error, setError] = useState("");
   const searchInputRef = useRef(null);
+  const closeTimer = useRef(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -26,8 +28,12 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
     setNote("");
     setQuery("");
     setResults([]);
+    setSending(false);
+    setPosted(false);
     setError("");
   }, [visible]);
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   useEffect(() => {
     if (!visible || movie || query.trim().length < 2) {
@@ -44,11 +50,31 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
           api.search(auth.token, query.trim(), "tv"),
         ]);
         if (cancelled) return;
+        // ÖNEMLİ DÜZELTME: Eskiden filmler diziler ile birleştirilip DOĞRUDAN 12'ye kesiliyordu —
+        // aramanın 12'den fazla film sonucu varsa, dizi sonuçları listeye HİÇ GİREMİYORDU (diziler
+        // hep filmlerden SONRA ekleniyordu). SocialPostComposer'daki gibi önce tekilleştirip
+        // alaka düzeyine (tam eşleşme > baştan eşleşme > içeren, eşitlikte oy sayısı) göre
+        // sıralıyoruz, KESME işlemi bu sıralamadan SONRA — böylece film de dizi de en alakalı
+        // 12 sonuç arasına adil şekilde girebiliyor.
         const byId = new Map();
         [...(movies.results || []), ...(shows.results || [])].forEach((item) => {
           if (item?.id) byId.set(item.id, item);
         });
-        setResults([...byId.values()].slice(0, 12));
+        const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+        function matchTier(title) {
+          const normalizedTitle = (title || "").trim().toLocaleLowerCase("tr-TR");
+          if (normalizedTitle === normalizedQuery) return 0;
+          if (normalizedTitle.startsWith(normalizedQuery)) return 1;
+          return 2;
+        }
+        const merged = [...byId.values()]
+          .sort((a, b) => {
+            const tierDiff = matchTier(a.title) - matchTier(b.title);
+            if (tierDiff !== 0) return tierDiff;
+            return (b.votes || 0) - (a.votes || 0);
+          })
+          .slice(0, 12);
+        setResults(merged);
       } catch {
         if (!cancelled) setResults([]);
       }
@@ -64,17 +90,30 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
     try {
       await api.socialCreateStory(auth.token, { movieId: movie.id, note: note.trim() });
       onCreated?.();
-      onClose?.();
+      setSending(false);
+      setPosted(true);
+      // Kapanmadan önce kısa bir "Paylaşıldı!" anı gösteriyoruz — kullanıcı paylaşımın
+      // gerçekten gittiğinden emin olsun diye, sessizce kaybolan bir modal yerine.
+      closeTimer.current = setTimeout(() => onClose?.(), 1100);
     } catch (e) {
       setError(e.message || "Story paylaşılamadı.");
+      setSending(false);
     }
-    setSending(false);
   }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={posted ? undefined : onClose} />
+        {posted ? (
+          <View style={styles.sheet}>
+            <View style={styles.postedWrap}>
+              <View style={styles.postedIcon}><CheckCircle2 size={40} color={c.accent} /></View>
+              <Text style={styles.postedTitle}>Paylaşıldı!</Text>
+              <Text style={styles.postedSubtitle}>Story'n 24 saat boyunca arkadaşlarında görünecek.</Text>
+            </View>
+          </View>
+        ) : (
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
@@ -83,6 +122,13 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
           </View>
+
+          {sending && (
+            <View style={styles.sendingOverlay} pointerEvents="auto">
+              <ActivityIndicator size="large" color={c.accent} />
+              <Text style={styles.sendingText}>Paylaşılıyor…</Text>
+            </View>
+          )}
 
           {movie ? (
             <TouchableOpacity style={styles.selectedCard} onPress={() => { setMovie(null); requestAnimationFrame(() => searchInputRef.current?.focus()); }}>
@@ -146,6 +192,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
             <Text style={styles.submitText}>Story olarak paylaş</Text>
           </TouchableOpacity>
         </View>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -154,7 +201,13 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
 function makeStyles(c) {
   return StyleSheet.create({
     backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: "rgba(0,0,0,0.7)" },
-    sheet: { width: "100%", maxWidth: 420, backgroundColor: c.bg, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: c.border, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16 },
+    sheet: { width: "100%", maxWidth: 420, backgroundColor: c.bg, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: c.border, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16, position: "relative" },
+    sendingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: c.bg, opacity: 0.94, borderRadius: 24, alignItems: "center", justifyContent: "center", gap: 10, zIndex: 100, elevation: 100 },
+    sendingText: { color: c.dim, fontSize: 12, fontWeight: "700" },
+    postedWrap: { alignItems: "center", paddingVertical: 26, gap: 8 },
+    postedIcon: { width: 64, height: 64, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+    postedTitle: { color: c.text, fontWeight: "900", fontSize: 17 },
+    postedSubtitle: { color: c.dim, fontSize: 12, textAlign: "center", lineHeight: 17, maxWidth: 260 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
     title: { color: c.text, fontWeight: "900", fontSize: 18 },
     subtitle: { color: c.dim, fontSize: 11, marginTop: 2 },
