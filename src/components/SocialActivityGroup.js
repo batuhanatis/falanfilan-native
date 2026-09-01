@@ -48,6 +48,10 @@ function ActivityRow({ item, navigation, isLast }) {
     }
   }
 
+  function openProfile() {
+    if (item.user?.id) navigation.navigate("OtherProfile", { userId: item.user.id });
+  }
+
   async function toggleReaction() {
     if (!item.activityId) return;
     try {
@@ -63,7 +67,9 @@ function ActivityRow({ item, navigation, isLast }) {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <RetryImage source={{ uri: avatarOr(item.user?.avatar_url) }} style={styles.avatar} />
+      <TouchableOpacity onPress={openProfile} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+        <RetryImage source={{ uri: avatarOr(item.user?.avatar_url) }} style={styles.avatar} />
+      </TouchableOpacity>
 
       <Text style={styles.text} numberOfLines={2}>
         <Text style={styles.name}>{item.user?.name}</Text>
