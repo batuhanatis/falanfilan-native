@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image, TextInput, Share, TouchableWithoutFeedback } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image, TextInput, Share, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from "react-native";
 import { X, Search, Check, Users, Send, Share2, ListVideo } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
@@ -94,7 +94,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} handleOnly>
           <View style={styles.header}>
@@ -248,7 +248,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
           )}
         </DismissableSheet>
           </TouchableWithoutFeedback>
-        </View>
+        </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </Modal>
   );
