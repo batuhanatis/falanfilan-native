@@ -17,6 +17,7 @@ import ProfileShareCard from "../components/ProfileShareCard";
 import RetryImage from "../components/RetryImage";
 import EditProfileModal from "../components/EditProfileModal";
 import SocialFeedCard from "../components/SocialFeedCard";
+import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
 
 export default function ProfileScreen({ navigation, route }) {
   const { c } = useAppTheme();
@@ -114,8 +115,8 @@ export default function ProfileScreen({ navigation, route }) {
 
   if (loading || !profile) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={c.accent} />
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+        <ProfileSkeleton />
       </View>
     );
   }
@@ -421,7 +422,6 @@ function FavCard({ label, movie, c, onPress }) {
 function makeStyles(c) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    center: { alignItems: "center", justifyContent: "center" },
     cover: { height: 100, position: "relative" },
     coverEditBadge: {
       position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 999,

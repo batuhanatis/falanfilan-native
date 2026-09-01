@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, ActivityIndicator, Modal, Animated, Alert, TouchableWithoutFeedback, RefreshControl } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal, Animated, Alert, TouchableWithoutFeedback, RefreshControl } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { MessageCircle, Heart, ListPlus, Star, Activity, X, Trash2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -17,6 +17,7 @@ import { decodeListShare } from "../utils/listShare";
 import { decodeActivityShare } from "../utils/activityShare";
 import { decodeStoryReply } from "../utils/storyReplyShare";
 import TopBar from "../components/TopBar";
+import ChatListSkeleton from "../components/skeletons/ChatListSkeleton";
 
 // Aynı arkadaş art arda birden fazla şeyi beğenirse (ör. bir "beğeni oturumu") bunları tek tek
 // göstermek yerine "X'in Y film beğendi" diye TEK bir satırda topluyoruz. Sadece BİRBİRİNE
@@ -285,7 +286,7 @@ export default function ChatListScreen({ navigation }) {
           />
         )
       ) : activityLoading ? (
-        <ActivityIndicator style={{ marginTop: 30 }} color={c.accent} />
+        <ChatListSkeleton />
       ) : (
         <FlatList
           contentContainerStyle={{ padding: 16 }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2, Play } from "lucide-react-native";
@@ -15,6 +15,7 @@ import SendToFriendModal from "../components/SendToFriendModal";
 import SocialPostComposer from "../components/SocialPostComposer";
 import TrailerPlayerModal from "../components/TrailerPlayerModal";
 import SocialProofRow from "../components/SocialProofRow";
+import { DetailExtraSkeleton, CommentsSkeleton } from "../components/skeletons/DetailSkeleton";
 
 const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
@@ -53,6 +54,7 @@ export default function DetailScreen({ route, navigation }) {
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [extra, setExtra] = useState({ director: null, cast: [], similar: [], trailers: [] });
+  const [extraLoading, setExtraLoading] = useState(true);
   const [socialStats, setSocialStats] = useState(null);
   const scrollRef = useRef(null);
 
@@ -199,7 +201,7 @@ export default function DetailScreen({ route, navigation }) {
       setFavShowId(me.favoriteShow?.id || null);
     }).catch(() => {});
     api.comments(auth.token, movie.id).then((data) => setComments(data.results || [])).catch(() => {}).finally(() => setCommentsLoading(false));
-    api.movieExtra(auth.token, movie.id).then((data) => setExtra(data)).catch(() => {});
+    api.movieExtra(auth.token, movie.id).then((data) => setExtra(data)).catch(() => {}).finally(() => setExtraLoading(false));
     api.socialStats(auth.token, [movie.id]).then((data) => setSocialStats(data.results?.[movie.id] || null)).catch(() => {});
   }, []);
 
@@ -439,6 +441,8 @@ export default function DetailScreen({ route, navigation }) {
 
           <View style={styles.divider} />
 
+          {extraLoading && <DetailExtraSkeleton />}
+
           {extra.trailers?.length > 0 && (
             <View style={{ marginTop: 18 }}>
               <Text style={styles.castSectionLabel}>FRAGMANLAR</Text>
@@ -522,7 +526,7 @@ export default function DetailScreen({ route, navigation }) {
           <View style={{ marginTop: 22 }}>
             <Text style={styles.commentsTitle}>Yorumlar</Text>
             {commentsLoading ? (
-              <ActivityIndicator color={c.accent} style={{ marginVertical: 10 }} />
+              <CommentsSkeleton />
             ) : comments.length === 0 ? (
               <Text style={styles.noCommentsText}>Henüz yorum yok, ilk yorumu sen yaz.</Text>
             ) : comments.map((cm) => (

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Flame, Heart, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
@@ -13,6 +13,7 @@ import SocialPostComposer from "../components/SocialPostComposer";
 import NudgeCard from "../components/NudgeCard";
 import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
 import StoryBar from "../components/StoryBar";
+import ActivitySkeleton from "../components/skeletons/ActivitySkeleton";
 
 // ÖNEMLİ DÜZELTME: Havuz eskiden sadece 12 soruydu — gün numarası % 12 ile seçildiği için tam
 // 12 günde bir baştan tekrarlıyordu ("başa sardı" şikayeti buradan geliyordu). 60'a çıkarıldı,
@@ -317,9 +318,8 @@ export default function ActivityScreen({ navigation }) {
         }}
       />
       {loading && feed.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.accent} />
-          <Text style={styles.loadingText}>Akışın hazırlanıyor...</Text>
+        <View style={styles.content}>
+          <ActivitySkeleton />
         </View>
       ) : (
         <FlatList
@@ -381,8 +381,6 @@ export default function ActivityScreen({ navigation }) {
 function makeStyles(c) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
-    center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    loadingText: { color: c.dim, fontSize: 12, marginTop: 9 },
     content: { paddingHorizontal: 14, paddingBottom: 28 },
     popularSection: { marginTop: 14, marginBottom: 14 },
     sectionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 10 },
