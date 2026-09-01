@@ -93,7 +93,14 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
         <LinearGradient colors={[character.color || "#9333EA", "#DB2777", "#111827"]} style={styles.card}>
           <Text style={styles.eyebrow}>HANGİ KARAKTERSİN?</Text>
-          <Text style={{ fontSize: 34, marginTop: 12 }}>{character.emoji}</Text>
+          {character.actorPhoto ? (
+            <View style={{ marginTop: 12 }}>
+              <Image source={{ uri: character.actorPhoto }} style={styles.avatarLarge} />
+              <View style={styles.charEmojiBadge}><Text style={{ fontSize: 13 }}>{character.emoji}</Text></View>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 34, marginTop: 12 }}>{character.emoji}</Text>
+          )}
           <Text style={styles.profileName}>{character.name}</Text>
           <Text style={styles.subtitle}>{character.title}</Text>
           <View style={[styles.percentWrap, { marginTop: 12 }]}>
@@ -156,6 +163,7 @@ const styles = StyleSheet.create({
   peopleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 14 },
   avatar: { width: 62, height: 62, borderRadius: 999, borderWidth: 2, borderColor: "rgba(255,255,255,0.8)" },
   avatarLarge: { width: 76, height: 76, borderRadius: 999, borderWidth: 2.5, borderColor: "#fff", marginTop: 14 },
+  charEmojiBadge: { position: "absolute", right: -4, bottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.7)" },
   percentWrap: { alignItems: "center" },
   percent: { color: "#fff", fontSize: 29, fontWeight: "900" },
   compatibility: { color: "rgba(255,255,255,0.6)", fontSize: 7.5, fontWeight: "900", letterSpacing: 0.7 },

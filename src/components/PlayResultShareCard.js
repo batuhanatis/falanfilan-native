@@ -74,7 +74,14 @@ export default function PlayResultShareCard({
 
       {isCharacter ? (
         <>
-          <Text style={{ fontSize: 44, marginTop: 16 }}>{character?.emoji}</Text>
+          {character?.actorPhoto ? (
+            <View>
+              <RetryImage source={{ uri: character.actorPhoto }} style={styles.avatar} />
+              <View style={styles.charEmojiBadge}><Text style={{ fontSize: 14 }}>{character?.emoji}</Text></View>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 44, marginTop: 16 }}>{character?.emoji}</Text>
+          )}
           <Text style={styles.resultTitle}>{character?.name}</Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, fontWeight: "800", marginTop: 3 }}>{character?.title}</Text>
           <View style={styles.chip}><Sparkles size={12} color="#fff" /><Text style={styles.chipText}>%{matchPercent} UYUM</Text></View>
@@ -156,6 +163,7 @@ const styles = StyleSheet.create({
   postersRow: { flexDirection: "row", gap: 7, marginTop: 20 },
   poster: { width: 55, height: 82, borderRadius: 9, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
   avatar: { width: 82, height: 82, borderRadius: 999, borderWidth: 3, borderColor: "rgba(255,255,255,0.52)", marginTop: 19 },
+  charEmojiBadge: { position: "absolute", right: -4, bottom: 4, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.7)" },
   friendName: { color: "#fff", fontSize: 20, fontWeight: "900", marginTop: 10, textAlign: "center" },
   bigNumberWrap: { alignItems: "center", marginTop: 18 },
   bigNumber: { color: "#fff", fontSize: 58, lineHeight: 64, fontWeight: "900" },

@@ -781,10 +781,20 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
         <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
           <LinearGradient colors={[character.color || "#9333EA", "#111827"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
             <Sparkles size={24} color="rgba(255,255,255,0.24)" style={{ position: "absolute", top: 20, right: 22 }} />
-            <Text style={{ fontSize: 46 }}>{character.emoji}</Text>
+            {character.actorPhoto ? (
+              <View style={{ marginTop: 4 }}>
+                <RetryImage source={{ uri: character.actorPhoto }} style={styles.resultFriendAvatar} />
+                <View style={styles.charEmojiBadge}><Text style={{ fontSize: 14 }}>{character.emoji}</Text></View>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 46 }}>{character.emoji}</Text>
+            )}
             <Text style={styles.resultEyebrow}>HANGİ KARAKTERSİN?</Text>
             <Text style={styles.resultTitle}>{character.name}</Text>
             <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11.5, fontWeight: "800", marginTop: 2 }}>{character.title}</Text>
+            {!!character.actor && (
+              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 2 }}>{character.actor} canlandırdı</Text>
+            )}
             <Text style={styles.resultSummary}>{character.blurb}</Text>
           </LinearGradient>
 
@@ -1030,6 +1040,7 @@ function makeStyles(c) {
     resultBigPercent: { color: "#fff", fontSize: 62, lineHeight: 68, fontWeight: "900", marginTop: 10 },
     resultFriendName: { color: "#fff", fontSize: 19, fontWeight: "900", marginTop: 4 },
     resultFriendAvatar: { width: 74, height: 74, borderRadius: 999, borderWidth: 3, borderColor: "rgba(255,255,255,0.5)" },
+    charEmojiBadge: { position: "absolute", right: -4, bottom: -4, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.65)" },
     resultStatsRow: { flexDirection: "row", gap: 9, marginTop: 14 },
     resultStatBox: { flex: 1, minHeight: 76, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     resultStatValue: { color: c.text, fontSize: 20, fontWeight: "900" },
