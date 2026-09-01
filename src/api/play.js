@@ -33,4 +33,6 @@ export const playApi = {
   answerWhoSaidIt: (token, questionId, chosen, context = {}) => playRequest("/api/play/who-said-it/answer", token, { method: "POST", body: { questionId, chosen, ...context } }),
   blindPick: (token) => playRequest("/api/play/blind-pick", token),
   answerBlindPick: (token, movieId, interested) => playRequest("/api/play/blind-pick/answer", token, { method: "POST", body: { movieId, interested } }),
+  characterQuiz: (token) => playRequest("/api/play/character-quiz", token),
+  characterQuizResult: (token, answers) => playRequest("/api/play/character-quiz/result", token, { method: "POST", body: { answers } }),
 };

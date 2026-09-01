@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Sparkles, Swords, Users, Trophy, Film, Quote } from "lucide-react-native";
+import { Sparkles, Swords, Users, Trophy, Film, Quote, Wand2 } from "lucide-react-native";
 import RetryImage from "./RetryImage";
 import { avatarOr } from "../utils/avatar";
 
@@ -41,16 +41,21 @@ export default function PlayResultShareCard({
   score = 0,
   total = 0,
   isDaily = false,
+  character,
+  matchPercent = 0,
 }) {
   const isFriend = mode === "friend";
   const isQuote = mode === "quote";
+  const isCharacter = mode === "character";
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
   const colors = isFriend
     ? ["#EC4899", "#F97316", "#F59E0B"]
     : isQuote
     ? ["#F97316", "#DB2777", "#7C3AED"]
+    : isCharacter
+    ? [character?.color || "#9333EA", "#DB2777", "#111827"]
     : ["#7C3AED", "#2563EB", "#0891B2"];
-  const Icon = isFriend ? Users : isQuote ? Quote : Swords;
+  const Icon = isFriend ? Users : isQuote ? Quote : isCharacter ? Wand2 : Swords;
 
   return (
     <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
@@ -65,9 +70,17 @@ export default function PlayResultShareCard({
       <View style={styles.iconBubble}>
         <Icon size={26} color="#fff" />
       </View>
-      <Text style={styles.eyebrow}>{isFriend ? "ARKADAŞINI TANIYOR MUSUN?" : isQuote ? "SAHNEYİ HATIRLA" : "TASTE BATTLE"}</Text>
+      <Text style={styles.eyebrow}>{isFriend ? "ARKADAŞINI TANIYOR MUSUN?" : isQuote ? "SAHNEYİ HATIRLA" : isCharacter ? "HANGİ KARAKTERSİN?" : "TASTE BATTLE"}</Text>
 
-      {isFriend ? (
+      {isCharacter ? (
+        <>
+          <Text style={{ fontSize: 44, marginTop: 16 }}>{character?.emoji}</Text>
+          <Text style={styles.resultTitle}>{character?.name}</Text>
+          <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, fontWeight: "800", marginTop: 3 }}>{character?.title}</Text>
+          <View style={styles.chip}><Sparkles size={12} color="#fff" /><Text style={styles.chipText}>%{matchPercent} UYUM</Text></View>
+          <Text style={styles.verdict}>{character?.blurb}</Text>
+        </>
+      ) : isFriend ? (
         <>
           <RetryImage source={{ uri: avatarOr(friend?.avatarUrl, friend?.id) }} style={styles.avatar} />
           <Text style={styles.friendName}>{friend?.name || "Arkadaşım"}</Text>

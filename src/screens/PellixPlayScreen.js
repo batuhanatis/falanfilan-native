@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole } from "lucide-react-native";
+import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
@@ -42,6 +42,14 @@ const GAME_META = {
     colors: ["#7F1D1D", "#6D28D9"],
     accent: "#C084FC",
     tag: "SİNEMA QUIZ",
+  },
+  character_quiz: {
+    title: "Hangi Karaktersin?",
+    subtitle: "Kısa bir testle hangi film/dizi karakterine benzediğini keşfet.",
+    icon: Wand2,
+    colors: ["#9333EA", "#DB2777"],
+    accent: "#F0ABFC",
+    tag: "KİŞİLİK TESTİ",
   },
 };
 
@@ -94,6 +102,8 @@ export default function PellixPlayScreen({ navigation, route }) {
         <BlindPick token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : activeGame === "who_said_it" ? (
         <WhoSaidIt token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+      ) : activeGame === "character_quiz" ? (
+        <CharacterQuiz token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : (
         <ScrollView contentContainerStyle={styles.hubContent} showsVerticalScrollIndicator={false}>
           <LinearGradient colors={["#6D28D9", "#2563EB", "#0891B2"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hubHero}>
@@ -701,6 +711,126 @@ function BlindPick({ token, styles, c, onDisabled }) {
           <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#F59E0B" }]} onPress={next}><Text style={styles.primaryBtnText}>Sonraki</Text><ArrowRight size={17} color={c.bg} /></TouchableOpacity>
         </>
       )}
+    </ScrollView>
+  );
+}
+
+function CharacterQuiz({ token, styles, c, onDisabled }) {
+  const [questions, setQuestions] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(false);
+  const [result, setResult] = useState(null);
+  const [showShare, setShowShare] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setIndex(0);
+    setAnswers([]);
+    setResult(null);
+    setShowShare(false);
+    try {
+      const data = await playApi.characterQuiz(token);
+      setQuestions(data.questions || []);
+    } catch (e) {
+      if (e.disabled) onDisabled();
+      setQuestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, onDisabled]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function choose(option) {
+    if (resolving) return;
+    const q = questions[index];
+    if (!q) return;
+    const nextAnswers = [...answers, { questionId: q.id, optionId: option.id }];
+    setAnswers(nextAnswers);
+    if (index >= questions.length - 1) {
+      setResolving(true);
+      try {
+        setResult(await playApi.characterQuizResult(token, nextAnswers));
+      } catch (e) {
+        if (e.disabled) onDisabled();
+      } finally {
+        setResolving(false);
+      }
+    } else {
+      setIndex((v) => v + 1);
+    }
+  }
+
+  if (loading) return <View style={styles.center}><ActivityIndicator color="#DB2777" /></View>;
+
+  if (resolving) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color="#DB2777" />
+        <Text style={{ color: c.dim, fontSize: 12, marginTop: 12 }}>Karakterin belirleniyor...</Text>
+      </View>
+    );
+  }
+
+  if (result?.character) {
+    const character = result.character;
+    return (
+      <>
+        <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={[character.color || "#9333EA", "#111827"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
+            <Sparkles size={24} color="rgba(255,255,255,0.24)" style={{ position: "absolute", top: 20, right: 22 }} />
+            <Text style={{ fontSize: 46 }}>{character.emoji}</Text>
+            <Text style={styles.resultEyebrow}>HANGİ KARAKTERSİN?</Text>
+            <Text style={styles.resultTitle}>{character.name}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11.5, fontWeight: "800", marginTop: 2 }}>{character.title}</Text>
+            <Text style={styles.resultSummary}>{character.blurb}</Text>
+          </LinearGradient>
+
+          <View style={styles.resultPanel}>
+            <View style={styles.scoreInline}><Sparkles size={18} color="#DB2777" /><Text style={styles.scoreInlineText}>%{result.matchPercent} uyum</Text></View>
+            <Text style={[styles.doneText, { fontStyle: "italic" }]}>"{character.quote}"</Text>
+          </View>
+
+          <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]} onPress={() => setShowShare(true)}>
+            <Share2 size={17} color="#fff" />
+            <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.ghostBtn} onPress={load}>
+            <RotateCcw size={16} color={c.text} />
+            <Text style={styles.ghostBtnText}>Tekrar Oyna</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {showShare && (
+          <ShareCardModal
+            onClose={() => setShowShare(false)}
+            shareMessage={`Hangi Karaktersin testinde ${character.name} çıktım (%${result.matchPercent} uyum) 🎭 Sen de dene.`}
+            socialCard={{ kind: "character_quiz", character, matchPercent: result.matchPercent }}
+          >
+            <PlayResultShareCard mode="character" character={character} matchPercent={result.matchPercent} />
+          </ShareCardModal>
+        )}
+      </>
+    );
+  }
+
+  const q = questions[index];
+  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+
+  return (
+    <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
+      <GameHero meta={GAME_META.character_quiz} styles={styles} icon={Wand2} title="Kısa bir testle keşfet" subtitle="Doğru cevap yok, içinden geleni seç." />
+      <Text style={styles.progressText}>{index + 1} / {questions.length}</Text>
+      <Text style={[styles.questionTitle, { fontSize: 17, lineHeight: 23 }]}>{q.prompt}</Text>
+      <View style={{ gap: 10 }}>
+        {q.options.map((option) => (
+          <TouchableOpacity key={option.id} onPress={() => choose(option)} activeOpacity={0.82} style={styles.quizOption}>
+            <Text style={styles.quizOptionText}>{option.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </ScrollView>
   );
 }

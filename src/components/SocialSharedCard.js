@@ -86,6 +86,25 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     );
   }
 
+  if (payload.kind === "character_quiz") {
+    const character = payload.character || {};
+    const open = () => navigation.navigate("PellixPlay", { initialGame: "character_quiz" });
+    return (
+      <TouchableOpacity onPress={open} activeOpacity={0.9}>
+        <LinearGradient colors={[character.color || "#9333EA", "#DB2777", "#111827"]} style={styles.card}>
+          <Text style={styles.eyebrow}>HANGİ KARAKTERSİN?</Text>
+          <Text style={{ fontSize: 34, marginTop: 12 }}>{character.emoji}</Text>
+          <Text style={styles.profileName}>{character.name}</Text>
+          <Text style={styles.subtitle}>{character.title}</Text>
+          <View style={[styles.percentWrap, { marginTop: 12 }]}>
+            <Text style={styles.percent}>%{Math.round(Number(payload.matchPercent || 0))}</Text>
+            <Text style={styles.compatibility}>UYUM</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
   const openProfile = () => {
     if (Number(payload.userId) === Number(currentUserId)) {
       navigation.navigate("MainTabs", { screen: "Profile" });
