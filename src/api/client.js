@@ -190,6 +190,7 @@ export const api = {
   unfriend: (token, userId) => request(`/api/friends/${userId}`, { method: "DELETE", token }),
   friendSuggestions: (token) => request("/api/friends/suggestions", { token }),
   storyReply: (token, storyId, note) => request(`/api/stories/${storyId}/reply`, { method: "POST", token, body: { note } }),
+  storyViewers: (token, storyId) => request(`/api/social/stories/${storyId}/viewers`, { token }),
 
   chats: (token) => request("/api/chats", { token }),
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),

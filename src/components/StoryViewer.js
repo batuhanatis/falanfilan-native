@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform,
+  ActivityIndicator, Animated, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, Info, Send, Trash2, X } from "lucide-react-native";
+import { Check, ChevronDown, Eye, Info, Send, Trash2, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -27,7 +27,7 @@ function relativeTime(value) {
 // dokunarak geçiş. Bir story ekrana geldiği an /api/social/feed/seen'e 'story-<id>' anahtarıyla
 // bildiriliyor — ActivityScreen'deki toplu "seen" mekanizmasından bağımsız, çünkü story'ler
 // scroll ile değil açık bir kullanıcı eylemiyle (dokunma) görülüyor.
-export default function StoryViewer({ groups, startGroupIndex, navigation, onClose }) {
+export default function StoryViewer({ groups, startGroupIndex, navigation, onStorySeen, onClose }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -39,11 +39,15 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
   const [replySending, setReplySending] = useState(false);
   const [replySent, setReplySent] = useState(false);
   const [replyError, setReplyError] = useState("");
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewers, setViewers] = useState([]);
+  const [viewersLoading, setViewersLoading] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const animRef = useRef(null);
   const seenSent = useRef(new Set());
   const replyInputRef = useRef(null);
   const sentTimer = useRef(null);
+  const sheetAnim = useRef(new Animated.Value(320)).current;
 
   const group = groups[groupIndex];
   const story = group?.stories?.[storyIndex];
@@ -68,6 +72,11 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
     if (!story || paused) return;
     if (!seenSent.current.has(story.id)) {
       seenSent.current.add(story.id);
+      // Ekranda GÖRÜNMESİ yeterli — arkadaşın story'si kendi story'miz DEĞİLSE hemen "görüldü"
+      // olarak işaretliyoruz. Sunucuya giden istek tamamlanmasını BEKLEMEDEN, StoryBar'daki
+      // halkanın rengini/sırasını anında güncelleyebilsin diye onStorySeen'i senkron çağırıyoruz
+      // — ağ gecikmesi yüzünden "izledim ama hâlâ renkli görünüyor" yarış durumu yaşanmasın diye.
+      if (!group.isOwn) onStorySeen?.(story.id);
       api.markFeedSeen(auth.token, [story.id]).catch(() => seenSent.current.delete(story.id));
     }
     progress.setValue(0);
@@ -79,15 +88,45 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
 
   useEffect(() => () => clearTimeout(sentTimer.current), []);
 
-  // Şerit yukarı doğru net bir şekilde sürüklenirse (klavyeyi açıp yanıt yazmanın kısayolu),
-  // dokunarak ilerleme/geri gitme alanlarının önüne geçmeden yanıt kutusuna odaklanıyoruz —
-  // eşik aşılana kadar responder'ı hiç talep etmiyoruz, bu yüzden normal dokunmalar (tapZones)
-  // etkilenmiyor.
+  function openViewers() {
+    if (!story || !group.isOwn) return;
+    setPaused(true);
+    setViewersOpen(true);
+    setViewersLoading(true);
+    sheetAnim.setValue(320);
+    Animated.spring(sheetAnim, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 4 }).start();
+    api.storyViewers(auth.token, story.storyId)
+      .then((data) => setViewers(data.results || []))
+      .catch(() => setViewers([]))
+      .finally(() => setViewersLoading(false));
+  }
+
+  function closeViewers() {
+    Animated.timing(sheetAnim, { toValue: 320, duration: 180, useNativeDriver: true }).start(() => {
+      setViewersOpen(false);
+      setPaused(false);
+    });
+  }
+
+  // ÖNEMLİ: PanResponder.create sadece BİR KEZ (useRef ile) oluşturuluyor — handler'ları
+  // oluşturulduğu andaki (mount zamanındaki) group/story değerlerini KALICI olarak kapatıyor
+  // (closure). groupIndex/storyIndex zamanla değiştiği için (arkadaş değişince ya da AYNI kendi
+  // story grubunda birden fazla story arasında geçince), handler'ın DOĞRUDAN group/story'yi
+  // okuması eski/yanlış bir story'ye işaret ederdi. Bunun yerine her render'da güncellenen bir
+  // ref üzerinden en GÜNCEL değerlere bakıyoruz.
+  const latestRef = useRef({});
+  latestRef.current = { isOwn: group?.isOwn, openViewers: () => openViewers() };
+
+  // Şerit yukarı doğru net bir şekilde sürüklenirse, dokunarak ilerleme/geri gitme alanlarının
+  // önüne geçmeden bir eyleme geçiyoruz — eşik aşılana kadar responder'ı hiç talep etmiyoruz, bu
+  // yüzden normal dokunmalar (tapZones) etkilenmiyor. Kendi story'nde bu, izleyici listesini
+  // açıyor (Instagram'daki gibi) — arkadaşının story'sinde ise klavyeyi açıp yanıt kutusuna
+  // odaklanıyor.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_evt, gesture) => gesture.dy < -28 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderGrant: () => replyInputRef.current?.focus(),
+      onPanResponderGrant: () => (latestRef.current.isOwn ? latestRef.current.openViewers() : replyInputRef.current?.focus()),
     })
   ).current;
 
@@ -181,7 +220,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
           {!!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
         </View>
 
-        <View style={[styles.bottom, !group.isOwn && styles.bottomWithReply]} pointerEvents="box-none">
+        <View style={[styles.bottom, styles.bottomWithReply]} pointerEvents="box-none">
           {!!story.note && <Text style={styles.note}>{story.note}</Text>}
           {!!story.movie && (
             <TouchableOpacity style={styles.detailBtn} onPress={openDetail}>
@@ -191,7 +230,17 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
           )}
         </View>
 
-        {!group.isOwn && (
+        {group.isOwn ? (
+          <View style={styles.replyBarWrap} pointerEvents="box-none">
+            <TouchableOpacity style={styles.viewersPill} onPress={openViewers} activeOpacity={0.85}>
+              <Eye size={14} color="#fff" />
+              <Text style={styles.viewersPillText}>
+                {story.viewCount > 0 ? `${story.viewCount} görüntüleme` : "Henüz görüntüleyen yok"}
+              </Text>
+              <ChevronDown size={13} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: "180deg" }] }} />
+            </TouchableOpacity>
+          </View>
+        ) : (
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={styles.replyBarWrap}
@@ -228,6 +277,39 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onClo
             {!!replyError && <Text style={styles.replyErrorText}>{replyError}</Text>}
           </KeyboardAvoidingView>
         )}
+
+        {viewersOpen && (
+          <View style={styles.viewersOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeViewers} />
+            <Animated.View style={[styles.viewersSheet, { transform: [{ translateY: sheetAnim }] }]}>
+              <View style={styles.viewersHandle} />
+              <View style={styles.viewersTitleRow}>
+                <Eye size={14} color="#fff" />
+                <Text style={styles.viewersTitle}>
+                  {viewers.length > 0 ? `${viewers.length} kişi görüntüledi` : "Görüntüleyenler"}
+                </Text>
+              </View>
+              {viewersLoading ? (
+                <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 20 }} />
+              ) : viewers.length === 0 ? (
+                <Text style={styles.viewersEmpty}>Bu story'i henüz kimse görmedi.</Text>
+              ) : (
+                <FlatList
+                  data={viewers}
+                  keyExtractor={(v) => String(v.id)}
+                  style={{ maxHeight: 320 }}
+                  renderItem={({ item }) => (
+                    <View style={styles.viewerRow}>
+                      <RetryImage source={{ uri: avatarOr(item.avatar_url) }} style={styles.viewerAvatar} />
+                      <Text style={styles.viewerName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.viewerTime}>{relativeTime(item.seen_at)}</Text>
+                    </View>
+                  )}
+                />
+              )}
+            </Animated.View>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -260,5 +342,17 @@ function makeStyles(c, insets) {
     replyErrorText: { color: "#FF6B6B", fontSize: 11, fontWeight: "700", textAlign: "center", marginTop: 6 },
     replySentPill: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(34,197,94,0.85)", borderRadius: 999, paddingVertical: 10, alignSelf: "center", paddingHorizontal: 16 },
     replySentText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
+    viewersPill: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11 },
+    viewersPillText: { color: "#fff", fontWeight: "700", fontSize: 12.5 },
+    viewersOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+    viewersSheet: { backgroundColor: "#171420", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 10, paddingHorizontal: 18, paddingBottom: insets.bottom + 18, maxHeight: 420 },
+    viewersHandle: { width: 36, height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)", alignSelf: "center", marginBottom: 14 },
+    viewersTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+    viewersTitle: { color: "#fff", fontWeight: "800", fontSize: 13.5 },
+    viewersEmpty: { color: "rgba(255,255,255,0.55)", fontSize: 12.5, textAlign: "center", paddingVertical: 24 },
+    viewerRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+    viewerAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)" },
+    viewerName: { flex: 1, color: "#fff", fontWeight: "700", fontSize: 12.5 },
+    viewerTime: { color: "rgba(255,255,255,0.5)", fontSize: 10.5 },
   });
 }

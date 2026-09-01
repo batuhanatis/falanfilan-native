@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Check, Plus, UserPlus } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,9 +23,29 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
   const [viewer, setViewer] = useState(null); // { groups, startIndex }
   const [suggestions, setSuggestions] = useState(null); // null = henüz çekilmedi
   const [requestedIds, setRequestedIds] = useState(() => new Set());
+  // İzlenen story'yi sunucudan yeniden çekmeyi BEKLEMEDEN (ağ gecikmesi/yarış durumu olmadan)
+  // anında gri gösterip sona atabilmek için — StoryViewer bir story'yi işaretlediği anda
+  // bunu da güncelliyor, backend'e giden "görüldü" isteğinin süresine bağlı kalmıyoruz.
+  const [locallySeen, setLocallySeen] = useState(() => new Set());
 
   const hasMine = myStories && myStories.length > 0;
+
+  // Ham "friends" prop'u sunucudan geldiği haliyle (hasUnseen sunucunun bildiği son duruma göre)
+  // — burada yerel override'ı da hesaba katıp yeniden sıralıyoruz: izlenmemiş olanlar öne,
+  // aralarında en yeni story'si olan öne. Array.prototype.sort kararlı (stable) olduğu için
+  // eşit durumdaki öğeler orijinal sırasını koruyor.
+  const orderedFriends = useMemo(() => {
+    const withStatus = friends.map((f) => ({
+      ...f,
+      stillUnseen: f.stories.some((s) => !s.seen && !locallySeen.has(s.id)),
+    }));
+    return withStatus.sort((a, b) => (a.stillUnseen === b.stillUnseen ? 0 : a.stillUnseen ? -1 : 1));
+  }, [friends, locallySeen]);
   const noActiveStories = friends.length === 0;
+
+  function markSeenLocally(storyId) {
+    setLocallySeen((prev) => (prev.has(storyId) ? prev : new Set(prev).add(storyId)));
+  }
 
   // Kimsenin aktif story'si yoksa o şerit boş kalıyordu — Instagram'daki gibi, aynı yatay
   // alanda "tanıyor olabileceklerin" önerileri gösteriyoruz. Sadece gerçekten gerektiğinde
@@ -50,7 +70,7 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
   }
 
   function openViewerForFriend(index) {
-    const groups = friends.map((f) => ({ user: f.user, stories: f.stories, isOwn: false }));
+    const groups = orderedFriends.map((f) => ({ user: f.user, stories: f.stories, isOwn: false }));
     setViewer({ groups, startIndex: index });
   }
 
@@ -75,9 +95,9 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
           <Text style={styles.label} numberOfLines={1}>Sen</Text>
         </View>
 
-        {friends.map((f, i) => (
+        {orderedFriends.map((f, i) => (
           <TouchableOpacity key={f.user.id} style={styles.item} onPress={() => openViewerForFriend(i)} activeOpacity={0.85}>
-            {f.hasUnseen ? (
+            {f.stillUnseen ? (
               <LinearGradient colors={RING_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
                 <RetryImage source={{ uri: avatarOr(f.user.avatar_url) }} style={styles.avatar} />
               </LinearGradient>
@@ -86,7 +106,7 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
                 <RetryImage source={{ uri: avatarOr(f.user.avatar_url) }} style={styles.avatar} />
               </View>
             )}
-            {f.hasUnseen ? (
+            {f.stillUnseen ? (
               <Text style={styles.caption} numberOfLines={1}>{f.stories[f.stories.length - 1]?.movie?.title || f.user.name}</Text>
             ) : (
               <Text style={styles.label} numberOfLines={1}>{f.user.name}</Text>
@@ -137,6 +157,7 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
           groups={viewer.groups}
           startGroupIndex={viewer.startIndex}
           navigation={navigation}
+          onStorySeen={markSeenLocally}
           onClose={() => { setViewer(null); onChanged?.(); }}
         />
       )}
