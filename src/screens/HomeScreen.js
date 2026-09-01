@@ -18,6 +18,7 @@ import PlayHubCard from "../components/PlayHubCard";
 import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
 import IslandModal from "../components/IslandModal";
+import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 // ÖNEMLİ: "Şu An Gösterimde" sekmesi kaldırıldı — Ana Sayfa'daki "Şu An Popüler" şeridi
@@ -602,10 +603,7 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <TopBar centerLabel={FEED_TABS[0].label} />
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.accent} />
-          <Text style={{ color: c.dim, marginTop: 10, fontSize: 12 }}>İçerikler hazırlanıyor...</Text>
-        </View>
+        <HomeSkeleton />
       </View>
     );
   }
@@ -791,7 +789,6 @@ function dedupe(items) {
 
 function makeStyles(c) {
   return StyleSheet.create({
-    center: { flex: 1, alignItems: "center", justifyContent: "center" },
     searchRow: { flexDirection: "row", gap: 8 },
     searchBox: {
       flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
