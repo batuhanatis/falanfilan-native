@@ -42,12 +42,20 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewers, setViewers] = useState([]);
   const [viewersLoading, setViewersLoading] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const animRef = useRef(null);
   const seenSent = useRef(new Set());
   const replyInputRef = useRef(null);
   const sentTimer = useRef(null);
   const sheetAnim = useRef(new Animated.Value(320)).current;
+  // Aşağı sürükleyip story'i Instagram'daki gibi küçülterek/yuvarlayarak kapatmak için — dragY
+  // gerçek sürükleme mesafesini taşıyor (translateY + ölçeğe aynı anda besleniyor), köşe
+  // yuvarlaklığı ise (borderRadius native driver ile animasyona ALINAMADIĞI için) ayrı bir
+  // state ile sürükleme başlar başlamaz aniden açılıyor/kapanıyor.
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dragDirRef = useRef(null); // 'up' | 'down' | null
 
   const group = groups[groupIndex];
   const story = group?.stories?.[storyIndex];
@@ -117,18 +125,58 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   const latestRef = useRef({});
   latestRef.current = { isOwn: group?.isOwn, openViewers: () => openViewers() };
 
-  // Şerit yukarı doğru net bir şekilde sürüklenirse, dokunarak ilerleme/geri gitme alanlarının
-  // önüne geçmeden bir eyleme geçiyoruz — eşik aşılana kadar responder'ı hiç talep etmiyoruz, bu
-  // yüzden normal dokunmalar (tapZones) etkilenmiyor. Kendi story'nde bu, izleyici listesini
-  // açıyor (Instagram'daki gibi) — arkadaşının story'sinde ise klavyeyi açıp yanıt kutusuna
-  // odaklanıyor.
+  function dismissWithDrag() {
+    setDismissing(true);
+    Animated.timing(dragY, { toValue: 900, duration: 220, useNativeDriver: true }).start(() => onClose?.());
+  }
+
+  function cancelDrag() {
+    dragDirRef.current = null;
+    Animated.spring(dragY, { toValue: 0, useNativeDriver: true, speed: 16, bounciness: 5 }).start();
+    setPaused(false);
+    setDragging(false);
+  }
+
+  // Tek bir PanResponder iki farklı dikey jesti ayırt ediyor:
+  //  - Yukarı, NET bir eşikten sonra (dy < -28): eski davranış — dokunarak ilerleme/geri gitme
+  //    alanlarının önüne geçmeden, tek seferlik bir eylem tetikliyor (izleyici listesi / yanıt
+  //    kutusuna odaklanma). Eşik yüksek tutuluyor ki kaza eseri küçük bir titreme tap'i bozmasın.
+  //  - Aşağı, çok daha DÜŞÜK bir eşikle (dy > 10): Instagram'daki "tut ve aşağı sürükle" kapatma
+  //    hareketi — parmak takip edilerek story SÜREKLİ küçülüp yuvarlaklaşıyor (dragY), bırakınca
+  //    yeterince sürüklenmişse (mesafe ya da hız) kapanmaya devam ediyor, değilse yerine geri
+  //    zıplıyor.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_evt, gesture) => gesture.dy < -28 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderGrant: () => (latestRef.current.isOwn ? latestRef.current.openViewers() : replyInputRef.current?.focus()),
+      onMoveShouldSetPanResponder: (_evt, gesture) => {
+        if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) return false;
+        return gesture.dy > 10 || gesture.dy < -28;
+      },
+      onPanResponderGrant: (_evt, gesture) => {
+        dragDirRef.current = gesture.dy < 0 ? "up" : "down";
+        if (dragDirRef.current === "up") {
+          latestRef.current.isOwn ? latestRef.current.openViewers() : replyInputRef.current?.focus();
+        } else {
+          setPaused(true);
+          setDragging(true);
+        }
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        if (dragDirRef.current === "down") dragY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        if (dragDirRef.current !== "down") return;
+        if (gesture.dy > 130 || gesture.vy > 0.9) dismissWithDrag();
+        else cancelDrag();
+      },
+      onPanResponderTerminate: () => {
+        if (dragDirRef.current === "down") cancelDrag();
+      },
     })
   ).current;
+
+  const cardScale = dragY.interpolate({ inputRange: [0, 400], outputRange: [1, 0.78], extrapolate: "clamp" });
+  const backdropOpacity = dragY.interpolate({ inputRange: [0, 300], outputRange: [1, 0.3], extrapolate: "clamp" });
 
   async function deleteMine() {
     if (!story || !group.isOwn) return;
@@ -163,8 +211,15 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   if (!story) return null;
 
   return (
-    <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.root}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#000", opacity: backdropOpacity }]} />
+      <Animated.View
+        style={[
+          styles.root,
+          { borderRadius: dragging ? 28 : 0, overflow: "hidden" },
+          { transform: [{ translateY: dragY }, { scale: cardScale }] },
+        ]}
+      >
         {!!story.movie?.poster && (
           <Image source={{ uri: story.movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={3} />
         )}
@@ -174,7 +229,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           style={StyleSheet.absoluteFillObject}
         />
 
-        <View style={styles.tapZones} {...panResponder.panHandlers}>
+        <View style={styles.tapZones} pointerEvents={dismissing ? "none" : "auto"} {...panResponder.panHandlers}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => advance(-1)} />
           <TouchableOpacity style={{ flex: 2 }} activeOpacity={1} onPress={() => advance(1)} />
         </View>
@@ -310,7 +365,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
             </Animated.View>
           </View>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
