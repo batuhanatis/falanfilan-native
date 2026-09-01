@@ -2,8 +2,8 @@
 // mesaj metninin içine tanınabilir bir işaretle birlikte liste verisini JSON olarak gömüyoruz.
 const PREFIX = "__LIST_SHARE__";
 
-export function encodeListShare({ id, name, count, previewPoster, ownerName }) {
-  const payload = { id, name, count, previewPoster: previewPoster || null, ownerName };
+export function encodeListShare({ id, name, count, previewPoster, ownerName, note }) {
+  const payload = { id, name, count, previewPoster: previewPoster || null, ownerName, note: note?.trim() || null };
   return `${PREFIX}${JSON.stringify(payload)}`;
 }
 

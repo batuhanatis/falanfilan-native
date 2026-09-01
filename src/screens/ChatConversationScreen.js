@@ -1444,6 +1444,9 @@ function makeStyles(c, insets) {
     // Tür/yıl bilgisinin altındaki boşluğu dolduran platform logoları (Netflix/Prime vb.).
     movieBubblePlatformsRow: { flexDirection: "row", gap: 4, marginTop: 7, flexWrap: "wrap" },
     movieBubblePlatformLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
+    // Film/liste/aktivite paylaşımına eklenen isteğe bağlı mesaj — üçünde de AYNI stil, gönderenin
+    // kendi yazdığı kısa notu kartın geri kalanından (gradyan/rozet/istatistikler) ayırt ediyor.
+    shareNote: { fontSize: 10.5, fontStyle: "italic", opacity: 0.85, lineHeight: 14, marginTop: 6 },
     activityShareBubble: { width: 300, borderRadius: 16, overflow: "hidden", paddingBottom: 26 },
     activityShareHeader: { height: 32, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
     activityShareHeaderText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },

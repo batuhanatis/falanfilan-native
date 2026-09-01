@@ -27,6 +27,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const styles = makeStyles(c);
@@ -52,10 +53,10 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
     try {
       const { chat_id } = await api.chatWith(auth.token, selectedFriend.id);
       const body = activity
-        ? encodeActivityShare(activity)
+        ? encodeActivityShare(activity, note)
         : list
-        ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
-        : encodeMovieShare(movie);
+        ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name, note })
+        : encodeMovieShare(movie, note);
       const msg = await api.sendMessage(auth.token, chat_id, body);
       // ÖNEMLİ: Bu ekran ChatConversationScreen'in DIŞINDA gönderim yapıyor — bu yüzden o
       // ekranın normal gönderim akışının (attemptSend) otomatik yaptığı yerel önbellek
@@ -134,6 +135,16 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
               </>
             )}
           </View>
+
+          <TextInput
+            style={styles.noteInput}
+            placeholder="Bir mesaj ekle (isteğe bağlı)…"
+            placeholderTextColor={c.dim}
+            value={note}
+            onChangeText={setNote}
+            maxLength={300}
+            multiline
+          />
 
           {friends.length > 0 && (
             <View style={styles.searchBox}>
@@ -254,6 +265,10 @@ function makeStyles(c) {
     moviePoster: { width: 40, height: 58, borderRadius: 8 },
     movieTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     movieMeta: { fontSize: 11, color: c.dim, marginTop: 2 },
+    noteInput: {
+      minHeight: 40, maxHeight: 90, color: c.text, backgroundColor: c.surface2,
+      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 12.5, marginBottom: 10,
+    },
     searchBox: {
       flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2,
       borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8,

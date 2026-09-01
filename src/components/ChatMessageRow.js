@@ -212,6 +212,9 @@ function ChatMessageRow({
               </View>
             ) : null;
           })()}
+          {!!shared.note && (
+            <Text style={[styles.shareNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={3}>“{shared.note}”</Text>
+          )}
         </View>
         <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
         {renderReactionBadge(reactionsKey, isMine, styles)}
@@ -241,6 +244,9 @@ function ChatMessageRow({
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
             {listShared.ownerName} · {listShared.count} içerik
           </Text>
+          {!!listShared.note && (
+            <Text style={[styles.shareNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={3}>“{listShared.note}”</Text>
+          )}
         </View>
         <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
         {renderReactionBadge(reactionsKey, isMine, styles)}
@@ -280,6 +286,9 @@ function ChatMessageRow({
             )}
             {!!activityMovie?.title && (
               <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{activityMovie.title}</Text>
+            )}
+            {!!activityShared.note && (
+              <Text style={[styles.shareNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={3}>“{activityShared.note}”</Text>
             )}
           </View>
         </View>

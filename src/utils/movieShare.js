@@ -4,7 +4,7 @@
 // body kolonu var), bu en basit ve backend değişikliği gerektirmeyen çözüm.
 const PREFIX = "__MOVIE_SHARE__";
 
-export function encodeMovieShare(movie) {
+export function encodeMovieShare(movie, note) {
   const payload = {
     id: movie.id,
     title: movie.title,
@@ -17,6 +17,7 @@ export function encodeMovieShare(movie) {
     runtime: movie.runtime,
     votes: movie.votes,
     platforms: movie.platforms,
+    note: note?.trim() || null,
   };
   return `${PREFIX}${JSON.stringify(payload)}`;
 }
