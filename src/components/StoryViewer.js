@@ -123,7 +123,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   // okuması eski/yanlış bir story'ye işaret ederdi. Bunun yerine her render'da güncellenen bir
   // ref üzerinden en GÜNCEL değerlere bakıyoruz.
   const latestRef = useRef({});
-  latestRef.current = { isOwn: group?.isOwn, openViewers: () => openViewers() };
+  latestRef.current = { isOwn: group?.isOwn, viewersOpen, openViewers: () => openViewers() };
 
   function dismissWithDrag() {
     setDismissing(true);
@@ -145,10 +145,21 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
   //    hareketi — parmak takip edilerek story SÜREKLİ küçülüp yuvarlaklaşıyor (dragY), bırakınca
   //    yeterince sürüklenmişse (mesafe ya da hız) kapanmaya devam ediyor, değilse yerine geri
   //    zıplıyor.
+  // ÖNEMLİ DÜZELTME: panHandlers eskiden SADECE tapZones'a (ekranın bir "kardeşi") takılıydı —
+  // top/center/bottom/replyBarWrap gibi diğer bölgeler kendi pointerEvents="box-none"
+  // ayarlarıyla dokunmaları tapZones'a "geçirmesi" gerekiyordu ama bu miras/negotiation zinciri
+  // güvenilir değildi (ör. ekranın ortasından/altından sürükleme hiç yakalanmıyordu, sadece en
+  // üstteki boşluktan çalışıyordu). Artık panHandlers KÖK sarmalayıcının (bkz. return içindeki
+  // Animated.View) kendisinde — ekrandaki HER buton/alan (X, sil, detay, yanıt kutusu, izleyici
+  // rozeti dahil) artık bu responder'ın gerçek TORUNU, kardeşi değil. Bir dokunma nereden
+  // başlarsa başlasın, kök her zaman ata zincirinde olduğu için "yeterince hareket var mı"
+  // sorusu HER YERDEN güvenilir şekilde soruluyor; basit bir dokunma (buton/tap alanı) yine
+  // kendi Touchable'ına ait kalıyor, sadece net bir sürükleme başladığında devralıyor.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_evt, gesture) => {
+        if (latestRef.current.viewersOpen) return false;
         if (Math.abs(gesture.dx) > Math.abs(gesture.dy)) return false;
         return gesture.dy > 10 || gesture.dy < -28;
       },
@@ -219,6 +230,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           { borderRadius: dragging ? 28 : 0, overflow: "hidden" },
           { transform: [{ translateY: dragY }, { scale: cardScale }] },
         ]}
+        {...panResponder.panHandlers}
       >
         {!!story.movie?.poster && (
           <Image source={{ uri: story.movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={3} />
@@ -229,7 +241,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           style={StyleSheet.absoluteFillObject}
         />
 
-        <View style={styles.tapZones} pointerEvents={dismissing ? "none" : "auto"} {...panResponder.panHandlers}>
+        <View style={styles.tapZones} pointerEvents={dismissing ? "none" : "auto"}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => advance(-1)} />
           <TouchableOpacity style={{ flex: 2 }} activeOpacity={1} onPress={() => advance(1)} />
         </View>
