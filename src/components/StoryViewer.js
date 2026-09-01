@@ -129,46 +129,42 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
     setDragging(false);
   }
 
-  // ÖNEMLİ DÜZELTME: RN'in kendi PanResponder'ı (JS thread üzerinden, bridge ile) burada
-  // GÜVENİLMEZ çıktı — Modal içindeki içerikte sürükleme sadece ekranın hiçbir alt bileşenin
-  // kaplamadığı dar bir boşluktan (en üst) çalışıyordu, ekranın geri kalanında (poster, alt
-  // barlar vb. "üstünde" kalan alanlarda) hiç tetiklenmiyordu — PanResponder'ın responder
-  // "devralma" müzakeresi iç içe Touchable/Modal kombinasyonunda tutarsız davranıyor. Bunun
-  // yerine gerçek NATİF jest tanıyıcılar kullanan react-native-gesture-handler'a geçtik (proje
-  // zaten bir bağımlılık, Swipeable'da kullanılıyor) — activeOffsetY ile iki farklı eşiği
-  // (yukarı -28, aşağı +10) NATİF tarafta bildiriyoruz, böylece küçük bir dokunuş asla
-  // "çalınmıyor" ama gerçek bir sürükleme HER YERDEN güvenilir şekilde yakalanıyor.
-  const handlePanGestureEvent = Animated.event(
-    [{ nativeEvent: { translationY: dragY } }],
-    {
-      useNativeDriver: true,
-      listener: (event) => {
-        const { translationX, translationY } = event.nativeEvent;
-        if (Math.abs(translationX) > Math.abs(translationY)) return;
-        if (translationY > 10 && !downStartedRef.current) {
-          downStartedRef.current = true;
-          setPaused(true);
-          setDragging(true);
-        }
-        if (translationY < -28 && !upFiredRef.current) {
-          upFiredRef.current = true;
-          group?.isOwn ? openViewers() : replyInputRef.current?.focus();
-        }
-      },
-    }
-  );
+  // ÖNEMLİ DÜZELTME (1. deneme): RN'in kendi PanResponder'ı Modal içinde güvenilmezdi —
+  // sürükleme ekranın sadece dar bir bölgesinden tetikleniyordu. Gerçek native jest
+  // tanıyıcılar kullanan react-native-gesture-handler'a geçildi.
+  //
+  // ÖNEMLİ DÜZELTME (2. deneme): İlk gesture-handler denemesinde sürükleme artık HER YERDEN
+  // algılanıyordu (kart görsel olarak hareket ediyordu) AMA bırakınca hiçbir zaman
+  // TAMAMLANMIYORDU — story ekranda "asılı" kalıyordu. Sebep: yön kararı (yukarı/aşağı) VE
+  // duraklatma/küçültme state'leri, Animated.event'in "native sürücülü" (useNativeDriver:true)
+  // JS listener'ı içinde veriliyordu — bu listener native<->JS köprüsünde HER ZAMAN güvenilir
+  // ateşlenmiyor (özellikle reanimated da kurulu olduğunda). Artık dragY'nin KENDİSİ (görsel
+  // animasyon) hâlâ Animated.event ile native sürülüyor, ama YÖN KARARI ve duraklatma/kapatma
+  // mantığı onHandlerStateChange'in ACTIVE geçişine taşındı — bu, jest gerçekten aktifleştiğinde
+  // (activeOffsetY eşiği aşıldığında) TAM OLARAK BİR KEZ, güvenilir şekilde ateşlenen ayrı bir
+  // olay, bridge/listener gecikmesine bağlı değil.
+  const handlePanGestureEvent = useRef(
+    Animated.event([{ nativeEvent: { translationY: dragY } }], { useNativeDriver: true })
+  ).current;
 
   function handlePanStateChange(event) {
     const { state, translationY, velocityY } = event.nativeEvent;
-    if (state === State.BEGAN) {
-      downStartedRef.current = false;
-      upFiredRef.current = false;
+    if (state === State.ACTIVE) {
+      if (translationY > 0) {
+        downStartedRef.current = true;
+        setPaused(true);
+        setDragging(true);
+      } else {
+        upFiredRef.current = true;
+        group?.isOwn ? openViewers() : replyInputRef.current?.focus();
+      }
     } else if (state === State.END || state === State.CANCELLED || state === State.FAILED) {
       if (downStartedRef.current) {
         if (translationY > 130 || velocityY > 800) dismissWithDrag();
         else cancelDrag();
       }
       downStartedRef.current = false;
+      upFiredRef.current = false;
     }
   }
 
