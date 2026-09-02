@@ -90,7 +90,8 @@
         }
       ],
       "@react-native-google-signin/google-signin",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-video"
     ],
     "extra": {
       "eas": {

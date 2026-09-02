@@ -14,6 +14,7 @@ import AuthScreen from "./src/screens/AuthScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import RootNavigator from "./src/navigation/RootNavigator";
 import TutorialOverlay from "./src/components/TutorialOverlay";
+import SplashIntroVideo from "./src/components/SplashIntroVideo";
 import TasteSurveyStep from "./src/components/TasteSurveyStep";
 import NotificationPrimerModal from "./src/components/NotificationPrimerModal";
 import ErrorBoundary from "./src/components/ErrorBoundary";
@@ -69,6 +70,10 @@ function Gate() {
   // önce kapattın mı" (AsyncStorage) durumu HESAPLANANA kadar null — o ana kadar hiçbir şey
   // göstermiyoruz, "hesaplanmadı" ile "gösterilmemeli" birbirine karışmasın diye.
   const [showPushPrimer, setShowPushPrimer] = useState(null);
+  // Her soğuk açılışta bir kez oynayan şerit-girdabı açılış videosu — oturum kontrolü
+  // (checking) bundan daha hızlı bitse bile bu ilk izlenimi erken kesmiyoruz; video bittiğinde
+  // checking hâlâ sürüyorsa mevcut LoadingLogo nabız animasyonu devralıp beklemeye devam ediyor.
+  const [introDone, setIntroDone] = useState(false);
 
   // Analitik: hangi kullanıcıya ait olduğunu bilelim, uygulama ön plana/arka plana
   // geçtiğinde oturum başlasın/bitsin (bitişte son ekran + oturum süresi kaydediliyor).
@@ -217,6 +222,10 @@ function Gate() {
 
     return setupNotificationTapHandling(handleNavTarget);
   }, [auth?.token]);
+
+  if (!introDone) {
+    return <SplashIntroVideo onFinish={() => setIntroDone(true)} />;
+  }
 
   if (checking) {
     return (
