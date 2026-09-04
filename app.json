@@ -82,10 +82,10 @@
           "image": "./assets/splash-logo.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#14121a",
+          "backgroundColor": "#020104",
           "dark": {
             "image": "./assets/splash-logo.png",
-            "backgroundColor": "#14121a"
+            "backgroundColor": "#020104"
           }
         }
       ],
