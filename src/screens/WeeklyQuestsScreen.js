@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, Gift, Trophy, Clock } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -30,7 +31,8 @@ function useWeekResetCountdown(weekStart) {
 export default function WeeklyQuestsScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ export default function WeeklyQuestsScreen({ navigation }) {
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.introCard}>
           <View style={styles.trophyWrap}><Trophy size={22} color={c.accent} /></View>
           <View style={{ flex: 1 }}>
@@ -145,7 +147,8 @@ export default function WeeklyQuestsScreen({ navigation }) {
 
 function RewardCelebration({ days, onClose }) {
   const { c } = useAppTheme();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
   const scale = React.useRef(new Animated.Value(0.4)).current;
   const opacity = React.useRef(new Animated.Value(0)).current;
 
@@ -171,9 +174,10 @@ function RewardCelebration({ days, onClose }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     center: { alignItems: "center", justifyContent: "center" },
+    content: { padding: 20, paddingBottom: Math.max(28, insets.bottom + 20) },
     introCard: {
       flexDirection: "row", alignItems: "flex-start", gap: 12, backgroundColor: c.surface,
       borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16, marginBottom: 18,
@@ -211,7 +215,8 @@ function makeStyles(c) {
 
     rewardBackdrop: {
       position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
-      backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center", padding: 30,
+      backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center",
+      paddingHorizontal: 30, paddingTop: Math.max(30, insets.top + 14), paddingBottom: Math.max(30, insets.bottom + 14),
     },
     rewardCard: {
       width: "100%", maxWidth: 300, backgroundColor: c.surface, borderRadius: 24, padding: 26,
