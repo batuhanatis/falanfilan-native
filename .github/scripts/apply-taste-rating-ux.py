@@ -9,25 +9,21 @@ def patch(path, transforms):
         s=s.replace(old,new,1)
     p.write_text(s)
 
-# Root route so push/in-app nudge can open the task screen.
 patch('src/navigation/RootNavigator.js', [
 ('import DiaryScreen from "../screens/DiaryScreen";','import DiaryScreen from "../screens/DiaryScreen";\nimport RateTasteScreen from "../screens/RateTasteScreen";','rate import'),
 ('<Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />','<Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />\n        <Stack.Screen name="RateTaste" component={RateTasteScreen} options={{ presentation: "card" }} />','rate route'),
 ])
 
-# Discover: keep left swipe = skip, clarify right swipe = fast preference.
 patch('src/screens/DiscoverScreen.js', [
 ('<Text style={styles.stampLikeText}>SEVDİM</Text>','<Text style={styles.stampLikeText}>ZEVKİME GÖRE</Text>','discover stamp'),
 ('Bu turda {sessionLikes} şey beğendin','Bu turda {sessionLikes} içeriği zevkine göre işaretledin','discover summary'),
-('Pellix {sessionLikes} yeni sinyal öğrendi.','Pellix {sessionLikes} yeni zevk sinyali öğrendi.','discover milestone'),
+('`${nextLikeCount} yeni sinyal öğrendik.`','`${nextLikeCount} yeni zevk sinyali öğrendik.`','discover milestone'),
 ])
 
-# Detail: fast preference wording. Negative already says Bana göre değil.
 patch('src/screens/DetailScreen.js', [
 ('<Text style={styles.actionText}>Beğendim</Text>','<Text style={styles.actionText}>Zevkime göre</Text>','detail like wording'),
 ])
 
-# Home soft nudge: only appears after enough unrated fast taste signals.
 patch('src/screens/HomeScreenV2.js', [
 ('import { api } from "../api/client";','import { api } from "../api/client";\nimport { diaryApi } from "../api/diary";','home diary import'),
 ('  const [questData, setQuestData] = useState(null);','  const [questData, setQuestData] = useState(null);\n  const [diaryStats, setDiaryStats] = useState(null);','home diary state'),
@@ -56,7 +52,6 @@ patch('src/screens/HomeScreenV2.js', [
     ratingNudgeText: { color: c.dim, fontSize: 10, lineHeight: 14, marginTop: 2 },''','home nudge styles'),
 ])
 
-# Profile: rename the fast signal and provide a persistent deepening CTA.
 patch('src/screens/ProfileScreen.js', [
 ('import { api } from "../api/client";','import { api } from "../api/client";\nimport { diaryApi } from "../api/diary";','profile diary import'),
 ('  const [achievements, setAchievements] = useState(null);','  const [achievements, setAchievements] = useState(null);\n  const [diaryStats, setDiaryStats] = useState(null);','profile diary state'),
@@ -97,7 +92,6 @@ patch('src/screens/ProfileScreen.js', [
     retentionRow:''','profile deep styles'),
 ])
 
-# Notifications list understands the new gated rating push.
 patch('src/screens/NotificationsScreen.js', [
 ('case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} zevk senkronu 🔥`;','case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} zevk senkronu 🔥`;\n    case "rating_nudge": return "Zevkime göre işaretlediklerinden izlediklerini puanlamak ister misin?";','notification text'),
 ('case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: "#7C3AED" };','case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: "#7C3AED" };\n    case "rating_nudge": return { person: null, icon: Sparkles, color: "#8B5CF6" };','notification meta'),
@@ -106,5 +100,4 @@ patch('src/screens/NotificationsScreen.js', [
 ('''const clickable = item.type === "party_accepted" || item.type === "party_match" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type);''','''const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type);''','notification clickable'),
 ])
 
-# Language cleanup in Profile comments is not functional; user-facing semantics above are canonical.
 print('taste/rating UX patch applied')
