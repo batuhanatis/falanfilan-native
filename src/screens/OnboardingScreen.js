@@ -69,7 +69,6 @@ export default function OnboardingScreen() {
   );
 }
 
-// ---- Adım 0: karşılama/marka anı ----
 function WelcomeStep({ c, styles, insets, name, onContinue }) {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -96,7 +95,6 @@ function WelcomeStep({ c, styles, insets, name, onContinue }) {
   );
 }
 
-// ---- Adım 2: en az 5 içerik beğen ----
 function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   const [movies, setMovies] = useState([]);
   const [picked, setPicked] = useState(new Set());
@@ -158,7 +156,9 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
           <TouchableOpacity onPress={onBack} style={{ padding: 2, marginLeft: -2 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <ChevronLeft size={18} color={c.dim} />
           </TouchableOpacity>
-          <StepDots c={c} activeStep={2} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <StepDots c={c} activeStep={2} />
+          </View>
         </View>
         <Text style={styles.title}>Son bir adım</Text>
         <Text style={styles.subtitle}>Sana özel öneriler üretebilmemiz için en az 5 film/dizi beğen.</Text>
@@ -230,7 +230,6 @@ function buildTasteReveal(selectedMovies) {
   };
 }
 
-// ---- Payoff: kullanıcının verdiği sinyalin anında bir karşılığı olduğunu göster ----
 function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.92)).current;
@@ -289,10 +288,9 @@ function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
   );
 }
 
-// İki kalibrasyon adımını gösteren minimal ilerleme çubuğu.
 function StepDots({ c, activeStep }) {
   return (
-    <View style={{ flexDirection: "row", gap: 6, marginBottom: 14, flex: 1, marginLeft: 12 }}>
+    <View style={{ flexDirection: "row", gap: 6, marginBottom: 14, width: "100%" }}>
       {[1, 2].map((step) => (
         <View
           key={step}
@@ -320,7 +318,7 @@ function makeStyles(c) {
     welcomeBtnText: { color: c.bg, fontWeight: "800", fontSize: 14 },
     title: { color: c.text, fontSize: 20, fontWeight: "800" },
     subtitle: { color: c.dim, fontSize: 12.5, marginTop: 5, lineHeight: 18 },
-    stepHeaderRow: { flexDirection: "row", alignItems: "flex-start" },
+    stepHeaderRow: { flexDirection: "row", alignItems: "center" },
 
     progressTrack: { height: 6, borderRadius: 999, backgroundColor: c.surface2, marginTop: 12, overflow: "hidden" },
     progressFill: { height: "100%", backgroundColor: c.accent },
