@@ -40,3 +40,5 @@ jobs:
           git add src/navigation/RootNavigator.js src/screens/DiscoverScreen.js src/screens/DetailScreen.js src/screens/HomeScreenV2.js src/screens/ProfileScreen.js src/screens/NotificationsScreen.js
           git commit -m "Separate fast taste signals from watched ratings"
           git push origin HEAD:ux-retention-v1
+
+# retry after aligning Discover copy
