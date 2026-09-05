@@ -29,176 +29,113 @@ jobs:
           path = Path('src/screens/HomeScreenV2.js')
           text = path.read_text(encoding='utf-8')
 
-          def replace_once(old, new, label):
+          def once(old, new, label):
               global text
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f'{label}: expected exactly 1 match, got {count}')
+                  raise SystemExit(f'{label}: expected 1 match, got {count}')
               text = text.replace(old, new, 1)
 
-          replace_once(
+          once(
               'import { recommendationReason } from "../utils/recommend";',
               'import { recommendationReason, recommendationReasons } from "../utils/recommend";',
-              'recommend import',
+              'recommend import'
           )
-
-          replace_once(
+          once(
               'import HomeSkeleton from "../components/skeletons/HomeSkeleton";',
               'import HomeSkeleton from "../components/skeletons/HomeSkeleton";\nimport RecommendationWhyModal from "../components/RecommendationWhyModal";',
-              'modal import',
+              'modal import'
           )
 
-          replace_once(
-              '''  const [liked, setLiked] = useState(new Set());
-          const [disliked, setDisliked] = useState(new Set());
-          const [watchlist, setWatchlist] = useState(new Set());''',
-              '''  const [liked, setLiked] = useState(new Set());
-          const [likedMovies, setLikedMovies] = useState([]);
-          const [preferredGenres, setPreferredGenres] = useState([]);
-          const [disliked, setDisliked] = useState(new Set());
-          const [watchlist, setWatchlist] = useState(new Set());''',
-              'taste state',
+          once(
+              '  const [liked, setLiked] = useState(new Set());',
+              '  const [liked, setLiked] = useState(new Set());\n  const [likedMovies, setLikedMovies] = useState([]);\n  const [preferredGenres, setPreferredGenres] = useState([]);',
+              'taste state'
+          )
+          once(
+              '  const [pickerMovie, setPickerMovie] = useState(null);',
+              '  const [pickerMovie, setPickerMovie] = useState(null);\n  const [showHeroReasons, setShowHeroReasons] = useState(false);',
+              'reason modal state'
           )
 
-          replace_once(
-              '''  const [sendMovie, setSendMovie] = useState(null);
-          const [pickerMovie, setPickerMovie] = useState(null);''',
-              '''  const [sendMovie, setSendMovie] = useState(null);
-          const [pickerMovie, setPickerMovie] = useState(null);
-          const [showHeroReasons, setShowHeroReasons] = useState(false);''',
-              'reason modal state',
+          once(
+              '      const data = await api.interactions(auth.token);',
+              '      const [data, selfProfile, me] = await Promise.all([\n        api.interactions(auth.token),\n        api.userProfile(auth.token, auth.id).catch(() => ({ likedMovies: [] })),\n        api.me(auth.token).catch(() => ({ preferredGenres: [] })),\n      ]);',
+              'interaction enrichment'
+          )
+          once(
+              '      setLiked(nextLiked);',
+              '      setLiked(nextLiked);\n      setLikedMovies(selfProfile.likedMovies || []);\n      setPreferredGenres(me.preferredGenres || []);',
+              'taste setters'
+          )
+          once(
+              '  }, [auth.token]);\n\n  const loadPage = useCallback',
+              '  }, [auth.token, auth.id]);\n\n  const loadPage = useCallback',
+              'loadInteractions deps'
           )
 
-          replace_once(
-              '''  const loadInteractions = useCallback(async () => {
-            try {
-              const data = await api.interactions(auth.token);
-              const nextLiked = new Set();
-              const nextDisliked = new Set();
-              const nextWatchlist = new Set();
-              (data.results || []).forEach((row) => {
-                if (row.action === "like") nextLiked.add(row.movie_id);
-                else if (row.action === "dislike") nextDisliked.add(row.movie_id);
-                else if (row.action === "watchlist") nextWatchlist.add(row.movie_id);
-              });
-              setLiked(nextLiked);
-              setDisliked(nextDisliked);
-              setWatchlist(nextWatchlist);
-            } catch {
-              // Ana sayfa içerik göstermeye devam etsin.
-            }
-          }, [auth.token]);''',
-              '''  const loadInteractions = useCallback(async () => {
-            try {
-              const [data, selfProfile, me] = await Promise.all([
-                api.interactions(auth.token),
-                api.userProfile(auth.token, auth.id).catch(() => ({ likedMovies: [] })),
-                api.me(auth.token).catch(() => ({ preferredGenres: [] })),
-              ]);
-              const nextLiked = new Set();
-              const nextDisliked = new Set();
-              const nextWatchlist = new Set();
-              (data.results || []).forEach((row) => {
-                if (row.action === "like") nextLiked.add(row.movie_id);
-                else if (row.action === "dislike") nextDisliked.add(row.movie_id);
-                else if (row.action === "watchlist") nextWatchlist.add(row.movie_id);
-              });
-              setLiked(nextLiked);
-              setLikedMovies(selfProfile.likedMovies || []);
-              setPreferredGenres(me.preferredGenres || []);
-              setDisliked(nextDisliked);
-              setWatchlist(nextWatchlist);
-            } catch {
-              // Ana sayfa içerik göstermeye devam etsin.
-            }
-          }, [auth.token, auth.id]);''',
-              'load interactions',
+          once(
+              '      await loadInteractions();\n      const first = await loadPage(1);',
+              '      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);',
+              'parallel initial load'
           )
 
-          replace_once(
-              '''      await loadInteractions();
-              const first = await loadPage(1);''',
-              '''      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);''',
-              'parallel initial load',
-          )
-
-          replace_once(
+          once(
               '  const moviesById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);',
-              '''  const moviesById = useMemo(() => {
-            const map = new Map();
-            [...movies, ...likedMovies].forEach((m) => {
-              if (m?.id != null) map.set(m.id, m);
-            });
-            return map;
-          }, [movies, likedMovies]);''',
-              'movie map',
+              '  const moviesById = useMemo(() => {\n    const map = new Map();\n    [...movies, ...likedMovies].forEach((m) => {\n      if (m?.id != null) map.set(m.id, m);\n    });\n    return map;\n  }, [movies, likedMovies]);',
+              'movie map'
           )
 
-          replace_once(
-              '''  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
-          const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;
-          const heroReason = heroMovie
-            ? recommendationReason(heroMovie, liked, moviesById) || `${heroMovie.genre || "Zevkine uygun"} · Pellix seçimi`
-            : null;
-          const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;''',
-              '''  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
-          const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;
-          const heroReasons = useMemo(() => {
-            if (!heroMovie) return [];
-            return recommendationReasons(heroMovie, likedMovies, {
-              preferredGenres,
-              genreFilter,
-              typeFilter,
-              shortOnly,
-              platformFilters: [...platformFilters],
-              yearFilters: [...yearFilters],
-              aiLabel: describeResults ? aiResultsLabel : null,
-            });
-          }, [heroMovie, likedMovies, preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
-          const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
-          const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;''',
-              'hero reasons',
+          start_marker = '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
+          end_marker = '  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;\n'
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('hero block start not found')
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('hero block end not found')
+          end += len(end_marker)
+          replacement = (
+              '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
+              '  const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;\n'
+              '  const heroReasons = useMemo(() => {\n'
+              '    if (!heroMovie) return [];\n'
+              '    return recommendationReasons(heroMovie, likedMovies, {\n'
+              '      preferredGenres,\n'
+              '      genreFilter,\n'
+              '      typeFilter,\n'
+              '      shortOnly,\n'
+              '      platformFilters: [...platformFilters],\n'
+              '      yearFilters: [...yearFilters],\n'
+              '      aiLabel: describeResults ? aiResultsLabel : null,\n'
+              '    });\n'
+              '  }, [heroMovie, likedMovies, preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);\n'
+              '  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;\n'
+              '  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;\n'
+          )
+          text = text[:start] + replacement + text[end:]
+
+          once(
+              '            onLike={() => like(heroMovie.id)}\n            onPress={() => navigation.navigate("Detail", { movie: heroMovie })}',
+              '            onLike={() => like(heroMovie.id)}\n            onWhy={() => setShowHeroReasons(true)}\n            onPress={() => navigation.navigate("Detail", { movie: heroMovie })}',
+              'hero onWhy prop'
           )
 
-          replace_once(
-              '''            onLike={() => like(heroMovie.id)}
-                  onPress={() => navigation.navigate("Detail", { movie: heroMovie })}
-                  c={c}''',
-              '''            onLike={() => like(heroMovie.id)}
-                  onWhy={() => setShowHeroReasons(true)}
-                  onPress={() => navigation.navigate("Detail", { movie: heroMovie })}
-                  c={c}''',
-              'hero onWhy prop',
+          once(
+              '      {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}',
+              '      <RecommendationWhyModal\n        visible={showHeroReasons}\n        movie={heroMovie}\n        reasons={heroReasons}\n        onClose={() => setShowHeroReasons(false)}\n        onOpenDetail={() => {\n          setShowHeroReasons(false);\n          if (heroMovie) navigation.navigate("Detail", { movie: heroMovie });\n        }}\n      />\n      {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}',
+              'reason modal render'
           )
 
-          replace_once(
-              '''      {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}
-              {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}''',
-              '''      <RecommendationWhyModal
-                visible={showHeroReasons}
-                movie={heroMovie}
-                reasons={heroReasons}
-                onClose={() => setShowHeroReasons(false)}
-                onOpenDetail={() => {
-                  setShowHeroReasons(false);
-                  if (heroMovie) navigation.navigate("Detail", { movie: heroMovie });
-                }}
-              />
-              {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}
-              {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}''',
-              'reason modal render',
-          )
-
-          replace_once(
+          once(
               'function TonightHero({ movie, reason, liked, onLike, onPress, c }) {',
               'function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, c }) {',
-              'hero signature',
+              'hero signature'
           )
-
-          replace_once(
+          once(
               '<TouchableOpacity style={styles.heroPrimaryBtn} onPress={onPress}>',
               '<TouchableOpacity style={styles.heroPrimaryBtn} onPress={(e) => { e.stopPropagation?.(); onWhy?.(); }}>',
-              'hero why button',
+              'hero why button'
           )
 
           path.write_text(text, encoding='utf-8')
