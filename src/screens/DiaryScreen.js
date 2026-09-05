@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BookOpen, Star, CalendarDays, Film, ChevronRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -19,7 +20,8 @@ function formatDate(value) {
 export default function DiaryScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   const [entries, setEntries] = useState([]);
   const [stats, setStats] = useState(null);
@@ -78,7 +80,7 @@ export default function DiaryScreen({ navigation }) {
 
   async function refresh() {
     setRefreshing(true);
-    try { await load({ reset: true }); } catch { /* mevcut listeyi koru */ }
+    try { await load({ reset: true }); } catch {}
     setRefreshing(false);
   }
 
@@ -91,7 +93,7 @@ export default function DiaryScreen({ navigation }) {
       setEntries((prev) => [...prev, ...(data.results || [])]);
       setPage(nextPage);
       setHasMore(!!data.hasMore);
-    } catch { /* mevcut listeyi koru */ }
+    } catch {}
     setLoadingMore(false);
   }
 
@@ -132,9 +134,9 @@ export default function DiaryScreen({ navigation }) {
               </View>
 
               <View style={styles.statsRow}>
-                <Stat value={stats?.total ?? 0} label="TOPLAM" c={c} styles={styles} />
-                <Stat value={stats?.thisYear ?? 0} label="BU YIL" c={c} styles={styles} />
-                <Stat value={stats?.avgRating != null ? stats.avgRating : "—"} label="ORT. PUAN" c={c} styles={styles} />
+                <Stat value={stats?.total ?? 0} label="TOPLAM" styles={styles} />
+                <Stat value={stats?.thisYear ?? 0} label="BU YIL" styles={styles} />
+                <Stat value={stats?.avgRating != null ? stats.avgRating : "—"} label="ORT. PUAN" styles={styles} />
               </View>
 
               {!!stats?.topGenres?.length && (
@@ -197,10 +199,10 @@ function Stat({ value, label, styles }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 },
-    content: { padding: 16, paddingBottom: 32 },
+    content: { padding: 16, paddingBottom: Math.max(32, insets.bottom + 24) },
     unavailableTitle: { color: c.text, fontSize: 16, fontWeight: "800", marginTop: 12 },
     unavailableText: { color: c.dim, fontSize: 11.5, lineHeight: 17, textAlign: "center", marginTop: 5 },
     heroCard: { flexDirection: "row", gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 15 },
