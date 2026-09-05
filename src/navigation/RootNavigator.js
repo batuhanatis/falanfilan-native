@@ -16,6 +16,7 @@ import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import PellixPlayScreen from "../screens/PellixPlayScreen";
 import DailyPosterPuzzleScreen from "../screens/DailyPosterPuzzleScreen";
 import FriendBattleScreen from "../screens/FriendBattleScreen";
+import PartyJoinScreen from "../screens/PartyJoinScreen";
 import DiaryScreen from "../screens/DiaryScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
@@ -32,63 +33,33 @@ import SharedItemScreen from "../screens/SharedItemScreen";
 import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
-
 export const navigationRef = createNavigationContainerRef();
 
 export default function RootNavigator() {
   const { c, mode } = useAppTheme();
-
   const navTheme = {
     ...(mode === "dark" ? DarkTheme : DefaultTheme),
-    colors: {
-      ...(mode === "dark" ? DarkTheme.colors : DefaultTheme.colors),
-      background: c.bg,
-      card: c.surface,
-      text: c.text,
-      border: c.border,
-      primary: c.accent,
-    },
+    colors: { ...(mode === "dark" ? DarkTheme.colors : DefaultTheme.colors), background: c.bg, card: c.surface, text: c.text, border: c.border, primary: c.accent },
   };
 
   const linking = {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
-    config: {
-      screens: {
-        OtherProfile: "u/:userId",
-        FriendBattle: "battle/:battleId",
-      },
-    },
+    config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token" } },
     getStateFromPath: (path, options) => {
       const userMatch = path.match(/^\/?u\/([^/?]+)/);
-      if (userMatch) {
-        return {
-          routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(userMatch[1]) } }],
-        };
-      }
+      if (userMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(userMatch[1]) } }] };
       const blendMatch = path.match(/^\/?blend\/([^/]+)\/([^/?]+)/);
-      if (blendMatch) {
-        return {
-          routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }],
-        };
-      }
+      if (blendMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }] };
       const battleMatch = path.match(/^\/?battle\/([^/?]+)/);
-      if (battleMatch) {
-        return {
-          routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }],
-        };
-      }
+      if (battleMatch) return { routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }] };
+      const partyMatch = path.match(/^\/?party\/([^/?]+)/);
+      if (partyMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyMatch[1]) } }] };
       return defaultGetStateFromPath(path, options);
     },
   };
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      theme={navTheme}
-      linking={linking}
-      onReady={() => trackScreen(navigationRef.current?.getCurrentRoute()?.name)}
-      onStateChange={() => trackScreen(navigationRef.current?.getCurrentRoute()?.name)}
-    >
+    <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking} onReady={() => trackScreen(navigationRef.current?.getCurrentRoute()?.name)} onStateChange={() => trackScreen(navigationRef.current?.getCurrentRoute()?.name)}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="TasteMate" component={TasteMateScreen} options={{ presentation: "card" }} />
@@ -105,6 +76,7 @@ export default function RootNavigator() {
         <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="DailyPosterPuzzle" component={DailyPosterPuzzleScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="FriendBattle" component={FriendBattleScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="PartyJoin" component={PartyJoinScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="AllLikes" component={AllLikesScreen} options={{ presentation: "card" }} />
