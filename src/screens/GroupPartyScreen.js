@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator } from "react-native";
-import { ChevronLeft, Check, Users, History, ChevronDown, ChevronUp, Search, X } from "lucide-react-native";
+import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -12,14 +12,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ChipRow from "../components/ChipRow";
 import FilterFields from "../components/FilterFields";
 import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
+import ScreenHeader from "../components/ScreenHeader";
 
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
 
-// Birden fazla arkadaşı seçip TEK bir MatchParty oturumu açar. Eskiden bir DismissableSheet
-// popup'tı — ama arkadaş listesi + birden fazla filtre satırı kaydırmak, popup'ın kendi
-// "sürükleyerek kapat" jestiyle SÜREKLİ çakışıyordu (filtreleri kaydırmaya çalışırken popup
-// yanlışlıkla kapanıyordu). Artık ayrı bir SAYFA — geri tuşu/navigasyon yığını doğal olarak
-// çalışıyor, kaydırma jestiyle ilgili hiçbir çakışma riski yok.
 export default function GroupPartyScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -32,9 +28,8 @@ export default function GroupPartyScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [friendQuery, setFriendQuery] = useState("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Son 3 eşleşme sonucu — MP7: eskiden varsayılan KAPALIYDI, ilgi çekici bir sosyal kanıt
-  // (kiminle ne eşleştiniz) bir ekstra dokunuş arkasında kalıyordu. Artık varsayılan açık.
   const [recentMatches, setRecentMatches] = useState([]);
   const [showRecent, setShowRecent] = useState(true);
 
@@ -58,7 +53,6 @@ export default function GroupPartyScreen({ navigation }) {
   function togglePlatform(name) {
     setPlatformPrefs((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   }
-  // "Sürpriz Seç" — grup ne izleyeceğine karar veremiyorsa tam da bu ekranın ruhuna uygun.
   function shuffleGenre() {
     setGenrePref(GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)]);
   }
@@ -84,18 +78,11 @@ export default function GroupPartyScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Grup Party Oluştur</Text>
-      </View>
+      <ScreenHeader title="MatchParty" subtitle="Birlikte seçin" onBack={() => navigation.goBack()} />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom }}>
-        <Text style={styles.subtitle}>Birlikte izlemelik seçeceğiniz arkadaşlarını seç — birden fazla kişi seçebilirsin.</Text>
+        <Text style={styles.subtitle}>Arkadaşlarını seç. İstersen hemen başlat, istersen filtrelerle geceni özelleştir.</Text>
 
-        {/* MP8 — arkadaş seçimi artık sadece checkbox'larla değil, üstte biriken bir "takım"
-            satırıyla da görünüyor — kaç kişi seçtiğin ve kimler oldukları tek bakışta belli. */}
         {selected.size > 0 && (
           <View style={styles.squadRow}>
             {friends.filter((f) => selected.has(f.id)).map((f) => (
@@ -164,9 +151,6 @@ export default function GroupPartyScreen({ navigation }) {
             <Text style={styles.emptyText}>"{friendQuery}" ile eşleşen arkadaş bulunamadı.</Text>
           </View>
         ) : (
-          // Eskiden dümdüz, tek sütun bir liste idi — artık Instagram tarzı bir ızgara: her
-          // satırda 3 kişi, üstte profil fotoğrafı, altında isim. Seçim artık avatarın üstüne
-          // binen bir onay rozeti + halka ile gösteriliyor (satırdaki ayrı checkbox yerine).
           <View style={styles.friendGrid}>
             {filteredFriends.map((item) => {
               const isSelected = selected.has(item.id);
@@ -195,29 +179,50 @@ export default function GroupPartyScreen({ navigation }) {
           </View>
         )}
 
-        {/* Arkadaşına tek tek davet gönderirkenki (MatchPartyScreen setup) İLE AYNI filtreler —
-            artık Ana Sayfa'nın filtre paneli ve "Zevkine Göre Öner" ile de PAYLAŞILAN aynı
-            bileşen (bkz. FilterFields.js), burada modal olmadan doğrudan sayfanın akışına gömülü. */}
-        <FilterFields
-          typeValue={typePref}
-          onTypeChange={setTypePref}
-          genreValue={genrePref}
-          onGenreChange={setGenrePref}
-          yearSet={yearLabels}
-          onToggleYear={toggleYear}
-          platformSet={platformPrefs}
-          onTogglePlatform={togglePlatform}
-          platforms={commonPlatforms}
-          onShuffleGenre={shuffleGenre}
-        />
+        {/* İlk kullanımda filtre duvarı göstermiyoruz. MatchParty'nin ana işi karar vermeyi
+            hızlandırmak; power-user ayarları isteğe bağlı olarak aşağı açılıyor. */}
+        {friends.length > 0 && (
+          <TouchableOpacity style={styles.filterToggle} onPress={() => setShowAdvancedFilters((v) => !v)} activeOpacity={0.85}>
+            <View style={styles.filterIconWrap}>
+              <SlidersHorizontal size={16} color={c.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.filterTitle}>Filtrelerle Özelleştir</Text>
+              <Text style={styles.filterSubtitle}>Tür, yıl, platform ve IMDb puanı seç</Text>
+            </View>
+            {showAdvancedFilters ? <ChevronUp size={16} color={c.dim} /> : <ChevronDown size={16} color={c.dim} />}
+          </TouchableOpacity>
+        )}
 
-        <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
-        <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
+        {showAdvancedFilters && (
+          <View style={styles.advancedWrap}>
+            <FilterFields
+              typeValue={typePref}
+              onTypeChange={setTypePref}
+              genreValue={genrePref}
+              onGenreChange={setGenrePref}
+              yearSet={yearLabels}
+              onToggleYear={toggleYear}
+              platformSet={platformPrefs}
+              onTogglePlatform={togglePlatform}
+              platforms={commonPlatforms}
+              onShuffleGenre={shuffleGenre}
+            />
+
+            <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
+            <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
+          </View>
+        )}
 
         {selected.size > 0 && (
-          <TouchableOpacity style={styles.goBtn} onPress={createGroupParty} disabled={creating}>
+          <TouchableOpacity style={styles.goBtn} onPress={createGroupParty} disabled={creating} activeOpacity={0.88}>
             {creating ? <ActivityIndicator size="small" color={c.bg} /> : (
-              <Text style={styles.goBtnText}>{selected.size} Kişiyle Party Oluştur</Text>
+              <>
+                {!showAdvancedFilters && <Zap size={17} color={c.bg} fill={c.bg} />}
+                <Text style={styles.goBtnText}>
+                  {showAdvancedFilters ? `${selected.size} Kişiyle Party Oluştur` : `${selected.size} Kişiyle Hızlı Party Başlat`}
+                </Text>
+              </>
             )}
           </TouchableOpacity>
         )}
@@ -228,12 +233,7 @@ export default function GroupPartyScreen({ navigation }) {
 
 function makeStyles(c) {
   return StyleSheet.create({
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 14, fontWeight: "800", color: c.text },
-    subtitle: { fontSize: 11, color: c.dim, marginBottom: 6, lineHeight: 16 },
+    subtitle: { fontSize: 12, color: c.dim, marginBottom: 10, lineHeight: 17 },
     squadRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, paddingLeft: 10 },
     squadAvatar: { width: 36, height: 36, borderRadius: 999, borderWidth: 2, borderColor: c.bg, marginLeft: -10, backgroundColor: c.surface2 },
     squadCount: { fontSize: 11.5, fontWeight: "700", color: c.dim, marginLeft: 12 },
@@ -264,11 +264,20 @@ function makeStyles(c) {
     gridName: { fontSize: 11.5, fontWeight: "700", color: c.text, marginTop: 6, textAlign: "center" },
     emptyBox: { alignItems: "center", paddingVertical: 24 },
     emptyText: { color: c.dim, fontSize: 12 },
+
+    filterToggle: {
+      flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface,
+      borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12, marginTop: 4,
+    },
+    filterIconWrap: { width: 34, height: 34, borderRadius: 11, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    filterTitle: { fontSize: 12.5, fontWeight: "800", color: c.text },
+    filterSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2 },
+    advancedWrap: { marginTop: 4 },
     label: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 16 },
     goBtn: {
-      flexDirection: "row", alignItems: "center", justifyContent: "center",
-      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, marginTop: 14,
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 14,
     },
-    goBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    goBtnText: { color: c.bg, fontWeight: "900", fontSize: 13 },
   });
 }
