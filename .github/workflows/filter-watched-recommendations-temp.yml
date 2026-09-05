@@ -1,0 +1,168 @@
+name: Filter watched titles from recommendation surfaces
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/filter-watched-recommendations-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current app branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          fetch-depth: 0
+
+      - name: Patch watched filtering
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Diary client: cheap ID-only endpoint, so Home/Discover do not need to page full Diary rows.
+          diary = Path('src/api/diary.js')
+          d = diary.read_text()
+          needle = '  stats: (token) => diaryRequest("/api/diary/stats", token),\n'
+          if 'watchedIds:' not in d:
+              if needle not in d: raise SystemExit('diaryApi stats anchor not found')
+              d = d.replace(needle, needle + '  watchedIds: (token) => diaryRequest("/api/diary/watched-ids", token),\n', 1)
+          diary.write_text(d)
+
+          # Home: backend already excludes Diary rows from /api/movies and /api/recommendations.
+          # Keep an explicit client snapshot too so stale Home/AI/popular data disappears immediately
+          # after a user marks a title watched and returns to this screen.
+          home = Path('src/screens/HomeScreenV2.js')
+          h = home.read_text()
+          if 'useFocusEffect' not in h:
+              h = h.replace('import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";\n',
+                            'import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";\nimport { useFocusEffect } from "@react-navigation/native";\n', 1)
+
+          state_anchor = '  const [watchlist, setWatchlist] = useState(new Set());\n'
+          if 'const [watchedIds, setWatchedIds]' not in h:
+              if state_anchor not in h: raise SystemExit('Home state anchor not found')
+              h = h.replace(state_anchor, state_anchor + '  const [watchedIds, setWatchedIds] = useState(new Set());\n', 1)
+
+          interactions_anchor = '  const loadInteractions = useCallback(async () => {\n'
+          if 'const loadWatchedIds = useCallback' not in h:
+              helper = '''  const loadWatchedIds = useCallback(async () => {\n    try {\n      const data = await diaryApi.watchedIds(auth.token);\n      const next = new Set((data.movieIds || []).map(Number).filter(Number.isFinite));\n      setWatchedIds(next);\n      return next;\n    } catch {\n      return new Set();\n    }\n  }, [auth.token]);\n\n'''
+              if interactions_anchor not in h: raise SystemExit('Home interactions anchor not found')
+              h = h.replace(interactions_anchor, helper + interactions_anchor, 1)
+
+          old_initial = '      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);\n'
+          new_initial = '      const [, , first] = await Promise.all([loadInteractions(), loadWatchedIds(), loadPage(1)]);\n'
+          if old_initial in h:
+              h = h.replace(old_initial, new_initial, 1)
+          elif new_initial not in h:
+              raise SystemExit('Home initial load anchor not found')
+
+          focus_anchor = '''  useEffect(() => {\n    const unsub = navigation.addListener("focus", () => {\n      api.quests(auth.token).then(setQuestData).catch(() => {});\n    });\n    return unsub;\n  }, [navigation, auth.token]);\n'''
+          if 'loadWatchedIds();' not in h[h.find(focus_anchor) if focus_anchor in h else 0:]:
+              if focus_anchor not in h: raise SystemExit('Home focus anchor not found')
+              h = h.replace(focus_anchor, '''  useEffect(() => {\n    const unsub = navigation.addListener("focus", () => {\n      api.quests(auth.token).then(setQuestData).catch(() => {});\n      loadWatchedIds();\n    });\n    return unsub;\n  }, [navigation, auth.token, loadWatchedIds]);\n''', 1)
+
+          old_filtered = '    let result = movies;\n'
+          new_filtered = '    let result = movies.filter((m) => !watchedIds.has(Number(m.id)));\n'
+          if old_filtered in h:
+              h = h.replace(old_filtered, new_filtered, 1)
+          elif new_filtered not in h:
+              raise SystemExit('Home filtered list anchor not found')
+          old_deps = '  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly]);\n\n  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
+          new_deps = '  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds]);\n\n  const visibleList = describeResults\n    ? describeResults.filter((m) => !watchedIds.has(Number(m.id))).slice(0, describeCount)\n    : filteredList;\n'
+          if old_deps in h:
+              h = h.replace(old_deps, new_deps, 1)
+          elif new_deps not in h:
+              raise SystemExit('Home visible list anchor not found')
+
+          old_hero_source = '  const heroSourceList = describeResults ? describeResults : filteredList;\n'
+          new_hero_source = '  const heroSourceList = describeResults ? describeResults.filter((m) => !watchedIds.has(Number(m.id))) : filteredList;\n'
+          if old_hero_source in h:
+              h = h.replace(old_hero_source, new_hero_source, 1)
+          elif new_hero_source not in h:
+              raise SystemExit('Home hero source anchor not found')
+
+          # Popular is editorial, but on Home it is still a discovery surface: don't put already-watched
+          # titles back in front of the user there either. Search remains untouched so watched titles stay searchable.
+          popular_anchor = '  const heroSourceList = describeResults ? describeResults.filter((m) => !watchedIds.has(Number(m.id))) : filteredList;\n'
+          if 'const visiblePopularNow = useMemo' not in h:
+              if popular_anchor not in h: raise SystemExit('Home popular insertion anchor not found')
+              h = h.replace(popular_anchor, '  const visiblePopularNow = useMemo(() => popularNow.filter((m) => !watchedIds.has(Number(m.id))), [popularNow, watchedIds]);\n\n' + popular_anchor, 1)
+          h = h.replace('<PopularNowRow items={popularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />',
+                        '<PopularNowRow items={visiblePopularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />')
+          home.write_text(h)
+
+          # Discover: /api/recommendations already excludes Diary entries server-side. The client also
+          # filters its prefetched/cache queue, which can otherwise be stale after watching a title.
+          discover = Path('src/screens/DiscoverScreen.js')
+          s = discover.read_text()
+          if 'useFocusEffect' not in s:
+              s = s.replace('import React, { useState, useEffect, useRef, useCallback } from "react";\n',
+                            'import React, { useState, useEffect, useRef, useCallback } from "react";\nimport { useFocusEffect } from "@react-navigation/native";\n', 1)
+          if 'import { diaryApi } from "../api/diary";' not in s:
+              s = s.replace('import { api } from "../api/client";\n', 'import { api } from "../api/client";\nimport { diaryApi } from "../api/diary";\n', 1)
+
+          voted_ref = '  const votedIdsPromiseRef = useRef(null);\n'
+          if 'watchedIdsPromiseRef' not in s:
+              if voted_ref not in s: raise SystemExit('Discover voted ref anchor not found')
+              s = s.replace(voted_ref, voted_ref + '  const watchedIdsPromiseRef = useRef(null);\n  const watchedIdsRef = useRef(new Set());\n', 1)
+
+          get_voted_anchor = '  function matchesType(m) {\n'
+          if 'const getWatchedIds = useCallback' not in s:
+              helper = '''  const getWatchedIds = useCallback((force = false) => {\n    if (force) watchedIdsPromiseRef.current = null;\n    if (!watchedIdsPromiseRef.current) {\n      watchedIdsPromiseRef.current = diaryApi.watchedIds(auth.token)\n        .then((data) => {\n          const ids = new Set((data.movieIds || []).map(Number).filter(Number.isFinite));\n          watchedIdsRef.current = ids;\n          return ids;\n        })\n        .catch(() => watchedIdsRef.current);\n    }\n    return watchedIdsPromiseRef.current;\n  }, [auth.token]);\n\n'''
+              if get_voted_anchor not in s: raise SystemExit('Discover helper anchor not found')
+              s = s.replace(get_voted_anchor, helper + get_voted_anchor, 1)
+
+          old_grow = '      const votedIds = await getVotedIds();\n      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);\n'
+          new_grow = '      const [votedIds, watchedIds] = await Promise.all([getVotedIds(), getWatchedIds()]);\n      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds, ...watchedIds]);\n'
+          if old_grow in s:
+              s = s.replace(old_grow, new_grow, 1)
+          elif new_grow not in s:
+              raise SystemExit('Discover growQueue anchor not found')
+          s = s.replace('  }, [auth.token]);\n\n  const resetForFilter = useCallback', '  }, [auth.token, getWatchedIds]);\n\n  const resetForFilter = useCallback', 1)
+
+          old_prefetch = '      const votedIds = await getVotedIds();\n      if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;\n      const fresh = preloaded.filter((m) => !votedIds.has(m.id));\n'
+          new_prefetch = '      const [votedIds, watchedIds] = await Promise.all([getVotedIds(), getWatchedIds()]);\n      if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;\n      const fresh = preloaded.filter((m) => !votedIds.has(m.id) && !watchedIds.has(Number(m.id)));\n'
+          if old_prefetch in s:
+              s = s.replace(old_prefetch, new_prefetch, 1)
+          elif new_prefetch not in s:
+              raise SystemExit('Discover prefetch anchor not found')
+          s = s.replace('  }, [growQueue]);\n\n  useEffect(() => { resetForFilter(filterType); }, [filterType]);',
+                        '  }, [growQueue, getWatchedIds]);\n\n  useEffect(() => { resetForFilter(filterType); }, [filterType]);', 1)
+
+          effect_anchor = '  useEffect(() => { resetForFilter(filterType); }, [filterType]);\n\n'
+          if 'getWatchedIds(true)' not in s:
+              if effect_anchor not in s: raise SystemExit('Discover focus insertion anchor not found')
+              focus = '''  useFocusEffect(useCallback(() => {\n    let cancelled = false;\n    getWatchedIds(true).then((ids) => {\n      if (cancelled) return;\n      setQueue((prev) => prev.filter((movie) => !ids.has(Number(movie.id))));\n    });\n    return () => { cancelled = true; };\n  }, [getWatchedIds]));\n\n'''
+              s = s.replace(effect_anchor, effect_anchor + focus, 1)
+          discover.write_text(s)
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JS bundles
+        run: |
+          npx expo export --platform ios --output-dir /tmp/pellix-ios-export
+          npx expo export --platform android --output-dir /tmp/pellix-android-export
+
+      - name: Commit app changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/api/diary.js src/screens/HomeScreenV2.js src/screens/DiscoverScreen.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Exclude watched titles from Home and Discover"
+          git push origin HEAD:ux-retention-v1
