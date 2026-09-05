@@ -1,0 +1,117 @@
+name: Build Pellix Staging Preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/preview-staging-build.yml'
+      - '.github/preview-staging-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-preview:
+    name: Android preview APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout UX retention staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Android SDK and NDK
+        shell: bash
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager bulunamadı: ANDROID_HOME=$ANDROID_HOME"
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify Expo authentication
+        run: eas whoami
+
+      - name: Build Android staging preview APK locally
+        run: |
+          mkdir -p dist
+          eas build --platform android --profile preview --local --non-interactive --output ./dist/pellix-staging-preview.apk
+
+      - name: Upload Android preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-staging-preview-android
+          path: dist/pellix-staging-preview.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-preview-testflight:
+    name: iOS preview to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 150
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout UX retention staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify Expo authentication
+        run: eas whoami
+
+      - name: Build iOS staging preview IPA locally
+        run: eas build --platform ios --profile preview-ios-testflight --local --non-interactive --output ./pellix-staging-preview.ipa
+
+      - name: Upload iOS preview IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-staging-preview-ios
+          path: pellix-staging-preview.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Submit staging preview to TestFlight
+        run: eas submit --platform ios --profile production --path ./pellix-staging-preview.ipa --non-interactive --wait --what-to-test "Pellix staging QA: Home V2, Diary, Friend Battle, Party Link, keyboard and safe-area checks"
