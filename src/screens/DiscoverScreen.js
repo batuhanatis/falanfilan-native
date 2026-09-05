@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Heart, X, Star, ListVideo, Send } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -20,8 +21,9 @@ const TASTE_MILESTONE = 5;
 export default function DiscoverScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
   const prefetchedDiscoverRef = useRef(usePrefetch().discoverQueue);
-  const styles = makeStyles(c);
+  const styles = makeStyles(c, insets);
 
   const [filterType, setFilterType] = useState("All");
   const [queue, setQueue] = useState([]);
@@ -150,8 +152,6 @@ export default function DiscoverScreen({ navigation }) {
       if (genre) nextGenreCounts[genre] = (nextGenreCounts[genre] || 0) + 1;
       setSessionGenreCounts(nextGenreCounts);
 
-      // Her beğenide konfeti vermek yerine, anlamlı bir kilometre taşında ödül veriyoruz.
-      // Böylece normal swipe hızlı kalıyor; kutlama gerçekten "zevkim netleşiyor" anına bağlanıyor.
       if (nextLikeCount % TASTE_MILESTONE === 0) {
         setLikeBurstKey((k) => k + 1);
         setShowLikeBurst(true);
@@ -387,7 +387,8 @@ export default function DiscoverScreen({ navigation }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
+  const topInset = Math.max(insets.top, 12) + 6;
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
     backdrop: { ...StyleSheet.absoluteFillObject, overflow: "hidden", backgroundColor: c.bg },
@@ -398,9 +399,9 @@ function makeStyles(c) {
       paddingHorizontal: 24, paddingVertical: 12,
     },
     restartBtnText: { color: c.bg, fontWeight: "800", fontSize: 13.5 },
-    stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 21, paddingTop: 123, paddingBottom: 111 },
+    stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 21, paddingTop: topInset + 69, paddingBottom: 111 },
     card: {
-      position: "absolute", top: 123, bottom: 111, left: 21, right: 21,
+      position: "absolute", top: topInset + 69, bottom: 111, left: 21, right: 21,
       borderRadius: 22, overflow: "hidden", backgroundColor: "rgba(13,13,16,0.55)",
     },
     cardBehind: { transform: [{ scale: 0.96 }] },
@@ -428,7 +429,7 @@ function makeStyles(c) {
     platformLogo: { width: 22, height: 22, borderRadius: 6, backgroundColor: "#fff" },
     platformFallback: { backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
     platformFallbackText: { fontSize: 9, color: "#fff" },
-    topBar: { position: "absolute", top: 44, left: 14, right: 14, flexDirection: "row", alignItems: "center" },
+    topBar: { position: "absolute", top: topInset, left: 14, right: 14, flexDirection: "row", alignItems: "center" },
     pillWrap: { flex: 1, alignItems: "center" },
     pillRow: {
       flexDirection: "row", gap: 3,
@@ -438,7 +439,7 @@ function makeStyles(c) {
     pillActive: { backgroundColor: "#fff" },
     pillText: { fontSize: 11, fontWeight: "700", color: "#fff" },
     pillTextActive: { color: "#14121a" },
-    actionsRow: { position: "absolute", bottom: 14, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 26 },
+    actionsRow: { position: "absolute", bottom: Math.max(14, insets.bottom + 8), left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 26 },
     actionCircle: { width: 56, height: 56, borderRadius: 999, alignItems: "center", justifyContent: "center" },
   });
 }
