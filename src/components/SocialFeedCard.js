@@ -45,9 +45,10 @@ function activityMood(item) {
   return { emoji: "✨", label: "ZEVKİNİ GÜNCELLEDİ", colors: ["#8B5CF6", "#2563EB"] };
 }
 
-function postLabel(type) {
+function postLabel(type, cardPayload) {
   if (type === "recommend") return "öneriyor";
   if (type === "poll") return "soruyor";
+  if (type === "card" && cardPayload?.kind === "diary_rating") return "puanını paylaştı";
   if (type === "card") return "bir kart paylaştı";
   return "paylaştı";
 }
@@ -247,7 +248,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
               {!!user.username && <Text style={hero ? styles.heroUsername : styles.username}>@{user.username}</Text>}
             </View>
             <Text style={hero ? styles.heroMeta : styles.meta}>
-              {state.kind === "post" ? `${postLabel(post?.type)} · ` : ""}{relativeTime(state.created_at)}
+              {state.kind === "post" ? `${postLabel(post?.type, post?.cardPayload)} · ` : ""}{relativeTime(state.created_at)}
             </Text>
           </View>
         </TouchableOpacity>

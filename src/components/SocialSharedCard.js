@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Crown, Eye, Flame, Heart, ListVideo, Quote, Sparkles, Users } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 import { verdictFor } from "../utils/blendVerdict";
+import RatingShareCard from "./RatingShareCard";
 
 function firstName(value) {
   return String(value || "").trim().split(/\s+/)[0] || "Pellix";
@@ -16,6 +17,21 @@ function bounded(value) {
 
 export default function SocialSharedCard({ payload, navigation, currentUserId }) {
   if (!payload) return null;
+
+  if (payload.kind === "diary_rating") {
+    const movie = payload.movie || null;
+    const open = () => {
+      if (movie?.id) navigation.navigate("Detail", { movie });
+    };
+    return (
+      <RatingShareCard
+        movie={movie}
+        rating={payload.rating}
+        note={payload.note}
+        onPress={movie?.id ? open : undefined}
+      />
+    );
+  }
 
   if (payload.kind === "poster_puzzle") {
     const open = () => navigation.navigate("DailyPosterPuzzle");

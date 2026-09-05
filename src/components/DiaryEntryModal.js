@@ -12,11 +12,13 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, Trash2, X, Star, CalendarDays, BookOpen, ChevronRight } from "lucide-react-native";
+import { Check, Trash2, X, Star, CalendarDays, BookOpen, ChevronRight, Share2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { diaryApi } from "../api/diary";
+import { api } from "../api/client";
 import { hapticSuccess } from "../utils/haptics";
+import RatingShareCard from "./RatingShareCard";
 
 export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved, onOpenDiary }) {
   const { c } = useAppTheme();
@@ -27,17 +29,22 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareDraft, setShareDraft] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!visible) return;
     setRating(entry?.rating ?? null);
     setNote(entry?.note || "");
+    setShareDraft(null);
+    setSharing(false);
     setError("");
   }, [visible, entry?.rating, entry?.note, movie?.id]);
 
   async function save() {
     if (!movie?.id || saving) return;
+    const previousRating = entry?.rating ?? null;
     setSaving(true);
     setError("");
     try {
@@ -48,11 +55,52 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
       });
       hapticSuccess();
       onSaved?.(result.entry);
-      onClose?.();
+
+      const savedRating = result.entry?.rating ?? rating;
+      const isFirstRating = previousRating == null && savedRating != null;
+      if (isFirstRating) {
+        setShareDraft({
+          rating: Number(savedRating),
+          note: result.entry?.note || note.trim() || null,
+          watchedAt: result.entry?.watchedAt || new Date().toISOString(),
+        });
+      } else {
+        onClose?.();
+      }
     } catch (e) {
       setError(e.message || "Kaydedilemedi.");
     }
     setSaving(false);
+  }
+
+  async function shareRating() {
+    if (!shareDraft || sharing || !movie?.id) return;
+    setSharing(true);
+    setError("");
+    try {
+      await api.socialCreatePost(auth.token, {
+        type: "card",
+        body: "",
+        cardPayload: {
+          kind: "diary_rating",
+          rating: Number(shareDraft.rating),
+          note: shareDraft.note || null,
+          watchedAt: shareDraft.watchedAt || null,
+          movie: {
+            id: Number(movie.id),
+            title: movie.title || null,
+            poster: movie.poster || null,
+            type: movie.type || null,
+            year: movie.year || null,
+          },
+        },
+      });
+      hapticSuccess();
+      onClose?.();
+    } catch (e) {
+      setError(e.message || "Sosyal paylaşım oluşturulamadı.");
+    }
+    setSharing(false);
   }
 
   async function remove() {
@@ -78,88 +126,117 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
       >
         <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
         <View style={styles.card}>
-          <ScrollView
-            contentContainerStyle={styles.cardContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
-          >
-            <View style={styles.header}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.eyebrow}>PELLIX DIARY</Text>
-                <Text style={styles.title} numberOfLines={1}>{movie?.title || "İzlediğin içerik"}</Text>
-                <View style={styles.dateRow}>
-                  <CalendarDays size={11} color={c.dim} />
-                  <Text style={styles.dateText}>
-                    {entry?.watchedAt
-                      ? new Date(entry.watchedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
-                      : "Bugün izlendi olarak kaydedilecek"}
-                  </Text>
+          {shareDraft ? (
+            <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.header}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.eyebrow}>PUANIN KAYDEDİLDİ</Text>
+                  <Text style={styles.shareTitle}>Bunu Sosyal’de paylaş?</Text>
+                  <Text style={styles.shareSubtitle}>Feed’e yalnızca sen onaylarsan düşer.</Text>
                 </View>
-              </View>
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-                <X size={17} color={c.text} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>PUANIN</Text>
-            <Text style={styles.helper}>İstersen boş bırakabilirsin. Pellix puanın 10 üzerinden.</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ratingRow} keyboardShouldPersistTaps="handled">
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => (
-                <TouchableOpacity
-                  key={value}
-                  style={[styles.ratingChip, rating === value && styles.ratingChipActive]}
-                  onPress={() => setRating((current) => current === value ? null : value)}
-                >
-                  <Star size={11} color={rating === value ? "#14121a" : c.accent} fill={rating === value ? "#14121a" : "none"} />
-                  <Text style={[styles.ratingText, rating === value && styles.ratingTextActive]}>{value}</Text>
+                <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+                  <X size={17} color={c.text} />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
 
-            <Text style={styles.label}>KISA NOT</Text>
-            <TextInput
-              style={styles.noteInput}
-              value={note}
-              onChangeText={(text) => setNote(text.slice(0, 500))}
-              placeholder="Finali, oyunculukları, sende bıraktığı his…"
-              placeholderTextColor={c.dim}
-              multiline
-              maxLength={500}
-              textAlignVertical="top"
-            />
-            <Text style={styles.charCount}>{note.length}/500</Text>
+              <RatingShareCard movie={movie} rating={shareDraft.rating} note={shareDraft.note} />
 
-            {!!error && <Text style={styles.error}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{error}</Text>}
 
-            <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.86}>
-              {saving ? <ActivityIndicator size="small" color="#14121a" /> : <>
-                <Check size={16} color="#14121a" strokeWidth={2.6} />
-                <Text style={styles.saveText}>{entry ? "Günlüğü Güncelle" : "İzledim Olarak Kaydet"}</Text>
-              </>}
-            </TouchableOpacity>
-
-            {!!entry && (
-              <TouchableOpacity style={styles.removeBtn} onPress={remove} disabled={removing}>
-                {removing ? <ActivityIndicator size="small" color={c.danger} /> : <>
-                  <Trash2 size={14} color={c.danger} />
-                  <Text style={styles.removeText}>İzledim kaydını kaldır</Text>
+              <TouchableOpacity style={styles.shareBtn} onPress={shareRating} disabled={sharing} activeOpacity={0.86}>
+                {sharing ? <ActivityIndicator size="small" color="#14121a" /> : <>
+                  <Share2 size={16} color="#14121a" strokeWidth={2.5} />
+                  <Text style={styles.shareBtnText}>Sosyal’de Paylaş</Text>
                 </>}
               </TouchableOpacity>
-            )}
-
-            {!!onOpenDiary && (
-              <TouchableOpacity
-                style={styles.openDiaryBtn}
-                onPress={() => { onClose?.(); onOpenDiary(); }}
-                activeOpacity={0.82}
-              >
-                <BookOpen size={14} color={c.text} />
-                <Text style={styles.openDiaryText}>Tüm Pellix Diary’mi Gör</Text>
-                <ChevronRight size={14} color={c.dim} />
+              <TouchableOpacity style={styles.skipBtn} onPress={onClose} disabled={sharing}>
+                <Text style={styles.skipText}>Şimdilik değil</Text>
               </TouchableOpacity>
-            )}
-          </ScrollView>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.cardContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+            >
+              <View style={styles.header}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.eyebrow}>PELLIX DIARY</Text>
+                  <Text style={styles.title} numberOfLines={1}>{movie?.title || "İzlediğin içerik"}</Text>
+                  <View style={styles.dateRow}>
+                    <CalendarDays size={11} color={c.dim} />
+                    <Text style={styles.dateText}>
+                      {entry?.watchedAt
+                        ? new Date(entry.watchedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
+                        : "Bugün izlendi olarak kaydedilecek"}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+                  <X size={17} color={c.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.label}>PUANIN</Text>
+              <Text style={styles.helper}>İstersen boş bırakabilirsin. Pellix puanın 10 üzerinden.</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ratingRow} keyboardShouldPersistTaps="handled">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.ratingChip, rating === value && styles.ratingChipActive]}
+                    onPress={() => setRating((current) => current === value ? null : value)}
+                  >
+                    <Star size={11} color={rating === value ? "#14121a" : c.accent} fill={rating === value ? "#14121a" : "none"} />
+                    <Text style={[styles.ratingText, rating === value && styles.ratingTextActive]}>{value}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.label}>KISA NOT</Text>
+              <TextInput
+                style={styles.noteInput}
+                value={note}
+                onChangeText={(text) => setNote(text.slice(0, 500))}
+                placeholder="Finali, oyunculukları, sende bıraktığı his…"
+                placeholderTextColor={c.dim}
+                multiline
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <Text style={styles.charCount}>{note.length}/500</Text>
+
+              {!!error && <Text style={styles.error}>{error}</Text>}
+
+              <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.86}>
+                {saving ? <ActivityIndicator size="small" color="#14121a" /> : <>
+                  <Check size={16} color="#14121a" strokeWidth={2.6} />
+                  <Text style={styles.saveText}>{entry ? "Günlüğü Güncelle" : "İzledim Olarak Kaydet"}</Text>
+                </>}
+              </TouchableOpacity>
+
+              {!!entry && (
+                <TouchableOpacity style={styles.removeBtn} onPress={remove} disabled={removing}>
+                  {removing ? <ActivityIndicator size="small" color={c.danger} /> : <>
+                    <Trash2 size={14} color={c.danger} />
+                    <Text style={styles.removeText}>İzledim kaydını kaldır</Text>
+                  </>}
+                </TouchableOpacity>
+              )}
+
+              {!!onOpenDiary && (
+                <TouchableOpacity
+                  style={styles.openDiaryBtn}
+                  onPress={() => { onClose?.(); onOpenDiary(); }}
+                  activeOpacity={0.82}
+                >
+                  <BookOpen size={14} color={c.text} />
+                  <Text style={styles.openDiaryText}>Tüm Pellix Diary’mi Gör</Text>
+                  <ChevronRight size={14} color={c.dim} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -181,6 +258,8 @@ function makeStyles(c, insets) {
     header: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
     eyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 1 },
     title: { color: c.text, fontSize: 20, fontWeight: "900", marginTop: 3 },
+    shareTitle: { color: c.text, fontSize: 19, fontWeight: "900", marginTop: 3 },
+    shareSubtitle: { color: c.dim, fontSize: 10.5, marginTop: 4 },
     dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
     dateText: { color: c.dim, fontSize: 10.5 },
     closeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
@@ -196,6 +275,10 @@ function makeStyles(c, insets) {
     error: { color: c.danger, fontSize: 11, marginTop: 8, textAlign: "center" },
     saveBtn: { minHeight: 46, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     saveText: { color: "#14121a", fontSize: 12.5, fontWeight: "900" },
+    shareBtn: { minHeight: 48, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    shareBtnText: { color: "#14121a", fontSize: 12.5, fontWeight: "900" },
+    skipBtn: { minHeight: 40, marginTop: 3, alignItems: "center", justifyContent: "center" },
+    skipText: { color: c.dim, fontSize: 11.5, fontWeight: "700" },
     removeBtn: { marginTop: 8, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
     removeText: { color: c.danger, fontSize: 11.5, fontWeight: "700" },
     openDiaryBtn: { minHeight: 42, marginTop: 5, paddingHorizontal: 11, borderRadius: 12, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", gap: 7 },
