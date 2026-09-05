@@ -17,13 +17,24 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview",
+      "environment": "production",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_BASE": "https://pellix-api-staging.onrender.com",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_onoNWVFZmxVZzlZSlBBWatYEfXn"
       },
       "android": {
         "buildType": "apk"
+      },
+      "channel": "preview"
+    },
+    "preview-ios-testflight": {
+      "distribution": "store",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://pellix-api-staging.onrender.com",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_onoNWVFZmxVZzlZSlBBWatYEfXn"
       },
       "channel": "preview"
     },
