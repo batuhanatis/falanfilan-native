@@ -1,0 +1,145 @@
+name: Social Engagement UI Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/social-engagement-ui-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current app branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Patch social layout and engagement
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"missing snippet: {label}")
+              return text.replace(old, new, 1)
+
+          # ActivityScreen: keep MatchParty/TasteMate directly under stories, but remove the
+          # redundant feed heading and make the daily prompt feel like content, not a promo.
+          p = Path('src/screens/ActivityScreen.js')
+          s = p.read_text()
+          s = replace_once(s,
+              'import { Flame, Heart, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";',
+              'import { Flame, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";',
+              'activity icon import')
+          s = replace_once(s, '''\n      <View style={styles.feedTitleRow}>\n        <View>\n          <Text style={styles.feedEyebrow}>SOSYAL AKIŞ</Text>\n          <Text style={styles.feedTitle}>Arkadaşların ne konuşuyor?</Text>\n        </View>\n        <Heart size={18} color={c.accent2} />\n      </View>\n''', '\n', 'remove redundant feed heading')
+          s = replace_once(s,
+              'topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 18 },',
+              'topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 10 },',
+              'shortcut spacing')
+          s = replace_once(s,
+              'dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginTop: 5, marginBottom: 14 },',
+              'dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(249,115,22,0.055)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.28)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },',
+              'daily card visual')
+          s = replace_once(s,
+              'dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },',
+              'dailyIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(249,115,22,0.10)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.24)", alignItems: "center", justifyContent: "center" },',
+              'daily icon visual')
+          p.write_text(s)
+
+          # Auto activities: editorial rows instead of another rounded box in the card stack.
+          p = Path('src/components/SocialActivityGroup.js')
+          s = p.read_text()
+          old = '''    group: {\n      backgroundColor: c.surface,\n      borderWidth: 1,\n      borderColor: c.border,\n      borderRadius: 14,\n      marginBottom: 12,\n      overflow: "hidden",\n    },\n    row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingVertical: 12 },\n    rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },'''
+          new = '''    group: {\n      marginBottom: 10,\n      borderTopWidth: StyleSheet.hairlineWidth,\n      borderBottomWidth: StyleSheet.hairlineWidth,\n      borderColor: c.border,\n    },\n    row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4, paddingVertical: 11 },\n    rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },'''
+          s = replace_once(s, old, new, 'activity group editorial style')
+          p.write_text(s)
+
+          # SocialFeedCard: opinion voting, one-tap Diary rating on rating-share cards,
+          # and a cleaner existing poll (This-or-That) presentation.
+          p = Path('src/components/SocialFeedCard.js')
+          s = p.read_text()
+          s = replace_once(s,
+              'import { Alert, ActivityIndicator, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";',
+              'import { Alert, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";',
+              'feed imports')
+          s = replace_once(s,
+              'import { api } from "../api/client";\n',
+              'import { api } from "../api/client";\nimport { diaryApi } from "../api/diary";\n',
+              'diary api import')
+          s = replace_once(s,
+              '  const [deleting, setDeleting] = useState(false);\n  const [removed, setRemoved] = useState(false);',
+              '  const [deleting, setDeleting] = useState(false);\n  const [removed, setRemoved] = useState(false);\n  const [viewerDiaryEntry, setViewerDiaryEntry] = useState(null);\n  const [viewerDiaryLoaded, setViewerDiaryLoaded] = useState(false);\n  const [ratingSaving, setRatingSaving] = useState(false);',
+              'diary states')
+          s = replace_once(s,
+              '  const user = state.user || {};\n  const post = state.post;\n',
+              '''  const user = state.user || {};\n  const post = state.post;\n  const ratingMovie = post?.type === "card" && post?.cardPayload?.kind === "diary_rating"\n    ? post.cardPayload.movie\n    : null;\n\n  useEffect(() => {\n    if (!ratingMovie?.id) {\n      setViewerDiaryEntry(null);\n      setViewerDiaryLoaded(false);\n      return;\n    }\n    let active = true;\n    setViewerDiaryLoaded(false);\n    diaryApi.entry(auth.token, ratingMovie.id)\n      .then((data) => {\n        if (!active) return;\n        setViewerDiaryEntry(data?.entry || null);\n        setViewerDiaryLoaded(true);\n      })\n      .catch((error) => {\n        if (!active) return;\n        if (error?.status === 404) {\n          setViewerDiaryEntry(null);\n          setViewerDiaryLoaded(true);\n        }\n      });\n    return () => { active = false; };\n  }, [auth.token, ratingMovie?.id]);\n''',
+              'rating movie load')
+          s = replace_once(s,
+              '''  function openMovie(movie) {\n    if (movie) navigation.navigate("Detail", { movie });\n  }\n\n  async function vote(movieId) {''',
+              '''  function openMovie(movie) {\n    if (movie) navigation.navigate("Detail", { movie });\n  }\n\n  async function rateFromFeed(value) {\n    if (!ratingMovie?.id || !viewerDiaryLoaded || ratingSaving) return;\n    setRatingSaving(true);\n    try {\n      const result = await diaryApi.save(auth.token, ratingMovie.id, {\n        watchedAt: viewerDiaryEntry?.watchedAt || new Date().toISOString(),\n        rating: value,\n        note: viewerDiaryEntry?.note || null,\n      });\n      setViewerDiaryEntry(result?.entry || { ...(viewerDiaryEntry || {}), rating: value });\n    } catch {}\n    setRatingSaving(false);\n  }\n\n  async function markWatchedFromFeed() {\n    if (!ratingMovie?.id || !viewerDiaryLoaded || ratingSaving || viewerDiaryEntry) return;\n    setRatingSaving(true);\n    try {\n      const result = await diaryApi.save(auth.token, ratingMovie.id, {\n        watchedAt: new Date().toISOString(),\n        rating: null,\n        note: null,\n      });\n      setViewerDiaryEntry(result?.entry || { watchedAt: new Date().toISOString(), rating: null, note: null });\n    } catch {}\n    setRatingSaving(false);\n  }\n\n  async function vote(movieId) {''',
+              'feed diary actions')
+          s = replace_once(s,
+              '  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");',
+              '  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");\n  const isOpinionPost = state.kind === "post" && post?.type === "thought" && !!body && !isDailyQuestionPost;\n  const isDiaryRatingPost = !!ratingMovie?.id;',
+              'post type flags')
+          s = replace_once(s,
+              '      {!isHeroMovie && !!body && <Text style={styles.body}>{body}</Text>}',
+              '      {!isHeroMovie && post?.type !== "poll" && !!body && <Text style={styles.body}>{body}</Text>}',
+              'avoid poll body duplicate')
+          old_poll = '''      ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (\n        <>\n          {!!body && <Text style={styles.body}>{body}</Text>}\n          <View style={styles.pollVsRow}>\n            {post.pollMovies.map((movie, index) => {\n              const count = Number(post.pollCounts?.[movie.id] || 0);\n              const total = post.pollMovies.reduce((sum, m) => sum + Number(post.pollCounts?.[m.id] || 0), 0);\n              const pct = total ? Math.round((count / total) * 100) : 0;\n              const selected = Number(post.myVote) === Number(movie.id);\n              return (\n                <View key={movie.id} style={[styles.pollVsOpt, index === 0 && styles.pollVsOptBorder, selected && styles.pollVsOptSelected]}>\n                  <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => openMovie(movie)} activeOpacity={0.9}>\n                    {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.pollVsPoster} /> : <View style={[styles.pollVsPoster, { backgroundColor: c.surface2 }]} />}\n                    <LinearGradient colors={["transparent", "rgba(8,6,12,0.94)"]} style={styles.pollVsShade} />\n                  </TouchableOpacity>\n                  <View style={styles.pollVsCopy} pointerEvents="box-none">\n                    <Text style={styles.pollVsTitle} numberOfLines={1}>{movie.title}</Text>\n                    {(post.myVote || total > 0) && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}% · {count} oy</Text>}\n                    <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>\n                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Oy Verdin" : "Oy Ver"}</Text>\n                    </TouchableOpacity>\n                  </View>\n                </View>\n              );\n            })}\n            <View style={styles.pollVsDivider}><Text style={styles.pollVsDividerText}>VS</Text></View>\n          </View>\n        </>'''
+          new_poll = '''      ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (\n        <>\n          <View style={styles.pollHeading}>\n            <Text style={styles.pollEyebrow}>BİRİNİ SEÇ</Text>\n            {!!body && <Text style={styles.pollQuestion}>{body}</Text>}\n          </View>\n          <View style={styles.pollVsRow}>\n            {post.pollMovies.map((movie, index) => {\n              const count = Number(post.pollCounts?.[movie.id] || 0);\n              const total = post.pollMovies.reduce((sum, m) => sum + Number(post.pollCounts?.[m.id] || 0), 0);\n              const pct = total ? Math.round((count / total) * 100) : 0;\n              const selected = Number(post.myVote) === Number(movie.id);\n              return (\n                <View key={movie.id} style={[styles.pollVsOpt, index === 0 && styles.pollVsOptBorder, selected && styles.pollVsOptSelected]}>\n                  <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => openMovie(movie)} activeOpacity={0.9}>\n                    {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.pollVsPoster} /> : <View style={[styles.pollVsPoster, { backgroundColor: c.surface2 }]} />}\n                    <LinearGradient colors={["transparent", "rgba(8,6,12,0.95)"]} style={styles.pollVsShade} />\n                  </TouchableOpacity>\n                  <View style={styles.pollVsCopy} pointerEvents="box-none">\n                    {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}%</Text>}\n                    <Text style={styles.pollVsTitle} numberOfLines={2}>{movie.title}</Text>\n                    {!!post.myVote && <Text style={styles.pollVsVotes}>{count} oy</Text>}\n                    <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>\n                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Seçtin" : "Seç"}</Text>\n                    </TouchableOpacity>\n                  </View>\n                </View>\n              );\n            })}\n            <View style={styles.pollVsDivider}><Text style={styles.pollVsDividerText}>VS</Text></View>\n          </View>\n        </>'''
+          s = replace_once(s, old_poll, new_poll, 'poll redesign')
+
+          marker = '''      {!!reactionTargetId && (\n        <View style={styles.actions}>'''
+          insert = '''      {isDiaryRatingPost && (\n        <View style={styles.ratingEngagement}>\n          <View style={styles.ratingEngagementTop}>\n            <View>\n              <Text style={styles.ratingPrompt}>Sen kaç verirsin?</Text>\n              <Text style={styles.ratingHint}>Puanın aynı anda Diary’ne kaydolur.</Text>\n            </View>\n            <TouchableOpacity\n              style={[styles.watchedMini, !!viewerDiaryEntry && styles.watchedMiniDone]}\n              onPress={markWatchedFromFeed}\n              disabled={!viewerDiaryLoaded || ratingSaving || !!viewerDiaryEntry}\n            >\n              {ratingSaving && !viewerDiaryEntry ? <ActivityIndicator size="small" color={c.accent} /> : (\n                <Text style={[styles.watchedMiniText, !!viewerDiaryEntry && styles.watchedMiniTextDone]}>\n                  {viewerDiaryEntry ? "✓ İzledin" : "Ben de izledim"}\n                </Text>\n              )}\n            </TouchableOpacity>\n          </View>\n          {viewerDiaryLoaded ? (\n            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.inlineRatingRow}>\n              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {\n                const selected = Number(viewerDiaryEntry?.rating) === value;\n                return (\n                  <TouchableOpacity\n                    key={value}\n                    style={[styles.inlineRatingChip, selected && styles.inlineRatingChipActive]}\n                    onPress={() => rateFromFeed(value)}\n                    disabled={ratingSaving}\n                  >\n                    <Text style={[styles.inlineRatingText, selected && styles.inlineRatingTextActive]}>{value}</Text>\n                  </TouchableOpacity>\n                );\n              })}\n            </ScrollView>\n          ) : (\n            <View style={styles.inlineRatingLoading}><ActivityIndicator size="small" color={c.dim} /></View>\n          )}\n        </View>\n      )}\n\n      {isOpinionPost && !!reactionTargetId && (\n        <View style={styles.opinionPrompt}>\n          <Text style={styles.opinionQuestion}>Katılıyor musun?</Text>\n          <View style={styles.opinionChoices}>\n            <TouchableOpacity\n              style={[styles.opinionChoice, myReaction === "agree" && styles.opinionChoiceActive]}\n              onPress={() => react("agree")}\n            >\n              <Text style={styles.opinionChoiceEmoji}>🤝</Text>\n              <Text style={[styles.opinionChoiceText, myReaction === "agree" && styles.opinionChoiceTextActive]}>Katılıyorum</Text>\n              {Number(reactionCounts?.agree || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.agree}</Text>}\n            </TouchableOpacity>\n            <TouchableOpacity\n              style={[styles.opinionChoice, myReaction === "nope" && styles.opinionChoiceActive]}\n              onPress={() => react("nope")}\n            >\n              <Text style={styles.opinionChoiceEmoji}>👎</Text>\n              <Text style={[styles.opinionChoiceText, myReaction === "nope" && styles.opinionChoiceTextActive]}>Katılmıyorum</Text>\n              {Number(reactionCounts?.nope || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.nope}</Text>}\n            </TouchableOpacity>\n          </View>\n        </View>\n      )}\n\n      {!!reactionTargetId && (\n        <View style={styles.actions}>'''
+          s = replace_once(s, marker, insert, 'engagement blocks')
+
+          s = replace_once(s,
+              '    card: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 14, marginBottom: 12, overflow: "hidden" },',
+              '    card: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, borderRadius: 16, padding: 14, marginBottom: 12, overflow: "hidden" },',
+              'subtle feed card border')
+          s = replace_once(s,
+              '    // ---- anket: "versus" — iki poster tam boy yan yana, ayrı Oy Ver butonu ----\n    pollVsRow: { flexDirection: "row", height: 220, marginTop: 12, borderRadius: 16, overflow: "hidden", position: "relative" },',
+              '    // ---- anket: mevcut Taste Post anketi, daha net bir "birini seç" kartı ----\n    pollHeading: { marginTop: 12, marginBottom: 8 },\n    pollEyebrow: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1 },\n    pollQuestion: { color: c.text, fontSize: 15, lineHeight: 20, fontWeight: "900", marginTop: 4 },\n    pollVsRow: { flexDirection: "row", height: 238, borderRadius: 16, overflow: "hidden", position: "relative" },',
+              'poll heading styles')
+          s = replace_once(s,
+              '    pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 12.5 },\n    pollVsPct: { color: "rgba(255,255,255,0.82)", fontWeight: "800", fontSize: 10, marginTop: 3 },',
+              '    pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 13, lineHeight: 16 },\n    pollVsPct: { color: "rgba(255,255,255,0.88)", fontWeight: "950", fontSize: 20, lineHeight: 22, marginBottom: 3 },\n    pollVsVotes: { color: "rgba(255,255,255,0.58)", fontWeight: "700", fontSize: 9, marginTop: 3 },',
+              'poll result styles')
+          style_marker = '    // ---- tepki/yorum/paylaş + yorum önizlemesi ----\n'
+          style_insert = '''    // ---- sosyal mikro-etkileşimler ----\n    ratingEngagement: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },\n    ratingEngagementTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },\n    ratingPrompt: { color: c.text, fontSize: 12.5, fontWeight: "900" },\n    ratingHint: { color: c.dim, fontSize: 9.5, marginTop: 2 },\n    watchedMini: { minHeight: 30, paddingHorizontal: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },\n    watchedMiniDone: { backgroundColor: "rgba(111,196,179,0.08)", borderColor: "rgba(111,196,179,0.28)" },\n    watchedMiniText: { color: c.text, fontSize: 9.5, fontWeight: "800" },\n    watchedMiniTextDone: { color: c.accent2 || c.accent },\n    inlineRatingRow: { gap: 6, paddingTop: 10, paddingBottom: 2 },\n    inlineRatingChip: { width: 32, height: 32, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },\n    inlineRatingChipActive: { backgroundColor: c.accent, borderColor: c.accent },\n    inlineRatingText: { color: c.text, fontSize: 10.5, fontWeight: "900" },\n    inlineRatingTextActive: { color: c.bg },\n    inlineRatingLoading: { height: 42, alignItems: "center", justifyContent: "center" },\n    opinionPrompt: { marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },\n    opinionQuestion: { color: c.dim, fontSize: 9.5, fontWeight: "800", marginBottom: 8 },\n    opinionChoices: { flexDirection: "row", gap: 8 },\n    opinionChoice: { flex: 1, minHeight: 36, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 8 },\n    opinionChoiceActive: { borderColor: c.accent, backgroundColor: "rgba(240,180,41,0.08)" },\n    opinionChoiceEmoji: { fontSize: 13 },\n    opinionChoiceText: { color: c.text, fontSize: 9.5, fontWeight: "800" },\n    opinionChoiceTextActive: { color: c.accent },\n    opinionCount: { color: c.dim, fontSize: 9, fontWeight: "800" },\n\n    // ---- tepki/yorum/paylaş + yorum önizlemesi ----\n'''
+          s = replace_once(s, style_marker, style_insert, 'micro interaction styles')
+          p.write_text(s)
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JS bundles
+        env:
+          EXPO_PUBLIC_API_BASE: https://api.pellix.app
+        run: |
+          npx expo export --platform ios --output-dir /tmp/pellix-social-ios
+          npx expo export --platform android --output-dir /tmp/pellix-social-android
+
+      - name: Commit app changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/ActivityScreen.js src/components/SocialActivityGroup.js src/components/SocialFeedCard.js
+          git commit -m "Make Social feed more interactive and editorial"
+          git push origin HEAD:ux-retention-v1
