@@ -1,9 +1,8 @@
 // Web uygulamasıyla (falanfilan-app) TAMAMEN AYNI backend'e konuşur — sunucu tarafında
 // hiçbir değişiklik gerekmiyor. Sadece istekleri React Native'den atıyoruz.
-// ÖNEMLİ: Bu adres değiştirilmeden önce https://api.pellix.app'in gerçekten çalıştığı
-// (DNS + Render custom domain kurulumu tamamlanmış) tarayıcıda doğrulanmalı — aksi halde
-// uygulamanın TÜM ağ istekleri henüz hazır olmayan bir adrese gider.
-export const API_BASE = "https://api.pellix.app";
+// EXPO_PUBLIC_API_BASE preview/staging build ve update'lerinde staging API'ye yönlendirmek için
+// kullanılır. Tanımlı değilse production davranışı aynen korunur.
+export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "https://api.pellix.app").replace(/\/+$/, "");
 export const WS_BASE = API_BASE.replace(/^http/, "ws") + "/ws";
 
 const REQUEST_TIMEOUT_MS = 20000;
