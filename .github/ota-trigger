@@ -8,3 +8,4 @@
 2026-09-05T08:28:00.000Z Pellix splash v2 — OTA signature film-strip intro and preload crossfade.
 2026-09-05T20:00:00.000+03:00 Recommendation modal scroll fix + compact Profile hierarchy.
 2026-09-05T20:24:00.000+03:00 Recommendation modal touch-interception fix + forced constrained scrolling.
+2026-09-05T20:53:00.000+03:00 RateTaste excludes already-rated titles and rotates in fresh candidates.
