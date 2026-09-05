@@ -21,147 +21,11 @@ jobs:
           ref: ux-retention-v1
           fetch-depth: 1
 
-      - name: Wire Poster Puzzle and refreshed share cards
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+      - name: Apply share refresh patch
+        run: python scripts/patch-share-refresh.py
 
-          def once(text, old, new, label):
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, got {count}')
-              return text.replace(old, new, 1)
-
-          # Poster Puzzle: use the shared card modal so the same result can go to Pellix social,
-          # be saved as an image, or be shared externally. The payload intentionally contains no
-          # answer/title/poster so the daily game cannot be spoiled in the feed.
-          p = Path('src/screens/DailyPosterPuzzleScreen.js')
-          text = p.read_text(encoding='utf-8')
-          text = once(
-              text,
-              'import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Share, ScrollView } from "react-native";',
-              'import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";',
-              'remove native Share import',
-          )
-          text = once(
-              text,
-              'import ScreenHeader from "../components/ScreenHeader";',
-              'import ScreenHeader from "../components/ScreenHeader";\nimport ShareCardModal from "../components/ShareCardModal";\nimport PosterPuzzleShareCard from "../components/PosterPuzzleShareCard";',
-              'puzzle share imports',
-          )
-          text = once(
-              text,
-              '  const [result, setResult] = useState(null);',
-              '  const [result, setResult] = useState(null);\n  const [showShareCard, setShowShareCard] = useState(false);',
-              'puzzle share state',
-          )
-          old_share = '''  async function shareResult() {
-            if (!result || !puzzle) return;
-            const squares = resultSquares(result);
-            const message = `Pellix Poster Puzzle · ${localDateKey()}\\n${squares}\\n${result.correct ? `Filmi ${result.wrongCount + 1}. denemede buldum 🎬` : "Bugün poster beni yendi 😅"}\\nSen kaçta bulursun?`;
-            try { await Share.share({ message }); } catch {}
-          }'''
-          new_share = '''  function shareResult() {
-            if (!result || !puzzle) return;
-            setShowShareCard(true);
-          }'''
-          text = once(text, old_share, new_share, 'puzzle share function')
-
-          closing = '''      )}
-            </View>
-          );
-        }'''
-          if closing not in text:
-              # Match the component's final root close regardless of spacing before makeStyles.
-              closing = '''      )}
-    </View>
-  );
-}'''
-          modal = '''      )}
-
-      {showShareCard && result && puzzle && (
-        <ShareCardModal
-          onClose={() => setShowShareCard(false)}
-          shareMessage={`Pellix Poster Puzzle · ${localDateKey()}\\n${resultSquares(result)}\\n${result.correct ? `Posteri ${Number(result.wrongCount || 0) + 1}. denemede bildim 🎬` : "Bugün poster beni yendi 😅"}\\nCevabı göstermiyorum. Sen kaçta bulursun?`}
-          socialCard={{
-            kind: "poster_puzzle",
-            date: localDateKey(),
-            correct: !!result.correct,
-            wrongCount: Number(result.wrongCount || 0),
-            attempts: result.correct ? Number(result.wrongCount || 0) + 1 : MAX_WRONG,
-            squares: resultSquares(result),
-          }}
-          previewHeight={458}
-        >
-          <PosterPuzzleShareCard
-            date={localDateKey()}
-            correct={!!result.correct}
-            wrongCount={Number(result.wrongCount || 0)}
-            squares={resultSquares(result)}
-          />
-        </ShareCardModal>
-      )}
-    </View>
-  );
-}'''
-          if closing != '''      )}
-    </View>
-  );
-}''':
-              raise SystemExit('unexpected DailyPosterPuzzle closing layout')
-          text = once(text, closing, modal, 'puzzle share modal')
-          p.write_text(text, encoding='utf-8')
-
-          # Profile: share cards should reflect the new Taste DNA identity shown on the live
-          # profile instead of being a stale counters-only snapshot.
-          p = Path('src/screens/ProfileScreen.js')
-          text = p.read_text(encoding='utf-8')
-          old_social = '''            favoriteShow: profile.favoriteShow ? { id: profile.favoriteShow.id, title: profile.favoriteShow.title, poster: profile.favoriteShow.poster } : null,
-            isPremium: !!premiumStatus?.isPremium,
-          }}'''
-          new_social = '''            favoriteShow: profile.favoriteShow ? { id: profile.favoriteShow.id, title: profile.favoriteShow.title, poster: profile.favoriteShow.poster } : null,
-            isPremium: !!premiumStatus?.isPremium,
-            tasteDNA: {
-              genres: tasteDNA.genres,
-              filmPercent: tasteDNA.filmPercent,
-              showPercent: tasteDNA.showPercent,
-              signalCount: tasteDNA.signalCount,
-            },
-            streak: questStreak,
-          }}
-          previewHeight={555}'''
-          text = once(text, old_social, new_social, 'profile social payload')
-
-          bg_prop = '                    backgroundUrl={profile.profileBackgroundUrl}\n'
-          count = text.count(bg_prop)
-          if count != 2:
-              raise SystemExit(f'premium ProfileShareCard background props: expected 2, got {count}')
-          text = text.replace(
-              bg_prop,
-              bg_prop + '                    tasteDNA={tasteDNA}\n                    streak={questStreak}\n',
-          )
-          normal_bg = '            backgroundUrl={profile.profileBackgroundUrl}\n'
-          count = text.count(normal_bg)
-          if count != 1:
-              raise SystemExit(f'normal ProfileShareCard background prop: expected 1, got {count}')
-          text = text.replace(
-              normal_bg,
-              normal_bg + '            tasteDNA={tasteDNA}\n            streak={questStreak}\n',
-              1,
-          )
-          p.write_text(text, encoding='utf-8')
-
-          # Blend: the new exported card is taller/more cinematic; tell ShareCardModal its real
-          # preview height so it scales safely on smaller Android/iPhone screens without changing
-          # the PNG export dimensions.
-          p = Path('src/screens/BlendScreen.js')
-          text = p.read_text(encoding='utf-8')
-          marker = '            socialCard={{\n              kind: "blend",'
-          replacement = '            previewHeight={528}\n            socialCard={{\n              kind: "blend",'
-          text = once(text, marker, replacement, 'blend preview height')
-          p.write_text(text, encoding='utf-8')
-          PY
+      - name: Remove temporary patch script
+        run: rm scripts/patch-share-refresh.py
 
       - name: Install dependencies
         run: npm ci
@@ -170,11 +34,10 @@ jobs:
         run: npx expo export --platform android --output-dir /tmp/pellix-share-export
 
       - name: Commit changes to UX branch
-        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/screens/DailyPosterPuzzleScreen.js src/screens/ProfileScreen.js src/screens/BlendScreen.js
+          git add -A
           git diff --cached --check
-          git commit -m "Add social Poster Puzzle sharing and refresh share data"
+          git commit -m "Add social Poster Puzzle sharing and refresh share cards"
           git push origin HEAD:ux-retention-v1
