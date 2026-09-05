@@ -1,0 +1,122 @@
+name: Move social shortcuts under stories
+
+on:
+  push:
+    branches: [ux-retention-v1]
+    paths:
+      - '.github/workflows/move-social-shortcuts-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          fetch-depth: 0
+
+      - name: Move MatchParty and TasteMate under stories
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/ActivityScreen.js')
+          s = p.read_text()
+
+          old_comment = '''  // Sosyal ekran artık feature promosyonlarıyla başlamıyor. Önce story'ler ve gerçek arkadaş
+  // içeriği geliyor; günlük soru 2. içerikten sonra, MatchParty/TasteMate kısayolları biraz daha
+  // aşağıda feed'in doğal parçaları olarak görünüyor.
+'''
+          new_comment = '''  // Günün sorusu feed'in doğal akışında kalıyor. MatchParty ve TasteMate ise keşfedilebilirliği
+  // artırmak için story şeridinin hemen altında, sabit üst bölümde gösteriliyor.
+'''
+          if old_comment not in s:
+              raise SystemExit('feed comment block not found')
+          s = s.replace(old_comment, new_comment, 1)
+
+          old_feed = '''    result.splice(Math.min(2, result.length), 0, { kind: "daily-question", id: "daily-question", feedKey: "daily-question" });
+    result.splice(Math.min(6, result.length), 0, { kind: "feature-shortcuts", id: "feature-shortcuts", feedKey: "feature-shortcuts" });
+    return result;
+'''
+          new_feed = '''    result.splice(Math.min(2, result.length), 0, { kind: "daily-question", id: "daily-question", feedKey: "daily-question" });
+    return result;
+'''
+          if old_feed not in s:
+              raise SystemExit('feed shortcut insertion not found')
+          s = s.replace(old_feed, new_feed, 1)
+
+          old_header = '''      <View style={styles.storySection}>
+        <StoryBar
+          myAvatar={myAvatar}
+          myStories={stories.myStories}
+          friends={stories.friends}
+          navigation={navigation}
+          onChanged={refreshStories}
+        />
+      </View>
+
+      <View style={styles.feedTitleRow}>
+'''
+          new_header = '''      <View style={styles.storySection}>
+        <StoryBar
+          myAvatar={myAvatar}
+          myStories={stories.myStories}
+          friends={stories.friends}
+          navigation={navigation}
+          onChanged={refreshStories}
+        />
+      </View>
+
+      {renderFeatureShortcuts()}
+
+      <View style={styles.feedTitleRow}>
+'''
+          if old_header not in s:
+              raise SystemExit('header story block not found')
+          s = s.replace(old_header, new_header, 1)
+
+          old_empty = '''            <View>
+              {renderDailyQuestionCard()}
+              {renderFeatureShortcuts()}
+              <View style={styles.emptyCard}>
+'''
+          new_empty = '''            <View>
+              {renderDailyQuestionCard()}
+              <View style={styles.emptyCard}>
+'''
+          if old_empty not in s:
+              raise SystemExit('empty shortcut block not found')
+          s = s.replace(old_empty, new_empty, 1)
+
+          s = s.replace('topActions: { flexDirection: "row", gap: 9, marginTop: 5, marginBottom: 16 },', 'topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 18 },', 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate iOS and Android JS bundles
+        run: |
+          npx expo export --platform ios --output-dir /tmp/pellix-ios-export
+          npx expo export --platform android --output-dir /tmp/pellix-android-export
+
+      - name: Commit social placement change
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/ActivityScreen.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Move social shortcuts below stories"
+          git push origin HEAD:ux-retention-v1
