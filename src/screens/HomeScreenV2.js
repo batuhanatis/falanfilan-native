@@ -553,6 +553,88 @@ export default function HomeScreenV2({ navigation }) {
 
   const forYouHeader = (
     <View>
+      <View style={styles.searchBlock}>
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
+            <Search size={16} color={searchFocused ? c.accent : c.dim} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Film, dizi, oyuncu veya yönetmen ara"
+              placeholderTextColor={c.dim}
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+            />
+            {!!query && (
+              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={15} color={c.dim} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity style={[styles.filterBtn, anyFilterActive && styles.filterBtnActive]} onPress={() => setShowFilters(true)}>
+            <Filter size={16} color={anyFilterActive ? c.bg : c.text} />
+            {anyFilterActive && <View style={styles.filterDot} />}
+          </TouchableOpacity>
+        </View>
+
+        {!!query.trim() && (
+          <View style={styles.searchResultsCard}>
+            {searchLoading ? (
+              <ActivityIndicator color={c.accent} style={{ paddingVertical: 18 }} />
+            ) : searchResults.length === 0 ? (
+              <Text style={styles.searchEmpty}>“{query}” için sonuç bulunamadı.</Text>
+            ) : (
+              searchResults.map((item, index) => {
+                const person = item.kind === "person";
+                const image = person ? item.photo : item.poster;
+                return (
+                  <TouchableOpacity
+                    key={`${item.kind || item.type}-${item.id}-${index}`}
+                    style={styles.searchResultRow}
+                    onPress={() => selectSearchResult(item)}
+                    activeOpacity={0.78}
+                  >
+                    {image ? (
+                      <Image source={{ uri: image }} style={[styles.searchThumb, person && styles.searchPersonThumb]} />
+                    ) : (
+                      <View style={[styles.searchThumb, person && styles.searchPersonThumb, { backgroundColor: c.surface2 }]} />
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.searchResultTitle} numberOfLines={1}>{person ? item.name : item.title}</Text>
+                      <Text style={styles.searchResultMeta} numberOfLines={1}>
+                        {person ? item.roleLabel : `${item.year || ""} · ${item.type || ""}`}
+                      </Text>
+                    </View>
+                    {!person && (
+                      <View style={styles.searchRating}>
+                        <Star size={10} color={c.accent} fill={c.accent} />
+                        <Text style={styles.searchRatingText}>{item.imdb}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        )}
+
+        <AIZone
+          navigation={navigation}
+          hasResults={!!describeResults}
+          onResults={handleAiResults}
+          onClear={clearAiResults}
+        />
+
+        {!!describeResults && (
+          <View style={styles.aiResultBanner}>
+            <Sparkles size={13} color="#8B5CF6" />
+            <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || "AI önerilerin"}</Text>
+            <TouchableOpacity onPress={clearAiResults}><Text style={styles.aiClear}>Temizle</Text></TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       <View style={styles.heroArea}>
         {heroSelections.length ? (
           <>
@@ -668,87 +750,6 @@ export default function HomeScreenV2({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.searchBlock}>
-          <View style={styles.searchRow}>
-            <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
-              <Search size={16} color={searchFocused ? c.accent : c.dim} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Film, dizi, oyuncu veya yönetmen ara"
-                placeholderTextColor={c.dim}
-                value={query}
-                onChangeText={setQuery}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-              />
-              {!!query && (
-                <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <X size={15} color={c.dim} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity style={[styles.filterBtn, anyFilterActive && styles.filterBtnActive]} onPress={() => setShowFilters(true)}>
-              <Filter size={16} color={anyFilterActive ? c.bg : c.text} />
-              {anyFilterActive && <View style={styles.filterDot} />}
-            </TouchableOpacity>
-          </View>
-
-          {!!query.trim() && (
-            <View style={styles.searchResultsCard}>
-              {searchLoading ? (
-                <ActivityIndicator color={c.accent} style={{ paddingVertical: 18 }} />
-              ) : searchResults.length === 0 ? (
-                <Text style={styles.searchEmpty}>“{query}” için sonuç bulunamadı.</Text>
-              ) : (
-                searchResults.map((item, index) => {
-                  const person = item.kind === "person";
-                  const image = person ? item.photo : item.poster;
-                  return (
-                    <TouchableOpacity
-                      key={`${item.kind || item.type}-${item.id}-${index}`}
-                      style={styles.searchResultRow}
-                      onPress={() => selectSearchResult(item)}
-                      activeOpacity={0.78}
-                    >
-                      {image ? (
-                        <Image source={{ uri: image }} style={[styles.searchThumb, person && styles.searchPersonThumb]} />
-                      ) : (
-                        <View style={[styles.searchThumb, person && styles.searchPersonThumb, { backgroundColor: c.surface2 }]} />
-                      )}
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.searchResultTitle} numberOfLines={1}>{person ? item.name : item.title}</Text>
-                        <Text style={styles.searchResultMeta} numberOfLines={1}>
-                          {person ? item.roleLabel : `${item.year || ""} · ${item.type || ""}`}
-                        </Text>
-                      </View>
-                      {!person && (
-                        <View style={styles.searchRating}>
-                          <Star size={10} color={c.accent} fill={c.accent} />
-                          <Text style={styles.searchRatingText}>{item.imdb}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
-          )}
-
-          <AIZone
-            navigation={navigation}
-            hasResults={!!describeResults}
-            onResults={handleAiResults}
-            onClear={clearAiResults}
-          />
-
-          {!!describeResults && (
-            <View style={styles.aiResultBanner}>
-              <Sparkles size={13} color="#8B5CF6" />
-              <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || "AI önerilerin"}</Text>
-              <TouchableOpacity onPress={clearAiResults}><Text style={styles.aiClear}>Temizle</Text></TouchableOpacity>
-            </View>
-          )}
-        </View>
 
         <PopularNowRow items={popularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
 
@@ -1016,7 +1017,7 @@ function makeStyles(c) {
     questTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 6, overflow: "hidden" },
     questFill: { height: 4, borderRadius: 999, backgroundColor: c.accent },
 
-    searchBlock: { marginTop: 20 },
+    searchBlock: { marginTop: 14, marginBottom: 10 },
     searchRow: { flexDirection: "row", gap: 8 },
     searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 12 },
     searchBoxFocused: { borderColor: c.accent },

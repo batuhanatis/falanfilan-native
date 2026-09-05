@@ -281,13 +281,15 @@ export default function ActivityScreen({ navigation }) {
 
   const header = (
     <View>
-      <StoryBar
-        myAvatar={myAvatar}
-        myStories={stories.myStories}
-        friends={stories.friends}
-        navigation={navigation}
-        onChanged={refreshStories}
-      />
+      <View style={styles.storySection}>
+        <StoryBar
+          myAvatar={myAvatar}
+          myStories={stories.myStories}
+          friends={stories.friends}
+          navigation={navigation}
+          onChanged={refreshStories}
+        />
+      </View>
 
       <View style={styles.feedTitleRow}>
         <View>
@@ -382,6 +384,7 @@ function makeStyles(c) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     content: { paddingHorizontal: 14, paddingBottom: 28 },
+    storySection: { marginTop: 12 },
     popularSection: { marginTop: 14, marginBottom: 14 },
     sectionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 10 },
     feedEyebrow: { color: c.accent, fontWeight: "900", fontSize: 9.5, letterSpacing: 0.8 },
