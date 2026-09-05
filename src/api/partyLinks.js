@@ -20,10 +20,17 @@ async function request(path, token, options = {}) {
 }
 
 export const partyLinkApi = {
-  create: (token, filters, maxUses = 6) => request("/api/matchparty/link-session", token, {
-    method: "POST",
-    body: { filters, maxUses },
-  }),
+  create: async (token, filters, maxUses = 6) => {
+    const data = await request("/api/matchparty/link-session", token, {
+      method: "POST",
+      body: { filters, maxUses },
+    });
+    // OTA uyumluluğu: mevcut native binary Android'de yalnız /u ve /blend app-link path'lerini
+    // biliyor. Yeni /party intent filter'ı eklemek yeni build gerektirirdi. Party linkini mevcut
+    // /u prefix'inin altında özel bir alt yol olarak veriyoruz; RootNavigator bunu önce yakalayıp
+    // PartyJoin'e yönlendiriyor. Böylece yeni native config gerekmiyor.
+    return { ...data, url: `https://open.pellix.app/u/party/${encodeURIComponent(data.token)}` };
+  },
   preview: (token, inviteToken) => request(`/api/matchparty/link/${encodeURIComponent(inviteToken)}`, token),
   join: (token, inviteToken) => request(`/api/matchparty/link/${encodeURIComponent(inviteToken)}/join`, token, { method: "POST" }),
 };
