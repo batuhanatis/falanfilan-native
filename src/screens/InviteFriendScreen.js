@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Share } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Copy, Share2, Users, PartyPopper, Gift, Check, ArrowRight } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
@@ -14,7 +15,8 @@ import ScreenHeader from "../components/ScreenHeader";
 export default function InviteFriendScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   const [referrals, setReferrals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ export default function InviteFriendScreen({ navigation }) {
   async function shareInvite() {
     try {
       await Share.share({ message: inviteMessage });
-    } catch { /* kullanıcı paylaşımı iptal etmiş olabilir */ }
+    } catch {}
   }
 
   if (loading) {
@@ -60,7 +62,7 @@ export default function InviteFriendScreen({ navigation }) {
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <View style={styles.heroIconWrap}><PartyPopper size={25} color="#fff" /></View>
           <Text style={styles.heroEyebrow}>PELLIX'İ BİRLİKTE KULLANIN</Text>
@@ -151,15 +153,16 @@ export default function InviteFriendScreen({ navigation }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     center: { alignItems: "center", justifyContent: "center" },
+    content: { padding: 20, paddingBottom: Math.max(34, insets.bottom + 24) },
     heroCard: { borderRadius: 22, padding: 22, alignItems: "center", overflow: "hidden" },
     heroIconWrap: { width: 50, height: 50, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
     heroEyebrow: { fontSize: 9, fontWeight: "900", color: "rgba(255,255,255,0.72)", letterSpacing: 1, marginTop: 12 },
     heroTitle: { fontSize: 18, fontWeight: "900", color: "#fff", marginTop: 5, textAlign: "center", lineHeight: 24 },
     heroSubtitle: { fontSize: 11.5, color: "rgba(255,255,255,0.84)", marginTop: 7, textAlign: "center", lineHeight: 17, maxWidth: 280 },
-    rewardPillRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+    rewardPillRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 14 },
     rewardPill: {
       flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.18)",
       borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
