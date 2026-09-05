@@ -41,4 +41,4 @@ jobs:
           git commit -m "Separate fast taste signals from watched ratings"
           git push origin HEAD:ux-retention-v1
 
-# retry after aligning Discover copy
+# retry after aligning Detail copy
