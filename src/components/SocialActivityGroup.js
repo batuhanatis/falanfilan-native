@@ -117,14 +117,12 @@ export default function SocialActivityGroup({ items, navigation }) {
 function makeStyles(c) {
   return StyleSheet.create({
     group: {
-      backgroundColor: c.surface,
-      borderWidth: 1,
+      marginBottom: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
-      borderRadius: 14,
-      marginBottom: 12,
-      overflow: "hidden",
     },
-    row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingVertical: 12 },
+    row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 4, paddingVertical: 11 },
     rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
     avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2 },
     text: { flex: 1, fontSize: 12, color: c.text, lineHeight: 16 },

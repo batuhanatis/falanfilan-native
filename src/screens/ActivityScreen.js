@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame, Heart, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
+import { Flame, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -292,13 +292,6 @@ export default function ActivityScreen({ navigation }) {
 
       {renderFeatureShortcuts()}
 
-      <View style={styles.feedTitleRow}>
-        <View>
-          <Text style={styles.feedEyebrow}>SOSYAL AKIŞ</Text>
-          <Text style={styles.feedTitle}>Arkadaşların ne konuşuyor?</Text>
-        </View>
-        <Heart size={18} color={c.accent2} />
-      </View>
     </View>
   );
 
@@ -395,15 +388,15 @@ function makeStyles(c) {
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
-    topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 18 },
+    topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 10 },
     topActionTouch: { flex: 1, borderRadius: 16, shadowColor: "#8B5CF6", shadowOpacity: 0.2, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
     topActionCard: { height: 68, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9, overflow: "hidden" },
     topActionIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" },
     topActionEyebrow: { color: "rgba(255,255,255,0.7)", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.8 },
     topActionTitle: { color: "#fff", fontSize: 13, fontWeight: "900", marginTop: 2 },
     topActionSparkle: { position: "absolute", top: 8, right: 9 },
-    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginTop: 5, marginBottom: 14 },
-    dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(249,115,22,0.055)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.28)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
+    dailyIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(249,115,22,0.10)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.24)", alignItems: "center", justifyContent: "center" },
     dailyEyebrow: { color: "#F97316", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
     dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "800", lineHeight: 18, marginTop: 3 },
     dailyCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
