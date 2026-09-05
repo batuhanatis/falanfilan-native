@@ -9,19 +9,16 @@ import { hapticSuccess } from "../utils/haptics";
 import { emitLocalEvent } from "../utils/localEvents";
 import TasteSurveyStep from "../components/TasteSurveyStep";
 
-// ÖNEMLİ (mimari): Onboarding artık İKİ ADIM — 1) kısa bir zevk anketi (türler + en sevdiğin
-// film/dizi), 2) mevcut "en az 5 içerik beğen" akışı. Bu ekran react-navigation yığınının
-// PARÇASI değil (App.js'in Gate bileşeni tarafından doğrudan render ediliyor, bkz.
-// !auth.onboardingCompleted), bu yüzden adımlar arası geçiş react-navigation DEĞİL, basit bir
-// yerel "step" state'i ile yönetiliyor.
+// Onboarding: 1) kısa zevk anketi, 2) en az 5 içerikle hızlı kalibrasyon,
+// 3) kullanıcının verdiği sinyalin gerçekten işe yaradığını hissettiren kısa bir "taste reveal".
+// Bu ekran react-navigation yığınının parçası değil; App.js Gate tarafından doğrudan render ediliyor.
 export default function OnboardingScreen() {
   const { c } = useAppTheme();
   const { auth, markOnboardingComplete } = useAuth();
   const styles = makeStyles(c);
   const insets = useSafeAreaInsets();
-  // OB1 — eskiden hiçbir karşılama/marka anı olmadan direkt forma düşülüyordu. Artık kısa bir
-  // "0. adım" var: logo + tagline, dokununca gerçek akış (zevk anketi) başlıyor.
   const [step, setStep] = useState(0);
+  const [tasteReveal, setTasteReveal] = useState(null);
 
   async function finishOnboarding() {
     await markOnboardingComplete();
@@ -43,20 +40,36 @@ export default function OnboardingScreen() {
     );
   }
 
+  if (step === 2) {
+    return (
+      <LikePicksStep
+        c={c}
+        styles={styles}
+        auth={auth}
+        insets={insets}
+        onBack={() => setStep(1)}
+        onSkip={finishOnboarding}
+        onFinish={(reveal) => {
+          setTasteReveal(reveal);
+          setStep(3);
+        }}
+      />
+    );
+  }
+
   return (
-    <LikePicksStep
+    <TasteRevealStep
       c={c}
       styles={styles}
-      auth={auth}
       insets={insets}
-      onBack={() => setStep(1)}
-      onSkip={finishOnboarding}
+      name={auth?.name?.split(" ")[0]}
+      reveal={tasteReveal}
       onFinish={finishOnboarding}
     />
   );
 }
 
-// ---- Adım 0: karşılama/marka anı (OB1) ----
+// ---- Adım 0: karşılama/marka anı ----
 function WelcomeStep({ c, styles, insets, name, onContinue }) {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -83,7 +96,7 @@ function WelcomeStep({ c, styles, insets, name, onContinue }) {
   );
 }
 
-// ---- Adım 2: en az 5 içerik beğen (mevcut akış, aynen korunuyor) ----
+// ---- Adım 2: en az 5 içerik beğen ----
 function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   const [movies, setMovies] = useState([]);
   const [picked, setPicked] = useState(new Set());
@@ -91,15 +104,6 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
 
   useEffect(() => {
     (async () => {
-      // Tek sayfa (film+dizi ~40 ham sonuç) yetersiz kalıyordu — kalite filtresi (IMDB≥6,
-      // 100binden fazla oy) bazılarını elediği için elde kalan çok azdı. 6 sayfa (film+dizi
-      // için toplam 12 istek) çekip birleştiriyoruz, bu genelde 100+ içerik sağlıyor.
-      // ÖNEMLİ (tanıdıklık düzeltmesi): Eskiden Discover ile AYNI rastgele sıralamayı
-      // kullanıyorduk — yeni kullanıcılar ilk açılışta hiç duymadıkları, niş içeriklerle
-      // karşılaşıyordu. "sort=popular" ile, Discover'ın kendi rastgele akışına HİÇ dokunmadan,
-      // sadece bu ekrana özel olarak en çok oy alan (en tanınan) içerikleri en üste çekiyoruz —
-      // sayfa/limit yapısı aynen koruyor, sadece backend'de o sayfanın karşılığı artık popülerlik
-      // sırasına göre "kaydırılıyor" (offset), rastgele değil.
       const pageNumbers = [1, 2, 3, 4, 5, 6];
       const requests = pageNumbers.flatMap((page) => [
         api.movies(auth.token, "movie", page, "popular").catch(() => ({ results: [] })),
@@ -115,16 +119,12 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   }, []);
 
   function toggle(id) {
-    // OB2 — 5 beğeni eşiğine ulaşınca (kişiselleştirmeyi açan an) artık buton sessizce
-    // aktifleşmiyor, bir haptic + kısa bir onay toast'ı ile fark ediliyor.
     const willBeSize = picked.has(id) ? picked.size - 1 : picked.size + 1;
     if (picked.size < 5 && willBeSize >= 5) {
       hapticSuccess();
       emitLocalEvent({ type: "toast", title: "Zevkini öğrendik! 🎬", message: "Artık sana özel öneriler hazırlayabiliriz." });
     }
-    // ÖNEMLİ DÜZELTME: Eskiden hem seçerken hem seçimi kaldırırken aynı recordInteraction("like")
-    // çağrılıyordu — yani bir posteri seçip vazgeçmek backend'deki like'ı hiç silmiyordu. Bu,
-    // Taste Engine'e daha ilk dakikadan yanlış tercih verisi besliyordu.
+
     const wasPicked = picked.has(id);
     setPicked((prev) => {
       const n = new Set(prev);
@@ -133,6 +133,11 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
     });
     if (wasPicked) api.removeInteraction(auth.token, id, "like").catch(() => {});
     else api.recordInteraction(auth.token, id, "like").catch(() => {});
+  }
+
+  function continueWithReveal() {
+    const selectedMovies = movies.filter((m) => picked.has(m.id));
+    onFinish(buildTasteReveal(selectedMovies));
   }
 
   const count = picked.size;
@@ -189,9 +194,9 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
           <Text style={styles.skipText}>Atla</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={onFinish}>
+        <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={continueWithReveal}>
           <Text style={[styles.continueText, !done && { color: c.dim }]}>
-            {done ? "Devam Et" : `${5 - count} beğeni daha`}
+            {done ? "Zevkimi Göster" : `${5 - count} beğeni daha`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -199,10 +204,95 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   );
 }
 
-// İki noktalı adım göstergesi — hangi adımda olduğumuzu gösteren minimal bir ilerleme çubuğu.
+function buildTasteReveal(selectedMovies) {
+  const genreCounts = {};
+  selectedMovies.forEach((movie) => {
+    const rawGenres = Array.isArray(movie.genres) && movie.genres.length
+      ? movie.genres
+      : typeof movie.genre === "string"
+        ? movie.genre.split(",")
+        : [];
+    rawGenres.forEach((genre) => {
+      const key = String(genre || "").trim();
+      if (!key) return;
+      genreCounts[key] = (genreCounts[key] || 0) + 1;
+    });
+  });
+
+  const topGenres = Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([genre]) => genre);
+
+  return {
+    topGenres,
+    picks: selectedMovies.filter((m) => !!m.poster).slice(0, 4),
+  };
+}
+
+// ---- Payoff: kullanıcının verdiği sinyalin anında bir karşılığı olduğunu göster ----
+function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    hapticSuccess();
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 420, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 8 }),
+    ]).start();
+  }, []);
+
+  const topGenres = reveal?.topGenres?.length ? reveal.topGenres : ["Sana özel", "Keşif", "Sürpriz"];
+  const picks = reveal?.picks || [];
+
+  return (
+    <View style={styles.revealWrap}>
+      <Animated.View style={[styles.revealContent, { opacity, transform: [{ scale }] }]}>
+        <View style={styles.revealSparkleRing}>
+          <Sparkles size={28} color={c.accent} />
+        </View>
+        <Text style={styles.revealEyebrow}>PELLIX TASTE</Text>
+        <Text style={styles.revealTitle}>{name ? `${name}, zevkini yakaladık` : "Zevkini yakaladık"}</Text>
+        <Text style={styles.revealSubtitle}>İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.</Text>
+
+        <View style={styles.genreRow}>
+          {topGenres.map((genre) => (
+            <View key={genre} style={styles.genreChip}>
+              <Text style={styles.genreChipText}>{genre}</Text>
+            </View>
+          ))}
+        </View>
+
+        {picks.length > 0 && (
+          <View style={styles.revealPosterRow}>
+            {picks.map((movie, index) => (
+              <Image
+                key={movie.id}
+                source={{ uri: movie.poster }}
+                style={[styles.revealPoster, { transform: [{ rotate: `${(index - (picks.length - 1) / 2) * 3}deg` }] }]}
+              />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.revealPromise}>
+          <Text style={styles.revealPromiseTitle}>İlk önerilerin hazır</Text>
+          <Text style={styles.revealPromiseText}>Ana Sayfa ve Keşfet artık verdiğin bu sinyallerle başlayacak.</Text>
+        </View>
+      </Animated.View>
+
+      <TouchableOpacity style={[styles.revealBtn, { bottom: Math.max(24, insets.bottom + 16) }]} onPress={onFinish} activeOpacity={0.88}>
+        <Text style={styles.revealBtnText}>Pellix'e Gir</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// İki kalibrasyon adımını gösteren minimal ilerleme çubuğu.
 function StepDots({ c, activeStep }) {
   return (
-    <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
+    <View style={{ flexDirection: "row", gap: 6, marginBottom: 14, flex: 1, marginLeft: 12 }}>
       {[1, 2].map((step) => (
         <View
           key={step}
@@ -247,5 +337,25 @@ function makeStyles(c) {
     skipText: { color: c.dim, fontWeight: "700", fontSize: 13 },
     continueBtn: { flex: 1, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
     continueText: { color: c.bg, fontWeight: "800", fontSize: 14 },
+
+    revealWrap: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 24, justifyContent: "center" },
+    revealContent: { alignItems: "center", paddingBottom: 88 },
+    revealSparkleRing: {
+      width: 72, height: 72, borderRadius: 999, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent, marginBottom: 16,
+    },
+    revealEyebrow: { color: c.accent, fontSize: 10, fontWeight: "900", letterSpacing: 1.4 },
+    revealTitle: { color: c.text, fontSize: 24, fontWeight: "900", textAlign: "center", marginTop: 7 },
+    revealSubtitle: { color: c.dim, fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 330, marginTop: 8 },
+    genreRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 20 },
+    genreChip: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 },
+    genreChipText: { color: c.text, fontSize: 11.5, fontWeight: "800" },
+    revealPosterRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 24, minHeight: 128 },
+    revealPoster: { width: 76, height: 114, borderRadius: 10, marginHorizontal: -5, borderWidth: 2, borderColor: c.bg },
+    revealPromise: { marginTop: 22, width: "100%", backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 14 },
+    revealPromiseTitle: { color: c.text, fontSize: 13.5, fontWeight: "800", textAlign: "center" },
+    revealPromiseText: { color: c.dim, fontSize: 11.5, lineHeight: 17, textAlign: "center", marginTop: 4 },
+    revealBtn: { position: "absolute", left: 24, right: 24, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, alignItems: "center" },
+    revealBtnText: { color: c.bg, fontWeight: "900", fontSize: 14 },
   });
 }
