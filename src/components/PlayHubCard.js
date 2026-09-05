@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Gamepad2, ChevronRight, Sparkles, CalendarDays, Eye } from "lucide-react-native";
+import { Gamepad2, ChevronRight, Sparkles, CalendarDays, Eye, Swords } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
+import { friendBattleApi } from "../api/friendBattle";
 
 export default function PlayHubCard({ navigation }) {
   const { auth } = useAuth();
   const [features, setFeatures] = useState(null);
+  const [battleInfo, setBattleInfo] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -16,6 +18,20 @@ export default function PlayHubCard({ navigation }) {
       playApi.features(auth.token)
         .then((d) => { if (!cancelled) setFeatures(d.features || {}); })
         .catch(() => { if (!cancelled) setFeatures(null); });
+
+      // Friend Battle ayrı backend rollout'una sahip. Endpoint mevcutsa satırı gösteriyoruz;
+      // API henüz deploy edilmediyse Ana Sayfa'da hiçbir kırık CTA görünmüyor.
+      friendBattleApi.inbox(auth.token)
+        .then((d) => {
+          if (cancelled) return;
+          const battles = d.battles || [];
+          setBattleInfo({
+            total: battles.length,
+            waitingForMe: battles.filter((b) => !b.mySubmitted && b.createdByMe === false && b.status !== "completed").length,
+            resultReady: battles.filter((b) => b.status === "completed").length,
+          });
+        })
+        .catch(() => { if (!cancelled) setBattleInfo(null); });
     };
 
     loadFeatures();
@@ -31,14 +47,9 @@ export default function PlayHubCard({ navigation }) {
     [features]
   );
 
-  // Poster Puzzle kendi mevcut film/dizi datasıyla çalıştığı için Play feature flag'lerinden
-  // bağımsız. Play servisinin tamamı geçici olarak kapalı olsa bile günlük oyun erişilebilir.
   return (
     <View style={styles.wrap}>
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={() => navigation.navigate("DailyPosterPuzzle")}
-      >
+      <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate("DailyPosterPuzzle")}>
         <LinearGradient
           colors={["#6D28D9", "#4F46E5", "#2563EB"]}
           start={{ x: 0, y: 0 }}
@@ -70,6 +81,26 @@ export default function PlayHubCard({ navigation }) {
           </View>
         </LinearGradient>
       </TouchableOpacity>
+
+      {battleInfo && (
+        <TouchableOpacity style={styles.battleRow} onPress={() => navigation.navigate("FriendBattle")} activeOpacity={0.8}>
+          <View style={styles.battleIcon}><Swords size={15} color="#FB7185" /></View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.rowTitleLine}>
+              <Text style={styles.battleTitle}>Friend Battle</Text>
+              <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>
+            </View>
+            <Text style={styles.battleSub}>
+              {battleInfo.waitingForMe > 0
+                ? `${battleInfo.waitingForMe} meydan okuma seni bekliyor`
+                : battleInfo.resultReady > 0
+                  ? `${battleInfo.resultReady} battle sonucu hazır`
+                  : "Arkadaşınla aynı 8 seçimi ayrı zamanlarda yap"}
+            </Text>
+          </View>
+          <ChevronRight size={16} color="rgba(255,255,255,0.54)" />
+        </TouchableOpacity>
+      )}
 
       {enabledCount > 0 && (
         <TouchableOpacity style={styles.allGamesRow} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.78}>
@@ -119,6 +150,16 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(8,9,20,0.22)",
   },
+  battleRow: {
+    flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, paddingVertical: 11,
+    borderTopWidth: 1, borderTopColor: "rgba(236,72,153,0.16)", backgroundColor: "rgba(236,72,153,0.07)",
+  },
+  battleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: "rgba(236,72,153,0.14)", alignItems: "center", justifyContent: "center" },
+  rowTitleLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  battleTitle: { color: "#f4f3ef", fontSize: 11.5, fontWeight: "800" },
+  battleSub: { color: "rgba(244,243,239,0.58)", fontSize: 9.5, marginTop: 1 },
+  newBadge: { borderRadius: 999, backgroundColor: "#DB2777", paddingHorizontal: 6, paddingVertical: 2 },
+  newBadgeText: { color: "#fff", fontSize: 7.2, fontWeight: "900", letterSpacing: 0.5 },
   allGamesRow: {
     flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, paddingVertical: 10,
     borderTopWidth: 1, borderTopColor: "rgba(99,102,241,0.16)", backgroundColor: "rgba(13,13,16,0.62)",
