@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Heart, X, Star, ListVideo, Send } from "lucide-react-native";
+import { Heart, X, Star, ListVideo, Send } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
 import { platformName, platformLogo } from "../utils/platform";
+import { emitLocalEvent } from "../utils/localEvents";
 import SwipeableCard from "../components/SwipeableCard";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
@@ -14,19 +15,15 @@ import Confetti from "../components/Confetti";
 import SocialProofRow from "../components/SocialProofRow";
 
 const STOCK_TARGET = 10;
+const TASTE_MILESTONE = 5;
 
 export default function DiscoverScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  // Uygulama açılır açılmaz arka planda toplanmış bir kuyruk varsa (bkz. PrefetchContext),
-  // "Hepsi" filtresine ilk girişte onu kullanıyoruz — kullanıcı hiç beklemeden kaydırmaya
-  // başlayabiliyor. Ref'te tutuyoruz ki context sonradan güncellense bile SADECE bir kez,
-  // sadece mount anındaki değeri kullanalım (kullanıcı filtre değiştirdikten sonra tekrar
-  // devreye girip mevcut listeyi bozmasın).
   const prefetchedDiscoverRef = useRef(usePrefetch().discoverQueue);
   const styles = makeStyles(c);
 
-  const [filterType, setFilterType] = useState("All"); // All | Movie | TV Shows
+  const [filterType, setFilterType] = useState("All");
   const [queue, setQueue] = useState([]);
   const [baseBackdrop, setBaseBackdrop] = useState(null);
   const [incomingBackdrop, setIncomingBackdrop] = useState(null);
@@ -41,18 +38,14 @@ export default function DiscoverScreen({ navigation }) {
   const cardRef = useRef(null);
   const [pickerMovie, setPickerMovie] = useState(null);
   const [sendMovie, setSendMovie] = useState(null);
-  // DC3/DC4 — beğenince küçük bir konfeti patlaması + bu turda ne kadar beğenip/geçtiğini ve
-  // en çok hangi türü seçtiğini tutan bir oturum özeti (deste tükenince gösteriliyor).
   const [likeBurstKey, setLikeBurstKey] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
   const [sessionLikes, setSessionLikes] = useState(0);
   const [sessionSkips, setSessionSkips] = useState(0);
   const [sessionGenreCounts, setSessionGenreCounts] = useState({});
   const [socialStats, setSocialStats] = useState({});
-  // Daha önce like/dislike/skip ile "oy verilmiş" içerikler — Discover kuyruğuna hiç girmesinler.
-  // Promise'i ref'te önbelleğe alıyoruz: growQueue her çağrıldığında bunu BEKLİYOR, bu yüzden
-  // interactions isteği henüz bitmeden ilk kuyruk oluşturulursa bile oy verilenler sızmıyor.
   const votedIdsPromiseRef = useRef(null);
+
   function getVotedIds() {
     if (!votedIdsPromiseRef.current) {
       votedIdsPromiseRef.current = api.interactions(auth.token).then((data) => {
@@ -78,9 +71,6 @@ export default function DiscoverScreen({ navigation }) {
       const votedIds = await getVotedIds();
       const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
       const apiType = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : null;
-
-      // Taste Engine geniş cache havuzunu kullanıcının gerçek like/dislike geçmişine göre sıralıyor.
-      // 120 kart istiyoruz; ekranda kullanılanlar tekrar elendikten sonra da stok hızla tükenmesin.
       const data = await api.recommendations(auth.token, apiType, 120);
       if (generation !== filterGenerationRef.current || activeFilterRef.current !== existingFilter) return [];
 
@@ -108,15 +98,9 @@ export default function DiscoverScreen({ navigation }) {
     setSessionLikes(0);
     setSessionSkips(0);
     setSessionGenreCounts({});
-    // Önden yüklenmiş bir kuyruk varsa (sadece "Hepsi" filtresi için geçerli, sadece bir kez)
-    // direkt onu kullan — ağa hiç istek atmadan anında hazır.
     if (nextFilter === "All" && prefetchedDiscoverRef.current && prefetchedDiscoverRef.current.length > 0) {
       const preloaded = prefetchedDiscoverRef.current;
       prefetchedDiscoverRef.current = null;
-      // ÖNEMLİ DÜZELTME: Bu kuyruk uygulama açılışında, kullanıcı henüz hiçbir şey
-      // beğenmemişken önceden hazırlanmış olabilir — Discover'a gelmeden önce Home'da bir film
-      // beğenmişse, o film hâlâ bu bayat kuyrukta kalıp "az önce beğendim, neden yine çıktı?"
-      // hissi yaratıyordu. Göstermeden hemen önce GÜNCEL oy verilenler listesiyle bir kez daha filtreliyoruz.
       const votedIds = await getVotedIds();
       if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;
       const fresh = preloaded.filter((m) => !votedIds.has(m.id));
@@ -158,14 +142,27 @@ export default function DiscoverScreen({ navigation }) {
     setQueue(rest);
 
     if (direction === "right") {
-      setSessionLikes((v) => v + 1);
+      const nextLikeCount = sessionLikes + 1;
+      setSessionLikes(nextLikeCount);
+
       const genre = top.genre;
-      if (genre) setSessionGenreCounts((prev) => ({ ...prev, [genre]: (prev[genre] || 0) + 1 }));
-      // DC3 — beğenilen her içerikte küçük bir konfeti patlaması; başarılı bir swipe artık
-      // sadece bir kartın kaybolması değil, hafif bir ödül anı.
-      setLikeBurstKey((k) => k + 1);
-      setShowLikeBurst(true);
-      setTimeout(() => setShowLikeBurst(false), 900);
+      const nextGenreCounts = { ...sessionGenreCounts };
+      if (genre) nextGenreCounts[genre] = (nextGenreCounts[genre] || 0) + 1;
+      setSessionGenreCounts(nextGenreCounts);
+
+      // Her beğenide konfeti vermek yerine, anlamlı bir kilometre taşında ödül veriyoruz.
+      // Böylece normal swipe hızlı kalıyor; kutlama gerçekten "zevkim netleşiyor" anına bağlanıyor.
+      if (nextLikeCount % TASTE_MILESTONE === 0) {
+        setLikeBurstKey((k) => k + 1);
+        setShowLikeBurst(true);
+        setTimeout(() => setShowLikeBurst(false), 900);
+        const topGenre = Object.entries(nextGenreCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        emitLocalEvent({
+          type: "toast",
+          title: "Zevkin netleşiyor ✨",
+          message: topGenre ? `${topGenre} tercihin şu anda öne çıkıyor.` : `${nextLikeCount} yeni sinyal öğrendik.`,
+        });
+      }
     } else {
       setSessionSkips((v) => v + 1);
     }
@@ -178,8 +175,6 @@ export default function DiscoverScreen({ navigation }) {
   const next = queue[1];
   const socialQueueKey = queue.slice(0, STOCK_TARGET).map((item) => item.id).join(",");
 
-  // İlk 10 kartın sosyal kanıtını tek toplu istekle hazırla. Kuyruk ilerledikçe yalnızca daha
-  // önce alınmamış ID'ler istenir; böylece swipe başına ağ isteği oluşmaz.
   useEffect(() => {
     const ids = socialQueueKey.split(",").map(Number).filter(Boolean);
     const missingIds = ids.filter((id) => !Object.prototype.hasOwnProperty.call(socialStats, id));
@@ -205,8 +200,6 @@ export default function DiscoverScreen({ navigation }) {
     backdropProgress.setValue(0);
     setIncomingBackdrop(poster);
 
-    // Yeni katman render edildikten sonra cross-fade'i başlat. Böylece native animasyon,
-    // görsel henüz ekrana yerleşmeden ilerlemeye başlamıyor.
     const frame = requestAnimationFrame(() => {
       Animated.timing(backdropProgress, {
         toValue: 1,
@@ -218,9 +211,6 @@ export default function DiscoverScreen({ navigation }) {
         backdropUriRef.current = poster;
         setBaseBackdrop(poster);
         setIncomingBackdrop(null);
-        // Burada progress'i 0'a çekmiyoruz. State commit edilmeden değer sıfırlanırsa
-        // eski backdrop bir kareliğine geri görünerek "şimşek" etkisi oluşturuyordu.
-        // Değer bir sonraki geçiş başlarken, incoming katman yokken sıfırlanıyor.
       });
     });
 
@@ -262,8 +252,6 @@ export default function DiscoverScreen({ navigation }) {
         />
       </View>
       {!stockReady ? (
-        // DC5 — Home'daki AYNI "İçerikler hazırlanıyor..." metni kullanılıyordu; Discover kendi
-        // sesine kavuştu (kaydırma/keşif temalı).
         <View style={styles.center}>
           <ActivityIndicator size="large" color={c.accent} />
           <Text style={{ color: c.dim, marginTop: 10, fontSize: 12 }}>Kartların karılıyor...</Text>
@@ -271,10 +259,6 @@ export default function DiscoverScreen({ navigation }) {
       ) : !current ? (
         <View style={styles.center}>
           <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>Bu turu bitirdin</Text>
-          {/* DC4 — deste tükenince artık sessizce "içerik kalmadı" demek yerine bu turda ne
-              yapıldığına dair küçük bir özet gösteriyoruz; sıfırdan bir şey görmemiş de olsa
-              (ör. filtre değişince anında biten deste) 0'lı bir özetle garip durmasın diye
-              sadece en az bir swipe yapılmışsa gösteriliyor. */}
           {sessionLikes + sessionSkips > 0 ? (
             <Text style={{ color: c.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", maxWidth: 260 }}>
               Bu turda {sessionLikes} şey beğendin
@@ -286,9 +270,6 @@ export default function DiscoverScreen({ navigation }) {
           ) : (
             <Text style={{ color: c.dim, fontSize: 12, marginTop: 6 }}>Daha sonra tekrar bak, ya da baştan başla.</Text>
           )}
-          {/* ÖNEMLİ: resetForFilter, o an seçili filtreyi (Hepsi/Film/Dizi) koruyarak
-              "gösterilenler" listesini sıfırlayıp yeniden dolduruyor — hangi filtre aktifken
-              içerik biterse bitsin (sadece "Hepsi" değil) çalışıyor. */}
           <TouchableOpacity style={styles.restartBtn} onPress={() => resetForFilter(filterType)}>
             <Text style={styles.restartBtnText}>Baştan Göster</Text>
           </TouchableOpacity>
@@ -301,8 +282,6 @@ export default function DiscoverScreen({ navigation }) {
               <Image source={{ uri: next.poster }} style={StyleSheet.absoluteFillObject} />
             </View>
           )}
-          {/* key={current.id} ÇOK ÖNEMLİ: her yeni kart için React'in bileşeni SIFIRDAN
-              kurmasını sağlar, böylece konum/animasyon değeri her zaman temiz başlar. */}
           <SwipeableCard
             key={current.id}
             ref={cardRef}
@@ -313,17 +292,10 @@ export default function DiscoverScreen({ navigation }) {
             {(pan) => {
               const likeOpacity = pan.x.interpolate({ inputRange: [20, 110], outputRange: [0, 1], extrapolate: "clamp" });
               const skipOpacity = pan.x.interpolate({ inputRange: [-110, -20], outputRange: [1, 0], extrapolate: "clamp" });
-              // DC2 — damgalar eskiden sadece solup beliriyordu, hiç "sıçramıyordu". Artık
-              // eşiğe yaklaştıkça büyüyerek (0.7 → 1.15) hafif bir pop efektiyle beliriyor.
               const likeScale = pan.x.interpolate({ inputRange: [20, 110], outputRange: [0.7, 1.15], extrapolate: "clamp" });
               const skipScale = pan.x.interpolate({ inputRange: [-110, -20], outputRange: [1.15, 0.7], extrapolate: "clamp" });
               return (
                 <>
-                  {/* Sağ üstteki ayrı "üç nokta" butonu kaldırıldı — Detay'a gitme artık doğrudan
-                      görselin kendisine dokununca oluyor. Sürükleyerek kaydırmayla ÇAKIŞMIYOR:
-                      SwipeableCard'ın PanResponder'ı sadece 6px'ten fazla hareket olunca jesti
-                      "alıyor" (onMoveShouldSetPanResponder), düz bir dokunuşta hiç devreye
-                      girmiyor — bu yüzden altındaki TouchableOpacity'nin onPress'i normal çalışıyor. */}
                   <TouchableOpacity
                     activeOpacity={1}
                     style={StyleSheet.absoluteFillObject}
@@ -333,8 +305,6 @@ export default function DiscoverScreen({ navigation }) {
                   </TouchableOpacity>
                   <LinearGradient colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0)"]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0.45 }} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
 
-                  {/* Paylaş ve Bir Listeye Ekle — artık menüde değil, kartın sağ altında ayrı
-                      ayrı, doğrudan tıklanabilir butonlar. */}
                   <View style={styles.cardActionsCol}>
                     <TouchableOpacity style={styles.cardActionBtn} onPress={() => setPickerMovie(current)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <ListVideo size={16} color="#fff" />
@@ -345,7 +315,7 @@ export default function DiscoverScreen({ navigation }) {
                   </View>
 
                   <Animated.View style={[styles.stampLike, { opacity: likeOpacity, transform: [{ rotate: "-12deg" }, { scale: likeScale }] }]}>
-                    <Text style={styles.stampLikeText}>EKLE</Text>
+                    <Text style={styles.stampLikeText}>SEVDİM</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stampSkip, { opacity: skipOpacity, transform: [{ rotate: "12deg" }, { scale: skipScale }] }]}>
                     <Text style={styles.stampSkipText}>GEÇ</Text>
@@ -384,9 +354,7 @@ export default function DiscoverScreen({ navigation }) {
       )}
 
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ width: 38 }} />
         <View style={styles.pillWrap}>
           <View style={styles.pillRow}>
             {[["All", "Tümü"], ["Movie", "Film"], ["TV Shows", "Dizi"]].map(([id, label]) => (
@@ -436,15 +404,11 @@ function makeStyles(c) {
       borderRadius: 22, overflow: "hidden", backgroundColor: "rgba(13,13,16,0.55)",
     },
     cardBehind: { transform: [{ scale: 0.96 }] },
-    // ÖNEMLİ: Kartın GERÇEKTEN sağ alt köşesinde dursun diye cardInfo'yla (bottom:14) aynı
-    // hizaya indirdik — eskiden "bottom: 82" ile gereğinden çok yukarıda kalıyordu.
     cardActionsCol: { position: "absolute", right: 14, bottom: 14, gap: 10, zIndex: 15 },
     cardActionBtn: {
       width: 40, height: 40, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.55)",
       alignItems: "center", justifyContent: "center",
     },
-    // Rotate artık burada değil — DC2 sıçrama efekti için scale ile birlikte JSX'te inline
-    // veriliyor (aynı "transform" anahtarı olduğu için ikisi ayrı yerde tutulamıyor).
     stampLike: {
       position: "absolute", top: 24, left: 20, borderWidth: 3, borderColor: c.accent2,
       paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8,
@@ -465,10 +429,6 @@ function makeStyles(c) {
     platformFallback: { backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
     platformFallbackText: { fontSize: 9, color: "#fff" },
     topBar: { position: "absolute", top: 44, left: 14, right: 14, flexDirection: "row", alignItems: "center" },
-    backBtn: {
-      width: 38, height: 38, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.55)",
-      alignItems: "center", justifyContent: "center",
-    },
     pillWrap: { flex: 1, alignItems: "center" },
     pillRow: {
       flexDirection: "row", gap: 3,
