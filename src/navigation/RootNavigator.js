@@ -14,6 +14,7 @@ import BlendLeaderboardScreen from "../screens/BlendLeaderboardScreen";
 import PremiumScreen from "../screens/PremiumScreen";
 import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import PellixPlayScreen from "../screens/PellixPlayScreen";
+import DailyPosterPuzzleScreen from "../screens/DailyPosterPuzzleScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
 import WatchlistDetailScreen from "../screens/WatchlistDetailScreen";
@@ -30,9 +31,6 @@ import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
 
-// GlobalPopups gibi navigasyon ağacının DIŞINDAKİ bileşenlerin de sayfa değiştirebilmesi için
-// (ör. bir MatchParty davetini kabul edince otomatik o ekrana gitmek) modül seviyesinde,
-// dışa aktarılabilir bir navigasyon referansı kuruyoruz.
 export const navigationRef = createNavigationContainerRef();
 
 export default function RootNavigator() {
@@ -50,13 +48,6 @@ export default function RootNavigator() {
     },
   };
 
-  // Deep linking: web'den (ör. https://www.pellix.app/u/username paylaşım sayfası) ya da
-  // pellix:// özel şemasından VE open.pellix.app'teki paylaşım linklerinden gelen bağlantıları
-  // doğru ekrana yönlendiriyor. "/u/:username" ve "/blend/:userA/:userB" (kullanıcı ADI taşıyan,
-  // React Navigation'ın basit path eşleştirmesiyle AYNI ekrana farklı şekillerde bağlanamayan
-  // iki farklı yapı) için elle bir çözümleyici (getStateFromPath) yazıyoruz — ikisi de sonunda
-  // OtherProfile ekranına, "username" parametresiyle gidiyor (o ekran, kullanıcı adını sayısal
-  // ID'ye kendisi çeviriyor).
   const linking = {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
     config: {
@@ -73,8 +64,6 @@ export default function RootNavigator() {
       }
       const blendMatch = path.match(/^\/?blend\/([^/]+)\/([^/?]+)/);
       if (blendMatch) {
-        // Blend linki, tasarım gereği ikinci kullanıcının (paylaşımı yapan kişinin arkadaşının)
-        // profiline açılıyor — oradan isteyen kendi Blend'ini başlatabiliyor.
         return {
           routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }],
         };
@@ -105,6 +94,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Premium" component={PremiumScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="DailyPosterPuzzle" component={DailyPosterPuzzleScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="AllLikes" component={AllLikesScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WatchlistDetail" component={WatchlistDetailScreen} options={{ presentation: "card" }} />
