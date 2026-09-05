@@ -21,6 +21,7 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
       icon={Sparkles}
       gradientColors={["#7C3AED", "#5B21B6", "#312E81"]}
       subtitle={movie.title}
+      forceScrollable
     >
       <View style={styles.movieRow}>
         {movie.poster ? (
