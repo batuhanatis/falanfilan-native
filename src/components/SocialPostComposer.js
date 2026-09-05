@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
+import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, Search, Send, Sparkles, Swords, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -14,7 +15,8 @@ const MODES = [
 export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, presentation = "sheet", onClose, onCreated }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(c, insets), [c, insets.top, insets.bottom, insets.left, insets.right]);
   const [mode, setMode] = useState(initialType || (initialMovie ? "recommend" : "thought"));
   const [body, setBody] = useState("");
   const [movie, setMovie] = useState(initialMovie);
@@ -58,12 +60,6 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
           api.search(auth.token, query.trim(), "tv"),
         ]);
         if (cancelled) return;
-        // ÖNEMLİ DÜZELTME: Eskiden film sonuçları dizi sonuçlarından ÖNCE ekleyip listeyi 12'ye
-        // kesiyordu — popüler bir aramada 12'den fazla film sonucu geldiğinde diziler listeye hiç
-        // giremiyordu (kullanıcı "hiç dizi gelmiyor" diye bildirdi). Ana sayfadaki aramayla AYNI
-        // mantığa geçtik: önce birleştir+tekilleştir, sonra alaka düzeyine (tam eşleşme > baştan
-        // eşleşme > içeren, eşitlikte oy sayısı) göre sırala — tür ayrımı yapmadan en alakalı 12
-        // sonuç, o sonuçlar arasında film de dizi de olabilir.
         const byId = new Map();
         [...(movies.results || []), ...(shows.results || [])].forEach((item) => {
           if (item?.id) byId.set(item.id, item);
@@ -170,110 +166,130 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
 
   return (
     <Modal visible={visible} transparent animationType={island ? "fade" : "slide"} onRequestClose={onClose}>
-      <KeyboardAvoidingView style={[styles.backdrop, island && styles.backdropIsland]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={[styles.backdrop, island && styles.backdropIsland]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
         <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={onClose} />
         <View style={[styles.sheet, island && styles.sheetIsland]}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>Taste Post</Text>
-              <Text style={styles.subtitle}>Zevkini paylaş, sohbeti başlat.</Text>
-            </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
-          </View>
-
-          <View style={styles.modeRow}>
-            {MODES.map(([id, label]) => (
-              <TouchableOpacity key={id} style={[styles.modeChip, mode === id && styles.modeChipActive]} onPress={() => { setMode(id); setError(""); }}>
-                {id === "recommend" ? <Sparkles size={12} color={mode === id ? c.bg : c.dim} /> : id === "poll" ? <Swords size={12} color={mode === id ? c.bg : c.dim} /> : null}
-                <Text style={[styles.modeText, mode === id && styles.modeTextActive]}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {!!initialContext && (
-            <View style={styles.contextCard}>
-              <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
-              <Text style={styles.contextText}>{initialContext}</Text>
-              {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? "Cevap olarak bir film veya dizi seç." : "Cevabını iki içeriği kapıştırarak ver."}</Text>}
-            </View>
-          )}
-
-          <TextInput
-            style={styles.bodyInput}
-            placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
-            placeholderTextColor={c.dim}
-            value={body}
-            onChangeText={setBody}
-            multiline
-            maxLength={800}
-          />
-
-          {mode === "recommend" && movie && selectedCard(movie, "a")}
-          {mode === "poll" && (
-            <View style={styles.pollSelectedRow}>
-              <View style={{ flex: 1 }}>{selectedCard(pollA, "a")}</View>
-              <Text style={styles.vs}>VS</Text>
-              <View style={{ flex: 1 }}>{selectedCard(pollB, "b")}</View>
-            </View>
-          )}
-
-          {mode !== "thought" && ((mode === "recommend" && !movie) || mode === "poll") && (
-            <View style={styles.searchArea}>
-              <View style={styles.searchWrap}>
-                <Search size={15} color={c.dim} />
-                <TextInput
-                  ref={searchInputRef}
-                  style={styles.searchInput}
-                  placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
-                  placeholderTextColor={c.dim}
-                  value={query}
-                  onChangeText={setQuery}
-                  autoCorrect={false}
-                />
-                {searching && <ActivityIndicator size="small" color={c.accent} />}
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            nestedScrollEnabled
+          >
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.title}>Taste Post</Text>
+                <Text style={styles.subtitle}>Zevkini paylaş, sohbeti başlat.</Text>
               </View>
-
-              {results.length > 0 && (
-                <FlatList
-                  data={results}
-                  keyExtractor={(item) => String(item.id)}
-                  style={styles.results}
-                  keyboardShouldPersistTaps="always"
-                  keyboardDismissMode="on-drag"
-                  onScrollBeginDrag={Keyboard.dismiss}
-                  nestedScrollEnabled
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.resultRow} onPress={() => choose(item)}>
-                      {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                        <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                />
-              )}
+              <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
             </View>
-          )}
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+            <View style={styles.modeRow}>
+              {MODES.map(([id, label]) => (
+                <TouchableOpacity key={id} style={[styles.modeChip, mode === id && styles.modeChipActive]} onPress={() => { setMode(id); setError(""); }}>
+                  {id === "recommend" ? <Sparkles size={12} color={mode === id ? c.bg : c.dim} /> : id === "poll" ? <Swords size={12} color={mode === id ? c.bg : c.dim} /> : null}
+                  <Text style={[styles.modeText, mode === id && styles.modeTextActive]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <TouchableOpacity style={[styles.submit, (!canSend || sending) && { opacity: 0.45 }]} onPress={submit} disabled={!canSend || sending}>
-            {sending ? <ActivityIndicator size="small" color={c.bg} /> : <Send size={15} color={c.bg} />}
-            <Text style={styles.submitText}>Paylaş</Text>
-          </TouchableOpacity>
+            {!!initialContext && (
+              <View style={styles.contextCard}>
+                <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
+                <Text style={styles.contextText}>{initialContext}</Text>
+                {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? "Cevap olarak bir film veya dizi seç." : "Cevabını iki içeriği kapıştırarak ver."}</Text>}
+              </View>
+            )}
+
+            <TextInput
+              style={styles.bodyInput}
+              placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
+              placeholderTextColor={c.dim}
+              value={body}
+              onChangeText={setBody}
+              multiline
+              maxLength={800}
+            />
+
+            {mode === "recommend" && movie && selectedCard(movie, "a")}
+            {mode === "poll" && (
+              <View style={styles.pollSelectedRow}>
+                <View style={{ flex: 1 }}>{selectedCard(pollA, "a")}</View>
+                <Text style={styles.vs}>VS</Text>
+                <View style={{ flex: 1 }}>{selectedCard(pollB, "b")}</View>
+              </View>
+            )}
+
+            {mode !== "thought" && ((mode === "recommend" && !movie) || mode === "poll") && (
+              <View style={styles.searchArea}>
+                <View style={styles.searchWrap}>
+                  <Search size={15} color={c.dim} />
+                  <TextInput
+                    ref={searchInputRef}
+                    style={styles.searchInput}
+                    placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
+                    placeholderTextColor={c.dim}
+                    value={query}
+                    onChangeText={setQuery}
+                    autoCorrect={false}
+                  />
+                  {searching && <ActivityIndicator size="small" color={c.accent} />}
+                </View>
+
+                {results.length > 0 && (
+                  <FlatList
+                    data={results}
+                    keyExtractor={(item) => String(item.id)}
+                    style={styles.results}
+                    keyboardShouldPersistTaps="always"
+                    keyboardDismissMode="on-drag"
+                    onScrollBeginDrag={Keyboard.dismiss}
+                    nestedScrollEnabled
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={styles.resultRow} onPress={() => choose(item)}>
+                        {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                          <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+              </View>
+            )}
+
+            {!!error && <Text style={styles.error}>{error}</Text>}
+
+            <TouchableOpacity style={[styles.submit, (!canSend || sending) && { opacity: 0.45 }]} onPress={submit} disabled={!canSend || sending}>
+              {sending ? <ActivityIndicator size="small" color={c.bg} /> : <Send size={15} color={c.bg} />}
+              <Text style={styles.submitText}>Paylaş</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-    backdropIsland: { justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: "rgba(0,0,0,0.7)" },
-    sheet: { maxHeight: "88%", backgroundColor: c.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: Platform.OS === "ios" ? 30 : 18, borderWidth: 1, borderColor: c.border },
-    sheetIsland: { width: "100%", maxWidth: 420, borderRadius: 24, paddingBottom: 18, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16 },
+    backdropIsland: {
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingTop: Math.max(16, insets.top + 8),
+      paddingBottom: Math.max(16, insets.bottom + 8),
+      backgroundColor: "rgba(0,0,0,0.7)",
+    },
+    sheet: { maxHeight: "88%", backgroundColor: c.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, borderWidth: 1, borderColor: c.border },
+    sheetIsland: { width: "100%", maxWidth: 420, borderRadius: 24, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16 },
+    sheetContent: { padding: 16, paddingBottom: Math.max(18, insets.bottom + 14) },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
     title: { color: c.text, fontWeight: "900", fontSize: 18 },
     subtitle: { color: c.dim, fontSize: 11, marginTop: 2 },
@@ -288,10 +304,10 @@ function makeStyles(c) {
     contextText: { color: c.text, fontSize: 12.5, fontWeight: "800", lineHeight: 18, marginTop: 4 },
     contextHint: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6 },
     bodyInput: { minHeight: 86, maxHeight: 140, textAlignVertical: "top", color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 12, fontSize: 13, marginBottom: 10 },
-    searchArea: { position: "relative", zIndex: 40, elevation: 40, marginTop: 8 },
+    searchArea: { position: "relative", zIndex: 40, elevation: 40, marginTop: 8, marginBottom: 2 },
     searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },
-    results: { position: "absolute", top: 48, left: 0, right: 0, maxHeight: 260, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface, zIndex: 50, elevation: 50, shadowColor: "#000", shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+    results: { maxHeight: 230, marginTop: 7, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface, zIndex: 50, elevation: 50, shadowColor: "#000", shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
     resultRow: { flexDirection: "row", alignItems: "center", gap: 9, padding: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
     resultPoster: { width: 36, height: 53, borderRadius: 6 },
     resultTitle: { color: c.text, fontWeight: "800", fontSize: 12 },
