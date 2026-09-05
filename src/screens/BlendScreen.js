@@ -165,6 +165,7 @@ export default function BlendScreen({ route, navigation }) {
             onClose={() => setShowShareCard(false)}
             shareMessage={`${auth.name?.split(" ")[0]} ile ${friendName?.split(" ")[0]} arasında %${data.matchPercent} zevk uyumu 🎬`}
             shareUrl={auth.username && data.friend?.username ? `https://open.pellix.app/blend/${auth.username}/${data.friend.username}` : undefined}
+            previewHeight={528}
             socialCard={{
               kind: "blend",
               me: { id: auth.id, name: auth.name, avatarUrl: myAvatarUrl },

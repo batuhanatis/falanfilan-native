@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Share, ScrollView } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,6 +9,8 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { hapticLight, hapticSuccess } from "../utils/haptics";
 import ScreenHeader from "../components/ScreenHeader";
+import ShareCardModal from "../components/ShareCardModal";
+import PosterPuzzleShareCard from "../components/PosterPuzzleShareCard";
 
 const MAX_WRONG = 3;
 const BLUR_LEVELS = [34, 20, 9, 0];
@@ -100,6 +102,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
   const [puzzle, setPuzzle] = useState(null);
   const [wrongIds, setWrongIds] = useState(new Set());
   const [result, setResult] = useState(null);
+  const [showShareCard, setShowShareCard] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,11 +161,9 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
     }
   }
 
-  async function shareResult() {
+  function shareResult() {
     if (!result || !puzzle) return;
-    const squares = resultSquares(result);
-    const message = `Pellix Poster Puzzle · ${localDateKey()}\n${squares}\n${result.correct ? `Filmi ${result.wrongCount + 1}. denemede buldum 🎬` : "Bugün poster beni yendi 😅"}\nSen kaçta bulursun?`;
-    try { await Share.share({ message }); } catch {}
+    setShowShareCard(true);
   }
 
   const wrongCount = result ? result.wrongCount : wrongIds.size;
@@ -266,6 +267,29 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
             </View>
           )}
         </ScrollView>
+      )}
+
+      {showShareCard && result && puzzle && (
+        <ShareCardModal
+          onClose={() => setShowShareCard(false)}
+          shareMessage={`Pellix Poster Puzzle · ${localDateKey()}\n${resultSquares(result)}\n${result.correct ? `Posteri ${Number(result.wrongCount || 0) + 1}. denemede bildim 🎬` : "Bugün poster beni yendi 😅"}\nCevabı göstermiyorum. Sen kaçta bulursun?`}
+          socialCard={{
+            kind: "poster_puzzle",
+            date: localDateKey(),
+            correct: !!result.correct,
+            wrongCount: Number(result.wrongCount || 0),
+            attempts: result.correct ? Number(result.wrongCount || 0) + 1 : MAX_WRONG,
+            squares: resultSquares(result),
+          }}
+          previewHeight={458}
+        >
+          <PosterPuzzleShareCard
+            date={localDateKey()}
+            correct={!!result.correct}
+            wrongCount={Number(result.wrongCount || 0)}
+            squares={resultSquares(result)}
+          />
+        </ShareCardModal>
       )}
     </View>
   );

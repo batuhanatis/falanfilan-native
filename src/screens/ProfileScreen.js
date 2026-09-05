@@ -440,7 +440,15 @@ export default function ProfileScreen({ navigation, route }) {
             favoriteMovie: profile.favoriteMovie ? { id: profile.favoriteMovie.id, title: profile.favoriteMovie.title, poster: profile.favoriteMovie.poster } : null,
             favoriteShow: profile.favoriteShow ? { id: profile.favoriteShow.id, title: profile.favoriteShow.title, poster: profile.favoriteShow.poster } : null,
             isPremium: !!premiumStatus?.isPremium,
+            tasteDNA: {
+              genres: tasteDNA.genres,
+              filmPercent: tasteDNA.filmPercent,
+              showPercent: tasteDNA.showPercent,
+              signalCount: tasteDNA.signalCount,
+            },
+            streak: questStreak,
           }}
+          previewHeight={555}
           pages={
             showPremiumBackground
               ? [
@@ -457,6 +465,8 @@ export default function ProfileScreen({ navigation, route }) {
                     favoriteShow={profile.favoriteShow}
                     isPremium={premiumStatus?.isPremium}
                     backgroundUrl={profile.profileBackgroundUrl}
+                    tasteDNA={tasteDNA}
+                    streak={questStreak}
                   />,
                   <ProfileShareCard
                     key="default"
@@ -471,6 +481,8 @@ export default function ProfileScreen({ navigation, route }) {
                     favoriteShow={profile.favoriteShow}
                     isPremium={premiumStatus?.isPremium}
                     backgroundUrl={profile.profileBackgroundUrl}
+                    tasteDNA={tasteDNA}
+                    streak={questStreak}
                     forceDefault
                   />,
                 ]
@@ -489,6 +501,8 @@ export default function ProfileScreen({ navigation, route }) {
             favoriteShow={profile.favoriteShow}
             isPremium={premiumStatus?.isPremium}
             backgroundUrl={profile.profileBackgroundUrl}
+            tasteDNA={tasteDNA}
+            streak={questStreak}
           />
         </ShareCardModal>
       )}
