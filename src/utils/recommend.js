@@ -205,7 +205,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
         source: "BEĞENİ ALIŞKANLIĞIN",
         personalized: true,
         title: `${targetType} tarafına daha çok eğiliyorsun`,
-        detail: `Bildigimiz beğenilerinin %${Math.round(ratio * 100)}'i ${targetType.toLowerCase()}; bu seçim de aynı formatta.`,
+        detail: `Bildiğimiz beğenilerinin %${Math.round(ratio * 100)}'i ${targetType.toLowerCase()}; bu seçim de aynı formatta.`,
         short: `Beğenilerinin %${Math.round(ratio * 100)}'i ${targetType.toLowerCase()}`,
       });
     }

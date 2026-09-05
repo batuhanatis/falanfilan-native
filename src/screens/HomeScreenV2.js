@@ -278,6 +278,18 @@ export default function HomeScreenV2({ navigation }) {
     return map;
   }, [movies, likedMovies]);
 
+  const tasteLikedMovies = useMemo(() => {
+    const byId = new Map();
+    likedMovies.forEach((movie) => {
+      if (movie?.id != null) byId.set(Number(movie.id), movie);
+    });
+    liked.forEach((id) => {
+      const movie = moviesById.get(id) || moviesById.get(Number(id));
+      if (movie?.id != null) byId.set(Number(movie.id), movie);
+    });
+    return [...byId.values()];
+  }, [likedMovies, liked, moviesById]);
+
   const filteredList = useMemo(() => {
     let result = movies;
     if (typeFilter !== "Hepsi") result = result.filter((m) => m.type === typeFilter);
@@ -303,19 +315,40 @@ export default function HomeScreenV2({ navigation }) {
   }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly]);
 
   const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
-  const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;
-  const heroReasons = useMemo(() => {
-    if (!heroMovie) return [];
-    return recommendationReasons(heroMovie, likedMovies, {
-      preferredGenres,
-      genreFilter,
-      typeFilter,
-      shortOnly,
-      platformFilters: [...platformFilters],
-      yearFilters: [...yearFilters],
-      aiLabel: describeResults ? aiResultsLabel : null,
+  const recommendationContext = useMemo(() => ({
+    preferredGenres,
+    genreFilter,
+    typeFilter,
+    shortOnly,
+    platformFilters: [...platformFilters],
+    yearFilters: [...yearFilters],
+    aiLabel: describeResults ? aiResultsLabel : null,
+  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+
+  const heroSelection = useMemo(() => {
+    const candidates = visibleList.filter((movie) => !disliked.has(movie.id)).slice(0, 24);
+    const pool = candidates.length ? candidates : visibleList.slice(0, 24);
+    if (!pool.length) return { movie: null, reasons: [], score: -Infinity };
+
+    let best = null;
+    pool.forEach((movie, index) => {
+      const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
+      const personalized = reasons.filter((reason) => reason.personalized);
+      const score = personalized.length
+        ? personalized.slice(0, 4).reduce(
+            (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
+            0,
+          ) + personalized.length * 6 - index * 0.05
+        : -index;
+
+      if (!best || score > best.score) best = { movie, reasons, score };
     });
-  }, [heroMovie, likedMovies, preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+
+    return best || { movie: pool[0], reasons: [], score: 0 };
+  }, [visibleList, disliked, tasteLikedMovies, recommendationContext]);
+
+  const heroMovie = heroSelection.movie;
+  const heroReasons = heroSelection.reasons;
   const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
   const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;
 
