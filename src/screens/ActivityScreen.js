@@ -242,7 +242,6 @@ export default function ActivityScreen({ navigation }) {
     if (!feed.length) return [];
     const result = [...feed];
     result.splice(Math.min(2, result.length), 0, { kind: "daily-question", id: "daily-question", feedKey: "daily-question" });
-    result.splice(Math.min(6, result.length), 0, { kind: "feature-shortcuts", id: "feature-shortcuts", feedKey: "feature-shortcuts" });
     return result;
   }, [feed, dailyQuestion]);
 
@@ -290,6 +289,8 @@ export default function ActivityScreen({ navigation }) {
           onChanged={refreshStories}
         />
       </View>
+
+      {renderFeatureShortcuts()}
 
       <View style={styles.feedTitleRow}>
         <View>
@@ -346,7 +347,6 @@ export default function ActivityScreen({ navigation }) {
           ListEmptyComponent={
             <View>
               {renderDailyQuestionCard()}
-              {renderFeatureShortcuts()}
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
                 <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
@@ -395,7 +395,7 @@ function makeStyles(c) {
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
-    topActions: { flexDirection: "row", gap: 9, marginTop: 5, marginBottom: 16 },
+    topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 18 },
     topActionTouch: { flex: 1, borderRadius: 16, shadowColor: "#8B5CF6", shadowOpacity: 0.2, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
     topActionCard: { height: 68, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9, overflow: "hidden" },
     topActionIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" },
