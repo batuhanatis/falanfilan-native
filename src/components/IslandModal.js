@@ -38,6 +38,7 @@ export default function IslandModal({ visible, onClose, title, icon: Icon, gradi
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
+                nestedScrollEnabled
               >
                 {children}
               </ScrollView>
@@ -63,7 +64,7 @@ function makeStyles(c, insets) {
     card: {
       width: "100%",
       maxWidth: 420,
-      maxHeight: "84%",
+      maxHeight: "88%",
       backgroundColor: c.surface,
       borderRadius: 26,
       overflow: "hidden",
@@ -78,7 +79,7 @@ function makeStyles(c, insets) {
     headerTitle: { fontSize: 15.5, fontWeight: "800", color: "#fff" },
     headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 6 },
     closeBtn: { width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-    body: { flexGrow: 0 },
+    body: { flexShrink: 1, minHeight: 0 },
     bodyContent: { padding: 20, paddingBottom: Math.max(20, insets.bottom + 12) },
   });
 }

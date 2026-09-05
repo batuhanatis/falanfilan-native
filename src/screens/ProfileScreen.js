@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2,
-  Eye, EyeOff, Sparkles, Trophy, Flame,
+  Eye, EyeOff, Sparkles,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -110,8 +110,6 @@ export default function ProfileScreen({ navigation, route }) {
   const [socialPosts, setSocialPosts] = useState([]);
   const [showShareCard, setShowShareCard] = useState(false);
   const [questStreak, setQuestStreak] = useState(0);
-  const [questSummary, setQuestSummary] = useState(null);
-  const [achievements, setAchievements] = useState(null);
   const [diaryStats, setDiaryStats] = useState(null);
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -146,11 +144,7 @@ export default function ProfileScreen({ navigation, route }) {
     setLoading(false);
 
     api.socialUserPosts(auth.token, auth.id).then((data) => setSocialPosts(data.results || [])).catch(() => setSocialPosts([]));
-    api.quests(auth.token).then((data) => {
-      setQuestStreak(data.streak || 0);
-      setQuestSummary(data);
-    }).catch(() => {});
-    api.achievements(auth.token).then(setAchievements).catch(() => {});
+    api.quests(auth.token).then((data) => setQuestStreak(data.streak || 0)).catch(() => {});
     diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
     diaryApi.list(auth.token, { page: 1, limit: 50 }).then((data) => setDiaryEntries(data.results || [])).catch(() => setDiaryEntries([]));
   }, [auth.token, auth.id]);
@@ -201,10 +195,6 @@ export default function ProfileScreen({ navigation, route }) {
   }
 
   const tasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile, diaryEntries), [likedMovies, profile, diaryEntries]);
-  const questTotal = questSummary?.quests?.length || 0;
-  const questCompleted = questSummary?.quests?.filter((q) => q.completed).length || 0;
-  const questPercent = questTotal ? Math.round((questCompleted / questTotal) * 100) : 0;
-  const unlockedBadges = (achievements?.badges || []).filter((badge) => badge.unlocked).slice(0, 3);
 
   if (loading || !profile) {
     return (
@@ -348,45 +338,8 @@ export default function ProfileScreen({ navigation, route }) {
           )}
         </View>
 
-        <View style={styles.retentionRow}>
-          <TouchableOpacity style={styles.retentionCard} onPress={() => navigation.navigate("WeeklyQuests")} activeOpacity={0.86}>
-            <View style={styles.retentionTopRow}>
-              <View style={[styles.retentionIcon, { backgroundColor: "rgba(249,115,22,0.14)" }]}>
-                <Flame size={15} color="#F97316" />
-              </View>
-              <Text style={styles.retentionValue}>{questTotal ? `${questCompleted}/${questTotal}` : "—"}</Text>
-            </View>
-            <Text style={styles.retentionTitle}>Bu Haftaki Hedefin</Text>
-            <View style={styles.miniProgressTrack}>
-              <View style={[styles.miniProgressFill, { width: `${questPercent}%` }]} />
-            </View>
-            <Text style={styles.retentionMeta}>
-              {questTotal ? (questCompleted === questTotal ? "Ödülün hazır 🎁" : `${questTotal - questCompleted} görev kaldı`) : "Görevlerini gör"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.retentionCard} onPress={() => navigation.navigate("Settings", { initialSection: "badges" })} activeOpacity={0.86}>
-            <View style={styles.retentionTopRow}>
-              <View style={[styles.retentionIcon, { backgroundColor: "rgba(201,164,76,0.15)" }]}>
-                <Trophy size={15} color={c.accent} />
-              </View>
-              <Text style={styles.retentionValue}>{achievements ? `${achievements.unlockedCount}/${achievements.totalCount}` : "—"}</Text>
-            </View>
-            <Text style={styles.retentionTitle}>Rozet Vitrini</Text>
-            {unlockedBadges.length > 0 ? (
-              <View style={styles.badgePreviewRow}>
-                {unlockedBadges.map((badge) => (
-                  <View key={badge.id} style={styles.badgePreviewBubble}>
-                    <Text style={styles.badgePreviewIcon}>{badge.icon}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.badgeEmptyText}>İlk rozetini açmaya başla</Text>
-            )}
-            <Text style={styles.retentionMeta}>Tüm başarılarını gör →</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Haftalık görevler Ana Sayfa'daki haftalık hedef alanında; rozetler Ayarlar > Rozetler'de.
+            Profil, kimlik + Zevk DNA + içerik odağında daha kompakt tutuluyor. */}
 
         {!premiumStatus?.isPremium && (
           <TouchableOpacity
