@@ -11,13 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Check, Trash2, X, Star, CalendarDays } from "lucide-react-native";
+import { Check, Trash2, X, Star, CalendarDays, BookOpen, ChevronRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { diaryApi } from "../api/diary";
 import { hapticSuccess } from "../utils/haptics";
 
-export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved }) {
+export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved, onOpenDiary }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
@@ -135,6 +135,18 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
               </>}
             </TouchableOpacity>
           )}
+
+          {!!onOpenDiary && (
+            <TouchableOpacity
+              style={styles.openDiaryBtn}
+              onPress={() => { onClose?.(); onOpenDiary(); }}
+              activeOpacity={0.82}
+            >
+              <BookOpen size={14} color={c.text} />
+              <Text style={styles.openDiaryText}>Tüm Pellix Diary’mi Gör</Text>
+              <ChevronRight size={14} color={c.dim} />
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -163,7 +175,9 @@ function makeStyles(c) {
     error: { color: c.danger, fontSize: 11, marginTop: 8, textAlign: "center" },
     saveBtn: { minHeight: 46, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     saveText: { color: "#14121a", fontSize: 12.5, fontWeight: "900" },
-    removeBtn: { marginTop: 10, minHeight: 38, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+    removeBtn: { marginTop: 8, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
     removeText: { color: c.danger, fontSize: 11.5, fontWeight: "700" },
+    openDiaryBtn: { minHeight: 42, marginTop: 5, paddingHorizontal: 11, borderRadius: 12, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", gap: 7 },
+    openDiaryText: { flex: 1, color: c.text, fontSize: 11.5, fontWeight: "800" },
   });
 }
