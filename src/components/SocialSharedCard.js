@@ -175,6 +175,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
       navigation.navigate("OtherProfile", { userId: payload.userId });
     }
   };
+  const hasTasteDNA = !!payload.tasteDNA;
   const genres = Array.isArray(payload.tasteDNA?.genres) ? payload.tasteDNA.genres.slice(0, 3) : [];
   const filmPercent = bounded(payload.tasteDNA?.filmPercent || 50);
 
@@ -208,7 +209,9 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[styles.profileName, { textAlign: "left", marginTop: 0 }]} numberOfLines={1}>{payload.name}</Text>
             {!!payload.username && <Text style={styles.username}>@{payload.username}</Text>}
-            <Text style={styles.profileSignal}>{Number(payload.tasteDNA?.signalCount || 0)} zevk sinyali</Text>
+            <Text style={styles.profileSignal}>
+              {hasTasteDNA ? `${Number(payload.tasteDNA?.signalCount || 0)} zevk sinyali` : "Pellix profil kartı"}
+            </Text>
           </View>
         </View>
 
@@ -226,11 +229,13 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           </View>
         )}
 
-        <View style={styles.formatMini}>
-          <Text style={styles.formatText}>FİLM %{filmPercent}</Text>
-          <View style={styles.formatTrack}><View style={[styles.formatFill, { width: `${filmPercent}%` }]} /></View>
-          <Text style={styles.formatText}>DİZİ %{100 - filmPercent}</Text>
-        </View>
+        {hasTasteDNA && (
+          <View style={styles.formatMini}>
+            <Text style={styles.formatText}>FİLM %{filmPercent}</Text>
+            <View style={styles.formatTrack}><View style={[styles.formatFill, { width: `${filmPercent}%` }]} /></View>
+            <Text style={styles.formatText}>DİZİ %{100 - filmPercent}</Text>
+          </View>
+        )}
 
         <View style={styles.statsRow}>
           <Stat icon={Heart} value={payload.likeCount} label="Beğeni" />
