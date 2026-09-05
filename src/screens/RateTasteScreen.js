@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Star, CheckCircle2, Sparkles } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Star, Sparkles } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { diaryApi } from "../api/diary";
@@ -9,47 +10,124 @@ import { api } from "../api/client";
 import ScreenHeader from "../components/ScreenHeader";
 import DiaryEntryModal from "../components/DiaryEntryModal";
 
+const DISPLAY_LIMIT = 30;
+const PREFETCH_TARGET = 90;
+const MAX_PAGES = 100;
+
+function getDiaryMovieId(entry) {
+  const value = entry?.movie?.id ?? entry?.movieId ?? entry?.movie_id;
+  const id = Number(value);
+  return Number.isFinite(id) ? id : null;
+}
+
+async function loadDiaryMap(token) {
+  const map = new Map();
+  let page = 1;
+
+  while (page <= MAX_PAGES) {
+    const data = await diaryApi.list(token, page, 100);
+    const rows = data?.results || [];
+
+    rows.forEach((entry) => {
+      const movieId = getDiaryMovieId(entry);
+      if (movieId != null) map.set(movieId, entry);
+    });
+
+    if (!data?.hasMore) break;
+    page += 1;
+  }
+
+  return map;
+}
+
+async function loadTasteCandidates(token, userId, diaryByMovie) {
+  const candidates = [];
+  const seen = new Set();
+  let page = 1;
+  let hadLikes = false;
+
+  while (page <= MAX_PAGES && candidates.length < PREFETCH_TARGET) {
+    const data = await api.allLikes(token, userId, page);
+    const rows = data?.results || [];
+    if (rows.length) hadLikes = true;
+
+    for (const movie of rows) {
+      const movieId = Number(movie?.id);
+      if (!Number.isFinite(movieId) || seen.has(movieId)) continue;
+      seen.add(movieId);
+
+      // Bu ekran sadece henüz puanlanmamış hızlı zevk sinyallerini derinleştirir.
+      // İzledim kaydı olup puanı olmayan içerikler kalır; daha önce puanlananlar tekrar gösterilmez.
+      const diaryEntry = diaryByMovie.get(movieId);
+      if (diaryEntry?.rating != null) continue;
+
+      candidates.push(movie);
+      if (candidates.length >= PREFETCH_TARGET) break;
+    }
+
+    if (!data?.hasMore) break;
+    page += 1;
+  }
+
+  return { candidates, hadLikes };
+}
+
 export default function RateTasteScreen({ navigation }) {
   const { auth } = useAuth();
   const { c } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = makeStyles(c, insets);
-  const [likedMovies, setLikedMovies] = useState([]);
+  const [candidatePool, setCandidatePool] = useState([]);
   const [diaryByMovie, setDiaryByMovie] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [hadLikes, setHadLikes] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [profile, diary] = await Promise.all([
-        api.userProfile(auth.token, auth.id),
-        diaryApi.list(auth.token, { page: 1, limit: 100 }),
-      ]);
-      setLikedMovies(profile.likedMovies || []);
-      setDiaryByMovie(new Map((diary.results || []).map((entry) => [Number(entry.movieId), entry])));
+      // Önce Diary snapshot'ını alıyoruz; böylece daha önce puanlanan içerikleri aday havuzuna
+      // hiç sokmadan, all-likes sayfalarından onların arkasındaki yeni içerikleri doldurabiliyoruz.
+      const diaryMap = await loadDiaryMap(auth.token);
+      const { candidates, hadLikes: hasLikes } = await loadTasteCandidates(auth.token, auth.id, diaryMap);
+      setDiaryByMovie(diaryMap);
+      setCandidatePool(candidates);
+      setHadLikes(hasLikes);
     } catch {}
     setLoading(false);
   }, [auth.token, auth.id]);
 
-  useEffect(() => { load(); }, [load]);
+  // Ekrana her geri dönüşte server'dan taze snapshot al. Böylece başka bir ekranda verilen puanlar
+  // da anında elenir ve ilk 30'un arkasından yeni adaylar doldurulur.
+  useFocusEffect(useCallback(() => {
+    load();
+  }, [load]));
 
-  const rows = useMemo(() => [...likedMovies].sort((a, b) => {
-    const ar = diaryByMovie.get(Number(a.id))?.rating;
-    const br = diaryByMovie.get(Number(b.id))?.rating;
-    if (ar == null && br != null) return -1;
-    if (ar != null && br == null) return 1;
-    return 0;
-  }), [likedMovies, diaryByMovie]);
+  const rows = useMemo(() => candidatePool
+    .filter((movie) => diaryByMovie.get(Number(movie.id))?.rating == null)
+    .slice(0, DISPLAY_LIMIT), [candidatePool, diaryByMovie]);
 
-  const ratedCount = rows.filter((movie) => diaryByMovie.get(Number(movie.id))?.rating != null).length;
+  const ratedTotal = useMemo(() => {
+    let count = 0;
+    diaryByMovie.forEach((entry) => { if (entry?.rating != null) count += 1; });
+    return count;
+  }, [diaryByMovie]);
 
   function applySaved(entry) {
+    const movieId = getDiaryMovieId(entry) ?? Number(selected?.id);
+    if (!Number.isFinite(movieId)) return;
+
     setDiaryByMovie((prev) => {
       const next = new Map(prev);
-      next.set(Number(entry.movieId), entry);
+      next.set(movieId, entry);
       return next;
     });
+
+    // Puan verildiyse içerik bu işini tamamladı: ekrandan hemen çıkar. Havuz önceden 90 adaya
+    // kadar doldurulduğu için alttaki sıradaki içerik aynı anda onun yerini alır.
+    if (entry?.rating != null) {
+      setCandidatePool((prev) => prev.filter((movie) => Number(movie.id) !== movieId));
+    }
   }
 
   function applyRemoved(movieId) {
@@ -67,12 +145,12 @@ export default function RateTasteScreen({ navigation }) {
         <View style={styles.introIcon}><Sparkles size={18} color="#8B5CF6" /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.introTitle}>Zevk profilini derinleştir</Text>
-          <Text style={styles.introText}>“Zevkime göre” işaretlediklerinden gerçekten izlediklerine puan ver. Puan vermek zorunlu değil.</Text>
+          <Text style={styles.introText}>“Zevkime göre” işaretlediklerinden gerçekten izlediklerine puan ver. Puanladıkların bu listeden çıkar; sıradaki içerikler onların yerini alır.</Text>
         </View>
       </View>
       <View style={styles.progressRow}>
-        <Text style={styles.progressText}>{ratedCount}/{rows.length} puanlandı</Text>
-        <Text style={styles.progressHint}>İzledim ve zevk sinyali birbirinden ayrı kalır.</Text>
+        <Text style={styles.progressText}>{rows.length} yeni içerik hazır</Text>
+        <Text style={styles.progressHint}>{ratedTotal ? `Şimdiye kadar ${ratedTotal} içeriği puanladın.` : "İzledim ve zevk sinyali birbirinden ayrı kalır."}</Text>
       </View>
 
       {loading ? (
@@ -84,7 +162,6 @@ export default function RateTasteScreen({ navigation }) {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => {
             const entry = diaryByMovie.get(Number(item.id));
-            const rating = entry?.rating;
             return (
               <TouchableOpacity style={styles.row} activeOpacity={0.84} onPress={() => setSelected(item)}>
                 {item.poster ? <Image source={{ uri: item.poster }} style={styles.poster} /> : <View style={styles.poster} />}
@@ -92,20 +169,24 @@ export default function RateTasteScreen({ navigation }) {
                   <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.meta} numberOfLines={1}>{[item.year, item.type].filter(Boolean).join(" · ")}</Text>
                   <Text style={styles.stateText}>
-                    {rating != null ? `Pellix puanın ${rating}/10` : entry ? "İzlendi · henüz puan yok" : "İzledin mi? Puanını ekleyebilirsin"}
+                    {entry ? "İzlendi · henüz puan yok" : "İzledin mi? Puanını ekleyebilirsin"}
                   </Text>
                 </View>
-                <View style={[styles.action, rating != null && styles.actionDone]}>
-                  {rating != null ? <CheckCircle2 size={14} color={c.accent} /> : <Star size={14} color={c.accent} />}
-                  <Text style={styles.actionText}>{rating != null ? `${rating}/10` : entry ? "Puanla" : "İzledim"}</Text>
+                <View style={styles.action}>
+                  <Star size={14} color={c.accent} />
+                  <Text style={styles.actionText}>{entry ? "Puanla" : "İzledim"}</Text>
                 </View>
               </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Henüz hızlı zevk sinyalin yok</Text>
-              <Text style={styles.emptyText}>Keşfet’te “Zevkime göre” dediklerin burada görünür.</Text>
+              <Text style={styles.emptyTitle}>{hadLikes ? "Puanlanacak yeni içerik kalmadı" : "Henüz hızlı zevk sinyalin yok"}</Text>
+              <Text style={styles.emptyText}>
+                {hadLikes
+                  ? "Yeni içeriklere “Zevkime göre” dedikçe burada sadece henüz puanlamadıkların görünecek."
+                  : "Keşfet’te “Zevkime göre” dediklerin burada görünür."}
+              </Text>
             </View>
           }
         />
@@ -141,7 +222,6 @@ function makeStyles(c, insets) {
     meta: { color: c.dim, fontSize: 10, marginTop: 2 },
     stateText: { color: c.dim, fontSize: 9.5, marginTop: 7 },
     action: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.accent, backgroundColor: c.surface2 },
-    actionDone: { backgroundColor: c.surface },
     actionText: { color: c.text, fontSize: 10, fontWeight: "800" },
     empty: { alignItems: "center", paddingVertical: 56, paddingHorizontal: 24 },
     emptyTitle: { color: c.text, fontWeight: "900", fontSize: 14 },
