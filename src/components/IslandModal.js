@@ -1,22 +1,23 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 
-// Bottom-sheet'in (DismissableSheet) tersine — ne alttan ne üstten açılıyor, ekranın TAM
-// ORTASINDA, dört köşesi de yuvarlak bir "ada" olarak beliriyor. Filtre gibi kısa süreli,
-// odaklı bir karar anına daha çok yakışıyor — sayfanın bir parçası gibi değil, kendi başına
-// küçük bir an gibi hissettiriyor. Hem Ana Sayfa'nın filtre paneli hem "Zevkine Göre Öner"
-// bunu paylaşıyor.
 export default function IslandModal({ visible, onClose, title, icon: Icon, gradientColors, subtitle, children }) {
   const { c } = useAppTheme();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+        >
           <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.card}>
               <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
@@ -31,7 +32,13 @@ export default function IslandModal({ visible, onClose, title, icon: Icon, gradi
                 </View>
                 {!!subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
               </LinearGradient>
-              <ScrollView style={styles.body} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.body}
+                contentContainerStyle={styles.bodyContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+              >
                 {children}
               </ScrollView>
             </View>
@@ -42,12 +49,29 @@ export default function IslandModal({ visible, onClose, title, icon: Icon, gradi
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.62)", alignItems: "center", justifyContent: "center", padding: 22 },
+    backdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.62)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 22,
+      paddingTop: Math.max(22, insets.top + 10),
+      paddingBottom: Math.max(22, insets.bottom + 10),
+    },
     card: {
-      width: "100%", maxWidth: 420, maxHeight: "84%", backgroundColor: c.surface, borderRadius: 26, overflow: "hidden",
-      shadowColor: "#000", shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.4, shadowRadius: 30, elevation: 20,
+      width: "100%",
+      maxWidth: 420,
+      maxHeight: "84%",
+      backgroundColor: c.surface,
+      borderRadius: 26,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 20 },
+      shadowOpacity: 0.4,
+      shadowRadius: 30,
+      elevation: 20,
     },
     header: { padding: 18 },
     headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -55,5 +79,6 @@ function makeStyles(c) {
     headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 6 },
     closeBtn: { width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
     body: { flexGrow: 0 },
+    bodyContent: { padding: 20, paddingBottom: Math.max(20, insets.bottom + 12) },
   });
 }
