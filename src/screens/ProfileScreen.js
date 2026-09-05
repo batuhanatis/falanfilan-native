@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, 
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2,
+  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2, BookOpen,
   Eye, EyeOff, Sparkles,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -288,6 +288,27 @@ export default function ProfileScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          style={styles.diaryShortcut}
+          onPress={() => navigation.navigate("Diary")}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel="İzleme Günlüğüm"
+        >
+          <View style={styles.diaryShortcutIcon}>
+            <BookOpen size={15} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.diaryShortcutTitle}>İzleme Günlüğüm</Text>
+            <Text style={styles.diaryShortcutMeta} numberOfLines={1}>
+              {diaryStats?.total
+                ? `${diaryStats.total} izledim${diaryStats?.ratedTotal ? ` · ${diaryStats.ratedTotal} puan` : ""}`
+                : "İzlediklerini, puanlarını ve notlarını gör"}
+            </Text>
+          </View>
+          <ChevronRight size={15} color={c.dim} />
+        </TouchableOpacity>
+
         {/* Profil artık yalnızca sayaçlardan oluşmuyor; kullanıcının seçimlerinden oluşan yaşayan
             bir kimlik gösteriyor. Bu ilk Taste DNA sürümü tamamen mevcut veriden türetiliyor,
             yeni backend endpoint'i gerektirmiyor. */}
@@ -560,6 +581,18 @@ function makeStyles(c) {
       paddingVertical: 9, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
     },
     profileActionBtnText: { fontSize: 12, fontWeight: "700", color: c.text },
+
+    diaryShortcut: {
+      marginTop: 9, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10,
+      paddingVertical: 9, paddingHorizontal: 11, borderRadius: 12,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+    },
+    diaryShortcutIcon: {
+      width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.accent + "18",
+    },
+    diaryShortcutTitle: { fontSize: 12, fontWeight: "800", color: c.text },
+    diaryShortcutMeta: { fontSize: 9.5, color: c.dim, marginTop: 2 },
 
     tasteCard: {
       marginTop: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
