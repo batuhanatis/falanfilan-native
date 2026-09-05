@@ -1,7 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StackActions } from "@react-navigation/native";
-import { Home, Compass, Activity, MessageCircle, User } from "lucide-react-native";
+import { Home, Compass, Users, MessageCircle, User } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useUnread } from "../context/UnreadContext";
 import HomeScreen from "../screens/HomeScreen";
@@ -27,12 +27,12 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen}
         options={{ title: "Ana Sayfa", tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
-      {/* ÖNEMLİ: Sekme başlıkları Türkçe/İngilizce karışıktı ("Discover", "Chat" ama "Ana Sayfa",
-          "Profil") — TasteMate marka/özellik adı olduğu için İngilizce kalıyor, diğerleri Türkçe. */}
+      {/* Ana sekmeler kullanıcı niyetini doğrudan anlatıyor. Sosyal akış artık "Aktivite" gibi
+          sistem/geçmiş çağrışımı yapan bir isim yerine "Sosyal" olarak konumlanıyor. */}
       <Tab.Screen name="Discover" component={DiscoverScreen}
         options={{ title: "Keşfet", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
       <Tab.Screen name="Activity" component={ActivityScreen}
-        options={{ title: "Aktivite", tabBarIcon: ({ color, size }) => <Activity color={color} size={size} /> }} />
+        options={{ title: "Sosyal", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen
         name="Chat"
         component={ChatStack}
