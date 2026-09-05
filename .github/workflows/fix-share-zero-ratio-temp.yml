@@ -1,0 +1,51 @@
+name: Fix zero-percent share ratio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-share-zero-ratio-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[fix-share-zero-ratio]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout UX retention branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          fetch-depth: 1
+
+      - name: Preserve real 0% film ratio
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/SocialSharedCard.js')
+          text = p.read_text(encoding='utf-8')
+          old = 'const filmPercent = bounded(payload.tasteDNA?.filmPercent || 50);'
+          new = 'const filmPercent = bounded(payload.tasteDNA?.filmPercent ?? 50);'
+          if text.count(old) != 1:
+              raise SystemExit(f'ratio fallback: expected 1 match, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Android JS bundle
+        run: npx expo export --platform android --output-dir /tmp/pellix-zero-ratio-export
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/SocialSharedCard.js
+          git diff --cached --check
+          git commit -m "Preserve zero-percent profile format ratios"
+          git push origin HEAD:ux-retention-v1
