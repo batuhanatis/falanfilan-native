@@ -5,7 +5,8 @@ import { useAppTheme } from "../context/ThemeContext";
 import { trackScreen } from "../utils/analytics";
 import MainTabs from "./MainTabs";
 import TasteMateScreen from "../screens/TasteMateScreen";
-import DetailScreen from "../screens/DetailScreen";
+import DetailScreen from "../screens/DetailScreenV2";
+import DiaryScreen from "../screens/DiaryScreen";
 import OtherProfileScreen from "../screens/OtherProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import BlockedUsersScreen from "../screens/BlockedUsersScreen";
@@ -84,6 +85,7 @@ export default function RootNavigator() {
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="TasteMate" component={TasteMateScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Detail" component={DetailScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="SharedItem" component={SharedItemScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="ProfileChat" component={ChatConversationScreen} options={{ presentation: "card" }} />
