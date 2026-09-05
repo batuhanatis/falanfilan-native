@@ -41,3 +41,5 @@ jobs:
           git diff --cached --check
           git commit -m "Add social Poster Puzzle sharing and refresh share cards"
           git push origin HEAD:ux-retention-v1
+
+# retry: corrected ProfileShareCard prop matching
