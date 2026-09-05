@@ -9,6 +9,7 @@ import {
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { diaryApi } from "../api/diary";
 import { avatarOr } from "../utils/avatar";
 import { hexToRgba } from "../utils/color";
 import { backgroundBlurAndDim } from "../utils/profileBackground";
@@ -78,6 +79,7 @@ export default function ProfileScreen({ navigation, route }) {
   const [questStreak, setQuestStreak] = useState(0);
   const [questSummary, setQuestSummary] = useState(null);
   const [achievements, setAchievements] = useState(null);
+  const [diaryStats, setDiaryStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState(route?.params?.initialSub === "likes" ? "likes" : "posts"); // posts | likes
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -115,6 +117,7 @@ export default function ProfileScreen({ navigation, route }) {
       setQuestSummary(data);
     }).catch(() => {});
     api.achievements(auth.token).then(setAchievements).catch(() => {});
+    diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
   }, [auth.token, auth.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -221,7 +224,7 @@ export default function ProfileScreen({ navigation, route }) {
           <View style={styles.statsRow}>
             <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")}>
               <Text style={styles.statNum}>{likeCount}</Text>
-              <Text style={styles.statLabel}>Beğeni</Text>
+              <Text style={styles.statLabel}>Zevk</Text>
             </TouchableOpacity>
             <View style={styles.statDivider} />
             <TouchableOpacity style={styles.statItem} onPress={() => navigation.navigate("FriendsList")}>
@@ -298,6 +301,16 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
             <Text style={styles.typeSplitLabel}>Dizi %{tasteDNA.showPercent}</Text>
           </View>
+          {Number(diaryStats?.tasteCandidatesUnrated || 0) > 0 && (
+            <TouchableOpacity style={styles.deepenTasteBtn} onPress={() => navigation.navigate("RateTaste")} activeOpacity={0.84}>
+              <Star size={14} color={c.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deepenTasteTitle}>İzlediklerini puanla</Text>
+                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated} zevk sinyali daha derinleştirilebilir{diaryStats.ratedTotal ? ` · ${diaryStats.ratedTotal} puanın var` : ""}</Text>
+              </View>
+              <ChevronRight size={15} color={c.dim} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.retentionRow}>
@@ -371,7 +384,7 @@ export default function ProfileScreen({ navigation, route }) {
             <Text style={[styles.contentTabText, sub === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contentTab, sub === "likes" && styles.contentTabActive]} onPress={() => setSub("likes")}>
-            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Beğeniler</Text>
+            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Zevkim</Text>
           </TouchableOpacity>
         </View>
 
@@ -410,13 +423,13 @@ export default function ProfileScreen({ navigation, route }) {
               {likeCount > likedMovies.length && (
                 <TouchableOpacity
                   style={styles.seeAllBtn}
-                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Beğenilerim" })}
+                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Zevkime göre" })}
                 >
                   <Text style={styles.seeAllBtnText}>Tümünü Gör ({likeCount})</Text>
                 </TouchableOpacity>
               )}
             </>
-          ) : <Text style={styles.emptyText}>Henüz bir beğeni yok.</Text>
+          ) : <Text style={styles.emptyText}>Henüz bir zevk sinyalin yok.</Text>
         )}
 
       </View>
@@ -581,6 +594,9 @@ function makeStyles(c) {
     typeSplitTrack: { flex: 1, height: 7, backgroundColor: "#2563EB", borderRadius: 999, overflow: "hidden" },
     typeSplitFilm: { height: "100%", backgroundColor: c.accent },
 
+    deepenTasteBtn: { marginTop: 13, flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
+    deepenTasteTitle: { color: c.text, fontSize: 11.5, fontWeight: "850" },
+    deepenTasteMeta: { color: c.dim, fontSize: 9.5, marginTop: 2 },
     retentionRow: { flexDirection: "row", gap: 10, marginTop: 10 },
     retentionCard: {
       flex: 1, minHeight: 128, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,

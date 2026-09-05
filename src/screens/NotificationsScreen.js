@@ -38,6 +38,7 @@ function notificationText(n) {
     case "friend_battle_invite": return `${p.from?.name || "Bir arkadaşın"} seni Friend Battle'a çağırdı 🎮`;
     case "friend_battle_turn": return `${p.by?.name || "Arkadaşın"} Friend Battle turunu tamamladı — sıra sende`;
     case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} zevk senkronu 🔥`;
+    case "rating_nudge": return "Zevkime göre işaretlediklerinden izlediklerini puanlamak ister misin?";
     default: return "Yeni bildirim";
   }
 }
@@ -61,6 +62,7 @@ function notificationMeta(n) {
     case "friend_battle_invite": return { person: p.from, icon: Swords, color: "#DB2777" };
     case "friend_battle_turn": return { person: p.by, icon: Swords, color: "#F97316" };
     case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: "#7C3AED" };
+    case "rating_nudge": return { person: null, icon: Sparkles, color: "#8B5CF6" };
     default: return { person: null, icon: Bell, color: "#8f8a9c" };
   }
 }
@@ -114,6 +116,7 @@ export default function NotificationsScreen({ navigation }) {
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
     else if (FRIEND_BATTLE_TYPES.includes(n.type) && p.battleId) navigation.navigate("FriendBattle", { battleId: String(p.battleId) });
     else if (SHARED_ITEM_TYPES.includes(n.type)) navigation.navigate("SharedItem", { kind: p.targetKind, id: p.targetId });
+    else if (n.type === "rating_nudge") navigation.navigate("RateTaste");
   }
 
   function renderRightActions(n, progress, dragX) {
@@ -151,7 +154,7 @@ export default function NotificationsScreen({ navigation }) {
           ListHeaderComponent={notifications.length > 0 ? <View style={styles.listIntro}><Text style={styles.hint}>Bir bildirimi silmek için sola kaydır.</Text></View> : null}
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
-            const clickable = item.type === "party_accepted" || item.type === "party_match" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type);
+            const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type);
             const meta = notificationMeta(item);
             const Icon = meta.icon;
             return (

@@ -33,6 +33,7 @@ import {
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { diaryApi } from "../api/diary";
 import { GENRE_FILTERS } from "../theme/theme";
 import MovieCard from "../components/MovieCard";
 import PopularNowRow from "../components/PopularNowRow";
@@ -123,6 +124,7 @@ export default function HomeScreenV2({ navigation }) {
   const [spotlight, setSpotlight] = useState({ upcoming: [] });
   const [notifySubs, setNotifySubs] = useState(new Set());
   const [questData, setQuestData] = useState(null);
+  const [diaryStats, setDiaryStats] = useState(null);
 
   const [describeResults, setDescribeResults] = useState(null);
   const [describeCount, setDescribeCount] = useState(8);
@@ -197,6 +199,7 @@ export default function HomeScreenV2({ navigation }) {
       .then((data) => setNotifySubs(new Set(data.movieIds || [])))
       .catch(() => {});
     api.quests(auth.token).then(setQuestData).catch(() => setQuestData(null));
+    diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
     loadTrending();
   }, [auth.token, loadTrending]);
 
@@ -618,6 +621,18 @@ export default function HomeScreenV2({ navigation }) {
           <QuickChip icon={Shuffle} label="Sürpriz" onPress={surpriseMe} c={c} />
         </ScrollView>
 
+        {Number(diaryStats?.tasteCandidatesUnrated || 0) >= 5 && (
+          <TouchableOpacity style={styles.ratingNudgeCard} activeOpacity={0.86} onPress={() => navigation.navigate("RateTaste")}>
+            <View style={styles.ratingNudgeIcon}><Star size={17} color="#FFD76A" fill="rgba(255,215,106,0.16)" /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.ratingNudgeEyebrow}>ZEVK PROFİLİNİ DERİNLEŞTİR</Text>
+              <Text style={styles.ratingNudgeTitle}>İzlediklerini puanlamak ister misin?</Text>
+              <Text style={styles.ratingNudgeText}>{diaryStats.tasteCandidatesUnrated} zevk sinyalinden izlediklerini seç; puan vermek opsiyonel.</Text>
+            </View>
+            <ChevronRight size={17} color={c.dim} />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.todayHeaderRow}>
           <View>
             <Text style={styles.sectionEyebrow}>BUGÜN PELLIX'TE</Text>
@@ -984,6 +999,11 @@ function makeStyles(c) {
     heroEmptyText: { color: c.dim, fontSize: 11.5, textAlign: "center", marginTop: 5 },
 
     quickRow: { gap: 8, paddingTop: 12, paddingBottom: 2 },
+    ratingNudgeCard: { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,215,106,0.22)", backgroundColor: "rgba(255,215,106,0.07)", padding: 12 },
+    ratingNudgeIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,215,106,0.10)" },
+    ratingNudgeEyebrow: { color: "#FFD76A", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.65 },
+    ratingNudgeTitle: { color: c.text, fontSize: 12.5, fontWeight: "850", marginTop: 2 },
+    ratingNudgeText: { color: c.dim, fontSize: 10, lineHeight: 14, marginTop: 2 },
     todayHeaderRow: { marginTop: 22, marginBottom: 10 },
     sectionEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.9 },
     sectionTitle: { color: c.text, fontSize: 14, fontWeight: "800", marginTop: 3 },

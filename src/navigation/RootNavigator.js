@@ -18,6 +18,7 @@ import DailyPosterPuzzleScreen from "../screens/DailyPosterPuzzleScreen";
 import FriendBattleScreen from "../screens/FriendBattleScreen";
 import PartyJoinScreen from "../screens/PartyJoinScreen";
 import DiaryScreen from "../screens/DiaryScreen";
+import RateTasteScreen from "../screens/RateTasteScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
 import WatchlistDetailScreen from "../screens/WatchlistDetailScreen";
@@ -82,6 +83,7 @@ export default function RootNavigator() {
         <Stack.Screen name="FriendBattle" component={FriendBattleScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="PartyJoin" component={PartyJoinScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="RateTaste" component={RateTasteScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="AllLikes" component={AllLikesScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WatchlistDetail" component={WatchlistDetailScreen} options={{ presentation: "card" }} />

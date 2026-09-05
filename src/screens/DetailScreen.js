@@ -351,7 +351,7 @@ export default function DetailScreen({ route, navigation }) {
               <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                 <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
               </Animated.View>
-              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Beğendim</Text>
+              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Zevkime göre</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
               <X size={16} color={disliked ? "#fff" : c.text} />

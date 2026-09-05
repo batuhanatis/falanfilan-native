@@ -160,7 +160,7 @@ export default function DiscoverScreen({ navigation }) {
         emitLocalEvent({
           type: "toast",
           title: "Zevkin netleşiyor ✨",
-          message: topGenre ? `${topGenre} tercihin şu anda öne çıkıyor.` : `${nextLikeCount} yeni sinyal öğrendik.`,
+          message: topGenre ? `${topGenre} tercihin şu anda öne çıkıyor.` : `${nextLikeCount} yeni zevk sinyali öğrendik.`,
         });
       }
     } else {
@@ -261,7 +261,7 @@ export default function DiscoverScreen({ navigation }) {
           <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>Bu turu bitirdin</Text>
           {sessionLikes + sessionSkips > 0 ? (
             <Text style={{ color: c.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", maxWidth: 260 }}>
-              Bu turda {sessionLikes} şey beğendin
+              Bu turda {sessionLikes} içeriği zevkine göre işaretledin
               {(() => {
                 const top = Object.entries(sessionGenreCounts).sort((a, b) => b[1] - a[1])[0];
                 return top ? `, en çok ${top[0]} seçtin` : "";
@@ -315,7 +315,7 @@ export default function DiscoverScreen({ navigation }) {
                   </View>
 
                   <Animated.View style={[styles.stampLike, { opacity: likeOpacity, transform: [{ rotate: "-12deg" }, { scale: likeScale }] }]}>
-                    <Text style={styles.stampLikeText}>SEVDİM</Text>
+                    <Text style={styles.stampLikeText}>ZEVKİME GÖRE</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stampSkip, { opacity: skipOpacity, transform: [{ rotate: "12deg" }, { scale: skipScale }] }]}>
                     <Text style={styles.stampSkipText}>GEÇ</Text>
