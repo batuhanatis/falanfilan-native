@@ -1,0 +1,71 @@
+name: Profile Diary Shortcut Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/profile-diary-shortcut-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current app branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Patch compact Diary shortcut into Profile
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/ProfileScreen.js')
+          s = p.read_text()
+
+          s = s.replace(
+              '  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2,\n  Eye, EyeOff, Sparkles,\n',
+              '  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2, BookOpen,\n  Eye, EyeOff, Sparkles,\n'
+          )
+
+          marker = '''        <View style={styles.profileActionsRow}>\n          <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowEditProfile(true)}>\n            <Pencil size={13} color={c.text} />\n            <Text style={styles.profileActionBtnText}>Profili Düzenle</Text>\n          </TouchableOpacity>\n          <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowShareCard(true)}>\n            <Share2 size={13} color={c.text} />\n            <Text style={styles.profileActionBtnText}>Profili Paylaş</Text>\n          </TouchableOpacity>\n        </View>\n\n'''
+          replacement = marker + '''        <TouchableOpacity\n          style={styles.diaryShortcut}\n          onPress={() => navigation.navigate("Diary")}\n          activeOpacity={0.82}\n          accessibilityRole="button"\n          accessibilityLabel="İzleme Günlüğüm"\n        >\n          <View style={styles.diaryShortcutIcon}>\n            <BookOpen size={15} color={c.accent} />\n          </View>\n          <View style={{ flex: 1 }}>\n            <Text style={styles.diaryShortcutTitle}>İzleme Günlüğüm</Text>\n            <Text style={styles.diaryShortcutMeta} numberOfLines={1}>\n              {diaryStats?.total\n                ? `${diaryStats.total} izledim${diaryStats?.ratedTotal ? ` · ${diaryStats.ratedTotal} puan` : ""}`\n                : "İzlediklerini, puanlarını ve notlarını gör"}\n            </Text>\n          </View>\n          <ChevronRight size={15} color={c.dim} />\n        </TouchableOpacity>\n\n'''
+          if marker not in s:
+              raise SystemExit('profile action marker not found')
+          s = s.replace(marker, replacement, 1)
+
+          style_marker = '''    profileActionBtnText: { fontSize: 12, fontWeight: "700", color: c.text },\n\n'''
+          style_replacement = style_marker + '''    diaryShortcut: {\n      marginTop: 9, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10,\n      paddingVertical: 9, paddingHorizontal: 11, borderRadius: 12,\n      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,\n    },\n    diaryShortcutIcon: {\n      width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center",\n      backgroundColor: c.accent + "18",\n    },\n    diaryShortcutTitle: { fontSize: 12, fontWeight: "800", color: c.text },\n    diaryShortcutMeta: { fontSize: 9.5, color: c.dim, marginTop: 2 },\n\n'''
+          if style_marker not in s:
+              raise SystemExit('profile style marker not found')
+          s = s.replace(style_marker, style_replacement, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JS bundles
+        run: |
+          npx expo export --platform ios --output-dir dist-ios
+          npx expo export --platform android --output-dir dist-android
+
+      - name: Commit app changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/ProfileScreen.js
+          git commit -m "Add compact Diary shortcut to Profile"
+          git push origin HEAD:ux-retention-v1
