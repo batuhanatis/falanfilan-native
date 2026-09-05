@@ -61,7 +61,7 @@ function LoadingLogo() {
 
 const PUSH_PRIMER_DISMISSED_KEY = "push_primer_dismissed_v1";
 
-function Gate() {
+function Gate({ fontsLoaded }) {
   const { c, mode } = useAppTheme();
   const { auth, checking, markTutorialSeen, markTasteSurveySeen } = useAuth();
   // ÖNEMLİ: Bildirim izni artık login olur olmaz bağlamsızca istenmiyor — önce KENDİ ekranımızda
@@ -70,10 +70,9 @@ function Gate() {
   // önce kapattın mı" (AsyncStorage) durumu HESAPLANANA kadar null — o ana kadar hiçbir şey
   // göstermiyoruz, "hesaplanmadı" ile "gösterilmemeli" birbirine karışmasın diye.
   const [showPushPrimer, setShowPushPrimer] = useState(null);
-  // Her soğuk açılışta bir kez oynayan şerit-girdabı açılış animasyonu (native SVG/Reanimated) —
-  // oturum kontrolü (checking) bundan daha hızlı bitse bile bu ilk izlenimi erken kesmiyoruz;
-  // animasyon bittiğinde checking hâlâ sürüyorsa mevcut LoadingLogo nabız animasyonu devralıp
-  // beklemeye devam ediyor.
+  // Splash artık uygulamanın yerine render edilmiyor; tam ekran bir overlay olarak üstte duruyor.
+  // Böylece font + auth kontrolü ve mümkünse gerçek ilk ekran 1.6 sn'lik intro oynarken arkada
+  // hazırlanıyor. Son fade gerçekten hazır ekrana crossfade oluyor.
   const [introDone, setIntroDone] = useState(false);
 
   // Analitik: hangi kullanıcıya ait olduğunu bilelim, uygulama ön plana/arka plana
@@ -224,67 +223,57 @@ function Gate() {
     return setupNotificationTapHandling(handleNavTarget);
   }, [auth?.token]);
 
-  if (!introDone) {
-    return <SplashIntroAnim onFinish={() => setIntroDone(true)} />;
-  }
-
-  if (checking) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg }}>
-        <LoadingLogo />
-      </View>
-    );
-  }
+  const appReady = fontsLoaded && !checking;
 
   return (
-    <>
-      <StatusBar style={mode === "dark" ? "light" : "dark"} />
-      {!auth ? <AuthScreen /> : !auth.onboardingCompleted ? <OnboardingScreen /> : <RootNavigator />}
-      {/* Onboarding'in HEMEN ardından, bir kez gösterilen özellik tanıtım turu — alt sekmelerin
-          üstüne, ayrı bir katman olarak biniyor. RootNavigator'ın kendi içine KOYMUYORUZ ki
-          hangi sekmede olursan ol (tur sırasında kullanıcı sekme değiştiremiyor zaten,
-          pointerEvents dışarıdaki karartılmış alanları engelliyor) her zaman en üstte kalsın. */}
-      {auth?.onboardingCompleted && !auth?.tutorialSeen && (
-        <TutorialOverlay onFinish={markTutorialSeen} />
-      )}
-      {/* Geriye dönük zevk anketi hatırlatması — bu özellik eklenmeden ÖNCE onboarding'i
-          tamamlamış (dolayısıyla anketi hiç görmemiş) mevcut kullanıcılara, tanıtım turu
-          bittikten sonra bir kerelik gösteriliyor. Tur bitene KADAR göstermiyoruz ki üst üste
-          iki tam ekran katman aynı anda binmesin. */}
-      {auth?.onboardingCompleted && auth?.tutorialSeen && !auth?.tasteSurveySeen && (
-        <View style={StyleSheet.absoluteFillObject}>
-          <TasteSurveyStep
-            title="Zevkini biraz daha tanıyalım"
-            subtitle="Bu birkaç soru, önerilerini ve arkadaşlarınla uyumunu çok daha isabetli hale getiriyor."
-            skipLabel="Atla"
-            continueLabel="Tamamla"
-            onSkip={markTasteSurveySeen}
-            onContinue={markTasteSurveySeen}
-          />
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <StatusBar style={!introDone ? "light" : mode === "dark" ? "light" : "dark"} />
+
+      {/* Gerçek uygulama splash'ın altında hazırlanıyor. Auth/font kontrolü introdan önce
+          biterse kullanıcı fade sonunda loader değil doğrudan hazır ekranı görüyor. */}
+      {appReady ? (
+        <>
+          {!auth ? <AuthScreen /> : !auth.onboardingCompleted ? <OnboardingScreen /> : <RootNavigator />}
+
+          {/* Bu onboarding katmanlarını splash bitmeden mount etmiyoruz; aksi halde kendi giriş
+              animasyonları görünmeden çalışmaya başlayabilir. Ana ekran/nav ise preload ediliyor. */}
+          {introDone && auth?.onboardingCompleted && !auth?.tutorialSeen && (
+            <TutorialOverlay onFinish={markTutorialSeen} />
+          )}
+          {introDone && auth?.onboardingCompleted && auth?.tutorialSeen && !auth?.tasteSurveySeen && (
+            <View style={StyleSheet.absoluteFillObject}>
+              <TasteSurveyStep
+                title="Zevkini biraz daha tanıyalım"
+                subtitle="Bu birkaç soru, önerilerini ve arkadaşlarınla uyumunu çok daha isabetli hale getiriyor."
+                skipLabel="Atla"
+                continueLabel="Tamamla"
+                onSkip={markTasteSurveySeen}
+                onContinue={markTasteSurveySeen}
+              />
+            </View>
+          )}
+          {introDone && auth?.onboardingCompleted && auth?.tutorialSeen && auth?.tasteSurveySeen && showPushPrimer && (
+            <NotificationPrimerModal onEnable={handleEnablePush} onDismiss={handleDismissPush} />
+          )}
+        </>
+      ) : (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg }}>
+          <LoadingLogo />
         </View>
       )}
-      {/* Onboarding zinciri (tur + zevk anketi) bitmeden bindirmiyoruz ki aynı anda iki tam ekran
-          katman üst üste binmesin — bildirim izni bunların EN SONUNDA, tek seferlik sorulan
-          üçüncü adım. */}
-      {auth?.onboardingCompleted && auth?.tutorialSeen && auth?.tasteSurveySeen && showPushPrimer && (
-        <NotificationPrimerModal onEnable={handleEnablePush} onDismiss={handleDismissPush} />
-      )}
-    </>
+
+      {/* OTA-güncellenebilir JS splash. Absolute overlay olduğu için uygulamanın yüklenmesini
+          bloklamıyor ve kendi son opacity animasyonunda alttaki gerçek ekrana crossfade oluyor. */}
+      {!introDone && <SplashIntroAnim onFinish={() => setIntroDone(true)} />}
+    </View>
   );
 }
 
 export default function App() {
   // "pellix" markasının her yerde kullandığı eğlenceli, yuvarlak font (Baloo 2) — logo,
-  // giriş ekranı gibi marka gösterimlerinde kullanılıyor. Yüklenene kadar basit bir
-  // yer tutucu gösteriyoruz, aksi halde font aniden değişip "atlıyor" gibi görünür.
+  // giriş ekranı gibi marka gösterimlerinde kullanılıyor. Splash artık font yüklenmesini
+  // beklemiyor; Gate fontlar hazır olana kadar gerçek ekranı altta LoadingLogo ile tutuyor.
   const [fontsLoaded] = useFonts({ Baloo2_700Bold, Baloo2_800ExtraBold });
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0d0d10", alignItems: "center", justifyContent: "center" }}>
-        <Image source={require("./assets/icon.png")} style={{ width: 90, height: 90, borderRadius: 22 }} resizeMode="contain" />
-      </View>
-    );
-  }
 
   return (
     <ErrorBoundary>
@@ -295,7 +284,7 @@ export default function App() {
               <WSProvider>
                 <UnreadProvider>
                   <PrefetchProvider>
-                    <Gate />
+                    <Gate fontsLoaded={fontsLoaded} />
                   </PrefetchProvider>
                 </UnreadProvider>
               </WSProvider>
