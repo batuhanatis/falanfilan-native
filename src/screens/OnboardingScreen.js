@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ScrollView, ActivityIndicator, Animated } from "react-native";
 import { Heart, ChevronLeft, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
@@ -9,9 +9,6 @@ import { hapticSuccess } from "../utils/haptics";
 import { emitLocalEvent } from "../utils/localEvents";
 import TasteSurveyStep from "../components/TasteSurveyStep";
 
-// Onboarding: 1) kısa zevk anketi, 2) en az 5 içerikle hızlı kalibrasyon,
-// 3) kullanıcının verdiği sinyalin gerçekten işe yaradığını hissettiren kısa bir "taste reveal".
-// Bu ekran react-navigation yığınının parçası değil; App.js Gate tarafından doğrudan render ediliyor.
 export default function OnboardingScreen() {
   const { c } = useAppTheme();
   const { auth, markOnboardingComplete } = useAuth();
@@ -79,7 +76,7 @@ function WelcomeStep({ c, styles, insets, name, onContinue }) {
     ]).start();
   }, []);
   return (
-    <View style={styles.welcomeWrap}>
+    <View style={[styles.welcomeWrap, { paddingTop: Math.max(30, insets.top + 20), paddingBottom: Math.max(96, insets.bottom + 86) }]}>
       <Animated.View style={{ opacity, transform: [{ scale }], alignItems: "center" }}>
         <Text style={styles.welcomeLogo}>
           pell<Text style={{ color: c.accent }}>i</Text>x
@@ -114,7 +111,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
       setMovies([...byId.values()]);
       setLoading(false);
     })();
-  }, []);
+  }, [auth.token]);
 
   function toggle(id) {
     const willBeSize = picked.has(id) ? picked.size - 1 : picked.size + 1;
@@ -150,7 +147,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 60 }}>
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: Math.max(insets.top, 12) + 18 }}>
       <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
         <View style={styles.stepHeaderRow}>
           <TouchableOpacity onPress={onBack} style={{ padding: 2, marginLeft: -2 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -172,7 +169,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
         data={movies}
         keyExtractor={(item) => String(item.id)}
         numColumns={3}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
         renderItem={({ item }) => {
           const isPicked = picked.has(item.id);
           return (
@@ -244,44 +241,54 @@ function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
 
   const topGenres = reveal?.topGenres?.length ? reveal.topGenres : ["Sana özel", "Keşif", "Sürpriz"];
   const picks = reveal?.picks || [];
+  const buttonBottom = Math.max(24, insets.bottom + 16);
 
   return (
     <View style={styles.revealWrap}>
-      <Animated.View style={[styles.revealContent, { opacity, transform: [{ scale }] }]}>
-        <View style={styles.revealSparkleRing}>
-          <Sparkles size={28} color={c.accent} />
-        </View>
-        <Text style={styles.revealEyebrow}>PELLIX TASTE</Text>
-        <Text style={styles.revealTitle}>{name ? `${name}, zevkini yakaladık` : "Zevkini yakaladık"}</Text>
-        <Text style={styles.revealSubtitle}>İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.revealScrollContent,
+          { paddingTop: Math.max(24, insets.top + 18), paddingBottom: buttonBottom + 82 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={[styles.revealContent, { opacity, transform: [{ scale }] }]}>
+          <View style={styles.revealSparkleRing}>
+            <Sparkles size={28} color={c.accent} />
+          </View>
+          <Text style={styles.revealEyebrow}>PELLIX TASTE</Text>
+          <Text style={styles.revealTitle}>{name ? `${name}, zevkini yakaladık` : "Zevkini yakaladık"}</Text>
+          <Text style={styles.revealSubtitle}>İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.</Text>
 
-        <View style={styles.genreRow}>
-          {topGenres.map((genre) => (
-            <View key={genre} style={styles.genreChip}>
-              <Text style={styles.genreChipText}>{genre}</Text>
-            </View>
-          ))}
-        </View>
-
-        {picks.length > 0 && (
-          <View style={styles.revealPosterRow}>
-            {picks.map((movie, index) => (
-              <Image
-                key={movie.id}
-                source={{ uri: movie.poster }}
-                style={[styles.revealPoster, { transform: [{ rotate: `${(index - (picks.length - 1) / 2) * 3}deg` }] }]}
-              />
+          <View style={styles.genreRow}>
+            {topGenres.map((genre) => (
+              <View key={genre} style={styles.genreChip}>
+                <Text style={styles.genreChipText}>{genre}</Text>
+              </View>
             ))}
           </View>
-        )}
 
-        <View style={styles.revealPromise}>
-          <Text style={styles.revealPromiseTitle}>İlk önerilerin hazır</Text>
-          <Text style={styles.revealPromiseText}>Ana Sayfa ve Keşfet artık verdiğin bu sinyallerle başlayacak.</Text>
-        </View>
-      </Animated.View>
+          {picks.length > 0 && (
+            <View style={styles.revealPosterRow}>
+              {picks.map((movie, index) => (
+                <Image
+                  key={movie.id}
+                  source={{ uri: movie.poster }}
+                  style={[styles.revealPoster, { transform: [{ rotate: `${(index - (picks.length - 1) / 2) * 3}deg` }] }]}
+                />
+              ))}
+            </View>
+          )}
 
-      <TouchableOpacity style={[styles.revealBtn, { bottom: Math.max(24, insets.bottom + 16) }]} onPress={onFinish} activeOpacity={0.88}>
+          <View style={styles.revealPromise}>
+            <Text style={styles.revealPromiseTitle}>İlk önerilerin hazır</Text>
+            <Text style={styles.revealPromiseText}>Ana Sayfa ve Keşfet artık verdiğin bu sinyallerle başlayacak.</Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      <TouchableOpacity style={[styles.revealBtn, { bottom: buttonBottom }]} onPress={onFinish} activeOpacity={0.88}>
         <Text style={styles.revealBtnText}>Pellix'e Gir</Text>
       </TouchableOpacity>
     </View>
@@ -307,12 +314,12 @@ function StepDots({ c, activeStep }) {
 function makeStyles(c) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg },
-    welcomeWrap: { flex: 1, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", padding: 30 },
+    welcomeWrap: { flex: 1, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", paddingHorizontal: 30 },
     welcomeLogo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 34, color: c.text },
     welcomeTitle: { fontSize: 19, fontWeight: "800", color: c.text, textAlign: "center" },
     welcomeSubtitle: { fontSize: 13, color: c.dim, marginTop: 8, textAlign: "center", lineHeight: 19 },
     welcomeBtn: {
-      position: "absolute", bottom: 50, left: 30, right: 30,
+      position: "absolute", left: 30, right: 30,
       backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, alignItems: "center",
     },
     welcomeBtnText: { color: c.bg, fontWeight: "800", fontSize: 14 },
@@ -330,14 +337,15 @@ function makeStyles(c) {
       position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 999,
       backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
     },
-    footer: { flexDirection: "row", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
+    footer: { flexDirection: "row", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg },
     skipBtn: { paddingHorizontal: 18, justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: c.border },
     skipText: { color: c.dim, fontWeight: "700", fontSize: 13 },
     continueBtn: { flex: 1, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
     continueText: { color: c.bg, fontWeight: "800", fontSize: 14 },
 
-    revealWrap: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 24, justifyContent: "center" },
-    revealContent: { alignItems: "center", paddingBottom: 88 },
+    revealWrap: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 24 },
+    revealScrollContent: { flexGrow: 1, justifyContent: "center" },
+    revealContent: { alignItems: "center" },
     revealSparkleRing: {
       width: 72, height: 72, borderRadius: 999, alignItems: "center", justifyContent: "center",
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent, marginBottom: 16,
