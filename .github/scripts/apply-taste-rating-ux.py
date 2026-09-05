@@ -21,7 +21,7 @@ patch('src/screens/DiscoverScreen.js', [
 ])
 
 patch('src/screens/DetailScreen.js', [
-('<Text style={styles.actionText}>Beğendim</Text>','<Text style={styles.actionText}>Zevkime göre</Text>','detail like wording'),
+('<Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Beğendim</Text>','<Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Zevkime göre</Text>','detail like wording'),
 ])
 
 patch('src/screens/HomeScreenV2.js', [
