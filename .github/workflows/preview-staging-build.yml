@@ -10,9 +10,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   android-preview:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[submit-ios-preview]')
     name: Android preview APK
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -73,6 +75,7 @@ jobs:
           retention-days: 7
 
   ios-preview-testflight:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[submit-ios-preview]')
     name: iOS preview to TestFlight
     runs-on: macos-26
     timeout-minutes: 150
@@ -117,4 +120,41 @@ jobs:
         run: >-
           eas submit --platform ios --profile production --path ./pellix-staging-preview.ipa
           --non-interactive --wait
-          --what-to-test "Pellix staging QA - Home V2, Diary, Friend Battle, Party Link, keyboard and safe-area checks"
+
+  ios-resubmit-existing:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[submit-ios-preview]')
+    name: Resubmit existing iOS preview to TestFlight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Download existing iOS preview artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pellix-staging-preview-ios
+          path: dist
+          github-token: ${{ github.token }}
+          run-id: 33964132458
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify Expo authentication
+        run: eas whoami
+
+      - name: Verify IPA artifact
+        run: test -f ./dist/pellix-staging-preview.ipa
+
+      - name: Submit existing staging preview to TestFlight
+        run: >-
+          eas submit --platform ios --profile production --path ./dist/pellix-staging-preview.ipa
+          --non-interactive --wait
