@@ -13,6 +13,7 @@ import DiaryEntryModal from "../components/DiaryEntryModal";
 // kendini gizler; böylece native OTA, API rollout'undan önce bile eski kullanıcı akışını bozmaz.
 export default function DetailScreenV2(props) {
   const movie = props.route?.params?.movie;
+  const { navigation } = props;
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -76,6 +77,7 @@ export default function DetailScreenV2(props) {
         onClose={() => setModalOpen(false)}
         onSaved={(next) => { setEntry(next); setAvailable(true); }}
         onRemoved={() => setEntry(null)}
+        onOpenDiary={() => navigation.navigate("Diary")}
       />
     </View>
   );
