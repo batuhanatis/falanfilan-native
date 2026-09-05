@@ -120,3 +120,5 @@ jobs:
 
       - name: Submit iOS build to App Store Connect
         run: eas submit --platform ios --profile production --path ./dist/pellix-production.ipa --non-interactive --wait
+
+# Release source: ux-retention-v1 @ 41ab2b816910defb8bcea5d1427e6d6223be218a
