@@ -47,4 +47,6 @@ jobs:
       - name: Publish preview OTA only
         run: >-
           eas update --channel preview --platform all --environment production --non-interactive
-          --message "Preview share cards and Poster Puzzle social"
+          --message "Preview final share-card compatibility"
+
+# final preview publish after legacy social-card compatibility validation
