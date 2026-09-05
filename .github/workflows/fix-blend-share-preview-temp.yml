@@ -1,0 +1,49 @@
+name: Fix Blend share preview scale
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-blend-share-preview-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[fix-blend-preview]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout UX retention branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          fetch-depth: 1
+
+      - name: Update Blend preview height
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/screens/BlendScreen.js')
+          text = p.read_text(encoding='utf-8')
+          old = 'previewHeight={528}'
+          new = 'previewHeight={620}'
+          if text.count(old) != 1:
+              raise SystemExit(f'Blend previewHeight: expected 1 match, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Validate JavaScript bundle
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/pellix-blend-preview-export
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/BlendScreen.js
+          git diff --cached --check
+          git commit -m "Scale refreshed Blend share card safely"
+          git push origin HEAD:ux-retention-v1
