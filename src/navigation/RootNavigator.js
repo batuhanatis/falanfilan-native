@@ -5,8 +5,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { trackScreen } from "../utils/analytics";
 import MainTabs from "./MainTabs";
 import TasteMateScreen from "../screens/TasteMateScreen";
-import DetailScreen from "../screens/DetailScreenV2";
-import DiaryScreen from "../screens/DiaryScreen";
+import DetailScreenV2 from "../screens/DetailScreenV2";
 import OtherProfileScreen from "../screens/OtherProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import BlockedUsersScreen from "../screens/BlockedUsersScreen";
@@ -16,6 +15,8 @@ import PremiumScreen from "../screens/PremiumScreen";
 import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import PellixPlayScreen from "../screens/PellixPlayScreen";
 import DailyPosterPuzzleScreen from "../screens/DailyPosterPuzzleScreen";
+import FriendBattleScreen from "../screens/FriendBattleScreen";
+import DiaryScreen from "../screens/DiaryScreen";
 import InviteFriendScreen from "../screens/InviteFriendScreen";
 import AllLikesScreen from "../screens/AllLikesScreen";
 import WatchlistDetailScreen from "../screens/WatchlistDetailScreen";
@@ -54,6 +55,7 @@ export default function RootNavigator() {
     config: {
       screens: {
         OtherProfile: "u/:userId",
+        FriendBattle: "battle/:battleId",
       },
     },
     getStateFromPath: (path, options) => {
@@ -67,6 +69,12 @@ export default function RootNavigator() {
       if (blendMatch) {
         return {
           routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }],
+        };
+      }
+      const battleMatch = path.match(/^\/?battle\/([^/?]+)/);
+      if (battleMatch) {
+        return {
+          routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }],
         };
       }
       return defaultGetStateFromPath(path, options);
@@ -84,8 +92,7 @@ export default function RootNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="TasteMate" component={TasteMateScreen} options={{ presentation: "card" }} />
-        <Stack.Screen name="Detail" component={DetailScreen} options={{ presentation: "card" }} />
-        <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="Detail" component={DetailScreenV2} options={{ presentation: "card" }} />
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="SharedItem" component={SharedItemScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="ProfileChat" component={ChatConversationScreen} options={{ presentation: "card" }} />
@@ -97,6 +104,8 @@ export default function RootNavigator() {
         <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="DailyPosterPuzzle" component={DailyPosterPuzzleScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="FriendBattle" component={FriendBattleScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="InviteFriend" component={InviteFriendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="AllLikes" component={AllLikesScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WatchlistDetail" component={WatchlistDetailScreen} options={{ presentation: "card" }} />
