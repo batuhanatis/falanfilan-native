@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ActivityIndicator, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MessageCircle, MoreHorizontal, Send, Sparkles, Star } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { diaryApi } from "../api/diary";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
@@ -45,9 +46,10 @@ function activityMood(item) {
   return { emoji: "✨", label: "ZEVKİNİ GÜNCELLEDİ", colors: ["#8B5CF6", "#2563EB"] };
 }
 
-function postLabel(type) {
+function postLabel(type, cardPayload) {
   if (type === "recommend") return "öneriyor";
   if (type === "poll") return "soruyor";
+  if (type === "card" && cardPayload?.kind === "diary_rating") return "puanını paylaştı";
   if (type === "card") return "bir kart paylaştı";
   return "paylaştı";
 }
@@ -130,6 +132,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const [sendOpen, setSendOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const [viewerDiaryEntry, setViewerDiaryEntry] = useState(null);
+  const [viewerDiaryLoaded, setViewerDiaryLoaded] = useState(false);
+  const [ratingSaving, setRatingSaving] = useState(false);
 
   useEffect(() => {
     setState(item);
@@ -137,6 +142,33 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   const user = state.user || {};
   const post = state.post;
+  const ratingMovie = post?.type === "card" && post?.cardPayload?.kind === "diary_rating"
+    ? post.cardPayload.movie
+    : null;
+
+  useEffect(() => {
+    if (!ratingMovie?.id) {
+      setViewerDiaryEntry(null);
+      setViewerDiaryLoaded(false);
+      return;
+    }
+    let active = true;
+    setViewerDiaryLoaded(false);
+    diaryApi.entry(auth.token, ratingMovie.id)
+      .then((data) => {
+        if (!active) return;
+        setViewerDiaryEntry(data?.entry || null);
+        setViewerDiaryLoaded(true);
+      })
+      .catch((error) => {
+        if (!active) return;
+        if (error?.status === 404) {
+          setViewerDiaryEntry(null);
+          setViewerDiaryLoaded(true);
+        }
+      });
+    return () => { active = false; };
+  }, [auth.token, ratingMovie?.id]);
 
   function openProfile() {
     if (Number(user.id) === Number(auth.id)) navigation.navigate("MainTabs", { screen: "Profile" });
@@ -145,6 +177,34 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   function openMovie(movie) {
     if (movie) navigation.navigate("Detail", { movie });
+  }
+
+  async function rateFromFeed(value) {
+    if (!ratingMovie?.id || !viewerDiaryLoaded || ratingSaving) return;
+    setRatingSaving(true);
+    try {
+      const result = await diaryApi.save(auth.token, ratingMovie.id, {
+        watchedAt: viewerDiaryEntry?.watchedAt || new Date().toISOString(),
+        rating: value,
+        note: viewerDiaryEntry?.note || null,
+      });
+      setViewerDiaryEntry(result?.entry || { ...(viewerDiaryEntry || {}), rating: value });
+    } catch {}
+    setRatingSaving(false);
+  }
+
+  async function markWatchedFromFeed() {
+    if (!ratingMovie?.id || !viewerDiaryLoaded || ratingSaving || viewerDiaryEntry) return;
+    setRatingSaving(true);
+    try {
+      const result = await diaryApi.save(auth.token, ratingMovie.id, {
+        watchedAt: new Date().toISOString(),
+        rating: null,
+        note: null,
+      });
+      setViewerDiaryEntry(result?.entry || { watchedAt: new Date().toISOString(), rating: null, note: null });
+    } catch {}
+    setRatingSaving(false);
   }
 
   async function vote(movieId) {
@@ -224,6 +284,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   const mood = state.kind === "activity" ? activityMood(state) : null;
   const isOwnPost = Number(user.id) === Number(auth.id);
   const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");
+  const isOpinionPost = state.kind === "post" && post?.type === "thought" && !!body && !isDailyQuestionPost;
+  const isDiaryRatingPost = !!ratingMovie?.id;
   // Ana kartın "yıldızı" bir poster olduğunda (aktivitede beğendi/favori, ya da bir öneri
   // postunda) kişi bilgisini ve menüyü AYRI bir başlık satırında değil, doğrudan posterin
   // içinde (sol üst kişi, sağ üst menü) gösteriyoruz — bkz. tasarım incelemesi.
@@ -247,7 +309,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
               {!!user.username && <Text style={hero ? styles.heroUsername : styles.username}>@{user.username}</Text>}
             </View>
             <Text style={hero ? styles.heroMeta : styles.meta}>
-              {state.kind === "post" ? `${postLabel(post?.type)} · ` : ""}{relativeTime(state.created_at)}
+              {state.kind === "post" ? `${postLabel(post?.type, post?.cardPayload)} · ` : ""}{relativeTime(state.created_at)}
             </Text>
           </View>
         </TouchableOpacity>
@@ -289,13 +351,16 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         </View>
       )}
 
-      {!isHeroMovie && !!body && <Text style={styles.body}>{body}</Text>}
+      {!isHeroMovie && post?.type !== "poll" && !!body && <Text style={styles.body}>{body}</Text>}
 
       {state.kind === "post" && post?.type === "card" && post.cardPayload ? (
         <SocialSharedCard payload={post.cardPayload} navigation={navigation} currentUserId={auth.id} />
       ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
         <>
-          {!!body && <Text style={styles.body}>{body}</Text>}
+          <View style={styles.pollHeading}>
+            <Text style={styles.pollEyebrow}>BİRİNİ SEÇ</Text>
+            {!!body && <Text style={styles.pollQuestion}>{body}</Text>}
+          </View>
           <View style={styles.pollVsRow}>
             {post.pollMovies.map((movie, index) => {
               const count = Number(post.pollCounts?.[movie.id] || 0);
@@ -306,13 +371,14 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
                 <View key={movie.id} style={[styles.pollVsOpt, index === 0 && styles.pollVsOptBorder, selected && styles.pollVsOptSelected]}>
                   <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => openMovie(movie)} activeOpacity={0.9}>
                     {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.pollVsPoster} /> : <View style={[styles.pollVsPoster, { backgroundColor: c.surface2 }]} />}
-                    <LinearGradient colors={["transparent", "rgba(8,6,12,0.94)"]} style={styles.pollVsShade} />
+                    <LinearGradient colors={["transparent", "rgba(8,6,12,0.95)"]} style={styles.pollVsShade} />
                   </TouchableOpacity>
                   <View style={styles.pollVsCopy} pointerEvents="box-none">
-                    <Text style={styles.pollVsTitle} numberOfLines={1}>{movie.title}</Text>
-                    {(post.myVote || total > 0) && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}% · {count} oy</Text>}
+                    {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}%</Text>}
+                    <Text style={styles.pollVsTitle} numberOfLines={2}>{movie.title}</Text>
+                    {!!post.myVote && <Text style={styles.pollVsVotes}>{count} oy</Text>}
                     <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>
-                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Oy Verdin" : "Oy Ver"}</Text>
+                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Seçtin" : "Seç"}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -358,6 +424,71 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             {body}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {isDiaryRatingPost && (
+        <View style={styles.ratingEngagement}>
+          <View style={styles.ratingEngagementTop}>
+            <View>
+              <Text style={styles.ratingPrompt}>Sen kaç verirsin?</Text>
+              <Text style={styles.ratingHint}>Puanın aynı anda Diary’ne kaydolur.</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.watchedMini, !!viewerDiaryEntry && styles.watchedMiniDone]}
+              onPress={markWatchedFromFeed}
+              disabled={!viewerDiaryLoaded || ratingSaving || !!viewerDiaryEntry}
+            >
+              {ratingSaving && !viewerDiaryEntry ? <ActivityIndicator size="small" color={c.accent} /> : (
+                <Text style={[styles.watchedMiniText, !!viewerDiaryEntry && styles.watchedMiniTextDone]}>
+                  {viewerDiaryEntry ? "✓ İzledin" : "Ben de izledim"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {viewerDiaryLoaded ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.inlineRatingRow}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
+                const selected = Number(viewerDiaryEntry?.rating) === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.inlineRatingChip, selected && styles.inlineRatingChipActive]}
+                    onPress={() => rateFromFeed(value)}
+                    disabled={ratingSaving}
+                  >
+                    <Text style={[styles.inlineRatingText, selected && styles.inlineRatingTextActive]}>{value}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View style={styles.inlineRatingLoading}><ActivityIndicator size="small" color={c.dim} /></View>
+          )}
+        </View>
+      )}
+
+      {isOpinionPost && !!reactionTargetId && (
+        <View style={styles.opinionPrompt}>
+          <Text style={styles.opinionQuestion}>Katılıyor musun?</Text>
+          <View style={styles.opinionChoices}>
+            <TouchableOpacity
+              style={[styles.opinionChoice, myReaction === "agree" && styles.opinionChoiceActive]}
+              onPress={() => react("agree")}
+            >
+              <Text style={styles.opinionChoiceEmoji}>🤝</Text>
+              <Text style={[styles.opinionChoiceText, myReaction === "agree" && styles.opinionChoiceTextActive]}>Katılıyorum</Text>
+              {Number(reactionCounts?.agree || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.agree}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.opinionChoice, myReaction === "nope" && styles.opinionChoiceActive]}
+              onPress={() => react("nope")}
+            >
+              <Text style={styles.opinionChoiceEmoji}>👎</Text>
+              <Text style={[styles.opinionChoiceText, myReaction === "nope" && styles.opinionChoiceTextActive]}>Katılmıyorum</Text>
+              {Number(reactionCounts?.nope || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.nope}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
       {!!reactionTargetId && (
@@ -407,7 +538,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
 function makeStyles(c) {
   return StyleSheet.create({
-    card: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 14, marginBottom: 12, overflow: "hidden" },
+    card: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, borderRadius: 16, padding: 14, marginBottom: 12, overflow: "hidden" },
     activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
     activityRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
     cardCompact: { marginBottom: 10, padding: 12 },
@@ -460,16 +591,20 @@ function makeStyles(c) {
     heroCaptionName: { fontWeight: "800", color: c.text },
     heroCaptionText: { color: c.text, fontSize: 13, lineHeight: 19 },
 
-    // ---- anket: "versus" — iki poster tam boy yan yana, ayrı Oy Ver butonu ----
-    pollVsRow: { flexDirection: "row", height: 220, marginTop: 12, borderRadius: 16, overflow: "hidden", position: "relative" },
+    // ---- anket: mevcut Taste Post anketi, daha net bir "birini seç" kartı ----
+    pollHeading: { marginTop: 12, marginBottom: 8 },
+    pollEyebrow: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+    pollQuestion: { color: c.text, fontSize: 15, lineHeight: 20, fontWeight: "900", marginTop: 4 },
+    pollVsRow: { flexDirection: "row", height: 238, borderRadius: 16, overflow: "hidden", position: "relative" },
     pollVsOpt: { flex: 1, position: "relative", backgroundColor: c.surface2 },
     pollVsOptBorder: { borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.14)" },
     pollVsOptSelected: { borderWidth: 2, borderColor: c.accent },
     pollVsPoster: { width: "100%", height: "100%" },
     pollVsShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
     pollVsCopy: { position: "absolute", left: 10, right: 10, bottom: 11 },
-    pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 12.5 },
-    pollVsPct: { color: "rgba(255,255,255,0.82)", fontWeight: "800", fontSize: 10, marginTop: 3 },
+    pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 13, lineHeight: 16 },
+    pollVsPct: { color: "rgba(255,255,255,0.88)", fontWeight: "950", fontSize: 20, lineHeight: 22, marginBottom: 3 },
+    pollVsVotes: { color: "rgba(255,255,255,0.58)", fontWeight: "700", fontSize: 9, marginTop: 3 },
     pollVsVote: {
       marginTop: 8, paddingVertical: 6, borderRadius: 999, alignItems: "center",
       borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", backgroundColor: "rgba(10,8,14,0.4)",
@@ -483,6 +618,31 @@ function makeStyles(c) {
       alignItems: "center", justifyContent: "center",
     },
     pollVsDividerText: { color: c.dim, fontSize: 8.5, fontWeight: "900" },
+
+    // ---- sosyal mikro-etkileşimler ----
+    ratingEngagement: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+    ratingEngagementTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+    ratingPrompt: { color: c.text, fontSize: 12.5, fontWeight: "900" },
+    ratingHint: { color: c.dim, fontSize: 9.5, marginTop: 2 },
+    watchedMini: { minHeight: 30, paddingHorizontal: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    watchedMiniDone: { backgroundColor: "rgba(111,196,179,0.08)", borderColor: "rgba(111,196,179,0.28)" },
+    watchedMiniText: { color: c.text, fontSize: 9.5, fontWeight: "800" },
+    watchedMiniTextDone: { color: c.accent2 || c.accent },
+    inlineRatingRow: { gap: 6, paddingTop: 10, paddingBottom: 2 },
+    inlineRatingChip: { width: 32, height: 32, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    inlineRatingChipActive: { backgroundColor: c.accent, borderColor: c.accent },
+    inlineRatingText: { color: c.text, fontSize: 10.5, fontWeight: "900" },
+    inlineRatingTextActive: { color: c.bg },
+    inlineRatingLoading: { height: 42, alignItems: "center", justifyContent: "center" },
+    opinionPrompt: { marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+    opinionQuestion: { color: c.dim, fontSize: 9.5, fontWeight: "800", marginBottom: 8 },
+    opinionChoices: { flexDirection: "row", gap: 8 },
+    opinionChoice: { flex: 1, minHeight: 36, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 8 },
+    opinionChoiceActive: { borderColor: c.accent, backgroundColor: "rgba(240,180,41,0.08)" },
+    opinionChoiceEmoji: { fontSize: 13 },
+    opinionChoiceText: { color: c.text, fontSize: 9.5, fontWeight: "800" },
+    opinionChoiceTextActive: { color: c.accent },
+    opinionCount: { color: c.dim, fontSize: 9, fontWeight: "800" },
 
     // ---- tepki/yorum/paylaş + yorum önizlemesi ----
     actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 10, paddingTop: 11, paddingHorizontal: 0, marginHorizontal: 0 },

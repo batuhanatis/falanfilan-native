@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2,
-  Eye, EyeOff,
+  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2, BookOpen,
+  Eye, EyeOff, Sparkles,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { diaryApi } from "../api/diary";
 import { avatarOr } from "../utils/avatar";
 import { hexToRgba } from "../utils/color";
 import { backgroundBlurAndDim } from "../utils/profileBackground";
@@ -18,6 +19,83 @@ import RetryImage from "../components/RetryImage";
 import EditProfileModal from "../components/EditProfileModal";
 import SocialFeedCard from "../components/SocialFeedCard";
 import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
+
+function splitGenres(value) {
+  if (Array.isArray(value)) return value.flatMap(splitGenres);
+  if (!value || typeof value !== "string") return [];
+  return value
+    .split(/[,/·|]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function ratingPositiveWeight(value) {
+  const rating = Number(value);
+  if (!Number.isFinite(rating)) return 0;
+  if (rating >= 10) return 1.6;
+  if (rating >= 9) return 1.4;
+  if (rating >= 8) return 1.1;
+  if (rating >= 7) return 0.75;
+  if (rating >= 6) return 0.25;
+  return 0;
+}
+
+function buildTasteDNA(likedMovies, profile, diaryEntries = []) {
+  const genreWeights = new Map();
+  let filmWeight = 0;
+  let showWeight = 0;
+  let deepRatingCount = 0;
+
+  const addPositiveMovie = (movie, weight) => {
+    if (!movie || !(weight > 0)) return;
+    if (movie.type === "Film") filmWeight += weight;
+    else if (movie.type === "Dizi") showWeight += weight;
+    const genres = [...new Set(splitGenres(movie.genre || movie.genres))];
+    const perGenre = genres.length ? weight / genres.length : 0;
+    genres.forEach((genre) => genreWeights.set(genre, (genreWeights.get(genre) || 0) + perGenre));
+  };
+
+  // Fast “Zevkime göre” remains the baseline one-tap signal.
+  (likedMovies || []).forEach((movie) => addPositiveMovie(movie, 1));
+
+  // Watched-only carries no taste meaning. Ratings of 6+ deepen the positive identity using
+  // the same strength curve as the server Taste Engine; low ratings remain avoidance evidence
+  // server-side and therefore are intentionally not presented as a “favorite genre” here.
+  (diaryEntries || []).forEach((entry) => {
+    const weight = ratingPositiveWeight(entry?.rating);
+    if (weight <= 0) return;
+    deepRatingCount += 1;
+    addPositiveMovie(entry.movie, weight);
+  });
+
+  // Explicit onboarding genres are a light prior, not equal to a real fast-like.
+  (profile?.preferredGenres || []).forEach((genre) => {
+    if (!genre) return;
+    genreWeights.set(genre, (genreWeights.get(genre) || 0) + 0.25);
+  });
+
+  const genreTotal = [...genreWeights.values()].reduce((sum, value) => sum + value, 0) || 1;
+  const genres = [...genreWeights.entries()]
+    .filter(([, weight]) => weight > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, weight]) => ({
+      name,
+      percent: Math.max(10, Math.round((weight / genreTotal) * 100)),
+    }));
+
+  const typeTotal = filmWeight + showWeight;
+  const filmPercent = typeTotal ? Math.round((filmWeight / typeTotal) * 100) : 50;
+  const showPercent = typeTotal ? 100 - filmPercent : 50;
+
+  return {
+    genres,
+    filmPercent,
+    showPercent,
+    signalCount: (likedMovies?.length || 0) + deepRatingCount,
+    deepRatingCount,
+  };
+}
 
 export default function ProfileScreen({ navigation, route }) {
   const { c } = useAppTheme();
@@ -32,6 +110,8 @@ export default function ProfileScreen({ navigation, route }) {
   const [socialPosts, setSocialPosts] = useState([]);
   const [showShareCard, setShowShareCard] = useState(false);
   const [questStreak, setQuestStreak] = useState(0);
+  const [diaryStats, setDiaryStats] = useState(null);
+  const [diaryEntries, setDiaryEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState(route?.params?.initialSub === "likes" ? "likes" : "posts"); // posts | likes
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -46,8 +126,6 @@ export default function ProfileScreen({ navigation, route }) {
   }, [route?.params?.initialSub]);
 
   const load = useCallback(async () => {
-    // Sadece İLK yüklemede tam ekran spinner göster — Detay sayfasından geri dönüş gibi
-    // odaklanma bazlı yenilemelerde arka planda sessizce güncellensin, ekran "zıplamasın".
     if (!hasLoadedRef.current) setLoading(true);
     try {
       const [me, selfProfile, friendsData, watchlistsData] = await Promise.all([
@@ -64,8 +142,11 @@ export default function ProfileScreen({ navigation, route }) {
       hasLoadedRef.current = true;
     } catch { /* sessizce geç */ }
     setLoading(false);
+
     api.socialUserPosts(auth.token, auth.id).then((data) => setSocialPosts(data.results || [])).catch(() => setSocialPosts([]));
     api.quests(auth.token).then((data) => setQuestStreak(data.streak || 0)).catch(() => {});
+    diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
+    diaryApi.list(auth.token, { page: 1, limit: 50 }).then((data) => setDiaryEntries(data.results || [])).catch(() => setDiaryEntries([]));
   }, [auth.token, auth.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -113,6 +194,8 @@ export default function ProfileScreen({ navigation, route }) {
     }
   }
 
+  const tasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile, diaryEntries), [likedMovies, profile, diaryEntries]);
+
   if (loading || !profile) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -121,23 +204,7 @@ export default function ProfileScreen({ navigation, route }) {
     );
   }
 
-  // Premium arka planı SADECE gerçekten premium olan (paylaşımı iptal edip süresi dolan birinin
-  // eski üretilmiş görseli otomatik gizleniyor — premiumStatus her odaklanmada tazeleniyor)
-  // kullanıcılarda gösteriliyor.
-  //
-  // ÖNEMLİ (tasarım geçmişi): Bu ÜÇÜNCÜ hali. (1) Önce ekranın TAMAMINI kaplayan sabit bir
-  // arka plandı — "aşırı ön planda, featureların önüne geçiyor" diye düzeltildi. (2) Sonra
-  // sadece kapak fotoğrafı alanına (ve SADECE kullanıcının kendi kapak fotoğrafı YOKSA)
-  // sıkıştırıldı — ama bu sefer kullanıcının kendi kapak fotoğrafı olduğunda arka plan hiç
-  // görünmüyordu ("değişmedi hiç" şikayeti) VE kavramsal olarak yanlıştı: kullanıcı bunun bir
-  // "kapak fotoğrafı" değil, SAYFANIN GENELİNE yayılan bir TEMA olmasını istiyor. (3) Şimdi:
-  // kapak fotoğrafından tamamen BAĞIMSIZ — sayfanın kendisinin sabit arka planı (kaydırılan
-  // içeriğin ARKASINDA duruyor, "duvar kağıdı" gibi). Kapak fotoğrafı (profile.coverUrl) hâlâ
-  // kendi başına, bu temadan etkilenmeden çalışıyor. Üzerine hafif bir bulanıklık + karartma var
-  // (blurRadius 14, %60 karartma — bir artifact mockup'ı üzerinden ayarlanan denge) — görsel hâlâ
-  // fark edilir ama rozet/liste gibi asıl içerikle yarışmıyor.
   const showPremiumBackground = !!(premiumStatus?.isPremium && profile.profileBackgroundUrl);
-  // Ayarlar'daki slider'dan gelen belirginlik tercihi — bkz. utils/profileBackground.js.
   const { blurRadius: bgBlurRadius, dim: bgDim } = backgroundBlurAndDim(profile.profileBackgroundIntensity);
 
   return (
@@ -158,9 +225,6 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.coverEditBadge}>
           {uploadingCover ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={13} color="#fff" />}
         </View>
-        {/* Premium rozeti artık Ayarlar'da yaşıyor, burada tekrarına gerek yok. Ayarlar
-            butonu da artık üç ikonlu bir header satırı değil, kapak fotoğrafının sağ altında
-            yüzen tek bir "adacık". */}
         <TouchableOpacity
           style={styles.coverSettingsBadge}
           onPress={() => navigation.navigate("Settings")}
@@ -171,11 +235,8 @@ export default function ProfileScreen({ navigation, route }) {
       </TouchableOpacity>
 
       <View style={{ padding: 20 }}>
-        {/* Instagram düzeni: avatar solda, dört istatistik sağında TEK satırda — eskiden
-            istatistikler bio'nun altında ayrı bir satırdı, artık avatarla aynı hizada. */}
         <View style={styles.igHeaderRow}>
           <TouchableOpacity onPress={() => pickPhoto("avatar")} activeOpacity={0.85}>
-            {/* PM1 — Premium artık profilde görünen bir kimlik: altın çerçeve. */}
             <RetryImage
               source={{ uri: avatarOr(profile.avatarUrl, auth.id) }}
               style={[styles.avatar, premiumStatus?.isPremium && styles.avatarPremiumRing]}
@@ -186,13 +247,9 @@ export default function ProfileScreen({ navigation, route }) {
           </TouchableOpacity>
 
           <View style={styles.statsRow}>
-            {/* PR1 — eskiden her sayının kendi rengi + ikonu vardı, kalabalık ve göz yorucuydu.
-                Artık tek tip, sade bir tipografi (ince ayraçlarla ayrılmış) — sayılar zaten
-                tıklanabilir olduğu bilindiği için ayrıca bir "Arkadaşlar"/"Listelerim" sekmesi
-                tekrarına gerek yok, dokununca ayrı bir sayfa açılıyor. */}
             <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")}>
               <Text style={styles.statNum}>{likeCount}</Text>
-              <Text style={styles.statLabel}>Beğeni</Text>
+              <Text style={styles.statLabel}>Zevk</Text>
             </TouchableOpacity>
             <View style={styles.statDivider} />
             <TouchableOpacity style={styles.statItem} onPress={() => navigation.navigate("FriendsList")}>
@@ -204,8 +261,6 @@ export default function ProfileScreen({ navigation, route }) {
               <Text style={styles.statNum}>{watchlists.length}</Text>
               <Text style={styles.statLabel}>Liste</Text>
             </TouchableOpacity>
-            {/* PR7 — en az 1 haftalık seri varsa (bkz. computeQuestStreak backend'de), kaç
-                hafta üst üste tüm görevleri tamamladığını gösteriyor. */}
             {questStreak > 0 && (
               <>
                 <View style={styles.statDivider} />
@@ -219,14 +274,9 @@ export default function ProfileScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.name}>{profile.name}</Text>
-        {/* ÖNEMLİ DÜZELTME: E-posta burada gösteriliyordu — kullanıcının kendi profilinde
-            e-posta görmek "account/admin" hissi veriyor, sosyal bir profil ekranına ait değil.
-            E-posta zaten Ayarlar'da mevcut; burada sadece kullanıcı adı kalsın. */}
         {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
         <Text style={styles.bio}>{profile.bio || "Henüz bir biyografi eklemedin."}</Text>
 
-        {/* Instagram'daki "Profili Düzenle" tam genişlik butonunun aynısı — yanına Paylaş
-            eklenip ikiye bölündü, artık küçük yuvarlak ikon butonları değiller. */}
         <View style={styles.profileActionsRow}>
           <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowEditProfile(true)}>
             <Pencil size={13} color={c.text} />
@@ -238,11 +288,80 @@ export default function ProfileScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* MatchParty girişi Aktivite sayfasındaki üst aksiyonlara taşındı. */}
+        <TouchableOpacity
+          style={styles.diaryShortcut}
+          onPress={() => navigation.navigate("Diary")}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel="İzleme Günlüğüm"
+        >
+          <View style={styles.diaryShortcutIcon}>
+            <BookOpen size={15} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.diaryShortcutTitle}>İzleme Günlüğüm</Text>
+            <Text style={styles.diaryShortcutMeta} numberOfLines={1}>
+              {diaryStats?.total
+                ? `${diaryStats.total} izledim${diaryStats?.ratedTotal ? ` · ${diaryStats.ratedTotal} puan` : ""}`
+                : "İzlediklerini, puanlarını ve notlarını gör"}
+            </Text>
+          </View>
+          <ChevronRight size={15} color={c.dim} />
+        </TouchableOpacity>
 
-        {/* Premium değilse HÂLÂ büyük, göz alıcı kart — profildeki tek gerçek "yükselt" çağrısı,
-            küçültmek ikna gücünü zayıflatırdı. Premium olunca artık ikna etmesi gereken bir şey
-            kalmadığı için yerini header'daki küçük pill'e bırakıyor (bkz. topRow). */}
+        {/* Profil artık yalnızca sayaçlardan oluşmuyor; kullanıcının seçimlerinden oluşan yaşayan
+            bir kimlik gösteriyor. Bu ilk Taste DNA sürümü tamamen mevcut veriden türetiliyor,
+            yeni backend endpoint'i gerektirmiyor. */}
+        <View style={styles.tasteCard}>
+          <View style={styles.insightHeader}>
+            <View style={[styles.insightIcon, { backgroundColor: "rgba(139,92,246,0.14)" }]}>
+              <Sparkles size={15} color="#8B5CF6" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.insightEyebrow}>ZEVK DNA'N</Text>
+              <Text style={styles.insightTitle}>Pellix seni böyle tanıyor</Text>
+            </View>
+            <Text style={styles.signalText}>{tasteDNA.signalCount} sinyal</Text>
+          </View>
+
+          {tasteDNA.genres.length > 0 ? (
+            <View style={styles.genreDNAList}>
+              {tasteDNA.genres.map((genre) => (
+                <View key={genre.name} style={styles.genreDNARow}>
+                  <Text style={styles.genreDNAName} numberOfLines={1}>{genre.name}</Text>
+                  <View style={styles.genreDNATrack}>
+                    <View style={[styles.genreDNAFill, { width: `${Math.min(100, genre.percent * 2.1)}%` }]} />
+                  </View>
+                  <Text style={styles.genreDNAPercent}>%{genre.percent}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.insightEmpty}>Keşfet'te birkaç seçim yaptığında burada zevkinin ilk çizgileri oluşacak.</Text>
+          )}
+
+          <View style={styles.typeSplitRow}>
+            <Text style={styles.typeSplitLabel}>Film %{tasteDNA.filmPercent}</Text>
+            <View style={styles.typeSplitTrack}>
+              <View style={[styles.typeSplitFilm, { width: `${tasteDNA.filmPercent}%` }]} />
+            </View>
+            <Text style={styles.typeSplitLabel}>Dizi %{tasteDNA.showPercent}</Text>
+          </View>
+          {Number(diaryStats?.tasteCandidatesUnrated || 0) > 0 && (
+            <TouchableOpacity style={styles.deepenTasteBtn} onPress={() => navigation.navigate("RateTaste")} activeOpacity={0.84}>
+              <Star size={14} color={c.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deepenTasteTitle}>İzlediklerini puanla</Text>
+                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated} zevk sinyali daha derinleştirilebilir{diaryStats.ratedTotal ? ` · ${diaryStats.ratedTotal} puanın var` : ""}</Text>
+              </View>
+              <ChevronRight size={15} color={c.dim} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Haftalık görevler Ana Sayfa'daki haftalık hedef alanında; rozetler Ayarlar > Rozetler'de.
+            Profil, kimlik + Zevk DNA + içerik odağında daha kompakt tutuluyor. */}
+
         {!premiumStatus?.isPremium && (
           <TouchableOpacity
             activeOpacity={0.88}
@@ -274,7 +393,7 @@ export default function ProfileScreen({ navigation, route }) {
             <Text style={[styles.contentTabText, sub === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contentTab, sub === "likes" && styles.contentTabActive]} onPress={() => setSub("likes")}>
-            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Beğeniler</Text>
+            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Zevkim</Text>
           </TouchableOpacity>
         </View>
 
@@ -283,7 +402,7 @@ export default function ProfileScreen({ navigation, route }) {
             <View style={{ marginTop: 12 }}>
               {socialPosts.map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
             </View>
-          ) : <Text style={styles.emptyText}>Henüz bir paylaşımın yok. Ana Sayfa’dan ilk Taste Post’unu oluşturabilirsin.</Text>
+          ) : <Text style={styles.emptyText}>Henüz bir paylaşımın yok. Sosyal sekmesinden ilk Taste Post’unu oluşturabilirsin.</Text>
         )}
 
         {sub === "likes" && (
@@ -313,13 +432,13 @@ export default function ProfileScreen({ navigation, route }) {
               {likeCount > likedMovies.length && (
                 <TouchableOpacity
                   style={styles.seeAllBtn}
-                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Beğenilerim" })}
+                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Zevkime göre" })}
                 >
                   <Text style={styles.seeAllBtnText}>Tümünü Gör ({likeCount})</Text>
                 </TouchableOpacity>
               )}
             </>
-          ) : <Text style={styles.emptyText}>Henüz bir beğeni yok.</Text>
+          ) : <Text style={styles.emptyText}>Henüz bir zevk sinyalin yok.</Text>
         )}
 
       </View>
@@ -343,7 +462,15 @@ export default function ProfileScreen({ navigation, route }) {
             favoriteMovie: profile.favoriteMovie ? { id: profile.favoriteMovie.id, title: profile.favoriteMovie.title, poster: profile.favoriteMovie.poster } : null,
             favoriteShow: profile.favoriteShow ? { id: profile.favoriteShow.id, title: profile.favoriteShow.title, poster: profile.favoriteShow.poster } : null,
             isPremium: !!premiumStatus?.isPremium,
+            tasteDNA: {
+              genres: tasteDNA.genres,
+              filmPercent: tasteDNA.filmPercent,
+              showPercent: tasteDNA.showPercent,
+              signalCount: tasteDNA.signalCount,
+            },
+            streak: questStreak,
           }}
+          previewHeight={555}
           pages={
             showPremiumBackground
               ? [
@@ -360,6 +487,8 @@ export default function ProfileScreen({ navigation, route }) {
                     favoriteShow={profile.favoriteShow}
                     isPremium={premiumStatus?.isPremium}
                     backgroundUrl={profile.profileBackgroundUrl}
+                    tasteDNA={tasteDNA}
+                    streak={questStreak}
                   />,
                   <ProfileShareCard
                     key="default"
@@ -374,6 +503,8 @@ export default function ProfileScreen({ navigation, route }) {
                     favoriteShow={profile.favoriteShow}
                     isPremium={premiumStatus?.isPremium}
                     backgroundUrl={profile.profileBackgroundUrl}
+                    tasteDNA={tasteDNA}
+                    streak={questStreak}
                     forceDefault
                   />,
                 ]
@@ -392,6 +523,8 @@ export default function ProfileScreen({ navigation, route }) {
             favoriteShow={profile.favoriteShow}
             isPremium={premiumStatus?.isPremium}
             backgroundUrl={profile.profileBackgroundUrl}
+            tasteDNA={tasteDNA}
+            streak={questStreak}
           />
         </ShareCardModal>
       )}
@@ -427,17 +560,10 @@ function makeStyles(c) {
       position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 999,
       backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
     },
-    // Ayarlar artık kapak fotoğrafının sağ altında yüzen küçük bir "adacık" — eskiden profil
-    // içeriğinin en üstünde, kalem/paylaş ile birlikte üç ikonlu bir satırdı.
     coverSettingsBadge: {
       position: "absolute", bottom: 10, right: 10, width: 28, height: 28, borderRadius: 999,
       backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
     },
-    // ÖNEMLİ: alignItems "flex-end" — sayılar artık avatarla DİKEY ORTALANMIYOR, avatarın TAM
-    // ALT KENARINA hizalanıyor (statsRow'daki paddingTop, o hizadan bir tık daha aşağı iter).
-    // justifyContent "space-between" + statsRow'un artık flex:1 OLMAMASI (sadece kendi doğal
-    // genişliği kadar yer kaplaması) sayıları avatardan uzaklaştırıp sağa, kompakt bir küme
-    // halinde topluyor — eskisi gibi kalan tüm genişliğe yayılmıyorlar.
     igHeaderRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: -40, zIndex: 5, elevation: 5 },
     avatar: { width: 76, height: 76, borderRadius: 999, borderWidth: 4, borderColor: c.bg, zIndex: 6 },
     avatarPremiumRing: { borderColor: "#F5C518" },
@@ -448,9 +574,6 @@ function makeStyles(c) {
     name: { fontSize: 20, fontWeight: "700", color: c.text, marginTop: 12 },
     username: { fontSize: 12, color: c.dim, marginTop: 2 },
     bio: { fontSize: 13, color: c.text, marginTop: 8, lineHeight: 19 },
-    // Avatarla aynı satırda, ama artık kalan genişliği doldurmuyor — kendi doğal genişliğinde,
-    // sıkışık (küçük gap) bir küme, sağa yaslı. paddingTop, igHeaderRow'un flex-end hizalamasının
-    // üzerine "bir tık daha aşağı" nüansını ekliyor.
     statsRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 16 },
     profileActionsRow: { flexDirection: "row", gap: 8, marginTop: 14 },
     profileActionBtn: {
@@ -458,6 +581,63 @@ function makeStyles(c) {
       paddingVertical: 9, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
     },
     profileActionBtnText: { fontSize: 12, fontWeight: "700", color: c.text },
+
+    diaryShortcut: {
+      marginTop: 9, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10,
+      paddingVertical: 9, paddingHorizontal: 11, borderRadius: 12,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+    },
+    diaryShortcutIcon: {
+      width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.accent + "18",
+    },
+    diaryShortcutTitle: { fontSize: 12, fontWeight: "800", color: c.text },
+    diaryShortcutMeta: { fontSize: 9.5, color: c.dim, marginTop: 2 },
+
+    tasteCard: {
+      marginTop: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+      borderRadius: 18, padding: 15,
+    },
+    insightHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+    insightIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+    insightEyebrow: { fontSize: 9.5, fontWeight: "900", color: "#8B5CF6", letterSpacing: 0.8 },
+    insightTitle: { fontSize: 14, fontWeight: "800", color: c.text, marginTop: 1 },
+    signalText: { fontSize: 10, color: c.dim, fontWeight: "700" },
+    insightEmpty: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 14 },
+    genreDNAList: { gap: 9, marginTop: 14 },
+    genreDNARow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    genreDNAName: { width: 82, fontSize: 11, fontWeight: "700", color: c.text },
+    genreDNATrack: { flex: 1, height: 6, borderRadius: 999, overflow: "hidden", backgroundColor: c.surface2 },
+    genreDNAFill: { height: "100%", borderRadius: 999, backgroundColor: "#8B5CF6" },
+    genreDNAPercent: { width: 30, textAlign: "right", fontSize: 10, color: c.dim, fontWeight: "700" },
+    typeSplitRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border },
+    typeSplitLabel: { fontSize: 10.5, fontWeight: "700", color: c.dim },
+    typeSplitTrack: { flex: 1, height: 7, backgroundColor: "#2563EB", borderRadius: 999, overflow: "hidden" },
+    typeSplitFilm: { height: "100%", backgroundColor: c.accent },
+
+    deepenTasteBtn: { marginTop: 13, flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
+    deepenTasteTitle: { color: c.text, fontSize: 11.5, fontWeight: "850" },
+    deepenTasteMeta: { color: c.dim, fontSize: 9.5, marginTop: 2 },
+    retentionRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+    retentionCard: {
+      flex: 1, minHeight: 128, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+      borderRadius: 16, padding: 12,
+    },
+    retentionTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    retentionIcon: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+    retentionValue: { fontSize: 13, fontWeight: "900", color: c.text },
+    retentionTitle: { fontSize: 11.5, fontWeight: "800", color: c.text, marginTop: 9 },
+    retentionMeta: { fontSize: 9.5, fontWeight: "700", color: c.dim, marginTop: 7 },
+    miniProgressTrack: { height: 5, borderRadius: 999, backgroundColor: c.surface2, overflow: "hidden", marginTop: 9 },
+    miniProgressFill: { height: "100%", borderRadius: 999, backgroundColor: "#F97316" },
+    badgePreviewRow: { flexDirection: "row", marginTop: 8 },
+    badgePreviewBubble: {
+      width: 29, height: 29, borderRadius: 999, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, marginRight: -4,
+    },
+    badgePreviewIcon: { fontSize: 14 },
+    badgeEmptyText: { fontSize: 9.5, color: c.dim, marginTop: 10, minHeight: 29 },
+
     partyCardShadow: {
       marginTop: 18, borderRadius: 20,
       shadowColor: "#DB2777", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
@@ -486,8 +666,6 @@ function makeStyles(c) {
     },
     statItem: { alignItems: "center" },
     statDivider: { width: 1, height: 24, backgroundColor: c.border, alignSelf: "center" },
-    // Kalın/renkli ikonlu haliyle gözü yoruyordu — artık sade, tek düzen bir tipografi:
-    // orta ağırlıkta bir rakam + altında ince harf aralıklı bir etiket, ince ayraçlarla ayrılmış.
     statNum: { fontSize: 17, fontWeight: "700", color: c.text, fontVariant: ["tabular-nums"] },
     statLabel: { fontSize: 10.5, color: c.dim, marginTop: 3, letterSpacing: 0.2 },
     favRow: { flexDirection: "row", gap: 10, marginTop: 14 },

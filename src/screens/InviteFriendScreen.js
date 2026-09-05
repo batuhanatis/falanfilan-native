@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Share, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Share } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Copy, Share2, Users, PartyPopper, Gift, Check } from "lucide-react-native";
+import { Copy, Share2, Users, PartyPopper, Gift, Check, ArrowRight } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -9,11 +10,13 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import { getStoreLink } from "../utils/appLinks";
+import ScreenHeader from "../components/ScreenHeader";
 
 export default function InviteFriendScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   const [referrals, setReferrals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,32 +40,34 @@ export default function InviteFriendScreen({ navigation }) {
   async function shareInvite() {
     try {
       await Share.share({ message: inviteMessage });
-    } catch { /* kullanıcı paylaşımı iptal etmiş olabilir, sorun değil */ }
+    } catch {}
   }
 
   if (loading) {
     return (
-      <View style={[styles.center, { flex: 1 }]}>
+      <View style={[styles.center, { flex: 1, backgroundColor: c.bg }]}>
         <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
 
+  const completed = referrals?.totalCompleted ?? 0;
+  const invited = referrals?.totalInvited ?? 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Arkadaşını Davet Et</Text>
-      </View>
+      <ScreenHeader
+        title="Arkadaşını Davet Et"
+        subtitle={invited > 0 ? `${completed}/${invited} davet tamamlandı` : "Birlikte keşfedin"}
+        onBack={() => navigation.goBack()}
+      />
 
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
-          <PartyPopper size={30} color="#fff" />
-          <Text style={styles.heroTitle}>Arkadaşını getir, ikiniz de kazanın</Text>
-          {/* RF1 — ödül artık düz bir cümle içine gömülü değil, kendi görsel ağırlığı olan
-              bir çift rozet: sen +5, arkadaşın +3 AI hakkı kazanıyor. */}
+          <View style={styles.heroIconWrap}><PartyPopper size={25} color="#fff" /></View>
+          <Text style={styles.heroEyebrow}>PELLIX'İ BİRLİKTE KULLANIN</Text>
+          <Text style={styles.heroTitle}>Arkadaşını getir, ilk MatchParty'nizi başlatın</Text>
+          <Text style={styles.heroSubtitle}>İlk ortak eşleşmenizde ikiniz de ekstra AI hakkı kazanırsınız.</Text>
           <View style={styles.rewardPillRow}>
             <View style={styles.rewardPill}>
               <Text style={styles.rewardPillEmoji}>🎁</Text>
@@ -75,45 +80,49 @@ export default function InviteFriendScreen({ navigation }) {
           </View>
         </LinearGradient>
 
-        {/* RF2 — ödül koşulu artık tek bir cümlede gizli değil, adım adım açık. */}
         <View style={styles.stepsCard}>
+          <Text style={styles.stepsTitle}>3 adımda tamamla</Text>
           {[
-            "Davet kodunu arkadaşınla paylaş",
-            "Arkadaşın kayıt olurken kodu girsin",
-            "MatchParty'de bir filmde eşleşin — ikiniz de ödülü anında alır",
-          ].map((step, i) => (
-            <View key={i} style={styles.stepRow}>
+            ["Davet kodunu paylaş", "Arkadaşın Pellix'e senin kodunla katılsın."],
+            ["Bir MatchParty başlatın", "Birlikte kartları kaydırıp ortak seçiminizi bulun."],
+            ["Eşleşin ve ödülü alın", "İlk ortak eşleşmede haklar otomatik tanımlansın."],
+          ].map(([title, text], i) => (
+            <View key={title} style={styles.stepRow}>
               <View style={styles.stepNumWrap}><Text style={styles.stepNum}>{i + 1}</Text></View>
-              <Text style={styles.stepText}>{step}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stepTitle}>{title}</Text>
+                <Text style={styles.stepText}>{text}</Text>
+              </View>
+              <ArrowRight size={13} color={c.dim} />
             </View>
           ))}
         </View>
 
         <Text style={styles.sectionLabel}>DAVET KODUN</Text>
-        <View style={styles.codeCard}>
-          <Text style={styles.codeText}>{auth.username}</Text>
-          <TouchableOpacity onPress={copyCode} style={styles.copyBtn}>
-            {copied ? <Check size={16} color={c.accent} /> : <Copy size={16} color={c.text} />}
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.codeHint}>
-          Arkadaşın kayıt olurken "Davet Kodu" alanına bu kullanıcı adını yazmalı.
-        </Text>
+        <TouchableOpacity style={styles.codeCard} onPress={copyCode} activeOpacity={0.82}>
+          <View>
+            <Text style={styles.codeText}>{auth.username}</Text>
+            <Text style={styles.codeTapHint}>{copied ? "Panoya kopyalandı ✓" : "Kopyalamak için dokun"}</Text>
+          </View>
+          <View style={[styles.copyBtn, copied && styles.copyBtnDone]}>
+            {copied ? <Check size={16} color={c.bg} /> : <Copy size={16} color={c.text} />}
+          </View>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.shareBtn} onPress={shareInvite}>
-          <Share2 size={16} color={c.bg} />
+        <TouchableOpacity style={styles.shareBtn} onPress={shareInvite} activeOpacity={0.88}>
+          <Share2 size={17} color={c.bg} />
           <Text style={styles.shareBtnText}>Davet Linkini Paylaş</Text>
         </TouchableOpacity>
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Users size={16} color={c.dim} />
-            <Text style={styles.statValue}>{referrals?.totalInvited ?? 0}</Text>
+            <Text style={styles.statValue}>{invited}</Text>
             <Text style={styles.statLabel}>Davet Edilen</Text>
           </View>
           <View style={styles.statBox}>
             <Gift size={16} color={c.accent} />
-            <Text style={[styles.statValue, { color: c.accent }]}>{referrals?.totalCompleted ?? 0}</Text>
+            <Text style={[styles.statValue, { color: c.accent }]}>{completed}</Text>
             <Text style={styles.statLabel}>Tamamlanan</Text>
           </View>
         </View>
@@ -128,10 +137,12 @@ export default function InviteFriendScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listName}>{r.name}</Text>
                     <Text style={styles.listMeta}>
-                      {r.completed ? "Eşleştiniz, ödül kazanıldı 🎉" : "Henüz MatchParty'de eşleşmediniz"}
+                      {r.completed ? "İlk eşleşme tamamlandı 🎉" : "Bir MatchParty eşleşmesi bekliyor"}
                     </Text>
                   </View>
-                  {r.completed && <Check size={16} color={c.accent} />}
+                  <View style={[styles.statusDot, r.completed && styles.statusDotDone]}>
+                    {r.completed && <Check size={10} color={c.bg} />}
+                  </View>
                 </View>
               ))}
             </View>
@@ -142,63 +153,66 @@ export default function InviteFriendScreen({ navigation }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     center: { alignItems: "center", justifyContent: "center" },
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
-    heroCard: { borderRadius: 22, padding: 24, alignItems: "center" },
-    heroTitle: { fontSize: 18, fontWeight: "800", color: "#fff", marginTop: 10, textAlign: "center" },
-    heroSubtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.92)", marginTop: 8, textAlign: "center", lineHeight: 18 },
-    rewardPillRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+    content: { padding: 20, paddingBottom: Math.max(34, insets.bottom + 24) },
+    heroCard: { borderRadius: 22, padding: 22, alignItems: "center", overflow: "hidden" },
+    heroIconWrap: { width: 50, height: 50, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+    heroEyebrow: { fontSize: 9, fontWeight: "900", color: "rgba(255,255,255,0.72)", letterSpacing: 1, marginTop: 12 },
+    heroTitle: { fontSize: 18, fontWeight: "900", color: "#fff", marginTop: 5, textAlign: "center", lineHeight: 24 },
+    heroSubtitle: { fontSize: 11.5, color: "rgba(255,255,255,0.84)", marginTop: 7, textAlign: "center", lineHeight: 17, maxWidth: 280 },
+    rewardPillRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 14 },
     rewardPill: {
-      flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.2)",
+      flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.18)",
       borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
     },
     rewardPillEmoji: { fontSize: 13 },
     rewardPillText: { fontSize: 11.5, fontWeight: "800", color: "#fff" },
     stepsCard: {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
-      padding: 14, marginTop: 14, gap: 12,
+      padding: 14, marginTop: 14, gap: 4,
     },
-    stepRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    stepsTitle: { fontSize: 12.5, fontWeight: "800", color: c.text, marginBottom: 4 },
+    stepRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9 },
     stepNumWrap: {
-      width: 22, height: 22, borderRadius: 999, backgroundColor: c.surface2,
+      width: 24, height: 24, borderRadius: 999, backgroundColor: c.surface2,
       alignItems: "center", justifyContent: "center", flexShrink: 0,
     },
-    stepNum: { fontSize: 11, fontWeight: "800", color: c.dim },
-    stepText: { flex: 1, fontSize: 12, color: c.text, lineHeight: 17 },
-    sectionLabel: { fontSize: 11, fontWeight: "800", color: c.dim, letterSpacing: 1, marginTop: 26, marginBottom: 10 },
+    stepNum: { fontSize: 11, fontWeight: "900", color: c.accent },
+    stepTitle: { fontSize: 11.5, fontWeight: "800", color: c.text },
+    stepText: { fontSize: 10.5, color: c.dim, lineHeight: 15, marginTop: 1 },
+    sectionLabel: { fontSize: 10.5, fontWeight: "900", color: c.dim, letterSpacing: 0.9, marginTop: 24, marginBottom: 9 },
     codeCard: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
       backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.accent, borderStyle: "dashed",
-      borderRadius: 14, paddingVertical: 16, paddingHorizontal: 18,
+      borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
     },
-    codeText: { fontSize: 20, fontWeight: "800", color: c.text, letterSpacing: 1 },
-    copyBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    codeHint: { fontSize: 11.5, color: c.dim, marginTop: 8, lineHeight: 16 },
+    codeText: { fontSize: 19, fontWeight: "900", color: c.text, letterSpacing: 0.8 },
+    codeTapHint: { fontSize: 9.5, color: c.dim, marginTop: 2 },
+    copyBtn: { width: 36, height: 36, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    copyBtnDone: { backgroundColor: c.accent },
     shareBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 18,
+      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 14,
     },
-    shareBtnText: { color: c.bg, fontWeight: "800", fontSize: 14 },
-    statsRow: { flexDirection: "row", gap: 12, marginTop: 22 },
+    shareBtnText: { color: c.bg, fontWeight: "900", fontSize: 14 },
+    statsRow: { flexDirection: "row", gap: 12, marginTop: 20 },
     statBox: {
       flex: 1, alignItems: "center", gap: 4, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-      borderRadius: 14, paddingVertical: 16,
+      borderRadius: 14, paddingVertical: 15,
     },
-    statValue: { fontSize: 20, fontWeight: "800", color: c.text },
+    statValue: { fontSize: 20, fontWeight: "900", color: c.text },
     statLabel: { fontSize: 10.5, color: c.dim, fontWeight: "700" },
     list: { gap: 8 },
     listRow: {
       flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       borderRadius: 12, padding: 12,
     },
-    listAvatar: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },
-    listName: { fontSize: 13, fontWeight: "700", color: c.text },
-    listMeta: { fontSize: 11, color: c.dim, marginTop: 2 },
+    listAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: c.surface2 },
+    listName: { fontSize: 13, fontWeight: "800", color: c.text },
+    listMeta: { fontSize: 10.5, color: c.dim, marginTop: 2 },
+    statusDot: { width: 20, height: 20, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    statusDotDone: { backgroundColor: c.accent, borderColor: c.accent },
   });
 }
