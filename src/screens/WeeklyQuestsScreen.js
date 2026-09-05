@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Animated } from "react-native";
-import { ChevronLeft, Check, Gift, Trophy, Clock } from "lucide-react-native";
+import { Check, Gift, Trophy, Clock } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { hapticSuccess } from "../utils/haptics";
 import Confetti from "../components/Confetti";
+import ScreenHeader from "../components/ScreenHeader";
 
-// WQ2 — haftanın ne zaman sıfırlanacağı artık belli. week_start Pazartesi 00:00 UTC — bir
-// sonraki sıfırlanma tam olarak +7 gün.
 function useWeekResetCountdown(weekStart) {
   const [label, setLabel] = useState("");
   useEffect(() => {
@@ -36,14 +35,12 @@ export default function WeeklyQuestsScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
-  // WQ1 — ödül teslimatı artık hata mesajıyla aynı görsel ağırlıktaki bir Alert.alert değil,
-  // MatchCelebration/BadgeCelebrationOverlay ile AYNI konfeti+kart dilini paylaşan bir kutlama.
   const [rewardDays, setRewardDays] = useState(null);
   const resetLabel = useWeekResetCountdown(data?.weekStart);
 
   const load = useCallback(() => {
     api.quests(auth.token).then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [auth.token]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -62,37 +59,50 @@ export default function WeeklyQuestsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[styles.center, { flex: 1 }]}>
+      <View style={[styles.center, { flex: 1, backgroundColor: c.bg }]}>
         <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
 
+  const quests = data?.quests || [];
+  const completedCount = quests.filter((q) => q.completed).length;
+  const totalCount = quests.length;
+  const overallPercent = totalCount > 0 ? Math.min(100, (completedCount / totalCount) * 100) : 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Haftalık Görevler</Text>
-      </View>
+      <ScreenHeader
+        title="Haftalık Görevler"
+        subtitle={totalCount > 0 ? `${completedCount}/${totalCount} tamamlandı` : undefined}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View style={styles.introCard}>
-          <Trophy size={22} color={c.accent} />
+          <View style={styles.trophyWrap}><Trophy size={22} color={c.accent} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.introText}>Bu haftaki 4 görevin tamamını bitir, {data?.rewardDays} günlük Premium kazan.</Text>
-            {!!resetLabel && (
-              <View style={styles.resetRow}>
-                <Clock size={11} color={c.dim} />
-                <Text style={styles.resetText}>{resetLabel}</Text>
-              </View>
-            )}
+            <Text style={styles.introTitle}>Bu haftaki hedefin</Text>
+            <Text style={styles.introText}>
+              {totalCount || 4} görevin tamamını bitir, {data?.rewardDays} günlük Premium kazan.
+            </Text>
+            <View style={styles.overallProgressTrack}>
+              <View style={[styles.overallProgressFill, { width: `${overallPercent}%` }]} />
+            </View>
+            <View style={styles.introMetaRow}>
+              <Text style={styles.introProgressText}>{completedCount}/{totalCount || 4}</Text>
+              {!!resetLabel && (
+                <View style={styles.resetRow}>
+                  <Clock size={11} color={c.dim} />
+                  <Text style={styles.resetText}>{resetLabel}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
-        {data?.quests?.map((q) => (
-          <View key={q.key} style={styles.questRow}>
+        {quests.map((q) => (
+          <View key={q.key} style={[styles.questRow, q.completed && styles.questRowDone]}>
             <View style={[styles.questCheck, q.completed && { backgroundColor: c.accent, borderColor: c.accent }]}>
               {q.completed && <Check size={13} color={c.bg} />}
             </View>
@@ -119,7 +129,7 @@ export default function WeeklyQuestsScreen({ navigation }) {
             <>
               <Gift size={16} color={c.bg} />
               <Text style={styles.claimBtnText}>
-                {data?.claimed ? "Bu haftanın ödülünü aldın" : data?.allCompleted ? "Ödülü Al" : "Önce tüm görevleri tamamla"}
+                {data?.claimed ? "Bu haftanın ödülünü aldın" : data?.allCompleted ? "Ödülü Al" : `${Math.max(0, totalCount - completedCount)} görev kaldı`}
               </Text>
             </>
           )}
@@ -164,22 +174,27 @@ function RewardCelebration({ days, onClose }) {
 function makeStyles(c) {
   return StyleSheet.create({
     center: { alignItems: "center", justifyContent: "center" },
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
     introCard: {
-      flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface,
-      borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, marginBottom: 18,
+      flexDirection: "row", alignItems: "flex-start", gap: 12, backgroundColor: c.surface,
+      borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16, marginBottom: 18,
     },
-    introText: { fontSize: 12.5, color: c.text, lineHeight: 18 },
-    resetRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+    trophyWrap: {
+      width: 42, height: 42, borderRadius: 14, backgroundColor: c.surface2,
+      alignItems: "center", justifyContent: "center", flexShrink: 0,
+    },
+    introTitle: { fontSize: 13.5, fontWeight: "800", color: c.text },
+    introText: { fontSize: 12, color: c.dim, lineHeight: 17, marginTop: 3 },
+    overallProgressTrack: { height: 6, backgroundColor: c.surface2, borderRadius: 999, marginTop: 12, overflow: "hidden" },
+    overallProgressFill: { height: 6, backgroundColor: c.accent, borderRadius: 999 },
+    introMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 7 },
+    introProgressText: { fontSize: 10.5, color: c.accent, fontWeight: "800" },
+    resetRow: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
     resetText: { fontSize: 10.5, color: c.dim, fontWeight: "600" },
     questRow: {
       flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface,
       borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 14, marginBottom: 10,
     },
+    questRowDone: { opacity: 0.72 },
     questCheck: {
       width: 24, height: 24, borderRadius: 999, borderWidth: 1.5, borderColor: c.border,
       alignItems: "center", justifyContent: "center", flexShrink: 0,
