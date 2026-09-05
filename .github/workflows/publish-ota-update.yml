@@ -1,13 +1,7 @@
 name: Publish OTA Update (production)
 
-# ÖNEMLİ: eas update BURADAN (GitHub'ın macOS runner'ından) çalışmalı, yerel bir Windows
-# makinesinden DEĞİL — "fingerprint" runtimeVersion politikası, iOS için gerçek Xcode/CocoaPods
-# araçlarının ürettiği native proje çıktısına bakıyor. Windows'ta bu araçlar hiç olmadığı için
-# oradan hesaplanan fingerprint, production build'in (macOS'ta, aynı runner tipinde derlenen)
-# GERÇEK fingerprint'iyle hiçbir zaman eşleşmiyor — sonuç: sunucuya doğru update yüklenir ama
-# cihaz kendi fingerprint'i için hiç eşleşen bir update bulamadığından sessizce hiçbir şey olmaz.
-# Bu workflow, production build'i üreten AYNI runner tipinde (macos-26) çalışarak fingerprint'in
-# birebir eşleşmesini garanti ediyor.
+# Production OTA'lar GitHub macOS runner'ından çalışır; fingerprint runtimeVersion iOS native
+# fingerprint'inin production build ile eşleşmesi için Xcode/CocoaPods ortamına ihtiyaç duyar.
 
 on:
   push:
@@ -27,18 +21,17 @@ jobs:
     timeout-minutes: 30
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_BASE: https://api.pellix.app
 
     steps:
-      - name: Checkout repository
+      - name: Checkout current production UX branch
         uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # ÖNEMLİ DÜZELTME: eas-cli@latest (expo/expo-github-action'ın kurduğu), bir bağımlılığı
-          # (@oclif/plugin-autocomplete) üzerinden artık Node >=22 istiyor — 20 ile "yarn add
-          # eas-cli" "incompatible module" hatasıyla patlıyordu (Setup EAS adımı). eas-cli
-          # "latest" sabitlendiği için bu eşik bizim kontrolümüz dışında ileride yine değişebilir.
           node-version: 22
           cache: npm
 
@@ -51,12 +44,12 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Verify production target
+        run: |
+          test "$EXPO_PUBLIC_API_BASE" = "https://api.pellix.app"
+          node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.production?.channel!=="production") process.exit(1)'
+
       - name: Publish OTA update
-        # ÖNEMLİ (kökten düzeltme): --environment olmadan, EAS'ta tanımlı sunucu taraflı ortam
-        # değişkenleri (Google client ID'leri, RevenueCat iOS key) BUNDLE'A HİÇ enjekte edilmiyor
-        # — "eas update" bunu "eas build"in aksine PROFİLDEN otomatik çıkaramıyor, açıkça
-        # istiyor (eas-cli: "Required for projects using Expo SDK 55 or greater"). Bu bayrak
-        # olmadan yayınlanan HER OTA güncellemesi, GoogleSignin.configure()'a webClientId/
-        # iosClientId=undefined geçiriyordu — bu da Google ile girişte backend'in "Geçersiz
-        # Google jetonu" ile reddettiği, audience'ı eşleşmeyen bir idToken üretiyordu.
-        run: eas update --channel production --platform all --environment production --non-interactive --message "OTA publish from macOS runner (fingerprint-safe)"
+        run: >-
+          eas update --channel production --platform all --environment production --non-interactive
+          --message "Production UX update from approved ux-retention-v1 branch"
