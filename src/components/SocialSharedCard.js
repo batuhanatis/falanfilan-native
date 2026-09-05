@@ -177,7 +177,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
   };
   const hasTasteDNA = !!payload.tasteDNA;
   const genres = Array.isArray(payload.tasteDNA?.genres) ? payload.tasteDNA.genres.slice(0, 3) : [];
-  const filmPercent = bounded(payload.tasteDNA?.filmPercent || 50);
+  const filmPercent = bounded(payload.tasteDNA?.filmPercent ?? 50);
 
   return (
     <TouchableOpacity onPress={openProfile} activeOpacity={0.9}>
