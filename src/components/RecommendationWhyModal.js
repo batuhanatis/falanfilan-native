@@ -89,7 +89,7 @@ function makeStyles(c) {
     dotNeutral: { backgroundColor: c.dim },
     source: { color: "#A78BFA", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.7 },
     sourceNeutral: { color: c.dim },
-    reasonTitle: { color: c.text, fontSize: 12.5, fontWeight: "850" },
+    reasonTitle: { color: c.text, fontSize: 12.5, fontWeight: "800" },
     reasonDetail: { color: c.dim, fontSize: 11, lineHeight: 16, marginTop: 4 },
 
     trustBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14, borderRadius: 13, backgroundColor: "rgba(124,58,237,0.10)", borderWidth: 1, borderColor: "rgba(124,58,237,0.20)", padding: 11 },
