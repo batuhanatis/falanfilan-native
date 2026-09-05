@@ -45,4 +45,6 @@ jobs:
           node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.preview?.channel!=="preview" || e.build?.production?.channel!=="production") process.exit(1)'
 
       - name: Publish preview OTA only
-        run: eas update --channel preview --platform all --environment production --non-interactive --message "Preview: social Poster Puzzle + refreshed profile/blend share cards"
+        run: >-
+          eas update --channel preview --platform all --environment production --non-interactive
+          --message "Preview share cards and Poster Puzzle social"
