@@ -33,21 +33,21 @@ jobs:
           old_map_tail = '  }, [movies, likedMovies]);\n\n  const filteredList = useMemo(() => {'
           if text.count(old_map_tail) != 1:
               raise SystemExit('moviesById insertion point not found exactly once')
-          new_map_tail = '''  }, [movies, likedMovies]);
-
-  const tasteLikedMovies = useMemo(() => {
-    const byId = new Map();
-    likedMovies.forEach((movie) => {
-      if (movie?.id != null) byId.set(Number(movie.id), movie);
-    });
-    liked.forEach((id) => {
-      const movie = moviesById.get(id) || moviesById.get(Number(id));
-      if (movie?.id != null) byId.set(Number(movie.id), movie);
-    });
-    return [...byId.values()];
-  }, [likedMovies, liked, moviesById]);
-
-  const filteredList = useMemo(() => {'''
+          new_map_tail = (
+              '  }, [movies, likedMovies]);\n\n'
+              '  const tasteLikedMovies = useMemo(() => {\n'
+              '    const byId = new Map();\n'
+              '    likedMovies.forEach((movie) => {\n'
+              '      if (movie?.id != null) byId.set(Number(movie.id), movie);\n'
+              '    });\n'
+              '    liked.forEach((id) => {\n'
+              '      const movie = moviesById.get(id) || moviesById.get(Number(id));\n'
+              '      if (movie?.id != null) byId.set(Number(movie.id), movie);\n'
+              '    });\n'
+              '    return [...byId.values()];\n'
+              '  }, [likedMovies, liked, moviesById]);\n\n'
+              '  const filteredList = useMemo(() => {'
+          )
           text = text.replace(old_map_tail, new_map_tail, 1)
 
           start_marker = '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
@@ -60,44 +60,40 @@ jobs:
               raise SystemExit('hero block end not found')
           end += len(end_marker)
 
-          replacement = '''  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
-  const recommendationContext = useMemo(() => ({
-    preferredGenres,
-    genreFilter,
-    typeFilter,
-    shortOnly,
-    platformFilters: [...platformFilters],
-    yearFilters: [...yearFilters],
-    aiLabel: describeResults ? aiResultsLabel : null,
-  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
-
-  const heroSelection = useMemo(() => {
-    const candidates = visibleList.filter((movie) => !disliked.has(movie.id)).slice(0, 24);
-    const pool = candidates.length ? candidates : visibleList.slice(0, 24);
-    if (!pool.length) return { movie: null, reasons: [], score: -Infinity };
-
-    let best = null;
-    pool.forEach((movie, index) => {
-      const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
-      const personalized = reasons.filter((reason) => reason.personalized);
-      const score = personalized.length
-        ? personalized.slice(0, 4).reduce(
-            (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
-            0,
-          ) + personalized.length * 6 - index * 0.05
-        : -index;
-
-      if (!best || score > best.score) best = { movie, reasons, score };
-    });
-
-    return best || { movie: pool[0], reasons: [], score: 0 };
-  }, [visibleList, disliked, tasteLikedMovies, recommendationContext]);
-
-  const heroMovie = heroSelection.movie;
-  const heroReasons = heroSelection.reasons;
-  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
-  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;
-'''
+          replacement = (
+              '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
+              '  const recommendationContext = useMemo(() => ({\n'
+              '    preferredGenres,\n'
+              '    genreFilter,\n'
+              '    typeFilter,\n'
+              '    shortOnly,\n'
+              '    platformFilters: [...platformFilters],\n'
+              '    yearFilters: [...yearFilters],\n'
+              '    aiLabel: describeResults ? aiResultsLabel : null,\n'
+              '  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);\n\n'
+              '  const heroSelection = useMemo(() => {\n'
+              '    const candidates = visibleList.filter((movie) => !disliked.has(movie.id)).slice(0, 24);\n'
+              '    const pool = candidates.length ? candidates : visibleList.slice(0, 24);\n'
+              '    if (!pool.length) return { movie: null, reasons: [], score: -Infinity };\n\n'
+              '    let best = null;\n'
+              '    pool.forEach((movie, index) => {\n'
+              '      const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);\n'
+              '      const personalized = reasons.filter((reason) => reason.personalized);\n'
+              '      const score = personalized.length\n'
+              '        ? personalized.slice(0, 4).reduce(\n'
+              '            (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),\n'
+              '            0,\n'
+              '          ) + personalized.length * 6 - index * 0.05\n'
+              '        : -index;\n\n'
+              '      if (!best || score > best.score) best = { movie, reasons, score };\n'
+              '    });\n\n'
+              '    return best || { movie: pool[0], reasons: [], score: 0 };\n'
+              '  }, [visibleList, disliked, tasteLikedMovies, recommendationContext]);\n\n'
+              '  const heroMovie = heroSelection.movie;\n'
+              '  const heroReasons = heroSelection.reasons;\n'
+              '  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;\n'
+              '  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;\n'
+          )
           text = text[:start] + replacement + text[end:]
           home.write_text(text, encoding='utf-8')
 
