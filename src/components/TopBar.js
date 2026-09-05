@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { UserPlus, Bell } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -12,9 +13,10 @@ export default function TopBar({ centerLabel, leftAction = null }) {
   const { auth } = useAuth();
   const { subscribe } = useWS();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingRequests, setPendingRequests] = useState(0);
-  const styles = makeStyles(c);
+  const styles = makeStyles(c, insets);
 
   const refresh = useCallback(() => {
     api.notifications(auth.token).then((data) => setUnreadCount((data.results || []).filter((n) => !n.read).length)).catch(() => {});
@@ -88,9 +90,18 @@ function BadgeCount({ count, styles }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
-    bar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingTop: 54, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg },
+    bar: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 18,
+      paddingTop: Math.max(insets.top, 12) + 6,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      backgroundColor: c.bg,
+    },
     barSide: { flex: 1, flexDirection: "row", alignItems: "center" },
     barSideRight: { justifyContent: "flex-end" },
     barCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
