@@ -4,7 +4,7 @@ import { StackActions } from "@react-navigation/native";
 import { Home, Compass, Users, MessageCircle, User } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useUnread } from "../context/UnreadContext";
-import HomeScreen from "../screens/HomeScreen";
+import HomeScreen from "../screens/HomeScreenV2";
 import DiscoverScreen from "../screens/DiscoverScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import ChatStack from "./ChatStack";
