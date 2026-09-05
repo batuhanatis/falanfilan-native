@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def once(text, old, new, label):
@@ -96,20 +97,17 @@ new_social = '''            favoriteShow: profile.favoriteShow ? { id: profile.f
           previewHeight={555}'''
 text = once(text, old_social, new_social, "profile social payload")
 
-premium_bg = '                    backgroundUrl={profile.profileBackgroundUrl}\n'
-if text.count(premium_bg) != 2:
-    raise SystemExit(f"premium profile props: expected 2, got {text.count(premium_bg)}")
-text = text.replace(
-    premium_bg,
-    premium_bg + '                    tasteDNA={tasteDNA}\n                    streak={questStreak}\n',
-)
-normal_bg = '            backgroundUrl={profile.profileBackgroundUrl}\n'
-if text.count(normal_bg) != 1:
-    raise SystemExit(f"normal profile props: expected 1, got {text.count(normal_bg)}")
-text = text.replace(
-    normal_bg,
-    normal_bg + '            tasteDNA={tasteDNA}\n            streak={questStreak}\n',
-    1,
+pattern = re.compile(r'(?m)^(\s+)backgroundUrl=\{profile\.profileBackgroundUrl\}$')
+matches = list(pattern.finditer(text))
+if len(matches) != 3:
+    raise SystemExit(f"ProfileShareCard background props: expected 3, got {len(matches)}")
+text = pattern.sub(
+    lambda m: (
+        f'{m.group(1)}backgroundUrl={{profile.profileBackgroundUrl}}\n'
+        f'{m.group(1)}tasteDNA={{tasteDNA}}\n'
+        f'{m.group(1)}streak={{questStreak}}'
+    ),
+    text,
 )
 p.write_text(text, encoding="utf-8")
 
