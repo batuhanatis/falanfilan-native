@@ -33,6 +33,9 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
   const [shareDraft, setShareDraft] = useState(null);
   const [error, setError] = useState("");
 
+  // Modal her yeni açılışta temiz bir draft ile başlar. Entry prop'u save sonrası parent tarafından
+  // güncellendiğinde bu effect tekrar çalışmamalı; aksi halde ilk puan sonrasında açılan sosyal
+  // paylaşım kartı aynı render döngüsünde sıfırlanıyordu.
   useEffect(() => {
     if (!visible) return;
     setRating(entry?.rating ?? null);
@@ -40,7 +43,15 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
     setShareDraft(null);
     setSharing(false);
     setError("");
-  }, [visible, entry?.rating, entry?.note, movie?.id]);
+  }, [visible, movie?.id]);
+
+  // Bazı ekranlarda Diary entry modal açıkken sonradan yüklenebiliyor. Böyle bir durumda formu
+  // senkronla ama aktif paylaşım draft'ına dokunma.
+  useEffect(() => {
+    if (!visible || shareDraft || saving) return;
+    setRating(entry?.rating ?? null);
+    setNote(entry?.note || "");
+  }, [visible, entry?.rating, entry?.note, shareDraft, saving]);
 
   async function save() {
     if (!movie?.id || saving) return;
@@ -54,7 +65,6 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
         note: note.trim() || null,
       });
       hapticSuccess();
-      onSaved?.(result.entry);
 
       const savedRating = result.entry?.rating ?? rating;
       const isFirstRating = previousRating == null && savedRating != null;
@@ -64,7 +74,11 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
           note: result.entry?.note || note.trim() || null,
           watchedAt: result.entry?.watchedAt || new Date().toISOString(),
         });
-      } else {
+      }
+
+      onSaved?.(result.entry);
+
+      if (!isFirstRating) {
         onClose?.();
       }
     } catch (e) {
