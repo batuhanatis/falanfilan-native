@@ -751,7 +751,9 @@ export default function HomeScreenV2({ navigation }) {
         </View>
 
 
-        <PopularNowRow items={popularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
+        <View style={styles.popularNowSection}>
+          <PopularNowRow items={popularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
+        </View>
 
         <View style={styles.gridSectionHeader}>
           <View>
@@ -1009,6 +1011,7 @@ function makeStyles(c) {
     sectionEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.9 },
     sectionTitle: { color: c.text, fontSize: 14, fontWeight: "800", marginTop: 3 },
     todayRow: { gap: 8 },
+    popularNowSection: { marginTop: 22 },
     todayCard: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 11 },
     todayIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     todayKicker: { color: c.dim, fontSize: 8.5, fontWeight: "900", letterSpacing: 0.7 },
