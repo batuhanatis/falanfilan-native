@@ -47,6 +47,6 @@ jobs:
       - name: Publish preview OTA only
         run: >-
           eas update --channel preview --platform all --environment production --non-interactive
-          --message "Preview startup boot optimization and latest UX fixes"
+          --message "Social shortcuts directly below stories"
 
-# preview publish for cache-first startup and latest UX fixes
+# preview publish for social shortcut placement
