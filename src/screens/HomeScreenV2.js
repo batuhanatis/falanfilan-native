@@ -37,7 +37,7 @@ import MovieCard from "../components/MovieCard";
 import PopularNowRow from "../components/PopularNowRow";
 import { platformName, platformLogo } from "../utils/platform";
 import { yearMatchesLabel } from "../utils/filterYears";
-import { recommendationReason } from "../utils/recommend";
+import { recommendationReason, recommendationReasons } from "../utils/recommend";
 import TopBar from "../components/TopBar";
 import SendToFriendModal from "../components/SendToFriendModal";
 import ListPickerModal from "../components/ListPickerModal";
@@ -46,6 +46,7 @@ import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
 import IslandModal from "../components/IslandModal";
 import HomeSkeleton from "../components/skeletons/HomeSkeleton";
+import RecommendationWhyModal from "../components/RecommendationWhyModal";
 
 function dedupe(items) {
   const byId = new Map();
@@ -96,6 +97,8 @@ export default function HomeScreenV2({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [liked, setLiked] = useState(new Set());
+  const [likedMovies, setLikedMovies] = useState([]);
+  const [preferredGenres, setPreferredGenres] = useState([]);
   const [disliked, setDisliked] = useState(new Set());
   const [watchlist, setWatchlist] = useState(new Set());
 
@@ -123,10 +126,15 @@ export default function HomeScreenV2({ navigation }) {
 
   const [sendMovie, setSendMovie] = useState(null);
   const [pickerMovie, setPickerMovie] = useState(null);
+  const [showHeroReasons, setShowHeroReasons] = useState(false);
 
   const loadInteractions = useCallback(async () => {
     try {
-      const data = await api.interactions(auth.token);
+      const [data, selfProfile, me] = await Promise.all([
+        api.interactions(auth.token),
+        api.userProfile(auth.token, auth.id).catch(() => ({ likedMovies: [] })),
+        api.me(auth.token).catch(() => ({ preferredGenres: [] })),
+      ]);
       const nextLiked = new Set();
       const nextDisliked = new Set();
       const nextWatchlist = new Set();
@@ -136,12 +144,14 @@ export default function HomeScreenV2({ navigation }) {
         else if (row.action === "watchlist") nextWatchlist.add(row.movie_id);
       });
       setLiked(nextLiked);
+      setLikedMovies(selfProfile.likedMovies || []);
+      setPreferredGenres(me.preferredGenres || []);
       setDisliked(nextDisliked);
       setWatchlist(nextWatchlist);
     } catch {
       // Ana sayfa içerik göstermeye devam etsin.
     }
-  }, [auth.token]);
+  }, [auth.token, auth.id]);
 
   const loadPage = useCallback(async (pageNum) => {
     const excludeIds = [...loadedIdsRef.current].slice(-500);
@@ -189,8 +199,7 @@ export default function HomeScreenV2({ navigation }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      await loadInteractions();
-      const first = await loadPage(1);
+      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);
       if (!cancelled) {
         setMovies(first);
         setPage(1);
@@ -261,7 +270,13 @@ export default function HomeScreenV2({ navigation }) {
     setAiResultsLabel("");
   }
 
-  const moviesById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);
+  const moviesById = useMemo(() => {
+    const map = new Map();
+    [...movies, ...likedMovies].forEach((m) => {
+      if (m?.id != null) map.set(m.id, m);
+    });
+    return map;
+  }, [movies, likedMovies]);
 
   const filteredList = useMemo(() => {
     let result = movies;
@@ -289,9 +304,19 @@ export default function HomeScreenV2({ navigation }) {
 
   const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
   const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;
-  const heroReason = heroMovie
-    ? recommendationReason(heroMovie, liked, moviesById) || `${heroMovie.genre || "Zevkine uygun"} · Pellix seçimi`
-    : null;
+  const heroReasons = useMemo(() => {
+    if (!heroMovie) return [];
+    return recommendationReasons(heroMovie, likedMovies, {
+      preferredGenres,
+      genreFilter,
+      typeFilter,
+      shortOnly,
+      platformFilters: [...platformFilters],
+      yearFilters: [...yearFilters],
+      aiLabel: describeResults ? aiResultsLabel : null,
+    });
+  }, [heroMovie, likedMovies, preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
   const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;
 
   const availablePlatformObjs = useMemo(() => {
@@ -476,6 +501,7 @@ export default function HomeScreenV2({ navigation }) {
             reason={heroReason}
             liked={liked.has(heroMovie.id)}
             onLike={() => like(heroMovie.id)}
+            onWhy={() => setShowHeroReasons(true)}
             onPress={() => navigation.navigate("Detail", { movie: heroMovie })}
             c={c}
           />
@@ -726,13 +752,23 @@ export default function HomeScreenV2({ navigation }) {
         </TouchableOpacity>
       </IslandModal>
 
+      <RecommendationWhyModal
+        visible={showHeroReasons}
+        movie={heroMovie}
+        reasons={heroReasons}
+        onClose={() => setShowHeroReasons(false)}
+        onOpenDetail={() => {
+          setShowHeroReasons(false);
+          if (heroMovie) navigation.navigate("Detail", { movie: heroMovie });
+        }}
+      />
       {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}
       {pickerMovie && <ListPickerModal movie={pickerMovie} onClose={() => setPickerMovie(null)} />}
     </View>
   );
 }
 
-function TonightHero({ movie, reason, liked, onLike, onPress, c }) {
+function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, c }) {
   const styles = makeStyles(c);
   const platform = (movie.platforms || [])[0];
   return (
@@ -777,7 +813,7 @@ function TonightHero({ movie, reason, liked, onLike, onPress, c }) {
       </View>
 
       <View style={styles.heroActions}>
-        <TouchableOpacity style={styles.heroPrimaryBtn} onPress={onPress}>
+        <TouchableOpacity style={styles.heroPrimaryBtn} onPress={(e) => { e.stopPropagation?.(); onWhy?.(); }}>
           <Text style={styles.heroPrimaryText}>Neden buna bakmalısın?</Text>
           <ChevronRight size={15} color="#14121a" />
         </TouchableOpacity>
