@@ -1,0 +1,37 @@
+name: Align Profile Taste DNA with ratings
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/align-profile-taste-dna-ratings-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[profile-dna-rating]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: cp .github/scripts/align-profile-taste-dna-ratings.py /tmp/align-profile-taste-dna-ratings.py
+      - uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          clean: true
+      - run: python /tmp/align-profile-taste-dna-ratings.py
+      - run: npm ci
+      - name: Validate all JS bundles
+        run: npx expo export --platform all --output-dir /tmp/pellix-profile-dna-rating
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --check
+          git add src/screens/ProfileScreen.js
+          git commit -m "Use deep ratings in Profile Taste DNA"
+          git push origin HEAD:ux-retention-v1
