@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   title: { color: "#fff", fontSize: 18, lineHeight: 22, fontWeight: "900" },
   meta: { color: "rgba(255,255,255,0.48)", fontSize: 9.5, fontWeight: "700", marginTop: 4 },
   scoreRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, marginTop: 12 },
-  score: { color: "#FFD76A", fontSize: 42, lineHeight: 44, fontWeight: "950", fontVariant: ["tabular-nums"] },
+  score: { color: "#FFD76A", fontSize: 42, lineHeight: 44, fontWeight: "900", fontVariant: ["tabular-nums"] },
   outOf: { color: "rgba(255,255,255,0.78)", fontSize: 13, fontWeight: "900", marginBottom: 2 },
   scoreLabel: { color: "rgba(255,255,255,0.34)", fontSize: 6.8, fontWeight: "900", letterSpacing: 0.8, marginBottom: 5 },
   noteBox: { marginTop: 14, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", flexDirection: "row", gap: 7 },
