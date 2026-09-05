@@ -1,0 +1,173 @@
+from pathlib import Path
+import re
+
+p = Path("src/screens/HomeScreenV2.js")
+s = p.read_text()
+
+
+def replace_once(old, new, label):
+    global s
+    count = s.count(old)
+    if count != 1:
+        raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
+    s = s.replace(old, new, 1)
+
+
+replace_once(
+    '  Keyboard,\n} from "react-native";',
+    '  Keyboard,\n  useWindowDimensions,\n} from "react-native";',
+    "react-native import",
+)
+
+replace_once(
+    '  const { auth } = useAuth();\n  const styles = makeStyles(c);\n\n  const mainListRef = useRef(null);\n  const upcomingListRef = useRef(null);',
+    '  const { auth } = useAuth();\n  const { width: windowWidth } = useWindowDimensions();\n  const styles = makeStyles(c);\n  const heroCardWidth = Math.max(280, windowWidth - 32);\n\n  const mainListRef = useRef(null);\n  const upcomingListRef = useRef(null);\n  const heroListRef = useRef(null);',
+    "hero width and ref",
+)
+
+replace_once(
+    '  const [pickerMovie, setPickerMovie] = useState(null);\n  const [showHeroReasons, setShowHeroReasons] = useState(false);',
+    '  const [pickerMovie, setPickerMovie] = useState(null);\n  const [showHeroReasons, setShowHeroReasons] = useState(false);\n  const [activeHeroIndex, setActiveHeroIndex] = useState(0);',
+    "hero index state",
+)
+
+selection_pattern = re.compile(
+    r'  const heroSelection = useMemo\(\(\) => \{.*?'
+    r'  const gridList = heroMovie \? visibleList\.filter\(\(m\) => m\.id !== heroMovie\.id\) : visibleList;\n',
+    re.S,
+)
+selection_replacement = '''  const heroSourceList = describeResults ? describeResults : filteredList;
+  const heroSelections = useMemo(() => {
+    const eligible = dedupe(heroSourceList.filter((movie) => !disliked.has(movie.id))).slice(0, 60);
+    const pool = eligible.length ? eligible : dedupe(heroSourceList).slice(0, 60);
+    if (!pool.length) return [];
+
+    return pool
+      .map((movie, index) => {
+        const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
+        const personalized = reasons.filter((reason) => reason.personalized);
+        const score = personalized.length
+          ? personalized.slice(0, 4).reduce(
+              (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
+              0,
+            ) + personalized.length * 6 - index * 0.05
+          : -index;
+        return { movie, reasons, score, sourceIndex: index };
+      })
+      .sort((a, b) => b.score - a.score || a.sourceIndex - b.sourceIndex)
+      .slice(0, 10);
+  }, [heroSourceList, disliked, tasteLikedMovies, recommendationContext]);
+
+  const safeHeroIndex = Math.min(activeHeroIndex, Math.max(0, heroSelections.length - 1));
+  const heroSelection = heroSelections[safeHeroIndex] || { movie: null, reasons: [], score: -Infinity };
+  const heroMovie = heroSelection.movie;
+  const heroReasons = heroSelection.reasons;
+  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
+  const heroIds = useMemo(() => new Set(heroSelections.map((item) => item.movie?.id).filter(Boolean)), [heroSelections]);
+  const gridList = describeResults
+    ? visibleList
+    : heroSelections.length
+      ? visibleList.filter((m) => !heroIds.has(m.id))
+      : visibleList;
+
+  useEffect(() => {
+    setActiveHeroIndex(0);
+    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+  }, [typeFilter, genreFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+
+  useEffect(() => {
+    if (activeHeroIndex < heroSelections.length) return;
+    setActiveHeroIndex(0);
+    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+  }, [activeHeroIndex, heroSelections.length]);
+'''
+s, count = selection_pattern.subn(selection_replacement, s, count=1)
+if count != 1:
+    raise SystemExit(f"hero selection block: expected 1 match, found {count}")
+
+hero_pattern = re.compile(
+    r'        \{heroMovie \? \(\n.*?\n        \)\}\n\n        <ScrollView horizontal',
+    re.S,
+)
+hero_replacement = '''        {heroSelections.length ? (
+          <>
+            <FlatList
+              ref={heroListRef}
+              horizontal
+              data={heroSelections}
+              keyExtractor={(item) => String(item.movie.id)}
+              showsHorizontalScrollIndicator={false}
+              pagingEnabled
+              nestedScrollEnabled
+              decelerationRate="fast"
+              snapToInterval={heroCardWidth}
+              disableIntervalMomentum
+              getItemLayout={(_, index) => ({ length: heroCardWidth, offset: heroCardWidth * index, index })}
+              onMomentumScrollEnd={(event) => {
+                const nextIndex = Math.round(event.nativeEvent.contentOffset.x / heroCardWidth);
+                setActiveHeroIndex(Math.max(0, Math.min(nextIndex, heroSelections.length - 1)));
+              }}
+              renderItem={({ item, index }) => {
+                const movie = item.movie;
+                const reason = item.reasons.find((entry) => entry.personalized)?.short || item.reasons[0]?.short || null;
+                return (
+                  <TonightHero
+                    width={heroCardWidth}
+                    movie={movie}
+                    reason={reason}
+                    liked={liked.has(movie.id)}
+                    onLike={() => like(movie.id)}
+                    onWhy={() => {
+                      setActiveHeroIndex(index);
+                      setShowHeroReasons(true);
+                    }}
+                    onPress={() => navigation.navigate("Detail", { movie })}
+                    c={c}
+                  />
+                );
+              }}
+            />
+            <View style={styles.heroPagerRow}>
+              <Text style={styles.heroPagerCount}>{safeHeroIndex + 1}/{heroSelections.length}</Text>
+              <View style={styles.heroDotsRow}>
+                {heroSelections.map((item, index) => (
+                  <View
+                    key={`hero-dot-${item.movie.id}`}
+                    style={[styles.heroDot, index === safeHeroIndex && styles.heroDotActive]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.heroSwipeHint}>Kaydır</Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.heroEmpty}>
+            <Sparkles size={24} color={c.accent} />
+            <Text style={styles.heroEmptyTitle}>Sana uygun yeni seçimler hazırlıyoruz</Text>
+            <Text style={styles.heroEmptyText}>Filtreleri temizleyip tekrar deneyebilirsin.</Text>
+          </View>
+        )}
+
+        <ScrollView horizontal'''
+s, count = hero_pattern.subn(hero_replacement, s, count=1)
+if count != 1:
+    raise SystemExit(f"hero render block: expected 1 match, found {count}")
+
+replace_once(
+    "function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, c }) {",
+    "function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, width, c }) {",
+    "TonightHero signature",
+)
+replace_once(
+    "    <TouchableOpacity style={styles.heroCard} activeOpacity={0.94} onPress={onPress}>",
+    "    <TouchableOpacity style={[styles.heroCard, width ? { width } : null]} activeOpacity={0.94} onPress={onPress}>",
+    "TonightHero width",
+)
+
+replace_once(
+    '    heroArea: { paddingTop: 10 },\n    heroCard:',
+    '    heroArea: { paddingTop: 10 },\n    heroPagerRow: { minHeight: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingTop: 8 },\n    heroPagerCount: { width: 34, color: c.dim, fontSize: 10, fontWeight: "800" },\n    heroDotsRow: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },\n    heroDot: { width: 5, height: 5, borderRadius: 999, backgroundColor: c.border },\n    heroDotActive: { width: 16, backgroundColor: c.accent },\n    heroSwipeHint: { width: 34, color: c.dim, fontSize: 9.5, fontWeight: "700", textAlign: "right" },\n    heroCard:',
+    "hero pager styles",
+)
+
+p.write_text(s)
