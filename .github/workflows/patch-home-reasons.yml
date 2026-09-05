@@ -13,6 +13,7 @@ jobs:
   patch:
     if: contains(github.event.head_commit.message, '[patch-home-reasons]')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout UX retention branch
         uses: actions/checkout@v4
@@ -20,71 +21,34 @@ jobs:
           ref: ux-retention-v1
           fetch-depth: 1
 
-      - name: Patch HomeScreenV2
+      - name: Rank hero with real taste signals
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('src/screens/HomeScreenV2.js')
-          text = path.read_text(encoding='utf-8')
+          home = Path('src/screens/HomeScreenV2.js')
+          text = home.read_text(encoding='utf-8')
 
-          def once(old, new, label):
-              global text
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, got {count}')
-              text = text.replace(old, new, 1)
+          old_map_tail = '  }, [movies, likedMovies]);\n\n  const filteredList = useMemo(() => {'
+          if text.count(old_map_tail) != 1:
+              raise SystemExit('moviesById insertion point not found exactly once')
+          new_map_tail = '''  }, [movies, likedMovies]);
 
-          once(
-              'import { recommendationReason } from "../utils/recommend";',
-              'import { recommendationReason, recommendationReasons } from "../utils/recommend";',
-              'recommend import'
-          )
-          once(
-              'import HomeSkeleton from "../components/skeletons/HomeSkeleton";',
-              'import HomeSkeleton from "../components/skeletons/HomeSkeleton";\nimport RecommendationWhyModal from "../components/RecommendationWhyModal";',
-              'modal import'
-          )
+  const tasteLikedMovies = useMemo(() => {
+    const byId = new Map();
+    likedMovies.forEach((movie) => {
+      if (movie?.id != null) byId.set(Number(movie.id), movie);
+    });
+    liked.forEach((id) => {
+      const movie = moviesById.get(id) || moviesById.get(Number(id));
+      if (movie?.id != null) byId.set(Number(movie.id), movie);
+    });
+    return [...byId.values()];
+  }, [likedMovies, liked, moviesById]);
 
-          once(
-              '  const [liked, setLiked] = useState(new Set());',
-              '  const [liked, setLiked] = useState(new Set());\n  const [likedMovies, setLikedMovies] = useState([]);\n  const [preferredGenres, setPreferredGenres] = useState([]);',
-              'taste state'
-          )
-          once(
-              '  const [pickerMovie, setPickerMovie] = useState(null);',
-              '  const [pickerMovie, setPickerMovie] = useState(null);\n  const [showHeroReasons, setShowHeroReasons] = useState(false);',
-              'reason modal state'
-          )
-
-          once(
-              '      const data = await api.interactions(auth.token);',
-              '      const [data, selfProfile, me] = await Promise.all([\n        api.interactions(auth.token),\n        api.userProfile(auth.token, auth.id).catch(() => ({ likedMovies: [] })),\n        api.me(auth.token).catch(() => ({ preferredGenres: [] })),\n      ]);',
-              'interaction enrichment'
-          )
-          once(
-              '      setLiked(nextLiked);',
-              '      setLiked(nextLiked);\n      setLikedMovies(selfProfile.likedMovies || []);\n      setPreferredGenres(me.preferredGenres || []);',
-              'taste setters'
-          )
-          once(
-              '  }, [auth.token]);\n\n  const loadPage = useCallback',
-              '  }, [auth.token, auth.id]);\n\n  const loadPage = useCallback',
-              'loadInteractions deps'
-          )
-
-          once(
-              '      await loadInteractions();\n      const first = await loadPage(1);',
-              '      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);',
-              'parallel initial load'
-          )
-
-          once(
-              '  const moviesById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);',
-              '  const moviesById = useMemo(() => {\n    const map = new Map();\n    [...movies, ...likedMovies].forEach((m) => {\n      if (m?.id != null) map.set(m.id, m);\n    });\n    return map;\n  }, [movies, likedMovies]);',
-              'movie map'
-          )
+  const filteredList = useMemo(() => {'''
+          text = text.replace(old_map_tail, new_map_tail, 1)
 
           start_marker = '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
           end_marker = '  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;\n'
@@ -95,58 +59,66 @@ jobs:
           if end < 0:
               raise SystemExit('hero block end not found')
           end += len(end_marker)
-          replacement = (
-              '  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;\n'
-              '  const heroMovie = visibleList.find((m) => !disliked.has(m.id)) || visibleList[0] || null;\n'
-              '  const heroReasons = useMemo(() => {\n'
-              '    if (!heroMovie) return [];\n'
-              '    return recommendationReasons(heroMovie, likedMovies, {\n'
-              '      preferredGenres,\n'
-              '      genreFilter,\n'
-              '      typeFilter,\n'
-              '      shortOnly,\n'
-              '      platformFilters: [...platformFilters],\n'
-              '      yearFilters: [...yearFilters],\n'
-              '      aiLabel: describeResults ? aiResultsLabel : null,\n'
-              '    });\n'
-              '  }, [heroMovie, likedMovies, preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);\n'
-              '  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;\n'
-              '  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;\n'
-          )
+
+          replacement = '''  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
+  const recommendationContext = useMemo(() => ({
+    preferredGenres,
+    genreFilter,
+    typeFilter,
+    shortOnly,
+    platformFilters: [...platformFilters],
+    yearFilters: [...yearFilters],
+    aiLabel: describeResults ? aiResultsLabel : null,
+  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+
+  const heroSelection = useMemo(() => {
+    const candidates = visibleList.filter((movie) => !disliked.has(movie.id)).slice(0, 24);
+    const pool = candidates.length ? candidates : visibleList.slice(0, 24);
+    if (!pool.length) return { movie: null, reasons: [], score: -Infinity };
+
+    let best = null;
+    pool.forEach((movie, index) => {
+      const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
+      const personalized = reasons.filter((reason) => reason.personalized);
+      const score = personalized.length
+        ? personalized.slice(0, 4).reduce(
+            (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
+            0,
+          ) + personalized.length * 6 - index * 0.05
+        : -index;
+
+      if (!best || score > best.score) best = { movie, reasons, score };
+    });
+
+    return best || { movie: pool[0], reasons: [], score: 0 };
+  }, [visibleList, disliked, tasteLikedMovies, recommendationContext]);
+
+  const heroMovie = heroSelection.movie;
+  const heroReasons = heroSelection.reasons;
+  const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
+  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;
+'''
           text = text[:start] + replacement + text[end:]
+          home.write_text(text, encoding='utf-8')
 
-          once(
-              '            onLike={() => like(heroMovie.id)}\n            onPress={() => navigation.navigate("Detail", { movie: heroMovie })}',
-              '            onLike={() => like(heroMovie.id)}\n            onWhy={() => setShowHeroReasons(true)}\n            onPress={() => navigation.navigate("Detail", { movie: heroMovie })}',
-              'hero onWhy prop'
-          )
-
-          once(
-              '      {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}',
-              '      <RecommendationWhyModal\n        visible={showHeroReasons}\n        movie={heroMovie}\n        reasons={heroReasons}\n        onClose={() => setShowHeroReasons(false)}\n        onOpenDetail={() => {\n          setShowHeroReasons(false);\n          if (heroMovie) navigation.navigate("Detail", { movie: heroMovie });\n        }}\n      />\n      {sendMovie && <SendToFriendModal movie={sendMovie} onClose={() => setSendMovie(null)} />}',
-              'reason modal render'
-          )
-
-          once(
-              'function TonightHero({ movie, reason, liked, onLike, onPress, c }) {',
-              'function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, c }) {',
-              'hero signature'
-          )
-          once(
-              '<TouchableOpacity style={styles.heroPrimaryBtn} onPress={onPress}>',
-              '<TouchableOpacity style={styles.heroPrimaryBtn} onPress={(e) => { e.stopPropagation?.(); onWhy?.(); }}>',
-              'hero why button'
-          )
-
-          path.write_text(text, encoding='utf-8')
+          recommend = Path('src/utils/recommend.js')
+          rec_text = recommend.read_text(encoding='utf-8')
+          rec_text = rec_text.replace('Bildigimiz beğenilerinin', 'Bildiğimiz beğenilerinin')
+          recommend.write_text(rec_text, encoding='utf-8')
           PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Android JS bundle
+        run: npx expo export --platform android --output-dir /tmp/pellix-export
 
       - name: Commit patch to UX branch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/screens/HomeScreenV2.js
+          git add src/screens/HomeScreenV2.js src/utils/recommend.js
           git diff --cached --check
-          git commit -m "Add personalized hero recommendation reasons"
+          git commit -m "Rank hero by personalized taste signals"
           git push origin HEAD:ux-retention-v1
