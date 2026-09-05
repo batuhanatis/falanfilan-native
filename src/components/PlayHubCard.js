@@ -1,9 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Gamepad2, ChevronRight, Sparkles } from "lucide-react-native";
+import { Gamepad2, ChevronRight, Sparkles, CalendarDays } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
+
+const GAME_COPY = {
+  taste_battle: { title: "Taste Battle", line: "Hızlı seçimlerle zevk profilini netleştir" },
+  friend_quiz: { title: "Arkadaşını Tanıyor musun?", line: "Bir arkadaşının ne seçeceğini tahmin et" },
+  blind_pick: { title: "Blind Pick", line: "Poster yok; yalnızca ipuçlarına güven" },
+  who_said_it: { title: "Who Said It?", line: "İkonik anın karakterini bul" },
+  character_quiz: { title: "Hangi Karaktersin?", line: "Kısa testle ekran karakterini keşfet" },
+};
+
+function localDayNumber() {
+  const now = new Date();
+  return Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);
+}
 
 export default function PlayHubCard({ navigation }) {
   const { auth } = useAuth();
@@ -26,14 +39,23 @@ export default function PlayHubCard({ navigation }) {
     };
   }, [auth.token, navigation]);
 
-  if (!features || !Object.values(features).some(Boolean)) return null;
-  const enabledCount = Object.values(features).filter(Boolean).length;
+  const enabledKeys = useMemo(
+    () => features ? Object.keys(GAME_COPY).filter((key) => features[key]) : [],
+    [features]
+  );
+
+  if (enabledKeys.length === 0) return null;
+
+  // Her kullanıcı aynı gün aynı "günün oyunu"nu görür. Yeni backend state'i gerektirmeden
+  // Play'i statik bir feature vitrini olmaktan çıkarıp günlük geri dönüş yüzeyine dönüştürüyor.
+  const dailyKey = enabledKeys[Math.abs(localDayNumber()) % enabledKeys.length];
+  const daily = GAME_COPY[dailyKey];
 
   return (
     <TouchableOpacity
       style={styles.touch}
       activeOpacity={0.88}
-      onPress={() => navigation.navigate("PellixPlay")}
+      onPress={() => navigation.navigate("PellixPlay", { initialGame: dailyKey })}
     >
       <LinearGradient
         colors={["#6D28D9", "#2563EB", "#0891B2"]}
@@ -50,11 +72,16 @@ export default function PlayHubCard({ navigation }) {
         </View>
 
         <View style={styles.copy}>
+          <View style={styles.eyebrowRow}>
+            <CalendarDays size={10} color="rgba(255,255,255,0.78)" />
+            <Text style={styles.eyebrow}>BUGÜNÜN OYUNU</Text>
+          </View>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>pellix play</Text>
+            <Text style={styles.title}>{daily.title}</Text>
             <View style={styles.playBadge}><Text style={styles.playBadgeText}>OYNA</Text></View>
           </View>
-          <Text style={styles.sub}>{enabledCount} mini oyun · zevkini keşfet, arkadaşlarını test et</Text>
+          <Text style={styles.sub}>{daily.line}</Text>
+          {enabledKeys.length > 1 && <Text style={styles.moreGames}>+ {enabledKeys.length - 1} mini oyun daha Pellix Play'de</Text>}
         </View>
 
         <View style={styles.arrowWrap}>
@@ -66,10 +93,9 @@ export default function PlayHubCard({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  // Yapay Zeka Köşesi ile Şu An Popüler arasında görsel olarak eşit nefes bırakır.
-  touch: { marginTop: 18, marginBottom: 20, borderRadius: 20, overflow: "hidden" },
+  touch: { marginTop: 16, marginBottom: 18, borderRadius: 20, overflow: "hidden" },
   card: {
-    minHeight: 96, flexDirection: "row", alignItems: "center", gap: 13,
+    minHeight: 112, flexDirection: "row", alignItems: "center", gap: 13,
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 15,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", overflow: "hidden",
   },
@@ -87,11 +113,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(8,9,20,0.26)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)",
   },
   copy: { flex: 1 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { fontFamily: "Baloo2_800ExtraBold", fontSize: 18, color: "#fff", letterSpacing: 0.1 },
-  playBadge: { backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  playBadgeText: { color: "#fff", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
-  sub: { color: "rgba(255,255,255,0.82)", fontSize: 11.5, marginTop: 3, lineHeight: 16 },
+  eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 },
+  eyebrow: { color: "rgba(255,255,255,0.76)", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  title: { fontFamily: "Baloo2_800ExtraBold", fontSize: 17, color: "#fff", letterSpacing: 0.1, flexShrink: 1 },
+  playBadge: { backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
+  playBadgeText: { color: "#fff", fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
+  sub: { color: "rgba(255,255,255,0.82)", fontSize: 10.8, marginTop: 2, lineHeight: 15 },
+  moreGames: { color: "rgba(255,255,255,0.56)", fontSize: 9.2, marginTop: 4, fontWeight: "700" },
   arrowWrap: {
     width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(8,9,20,0.22)",
