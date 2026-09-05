@@ -29,39 +29,72 @@ function splitGenres(value) {
     .filter(Boolean);
 }
 
-function buildTasteDNA(likedMovies, profile) {
-  const genreCounts = new Map();
-  let filmCount = 0;
-  let showCount = 0;
+function ratingPositiveWeight(value) {
+  const rating = Number(value);
+  if (!Number.isFinite(rating)) return 0;
+  if (rating >= 10) return 1.6;
+  if (rating >= 9) return 1.4;
+  if (rating >= 8) return 1.1;
+  if (rating >= 7) return 0.75;
+  if (rating >= 6) return 0.25;
+  return 0;
+}
 
-  (likedMovies || []).forEach((movie) => {
-    if (movie.type === "Film") filmCount += 1;
-    else if (movie.type === "Dizi") showCount += 1;
-    splitGenres(movie.genre || movie.genres).forEach((genre) => {
-      genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
-    });
+function buildTasteDNA(likedMovies, profile, diaryEntries = []) {
+  const genreWeights = new Map();
+  let filmWeight = 0;
+  let showWeight = 0;
+  let deepRatingCount = 0;
+
+  const addPositiveMovie = (movie, weight) => {
+    if (!movie || !(weight > 0)) return;
+    if (movie.type === "Film") filmWeight += weight;
+    else if (movie.type === "Dizi") showWeight += weight;
+    const genres = [...new Set(splitGenres(movie.genre || movie.genres))];
+    const perGenre = genres.length ? weight / genres.length : 0;
+    genres.forEach((genre) => genreWeights.set(genre, (genreWeights.get(genre) || 0) + perGenre));
+  };
+
+  // Fast “Zevkime göre” remains the baseline one-tap signal.
+  (likedMovies || []).forEach((movie) => addPositiveMovie(movie, 1));
+
+  // Watched-only carries no taste meaning. Ratings of 6+ deepen the positive identity using
+  // the same strength curve as the server Taste Engine; low ratings remain avoidance evidence
+  // server-side and therefore are intentionally not presented as a “favorite genre” here.
+  (diaryEntries || []).forEach((entry) => {
+    const weight = ratingPositiveWeight(entry?.rating);
+    if (weight <= 0) return;
+    deepRatingCount += 1;
+    addPositiveMovie(entry.movie, weight);
   });
 
-  // Beğeni geçmişi henüz küçükse onboarding'de seçilen türler de profil kimliğini boş
-  // bırakmasın. Gerçek beğeniler biriktikçe doğal olarak daha yüksek ağırlık kazanıyor.
+  // Explicit onboarding genres are a light prior, not equal to a real fast-like.
   (profile?.preferredGenres || []).forEach((genre) => {
-    if (!genreCounts.has(genre)) genreCounts.set(genre, 1);
+    if (!genre) return;
+    genreWeights.set(genre, (genreWeights.get(genre) || 0) + 0.25);
   });
 
-  const genreTotal = [...genreCounts.values()].reduce((sum, value) => sum + value, 0) || 1;
-  const genres = [...genreCounts.entries()]
+  const genreTotal = [...genreWeights.values()].reduce((sum, value) => sum + value, 0) || 1;
+  const genres = [...genreWeights.entries()]
+    .filter(([, weight]) => weight > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([name, count]) => ({
+    .map(([name, weight]) => ({
       name,
-      percent: Math.max(14, Math.round((count / genreTotal) * 100)),
+      percent: Math.max(10, Math.round((weight / genreTotal) * 100)),
     }));
 
-  const typeTotal = filmCount + showCount;
-  const filmPercent = typeTotal ? Math.round((filmCount / typeTotal) * 100) : 50;
+  const typeTotal = filmWeight + showWeight;
+  const filmPercent = typeTotal ? Math.round((filmWeight / typeTotal) * 100) : 50;
   const showPercent = typeTotal ? 100 - filmPercent : 50;
 
-  return { genres, filmPercent, showPercent, signalCount: likedMovies?.length || 0 };
+  return {
+    genres,
+    filmPercent,
+    showPercent,
+    signalCount: (likedMovies?.length || 0) + deepRatingCount,
+    deepRatingCount,
+  };
 }
 
 export default function ProfileScreen({ navigation, route }) {
@@ -80,6 +113,7 @@ export default function ProfileScreen({ navigation, route }) {
   const [questSummary, setQuestSummary] = useState(null);
   const [achievements, setAchievements] = useState(null);
   const [diaryStats, setDiaryStats] = useState(null);
+  const [diaryEntries, setDiaryEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState(route?.params?.initialSub === "likes" ? "likes" : "posts"); // posts | likes
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -118,6 +152,7 @@ export default function ProfileScreen({ navigation, route }) {
     }).catch(() => {});
     api.achievements(auth.token).then(setAchievements).catch(() => {});
     diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
+    diaryApi.list(auth.token, { page: 1, limit: 50 }).then((data) => setDiaryEntries(data.results || [])).catch(() => setDiaryEntries([]));
   }, [auth.token, auth.id]);
 
   useEffect(() => { load(); }, [load]);
@@ -165,7 +200,7 @@ export default function ProfileScreen({ navigation, route }) {
     }
   }
 
-  const tasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile), [likedMovies, profile]);
+  const tasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile, diaryEntries), [likedMovies, profile, diaryEntries]);
   const questTotal = questSummary?.quests?.length || 0;
   const questCompleted = questSummary?.quests?.filter((q) => q.completed).length || 0;
   const questPercent = questTotal ? Math.round((questCompleted / questTotal) * 100) : 0;
