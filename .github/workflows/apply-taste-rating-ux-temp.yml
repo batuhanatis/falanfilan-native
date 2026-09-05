@@ -1,0 +1,42 @@
+name: Apply separated taste and rating UX
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-taste-rating-ux-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[taste-rating-ux]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main helper
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Preserve helper
+        run: cp .github/scripts/apply-taste-rating-ux.py /tmp/apply-taste-rating-ux.py
+      - name: Checkout UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          clean: true
+      - name: Apply UX patch
+        run: python /tmp/apply-taste-rating-ux.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate all JS bundles
+        run: npx expo export --platform all --output-dir /tmp/pellix-taste-rating-ux
+      - name: Commit UX
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --check
+          git add src/navigation/RootNavigator.js src/screens/DiscoverScreen.js src/screens/DetailScreen.js src/screens/HomeScreenV2.js src/screens/ProfileScreen.js src/screens/NotificationsScreen.js
+          git commit -m "Separate fast taste signals from watched ratings"
+          git push origin HEAD:ux-retention-v1
