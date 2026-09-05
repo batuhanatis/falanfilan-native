@@ -47,6 +47,6 @@ jobs:
       - name: Publish preview OTA only
         run: >-
           eas update --channel preview --platform all --environment production --non-interactive
-          --message "Preview personalized 10-card Home hero carousel"
+          --message "Preview startup boot optimization and latest UX fixes"
 
-# preview publish for personalized 10-card Home hero carousel
+# preview publish for cache-first startup and latest UX fixes
