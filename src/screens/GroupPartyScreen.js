@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Share } from "react-native";
-import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap, Link2, Share2 } from "lucide-react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Share, KeyboardAvoidingView, Platform } from "react-native";
+import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap, Link2, Share2, ArrowRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -30,6 +30,7 @@ export default function GroupPartyScreen({ navigation }) {
   const [creating, setCreating] = useState(false);
   const [sharingLink, setSharingLink] = useState(false);
   const [linkAvailable, setLinkAvailable] = useState(null);
+  const [createdLinkSession, setCreatedLinkSession] = useState(null);
   const [friendQuery, setFriendQuery] = useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [recentMatches, setRecentMatches] = useState([]);
@@ -44,10 +45,8 @@ export default function GroupPartyScreen({ navigation }) {
   useEffect(() => {
     api.friends(auth.token).then((data) => setFriends(data.friends || [])).catch(() => {}).finally(() => setLoading(false));
     api.recentPartyMatches(auth.token).then((data) => setRecentMatches(data.results || [])).catch(() => {});
-    // Endpoint var mı diye sessiz bir feature-detect: geçici bir link yaratmamak için sadece
-    // unknown durumda butonu gösteriyoruz; gerçek create 404 dönerse o oturumda gizleniyor.
     setLinkAvailable(true);
-  }, []);
+  }, [auth.token]);
 
   function toggle(id) {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -82,14 +81,19 @@ export default function GroupPartyScreen({ navigation }) {
     if (sharingLink) return;
     setSharingLink(true);
     try {
-      const data = await partyLinkApi.create(auth.token, currentFilters(), 6);
+      let data = createdLinkSession;
+      if (!data) {
+        data = await partyLinkApi.create(auth.token, currentFilters(), 6);
+        setCreatedLinkSession(data);
+      }
       setLinkAvailable(true);
       await Share.share({
         title: "Pellix MatchParty",
         message: `Benimle MatchParty yap 🎬\n${data.url}`,
         url: data.url,
       });
-      navigation.replace("MatchParty", { sessionId: data.sessionId });
+      // Share sheet kapatılınca kullanıcıyı zorla lobiye taşımıyoruz. Özellikle Android'de
+      // Share API iptal/paylaşım ayrımını güvenilir vermediği için lobiye geçiş ayrı CTA.
     } catch (e) {
       if (e.unavailable || e.status === 404) setLinkAvailable(false);
     }
@@ -97,28 +101,57 @@ export default function GroupPartyScreen({ navigation }) {
   }
 
   const filteredFriends = friendQuery.trim()
-    ? friends.filter((f) => f.name?.toLowerCase().includes(friendQuery.trim().toLowerCase()))
+    ? friends.filter((f) => {
+        const q = friendQuery.trim().toLocaleLowerCase("tr-TR");
+        return f.name?.toLocaleLowerCase("tr-TR").includes(q) || f.username?.toLocaleLowerCase("tr-TR").includes(q);
+      })
     : friends;
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
       <ScreenHeader title="MatchParty" subtitle="Birlikte seçin" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: Math.max(24, 20 + insets.bottom) }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <Text style={styles.subtitle}>Arkadaşlarını seç. İstersen hemen başlat, istersen tek linkle WhatsApp'tan davet et.</Text>
 
         {linkAvailable !== false && (
-          <TouchableOpacity style={styles.linkInviteCard} onPress={createPartyLink} disabled={sharingLink} activeOpacity={0.86}>
-            <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.linkTitleRow}>
-                <Text style={styles.linkTitle}>Party Link Oluştur</Text>
-                <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>
+          <>
+            <TouchableOpacity style={styles.linkInviteCard} onPress={createPartyLink} disabled={sharingLink} activeOpacity={0.86}>
+              <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.linkTitleRow}>
+                  <Text style={styles.linkTitle}>{createdLinkSession ? "Party Link Hazır" : "Party Link Oluştur"}</Text>
+                  {!createdLinkSession && <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>}
+                </View>
+                <Text style={styles.linkSub}>
+                  {createdLinkSession
+                    ? "Tekrar paylaşmak için dokun. Lobiye ne zaman geçeceğine sen karar ver."
+                    : "Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir."}
+                </Text>
               </View>
-              <Text style={styles.linkSub}>Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir.</Text>
-            </View>
-            {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
-          </TouchableOpacity>
+              {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
+            </TouchableOpacity>
+
+            {!!createdLinkSession?.sessionId && (
+              <TouchableOpacity
+                style={styles.linkLobbyBtn}
+                onPress={() => navigation.replace("MatchParty", { sessionId: createdLinkSession.sessionId })}
+                activeOpacity={0.86}
+              >
+                <Text style={styles.linkLobbyText}>Party Lobisine Git</Text>
+                <ArrowRight size={15} color={c.bg} />
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         {selected.size > 0 && (
@@ -138,7 +171,7 @@ export default function GroupPartyScreen({ navigation }) {
               {showRecent ? <ChevronUp size={14} color={c.dim} /> : <ChevronDown size={14} color={c.dim} />}
             </TouchableOpacity>
             {showRecent && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow} keyboardShouldPersistTaps="handled">
                 {recentMatches.map((session) => (
                   <View key={session.sessionId} style={styles.recentCard}>
                     <Text style={styles.recentWith} numberOfLines={1}>{session.others.map((o) => o.name).join(", ") || "Grup"}</Text>
@@ -156,7 +189,14 @@ export default function GroupPartyScreen({ navigation }) {
         {!loading && friends.length > 0 && (
           <View style={styles.searchBox}>
             <Search size={16} color={c.dim} />
-            <TextInput style={styles.searchInput} placeholder="Arkadaş ara" placeholderTextColor={c.dim} value={friendQuery} onChangeText={setFriendQuery} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="İsim veya kullanıcı adı ara"
+              placeholderTextColor={c.dim}
+              value={friendQuery}
+              onChangeText={setFriendQuery}
+              autoCapitalize="none"
+            />
             {friendQuery.length > 0 && <TouchableOpacity onPress={() => setFriendQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><X size={15} color={c.dim} /></TouchableOpacity>}
           </View>
         )}
@@ -204,25 +244,50 @@ export default function GroupPartyScreen({ navigation }) {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 function makeStyles(c) {
   return StyleSheet.create({
     subtitle: { fontSize: 12, color: c.dim, marginBottom: 12, lineHeight: 17 },
-    linkInviteCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(219,39,119,0.08)", borderWidth: 1, borderColor: "rgba(219,39,119,0.24)", borderRadius: 16, padding: 13, marginBottom: 16 },
+    linkInviteCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(219,39,119,0.08)", borderWidth: 1, borderColor: "rgba(219,39,119,0.24)", borderRadius: 16, padding: 13, marginBottom: 10 },
     linkIconWrap: { width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(219,39,119,0.14)", alignItems: "center", justifyContent: "center" },
-    linkTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 }, linkTitle: { color: c.text, fontSize: 12.5, fontWeight: "900" }, linkSub: { color: c.dim, fontSize: 10.2, lineHeight: 14, marginTop: 2 },
-    newBadge: { backgroundColor: "#DB2777", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }, newBadgeText: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: 0.4 },
-    squadRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, paddingLeft: 10 }, squadAvatar: { width: 36, height: 36, borderRadius: 999, borderWidth: 2, borderColor: c.bg, marginLeft: -10, backgroundColor: c.surface2 }, squadCount: { fontSize: 11.5, fontWeight: "700", color: c.dim, marginLeft: 12 },
-    recentToggle: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 }, recentToggleText: { flex: 1, fontSize: 12, fontWeight: "700", color: c.text }, recentRow: { marginBottom: 10 },
-    recentCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 10, marginRight: 10, width: 140 }, recentWith: { fontSize: 11, fontWeight: "700", color: c.text, marginBottom: 6 }, recentPosters: { flexDirection: "row", gap: 4 }, recentPoster: { width: 34, height: 50, borderRadius: 6 }, recentCount: { fontSize: 10, color: c.dim, marginTop: 6, fontWeight: "600" },
-    searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, marginBottom: 14 }, searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 10 },
-    friendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, friendCell: { width: "31%", alignItems: "center", marginBottom: 16 }, gridAvatar: { width: 68, height: 68, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2, borderColor: "transparent" }, gridAvatarSelected: { borderColor: c.accent }, gridCheckBadge: { position: "absolute", bottom: -2, right: 4, width: 20, height: 20, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg }, gridName: { fontSize: 11.5, fontWeight: "700", color: c.text, marginTop: 6, textAlign: "center" },
-    emptyBox: { alignItems: "center", paddingVertical: 24, paddingHorizontal: 18 }, emptyText: { color: c.dim, fontSize: 12, textAlign: "center", lineHeight: 17 },
-    filterToggle: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12, marginTop: 4 }, filterIconWrap: { width: 34, height: 34, borderRadius: 11, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }, filterTitle: { fontSize: 12.5, fontWeight: "800", color: c.text }, filterSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2 },
-    advancedWrap: { marginTop: 4 }, label: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 16 },
-    goBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 14 }, goBtnText: { color: c.bg, fontWeight: "900", fontSize: 13 },
+    linkTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    linkTitle: { color: c.text, fontSize: 12.5, fontWeight: "900" },
+    linkSub: { color: c.dim, fontSize: 10.2, lineHeight: 14, marginTop: 2 },
+    newBadge: { backgroundColor: "#DB2777", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+    newBadgeText: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: 0.4 },
+    linkLobbyBtn: { minHeight: 42, marginBottom: 16, borderRadius: 13, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    linkLobbyText: { color: c.bg, fontSize: 12, fontWeight: "900" },
+    squadRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, paddingLeft: 10 },
+    squadAvatar: { width: 36, height: 36, borderRadius: 999, borderWidth: 2, borderColor: c.bg, marginLeft: -10, backgroundColor: c.surface2 },
+    squadCount: { fontSize: 11.5, fontWeight: "700", color: c.dim, marginLeft: 12 },
+    recentToggle: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 },
+    recentToggleText: { flex: 1, fontSize: 12, fontWeight: "700", color: c.text },
+    recentRow: { marginBottom: 10 },
+    recentCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 10, marginRight: 10, width: 140 },
+    recentWith: { fontSize: 11, fontWeight: "700", color: c.text, marginBottom: 6 },
+    recentPosters: { flexDirection: "row", gap: 4 },
+    recentPoster: { width: 34, height: 50, borderRadius: 6 },
+    recentCount: { fontSize: 10, color: c.dim, marginTop: 6, fontWeight: "600" },
+    searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, marginBottom: 14 },
+    searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 10 },
+    friendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    friendCell: { width: "31%", alignItems: "center", marginBottom: 16 },
+    gridAvatar: { width: 68, height: 68, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2, borderColor: "transparent" },
+    gridAvatarSelected: { borderColor: c.accent },
+    gridCheckBadge: { position: "absolute", bottom: -2, right: 4, width: 20, height: 20, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
+    gridName: { fontSize: 11.5, fontWeight: "700", color: c.text, marginTop: 6, textAlign: "center" },
+    emptyBox: { alignItems: "center", paddingVertical: 24, paddingHorizontal: 18 },
+    emptyText: { color: c.dim, fontSize: 12, textAlign: "center", lineHeight: 17 },
+    filterToggle: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12, marginTop: 4 },
+    filterIconWrap: { width: 34, height: 34, borderRadius: 11, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    filterTitle: { fontSize: 12.5, fontWeight: "800", color: c.text },
+    filterSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2 },
+    advancedWrap: { marginTop: 4 },
+    label: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 16 },
+    goBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 14 },
+    goBtnText: { color: c.bg, fontWeight: "900", fontSize: 13 },
   });
 }
