@@ -1,51 +1,55 @@
 import React from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 
-export default function IslandModal({ visible, onClose, title, icon: Icon, gradientColors, subtitle, children }) {
+export default function IslandModal({ visible, onClose, title, icon: Icon, gradientColors, subtitle, children, forceScrollable = false }) {
   const { c } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = makeStyles(c, insets);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+
         <KeyboardAvoidingView
-          style={styles.backdrop}
+          style={styles.keyboardLayer}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={0}
+          pointerEvents="box-none"
         >
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.card}>
-              <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-                <View style={styles.headerRow}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                    {!!Icon && <Icon size={18} color="#fff" />}
-                    <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-                  </View>
-                  <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <X size={16} color="#fff" />
-                  </TouchableOpacity>
+          <View style={[styles.card, forceScrollable && styles.scrollCard]}>
+            <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+              <View style={styles.headerRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                  {!!Icon && <Icon size={18} color="#fff" />}
+                  <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
                 </View>
-                {!!subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
-              </LinearGradient>
-              <ScrollView
-                style={styles.body}
-                contentContainerStyle={styles.bodyContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
-                nestedScrollEnabled
-              >
-                {children}
-              </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
+                <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              {!!subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+            </LinearGradient>
+
+            <ScrollView
+              style={[styles.body, forceScrollable && styles.scrollBody]}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator={forceScrollable}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              nestedScrollEnabled
+              bounces
+              alwaysBounceVertical={false}
+            >
+              {children}
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 }
@@ -55,6 +59,10 @@ function makeStyles(c, insets) {
     backdrop: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.62)",
+    },
+    keyboardLayer: {
+      flex: 1,
+      width: "100%",
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 22,
@@ -74,12 +82,16 @@ function makeStyles(c, insets) {
       shadowRadius: 30,
       elevation: 20,
     },
+    scrollCard: {
+      height: "88%",
+    },
     header: { padding: 18 },
     headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     headerTitle: { fontSize: 15.5, fontWeight: "800", color: "#fff" },
     headerSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 6 },
     closeBtn: { width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
     body: { flexShrink: 1, minHeight: 0 },
-    bodyContent: { padding: 20, paddingBottom: Math.max(20, insets.bottom + 12) },
+    scrollBody: { flex: 1, minHeight: 0 },
+    bodyContent: { padding: 20, paddingBottom: Math.max(28, insets.bottom + 18) },
   });
 }
