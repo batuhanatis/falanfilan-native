@@ -14,3 +14,4 @@
 2026-09-05T23:40:00.000+03:00 Add a compact, always-visible Diary shortcut to Profile.
 2026-09-05T23:56:00.000+03:00 Add opt-in Diary rating share cards to Social with polished rating preview.
 2026-09-06T00:15:00.000+03:00 Social engagement refresh: opinion voting, inline rating, cleaner poll and editorial feed.
+2026-09-06T02:48:00.000+03:00 Fix first-rating social share prompt being cleared by Diary parent state refresh.
