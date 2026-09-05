@@ -46,6 +46,10 @@ export default function RootNavigator() {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
     config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token" } },
     getStateFromPath: (path, options) => {
+      // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
+      // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
+      const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
+      if (partyAliasMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyAliasMatch[1]) } }] };
       const userMatch = path.match(/^\/?u\/([^/?]+)/);
       if (userMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(userMatch[1]) } }] };
       const blendMatch = path.match(/^\/?blend\/([^/]+)\/([^/?]+)/);
