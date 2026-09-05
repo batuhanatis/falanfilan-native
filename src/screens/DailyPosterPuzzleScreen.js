@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Share, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, Eye, Gamepad2, RotateCcw, Share2, Sparkles, X } from "lucide-react-native";
+import { Eye, Gamepad2, Share2, Sparkles, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -92,7 +93,8 @@ function resultSquares(result) {
 export default function DailyPosterPuzzleScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(c, insets), [c, insets.bottom]);
 
   const [loading, setLoading] = useState(true);
   const [puzzle, setPuzzle] = useState(null);
@@ -112,7 +114,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
           const savedPuzzle = JSON.parse(savedPuzzleRaw);
           if (!cancelled) setPuzzle(savedPuzzle);
           if (savedResultRaw && !cancelled) setResult(JSON.parse(savedResultRaw));
-          setLoading(false);
+          if (!cancelled) setLoading(false);
           return;
         }
 
@@ -269,14 +271,14 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 30 },
     loadingText: { fontSize: 11.5, color: c.dim, marginTop: 10 },
     emptyTitle: { fontSize: 15, fontWeight: "800", color: c.text, marginTop: 10 },
     emptyText: { fontSize: 11.5, color: c.dim, textAlign: "center", marginTop: 5, lineHeight: 17 },
-    content: { padding: 18, paddingBottom: 34 },
+    content: { padding: 18, paddingBottom: Math.max(34, insets.bottom + 24) },
     hero: { borderRadius: 20, padding: 19, overflow: "hidden" },
     heroGlow: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.09)", right: -35, top: -90 },
     heroSparkle: { position: "absolute", top: 15, right: 18 },
