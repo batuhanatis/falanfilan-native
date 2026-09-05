@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -55,6 +56,18 @@ function dedupe(items) {
   const byId = new Map();
   (items || []).forEach((m) => m?.id != null && byId.set(m.id, m));
   return [...byId.values()];
+}
+
+function localDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function sameMovieOrder(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((movie, index) => Number(movie?.id) === Number(b[index]?.id));
 }
 
 function runtimeMinutes(runtime) {
@@ -136,6 +149,39 @@ export default function HomeScreenV2({ navigation }) {
   const [pickerMovie, setPickerMovie] = useState(null);
   const [showHeroReasons, setShowHeroReasons] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [heroDayKey, setHeroDayKey] = useState(() => localDayKey());
+  const [dailyHeroMovies, setDailyHeroMovies] = useState([]);
+  const [dailyHeroHydrated, setDailyHeroHydrated] = useState(false);
+  const [previousHeroIds, setPreviousHeroIds] = useState(new Set());
+  const dailyHeroStorageKey = useMemo(() => `pellix:home-hero-slate:v1:${auth.id}`, [auth.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDailyHeroHydrated(false);
+    setDailyHeroMovies([]);
+    setPreviousHeroIds(new Set());
+
+    AsyncStorage.getItem(dailyHeroStorageKey)
+      .then((raw) => {
+        if (cancelled || !raw) return;
+        try {
+          const cached = JSON.parse(raw);
+          const cachedMovies = dedupe(Array.isArray(cached?.movies) ? cached.movies : []).slice(0, 10);
+          if (cached?.dayKey === heroDayKey) {
+            setDailyHeroMovies(cachedMovies);
+          } else {
+            setPreviousHeroIds(new Set(cachedMovies.map((movie) => Number(movie.id)).filter(Number.isFinite)));
+          }
+        } catch {
+          // Bozuk cache ana sayfanın açılmasını engellemesin; yeni slate üretilecek.
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDailyHeroHydrated(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [dailyHeroStorageKey, heroDayKey]);
 
   const loadWatchedIds = useCallback(async () => {
     try {
@@ -235,6 +281,7 @@ export default function HomeScreenV2({ navigation }) {
     const unsub = navigation.addListener("focus", () => {
       api.quests(auth.token).then(setQuestData).catch(() => {});
       loadWatchedIds();
+      setHeroDayKey(localDayKey());
     });
     return unsub;
   }, [navigation, auth.token, loadWatchedIds]);
@@ -352,8 +399,22 @@ export default function HomeScreenV2({ navigation }) {
   const visiblePopularNow = useMemo(() => popularNow.filter((m) => !watchedIds.has(Number(m.id))), [popularNow, watchedIds]);
 
   const heroSourceList = describeResults ? describeResults.filter((m) => !watchedIds.has(Number(m.id))) : filteredList;
-  const heroSelections = useMemo(() => {
-    const eligible = dedupe(heroSourceList.filter((movie) => !disliked.has(movie.id))).slice(0, 60);
+  const isDefaultHeroContext = !describeResults
+    && typeFilter === "Hepsi"
+    && !genreFilter
+    && platformFilters.size === 0
+    && yearFilters.size === 0
+    && !shortOnly;
+
+  const candidateHeroSelections = useMemo(() => {
+    const eligible = dedupe(heroSourceList.filter((movie) => {
+      const id = Number(movie.id);
+      return !disliked.has(movie.id)
+        && !disliked.has(id)
+        && !liked.has(movie.id)
+        && !liked.has(id)
+        && !watchedIds.has(id);
+    })).slice(0, 60);
     const pool = eligible.length ? eligible : dedupe(heroSourceList).slice(0, 60);
     if (!pool.length) return [];
 
@@ -370,8 +431,56 @@ export default function HomeScreenV2({ navigation }) {
         return { movie, reasons, score, sourceIndex: index };
       })
       .sort((a, b) => b.score - a.score || a.sourceIndex - b.sourceIndex)
+      .slice(0, 24);
+  }, [heroSourceList, disliked, liked, watchedIds, tasteLikedMovies, recommendationContext]);
+
+  useEffect(() => {
+    if (!dailyHeroHydrated || !isDefaultHeroContext || !candidateHeroSelections.length) return;
+
+    const blockedIds = new Set([
+      ...[...liked].map(Number),
+      ...[...disliked].map(Number),
+      ...[...watchedIds].map(Number),
+    ].filter(Number.isFinite));
+
+    const retained = dedupe(dailyHeroMovies)
+      .filter((movie) => movie?.id != null && !blockedIds.has(Number(movie.id)))
       .slice(0, 10);
-  }, [heroSourceList, disliked, tasteLikedMovies, recommendationContext]);
+    const retainedIds = new Set(retained.map((movie) => Number(movie.id)));
+    const candidates = candidateHeroSelections
+      .map((item) => item.movie)
+      .filter((movie) => movie?.id != null && !blockedIds.has(Number(movie.id)) && !retainedIds.has(Number(movie.id)));
+
+    // Yeni gün başladığında mümkün olduğunca dünkü 10'luyu tekrar kullanma. Katalog daralırsa
+    // dünkü adaylar sadece son çare olarak geri gelebilir.
+    const freshCandidates = candidates.filter((movie) => !previousHeroIds.has(Number(movie.id)));
+    const fallbackCandidates = candidates.filter((movie) => previousHeroIds.has(Number(movie.id)));
+    const next = dedupe([...retained, ...freshCandidates, ...fallbackCandidates]).slice(0, 10);
+
+    if (sameMovieOrder(next, dailyHeroMovies)) return;
+    setDailyHeroMovies(next);
+    AsyncStorage.setItem(dailyHeroStorageKey, JSON.stringify({ dayKey: heroDayKey, movies: next })).catch(() => {});
+  }, [
+    dailyHeroHydrated,
+    isDefaultHeroContext,
+    candidateHeroSelections,
+    dailyHeroMovies,
+    liked,
+    disliked,
+    watchedIds,
+    previousHeroIds,
+    dailyHeroStorageKey,
+    heroDayKey,
+  ]);
+
+  const dailyHeroSelections = useMemo(() => dailyHeroMovies.map((movie, index) => {
+    const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
+    return { movie, reasons, score: 1000 - index, sourceIndex: index };
+  }), [dailyHeroMovies, tasteLikedMovies, recommendationContext]);
+
+  const heroSelections = isDefaultHeroContext && dailyHeroHydrated && dailyHeroSelections.length
+    ? dailyHeroSelections
+    : candidateHeroSelections.slice(0, 10);
 
   const safeHeroIndex = Math.min(activeHeroIndex, Math.max(0, heroSelections.length - 1));
   const heroSelection = heroSelections[safeHeroIndex] || { movie: null, reasons: [], score: -Infinity };
@@ -421,6 +530,7 @@ export default function HomeScreenV2({ navigation }) {
 
   async function handleRefresh() {
     setRefreshing(true);
+    setHeroDayKey(localDayKey());
     loadedIdsRef.current.clear();
     await loadInteractions();
     const first = await loadPage(1);
