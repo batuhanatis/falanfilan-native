@@ -134,6 +134,15 @@ jobs:
         with:
           ref: ux-retention-v1
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Download existing iOS preview artifact
         uses: actions/download-artifact@v4
         with:
@@ -141,11 +150,6 @@ jobs:
           path: dist
           github-token: ${{ github.token }}
           run-id: 33964132458
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
