@@ -114,4 +114,7 @@ jobs:
           retention-days: 7
 
       - name: Submit staging preview to TestFlight
-        run: eas submit --platform ios --profile production --path ./pellix-staging-preview.ipa --non-interactive --wait --what-to-test "Pellix staging QA: Home V2, Diary, Friend Battle, Party Link, keyboard and safe-area checks"
+        run: >-
+          eas submit --platform ios --profile production --path ./pellix-staging-preview.ipa
+          --non-interactive --wait
+          --what-to-test "Pellix staging QA - Home V2, Diary, Friend Battle, Party Link, keyboard and safe-area checks"
