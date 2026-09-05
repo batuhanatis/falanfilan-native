@@ -1,0 +1,36 @@
+name: Inspect taste and rating UX
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-taste-rating-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+      - name: Inspect relevant native files
+        run: |
+          echo '=== API client diary/interaction endpoints ==='
+          grep -nE 'interactions|recordInteraction|diary|rating|blend' src/api/client.js | head -n 160 || true
+          echo '=== Discover taste actions ==='
+          grep -nE 'like|dislike|Beğen|beğen|Zevk|swipe|Izled|İzled|rating|puan' src/screens/DiscoverScreen.js | head -n 220 || true
+          echo '=== Detail taste/watch actions ==='
+          grep -nE 'like|dislike|Beğen|beğen|watch|İzled|rating|puan|Diary' src/screens/DetailScreen.js | head -n 240 || true
+          echo '=== Diary UI ==='
+          grep -nE 'rating|puan|watched|izled|İzled|saveDiary|diary' src/screens/DiaryScreen.js src/components/DiaryEntryModal.js 2>/dev/null | head -n 260 || true
+          echo '=== Profile tabs/likes ==='
+          grep -nE 'Beğen|beğen|like|Diary|Günlük|Zevk|puan|rating' src/screens/ProfileScreen.js | head -n 220 || true
+          echo '=== Blend ==='
+          grep -nE 'matchPercent|uyum|Uyum|blend|rating|like' src/screens/BlendScreen.js | head -n 220 || true
+          echo '=== Navigator screens ==='
+          grep -nE 'Diary|Blend|Profile|Discover|screen' src/navigation/RootNavigator.js | head -n 220 || true
+          echo '=== recommend util ==='
+          sed -n '1,280p' src/utils/recommend.js
