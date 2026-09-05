@@ -1,0 +1,122 @@
+name: Release current UX to production builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-current-ux-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android-production:
+    if: contains(github.event.head_commit.message, '[release-current-ux]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_BASE: https://api.pellix.app
+    steps:
+      - name: Checkout approved UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Android SDK and NDK
+        shell: bash
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify production target
+        run: |
+          eas whoami
+          test "$EXPO_PUBLIC_API_BASE" = "https://api.pellix.app"
+          node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.production?.channel!=="production") process.exit(1)'
+
+      - name: Build Android production AAB
+        run: |
+          mkdir -p dist
+          eas build --platform android --profile production --local --non-interactive --output ./dist/pellix-production.aab
+
+      - name: Upload Android production AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-current-ux-production-aab
+          path: dist/pellix-production.aab
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-production:
+    if: contains(github.event.head_commit.message, '[release-current-ux]')
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_BASE: https://api.pellix.app
+    steps:
+      - name: Checkout approved UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify production target
+        run: |
+          eas whoami
+          test "$EXPO_PUBLIC_API_BASE" = "https://api.pellix.app"
+          node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.production?.channel!=="production") process.exit(1)'
+
+      - name: Build iOS production IPA
+        run: |
+          mkdir -p dist
+          eas build --platform ios --profile production --local --non-interactive --output ./dist/pellix-production.ipa
+
+      - name: Upload iOS production IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-current-ux-production-ipa
+          path: dist/pellix-production.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Submit iOS build to App Store Connect
+        run: eas submit --platform ios --profile production --path ./dist/pellix-production.ipa --non-interactive --wait
