@@ -1,0 +1,48 @@
+name: Apply home and social layout tweaks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-home-social-layout-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[home-social-layout]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main helper
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preserve patch helper
+        run: cp .github/scripts/reorder-home-social-spacing.py /tmp/reorder-home-social-spacing.py
+
+      - name: Checkout UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+          clean: true
+
+      - name: Apply layout patch
+        run: python /tmp/reorder-home-social-spacing.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate all JS bundles
+        run: npx expo export --platform all --output-dir /tmp/pellix-home-social-layout
+
+      - name: Commit UX changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git diff --check
+          git add src/screens/HomeScreenV2.js src/screens/ActivityScreen.js
+          git commit -m "Reorder home discovery controls and space social stories"
+          git push origin HEAD:ux-retention-v1
