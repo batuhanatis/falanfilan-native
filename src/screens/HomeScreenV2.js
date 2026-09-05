@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -106,6 +107,7 @@ export default function HomeScreenV2({ navigation }) {
   const [preferredGenres, setPreferredGenres] = useState([]);
   const [disliked, setDisliked] = useState(new Set());
   const [watchlist, setWatchlist] = useState(new Set());
+  const [watchedIds, setWatchedIds] = useState(new Set());
 
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -134,6 +136,17 @@ export default function HomeScreenV2({ navigation }) {
   const [pickerMovie, setPickerMovie] = useState(null);
   const [showHeroReasons, setShowHeroReasons] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+
+  const loadWatchedIds = useCallback(async () => {
+    try {
+      const data = await diaryApi.watchedIds(auth.token);
+      const next = new Set((data.movieIds || []).map(Number).filter(Number.isFinite));
+      setWatchedIds(next);
+      return next;
+    } catch {
+      return new Set();
+    }
+  }, [auth.token]);
 
   const loadInteractions = useCallback(async () => {
     try {
@@ -207,7 +220,7 @@ export default function HomeScreenV2({ navigation }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [, first] = await Promise.all([loadInteractions(), loadPage(1)]);
+      const [, , first] = await Promise.all([loadInteractions(), loadWatchedIds(), loadPage(1)]);
       if (!cancelled) {
         setMovies(first);
         setPage(1);
@@ -221,9 +234,10 @@ export default function HomeScreenV2({ navigation }) {
   useEffect(() => {
     const unsub = navigation.addListener("focus", () => {
       api.quests(auth.token).then(setQuestData).catch(() => {});
+      loadWatchedIds();
     });
     return unsub;
-  }, [navigation, auth.token]);
+  }, [navigation, auth.token, loadWatchedIds]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -299,7 +313,7 @@ export default function HomeScreenV2({ navigation }) {
   }, [likedMovies, liked, moviesById]);
 
   const filteredList = useMemo(() => {
-    let result = movies;
+    let result = movies.filter((m) => !watchedIds.has(Number(m.id)));
     if (typeFilter !== "Hepsi") result = result.filter((m) => m.type === typeFilter);
     if (genreFilter) {
       result = result.filter((m) => {
@@ -320,9 +334,11 @@ export default function HomeScreenV2({ navigation }) {
       });
     }
     return result;
-  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly]);
+  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds]);
 
-  const visibleList = describeResults ? describeResults.slice(0, describeCount) : filteredList;
+  const visibleList = describeResults
+    ? describeResults.filter((m) => !watchedIds.has(Number(m.id))).slice(0, describeCount)
+    : filteredList;
   const recommendationContext = useMemo(() => ({
     preferredGenres,
     genreFilter,
@@ -333,7 +349,9 @@ export default function HomeScreenV2({ navigation }) {
     aiLabel: describeResults ? aiResultsLabel : null,
   }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
 
-  const heroSourceList = describeResults ? describeResults : filteredList;
+  const visiblePopularNow = useMemo(() => popularNow.filter((m) => !watchedIds.has(Number(m.id))), [popularNow, watchedIds]);
+
+  const heroSourceList = describeResults ? describeResults.filter((m) => !watchedIds.has(Number(m.id))) : filteredList;
   const heroSelections = useMemo(() => {
     const eligible = dedupe(heroSourceList.filter((movie) => !disliked.has(movie.id))).slice(0, 60);
     const pool = eligible.length ? eligible : dedupe(heroSourceList).slice(0, 60);
@@ -752,7 +770,7 @@ export default function HomeScreenV2({ navigation }) {
 
 
         <View style={styles.popularNowSection}>
-          <PopularNowRow items={popularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
+          <PopularNowRow items={visiblePopularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
         </View>
 
         <View style={styles.gridSectionHeader}>

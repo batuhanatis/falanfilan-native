@@ -21,6 +21,7 @@ async function diaryRequest(path, token, options = {}) {
 export const diaryApi = {
   list: (token, page = 1, limit = 30) => diaryRequest(`/api/diary?page=${page}&limit=${limit}`, token),
   stats: (token) => diaryRequest("/api/diary/stats", token),
+  watchedIds: (token) => diaryRequest("/api/diary/watched-ids", token),
   entry: (token, movieId) => diaryRequest(`/api/diary/${movieId}`, token),
   save: (token, movieId, payload = {}) => diaryRequest(`/api/diary/${movieId}`, token, { method: "PUT", body: payload }),
   remove: (token, movieId) => diaryRequest(`/api/diary/${movieId}`, token, { method: "DELETE" }),

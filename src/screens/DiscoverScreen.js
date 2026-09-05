@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,6 +8,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
+import { diaryApi } from "../api/diary";
 import { platformName, platformLogo } from "../utils/platform";
 import { emitLocalEvent } from "../utils/localEvents";
 import SwipeableCard from "../components/SwipeableCard";
@@ -47,6 +49,8 @@ export default function DiscoverScreen({ navigation }) {
   const [sessionGenreCounts, setSessionGenreCounts] = useState({});
   const [socialStats, setSocialStats] = useState({});
   const votedIdsPromiseRef = useRef(null);
+  const watchedIdsPromiseRef = useRef(null);
+  const watchedIdsRef = useRef(new Set());
 
   function getVotedIds() {
     if (!votedIdsPromiseRef.current) {
@@ -61,6 +65,20 @@ export default function DiscoverScreen({ navigation }) {
     return votedIdsPromiseRef.current;
   }
 
+  const getWatchedIds = useCallback((force = false) => {
+    if (force) watchedIdsPromiseRef.current = null;
+    if (!watchedIdsPromiseRef.current) {
+      watchedIdsPromiseRef.current = diaryApi.watchedIds(auth.token)
+        .then((data) => {
+          const ids = new Set((data.movieIds || []).map(Number).filter(Number.isFinite));
+          watchedIdsRef.current = ids;
+          return ids;
+        })
+        .catch(() => watchedIdsRef.current);
+    }
+    return watchedIdsPromiseRef.current;
+  }, [auth.token]);
+
   function matchesType(m) {
     return filterType === "All" || (filterType === "Movie" ? m.type === "Film" : m.type === "Dizi");
   }
@@ -70,8 +88,8 @@ export default function DiscoverScreen({ navigation }) {
     if (growingRef.current.has(growKey)) return [];
     growingRef.current.add(growKey);
     try {
-      const votedIds = await getVotedIds();
-      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
+      const [votedIds, watchedIds] = await Promise.all([getVotedIds(), getWatchedIds()]);
+      const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds, ...watchedIds]);
       const apiType = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : null;
       const data = await api.recommendations(auth.token, apiType, 120);
       if (generation !== filterGenerationRef.current || activeFilterRef.current !== existingFilter) return [];
@@ -89,7 +107,7 @@ export default function DiscoverScreen({ navigation }) {
     } finally {
       growingRef.current.delete(growKey);
     }
-  }, [auth.token]);
+  }, [auth.token, getWatchedIds]);
 
   const resetForFilter = useCallback(async (nextFilter) => {
     const generation = ++filterGenerationRef.current;
@@ -103,9 +121,9 @@ export default function DiscoverScreen({ navigation }) {
     if (nextFilter === "All" && prefetchedDiscoverRef.current && prefetchedDiscoverRef.current.length > 0) {
       const preloaded = prefetchedDiscoverRef.current;
       prefetchedDiscoverRef.current = null;
-      const votedIds = await getVotedIds();
+      const [votedIds, watchedIds] = await Promise.all([getVotedIds(), getWatchedIds()]);
       if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;
-      const fresh = preloaded.filter((m) => !votedIds.has(m.id));
+      const fresh = preloaded.filter((m) => !votedIds.has(m.id) && !watchedIds.has(Number(m.id)));
       setQueue(fresh);
       setStockReady(true);
       return;
@@ -115,9 +133,18 @@ export default function DiscoverScreen({ navigation }) {
     if (generation !== filterGenerationRef.current || activeFilterRef.current !== nextFilter) return;
     setQueue(gathered.filter((m) => nextFilter === "All" || (nextFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));
     setStockReady(true);
-  }, [growQueue]);
+  }, [growQueue, getWatchedIds]);
 
   useEffect(() => { resetForFilter(filterType); }, [filterType]);
+
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    getWatchedIds(true).then((ids) => {
+      if (cancelled) return;
+      setQueue((prev) => prev.filter((movie) => !ids.has(Number(movie.id))));
+    });
+    return () => { cancelled = true; };
+  }, [getWatchedIds]));
 
   async function replenishIfLow(restQueue, newShown) {
     if (restQueue.length >= STOCK_TARGET) return;
