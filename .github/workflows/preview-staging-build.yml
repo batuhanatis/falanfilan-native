@@ -129,6 +129,11 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      - name: Checkout UX retention staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
       - name: Download existing iOS preview artifact
         uses: actions/download-artifact@v4
         with:
