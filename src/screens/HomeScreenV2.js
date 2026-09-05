@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -83,10 +84,13 @@ function questSummary(data) {
 export default function HomeScreenV2({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
   const styles = makeStyles(c);
+  const heroCardWidth = Math.max(280, windowWidth - 32);
 
   const mainListRef = useRef(null);
   const upcomingListRef = useRef(null);
+  const heroListRef = useRef(null);
   const loadedIdsRef = useRef(new Set());
 
   const [activeTab, setActiveTab] = useState("forYou");
@@ -127,6 +131,7 @@ export default function HomeScreenV2({ navigation }) {
   const [sendMovie, setSendMovie] = useState(null);
   const [pickerMovie, setPickerMovie] = useState(null);
   const [showHeroReasons, setShowHeroReasons] = useState(false);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
 
   const loadInteractions = useCallback(async () => {
     try {
@@ -325,32 +330,50 @@ export default function HomeScreenV2({ navigation }) {
     aiLabel: describeResults ? aiResultsLabel : null,
   }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
 
-  const heroSelection = useMemo(() => {
-    const candidates = visibleList.filter((movie) => !disliked.has(movie.id)).slice(0, 24);
-    const pool = candidates.length ? candidates : visibleList.slice(0, 24);
-    if (!pool.length) return { movie: null, reasons: [], score: -Infinity };
+  const heroSourceList = describeResults ? describeResults : filteredList;
+  const heroSelections = useMemo(() => {
+    const eligible = dedupe(heroSourceList.filter((movie) => !disliked.has(movie.id))).slice(0, 60);
+    const pool = eligible.length ? eligible : dedupe(heroSourceList).slice(0, 60);
+    if (!pool.length) return [];
 
-    let best = null;
-    pool.forEach((movie, index) => {
-      const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
-      const personalized = reasons.filter((reason) => reason.personalized);
-      const score = personalized.length
-        ? personalized.slice(0, 4).reduce(
-            (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
-            0,
-          ) + personalized.length * 6 - index * 0.05
-        : -index;
+    return pool
+      .map((movie, index) => {
+        const reasons = recommendationReasons(movie, tasteLikedMovies, recommendationContext);
+        const personalized = reasons.filter((reason) => reason.personalized);
+        const score = personalized.length
+          ? personalized.slice(0, 4).reduce(
+              (sum, reason, reasonIndex) => sum + reason.score * (1 - reasonIndex * 0.12),
+              0,
+            ) + personalized.length * 6 - index * 0.05
+          : -index;
+        return { movie, reasons, score, sourceIndex: index };
+      })
+      .sort((a, b) => b.score - a.score || a.sourceIndex - b.sourceIndex)
+      .slice(0, 10);
+  }, [heroSourceList, disliked, tasteLikedMovies, recommendationContext]);
 
-      if (!best || score > best.score) best = { movie, reasons, score };
-    });
-
-    return best || { movie: pool[0], reasons: [], score: 0 };
-  }, [visibleList, disliked, tasteLikedMovies, recommendationContext]);
-
+  const safeHeroIndex = Math.min(activeHeroIndex, Math.max(0, heroSelections.length - 1));
+  const heroSelection = heroSelections[safeHeroIndex] || { movie: null, reasons: [], score: -Infinity };
   const heroMovie = heroSelection.movie;
   const heroReasons = heroSelection.reasons;
   const heroReason = heroReasons.find((reason) => reason.personalized)?.short || heroReasons[0]?.short || null;
-  const gridList = heroMovie ? visibleList.filter((m) => m.id !== heroMovie.id) : visibleList;
+  const heroIds = useMemo(() => new Set(heroSelections.map((item) => item.movie?.id).filter(Boolean)), [heroSelections]);
+  const gridList = describeResults
+    ? visibleList
+    : heroSelections.length
+      ? visibleList.filter((m) => !heroIds.has(m.id))
+      : visibleList;
+
+  useEffect(() => {
+    setActiveHeroIndex(0);
+    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+  }, [typeFilter, genreFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+
+  useEffect(() => {
+    if (activeHeroIndex < heroSelections.length) return;
+    setActiveHeroIndex(0);
+    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+  }, [activeHeroIndex, heroSelections.length]);
 
   const availablePlatformObjs = useMemo(() => {
     const byName = new Map();
@@ -528,16 +551,57 @@ export default function HomeScreenV2({ navigation }) {
   const forYouHeader = (
     <View>
       <View style={styles.heroArea}>
-        {heroMovie ? (
-          <TonightHero
-            movie={heroMovie}
-            reason={heroReason}
-            liked={liked.has(heroMovie.id)}
-            onLike={() => like(heroMovie.id)}
-            onWhy={() => setShowHeroReasons(true)}
-            onPress={() => navigation.navigate("Detail", { movie: heroMovie })}
-            c={c}
-          />
+        {heroSelections.length ? (
+          <>
+            <FlatList
+              ref={heroListRef}
+              horizontal
+              data={heroSelections}
+              keyExtractor={(item) => String(item.movie.id)}
+              showsHorizontalScrollIndicator={false}
+              pagingEnabled
+              nestedScrollEnabled
+              decelerationRate="fast"
+              snapToInterval={heroCardWidth}
+              disableIntervalMomentum
+              getItemLayout={(_, index) => ({ length: heroCardWidth, offset: heroCardWidth * index, index })}
+              onMomentumScrollEnd={(event) => {
+                const nextIndex = Math.round(event.nativeEvent.contentOffset.x / heroCardWidth);
+                setActiveHeroIndex(Math.max(0, Math.min(nextIndex, heroSelections.length - 1)));
+              }}
+              renderItem={({ item, index }) => {
+                const movie = item.movie;
+                const reason = item.reasons.find((entry) => entry.personalized)?.short || item.reasons[0]?.short || null;
+                return (
+                  <TonightHero
+                    width={heroCardWidth}
+                    movie={movie}
+                    reason={reason}
+                    liked={liked.has(movie.id)}
+                    onLike={() => like(movie.id)}
+                    onWhy={() => {
+                      setActiveHeroIndex(index);
+                      setShowHeroReasons(true);
+                    }}
+                    onPress={() => navigation.navigate("Detail", { movie })}
+                    c={c}
+                  />
+                );
+              }}
+            />
+            <View style={styles.heroPagerRow}>
+              <Text style={styles.heroPagerCount}>{safeHeroIndex + 1}/{heroSelections.length}</Text>
+              <View style={styles.heroDotsRow}>
+                {heroSelections.map((item, index) => (
+                  <View
+                    key={`hero-dot-${item.movie.id}`}
+                    style={[styles.heroDot, index === safeHeroIndex && styles.heroDotActive]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.heroSwipeHint}>Kaydır</Text>
+            </View>
+          </>
         ) : (
           <View style={styles.heroEmpty}>
             <Sparkles size={24} color={c.accent} />
@@ -801,11 +865,11 @@ export default function HomeScreenV2({ navigation }) {
   );
 }
 
-function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, c }) {
+function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, width, c }) {
   const styles = makeStyles(c);
   const platform = (movie.platforms || [])[0];
   return (
-    <TouchableOpacity style={styles.heroCard} activeOpacity={0.94} onPress={onPress}>
+    <TouchableOpacity style={[styles.heroCard, width ? { width } : null]} activeOpacity={0.94} onPress={onPress}>
       {movie.poster ? (
         <Image source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={10} />
       ) : (
@@ -890,6 +954,12 @@ function makeStyles(c) {
     listContent: { paddingHorizontal: 16, paddingBottom: 24 },
     gridRow: { gap: 12 },
     heroArea: { paddingTop: 10 },
+    heroPagerRow: { minHeight: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingTop: 8 },
+    heroPagerCount: { width: 34, color: c.dim, fontSize: 10, fontWeight: "800" },
+    heroDotsRow: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+    heroDot: { width: 5, height: 5, borderRadius: 999, backgroundColor: c.border },
+    heroDotActive: { width: 16, backgroundColor: c.accent },
+    heroSwipeHint: { width: 34, color: c.dim, fontSize: 9.5, fontWeight: "700", textAlign: "right" },
     heroCard: { borderRadius: 24, overflow: "hidden", minHeight: 286, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: c.surface },
     heroInner: { flexDirection: "row", alignItems: "flex-end", gap: 14, padding: 16, paddingTop: 24, minHeight: 220 },
     heroPoster: { width: 98, height: 148, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
