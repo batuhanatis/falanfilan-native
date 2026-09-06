@@ -211,7 +211,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
     if (!post?.id || !movieId) return;
     try {
       const data = await api.socialVote(auth.token, post.id, movieId);
-      setState((s) => ({ ...s, post: { ...s.post, myVote: data.myVote, pollCounts: data.pollCounts || {} } }));
+      setState((s) => ({ ...s, post: { ...s.post, myVote: data.myVote, pollCounts: data.pollCounts || {}, pollVoters: data.pollVoters || {} } }));
       onChanged?.();
     } catch {}
   }
@@ -377,6 +377,22 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
                     {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}%</Text>}
                     <Text style={styles.pollVsTitle} numberOfLines={2}>{movie.title}</Text>
                     {!!post.myVote && <Text style={styles.pollVsVotes}>{count} oy</Text>}
+                    {!!post.myVote && !!(post.pollVoters?.[movie.id]?.length) && (
+                      <View style={styles.pollVoters}>
+                        {post.pollVoters[movie.id].slice(0, 4).map((voter, i) => (
+                          <RetryImage
+                            key={voter.id}
+                            source={{ uri: avatarOr(voter.avatarUrl) }}
+                            style={[styles.pollVoterAvatar, i > 0 && { marginLeft: -8 }]}
+                          />
+                        ))}
+                        {post.pollVoters[movie.id].length > 4 && (
+                          <View style={[styles.pollVoterAvatar, styles.pollVoterMore, { marginLeft: -8 }]}>
+                            <Text style={styles.pollVoterMoreText}>+{post.pollVoters[movie.id].length - 4}</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                     <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>
                       <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Seçtin" : "Seç"}</Text>
                     </TouchableOpacity>
@@ -605,6 +621,10 @@ function makeStyles(c) {
     pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 13, lineHeight: 16 },
     pollVsPct: { color: "rgba(255,255,255,0.88)", fontWeight: "950", fontSize: 20, lineHeight: 22, marginBottom: 3 },
     pollVsVotes: { color: "rgba(255,255,255,0.58)", fontWeight: "700", fontSize: 9, marginTop: 3 },
+    pollVoters: { flexDirection: "row", alignItems: "center", marginTop: 5 },
+    pollVoterAvatar: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: "rgba(8,6,12,0.9)" },
+    pollVoterMore: { backgroundColor: "rgba(10,8,14,0.85)", alignItems: "center", justifyContent: "center" },
+    pollVoterMoreText: { color: "#fff", fontSize: 7.5, fontWeight: "800" },
     pollVsVote: {
       marginTop: 8, paddingVertical: 6, borderRadius: 999, alignItems: "center",
       borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", backgroundColor: "rgba(10,8,14,0.4)",

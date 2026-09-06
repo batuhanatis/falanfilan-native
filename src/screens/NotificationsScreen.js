@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndi
 import { Swipeable } from "react-native-gesture-handler";
 import {
   Trash2, UserPlus, UserCheck, Film, PartyPopper, Gift, ListVideo, Bell,
-  Heart, MessageCircle, Sparkles, Users, Swords,
+  Heart, MessageCircle, Sparkles, Users, Swords, Vote,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -12,8 +12,9 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import ScreenHeader from "../components/ScreenHeader";
 
-const SHARED_ITEM_TYPES = ["social_post_like", "social_comment", "social_reaction", "friend_quiz_shared"];
+const SHARED_ITEM_TYPES = ["social_post_like", "social_comment", "social_reaction", "social_poll_vote", "friend_quiz_shared"];
 const FRIEND_BATTLE_TYPES = ["friend_battle_invite", "friend_battle_turn", "friend_battle_result"];
+const WATCHLIST_TYPES = ["watchlist_collaborator_added", "watchlist_item_added"];
 
 function notificationText(n) {
   const p = n.payload || {};
@@ -24,9 +25,13 @@ function notificationText(n) {
     case "party_accepted": return `${p.by?.name} MatchParty davetini kabul etti — başlıyor!`;
     case "party_declined": return `${p.by?.name} MatchParty davetini reddetti`;
     case "party_match": return `MatchParty'de bir eşleşme buldun: ${p.movie?.title} 🎉`;
+    case "party_link_joined": return `${p.by?.name || "Biri"} paylaştığın Party linkine katıldı 🎬`;
     case "referral_completed": return "Davet tamamlandı — 5 ekstra AI önerisi hakkı kazandın 🎁";
     case "referral_bonus_received": return "Hoş geldin bonusu — 3 ekstra AI önerisi hakkı kazandın 🎁";
     case "watchlist_collaborator_added": return `${p.by?.name} seni "${p.listName}" listesine ortak düzenleyici ekledi`;
+    case "watchlist_item_added": return p.movieTitle
+      ? `${p.by?.name}, "${p.listName}" listesine "${p.movieTitle}" ekledi`
+      : `${p.by?.name}, "${p.listName}" listesine yeni bir şey ekledi`;
     case "social_post_like": return `${p.by?.name} paylaşımını beğendi ❤️`;
     case "social_comment": return `${p.by?.name} ${p.targetKind === "activity" ? "aktivine" : "paylaşımına"} yorum yaptı: ${p.comment || ""}`;
     case "social_reaction": {
@@ -34,6 +39,9 @@ function notificationText(n) {
       const target = p.contentTitle ? `"${p.contentTitle}" içeriğine` : (p.targetKind === "activity" ? "aktivine" : "paylaşımına");
       return `${p.by?.name} ${target} ${emoji} tepkisi verdi`;
     }
+    case "social_poll_vote": return p.movieTitle
+      ? `${p.by?.name}, anketinde "${p.movieTitle}" için oy verdi 🗳️`
+      : `${p.by?.name} anketine oy verdi 🗳️`;
     case "friend_quiz_shared": return `${p.by?.name}, "Arkadaşını Tanıyor musun?" oyununda seni %${p.percent} tahmin etti 🎮`;
     case "friend_battle_invite": return `${p.from?.name || "Bir arkadaşın"} seni Friend Battle'a çağırdı 🎮`;
     case "friend_battle_turn": return `${p.by?.name || "Arkadaşın"} Friend Battle turunu tamamladı — sıra sende`;
@@ -52,12 +60,15 @@ function notificationMeta(n) {
     case "party_accepted": return { person: p.by, icon: PartyPopper, color: "#7C3AED" };
     case "party_declined": return { person: p.by, icon: Film, color: "#8f8a9c" };
     case "party_match": return { person: null, icon: PartyPopper, color: "#F97316", moviePoster: p.movie?.poster };
+    case "party_link_joined": return { person: p.by, icon: PartyPopper, color: "#22D3EE" };
     case "referral_completed": return { person: null, icon: Gift, color: "#c9a44c" };
     case "referral_bonus_received": return { person: null, icon: Gift, color: "#14B8A6" };
     case "watchlist_collaborator_added": return { person: p.by, icon: ListVideo, color: "#14B8A6" };
+    case "watchlist_item_added": return { person: p.by, icon: ListVideo, color: "#22D3EE" };
     case "social_post_like": return { person: p.by, icon: Heart, color: "#FF3D81" };
     case "social_comment": return { person: p.by, icon: MessageCircle, color: "#2563EB" };
     case "social_reaction": return { person: p.by, icon: Sparkles, color: "#F97316" };
+    case "social_poll_vote": return { person: p.by, icon: Vote, color: "#22D3EE" };
     case "friend_quiz_shared": return { person: p.by, icon: Users, color: "#FB7185" };
     case "friend_battle_invite": return { person: p.from, icon: Swords, color: "#DB2777" };
     case "friend_battle_turn": return { person: p.by, icon: Swords, color: "#F97316" };
@@ -114,6 +125,8 @@ export default function NotificationsScreen({ navigation }) {
     const p = n.payload || {};
     if (n.type === "party_accepted" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id, friend: p.by });
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
+    else if (n.type === "party_link_joined" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
+    else if (WATCHLIST_TYPES.includes(n.type) && p.watchlistId) navigation.navigate("WatchlistDetail", { watchlistId: p.watchlistId });
     else if (FRIEND_BATTLE_TYPES.includes(n.type) && p.battleId) navigation.navigate("FriendBattle", { battleId: String(p.battleId) });
     else if (SHARED_ITEM_TYPES.includes(n.type)) navigation.navigate("SharedItem", { kind: p.targetKind, id: p.targetId });
     else if (n.type === "rating_nudge") navigation.navigate("RateTaste");
@@ -154,7 +167,7 @@ export default function NotificationsScreen({ navigation }) {
           ListHeaderComponent={notifications.length > 0 ? <View style={styles.listIntro}><Text style={styles.hint}>Bir bildirimi silmek için sola kaydır.</Text></View> : null}
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
-            const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type);
+            const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "party_link_joined" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type) || WATCHLIST_TYPES.includes(item.type);
             const meta = notificationMeta(item);
             const Icon = meta.icon;
             return (
