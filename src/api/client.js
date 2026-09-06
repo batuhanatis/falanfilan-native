@@ -131,6 +131,7 @@ export const api = {
   phoneVerify: (phone, code) => request("/api/auth/phone/verify", { method: "POST", body: { phone, code } }),
   phoneCompleteSignup: (ticket, name, username, termsAccepted, referredByUsername) => request("/api/auth/phone/complete-signup", { method: "POST", body: { ticket, name, username, termsAccepted, referredByUsername } }),
   me: (token) => request("/api/me", { token }),
+  tasteDNA: (token) => request("/api/me/taste-dna", { token }),
   setTastemateVisibility: (token, visible) => request("/api/me/tastemate-visibility", { method: "PATCH", token, body: { visible } }),
   updateMe: (token, payload) => request("/api/me", { method: "PUT", token, body: payload }),
   updatePhoto: (token, payload) => request("/api/me/photo", { method: "PUT", token, body: payload, timeoutMs: UPLOAD_TIMEOUT_MS }),

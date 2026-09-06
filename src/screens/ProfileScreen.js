@@ -112,6 +112,7 @@ export default function ProfileScreen({ navigation, route }) {
   const [questStreak, setQuestStreak] = useState(0);
   const [diaryStats, setDiaryStats] = useState(null);
   const [diaryEntries, setDiaryEntries] = useState([]);
+  const [serverTasteDNA, setServerTasteDNA] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState(route?.params?.initialSub === "likes" ? "likes" : "posts"); // posts | likes
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -146,6 +147,7 @@ export default function ProfileScreen({ navigation, route }) {
     api.socialUserPosts(auth.token, auth.id).then((data) => setSocialPosts(data.results || [])).catch(() => setSocialPosts([]));
     api.quests(auth.token).then((data) => setQuestStreak(data.streak || 0)).catch(() => {});
     diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
+    api.tasteDNA(auth.token).then(setServerTasteDNA).catch(() => setServerTasteDNA(null));
     diaryApi.list(auth.token, { page: 1, limit: 50 }).then((data) => setDiaryEntries(data.results || [])).catch(() => setDiaryEntries([]));
   }, [auth.token, auth.id]);
 
@@ -194,7 +196,8 @@ export default function ProfileScreen({ navigation, route }) {
     }
   }
 
-  const tasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile, diaryEntries), [likedMovies, profile, diaryEntries]);
+  const localTasteDNA = useMemo(() => buildTasteDNA(likedMovies, profile, diaryEntries), [likedMovies, profile, diaryEntries]);
+  const tasteDNA = serverTasteDNA || localTasteDNA;
 
   if (loading || !profile) {
     return (
@@ -309,9 +312,9 @@ export default function ProfileScreen({ navigation, route }) {
           <ChevronRight size={15} color={c.dim} />
         </TouchableOpacity>
 
-        {/* Profil artık yalnızca sayaçlardan oluşmuyor; kullanıcının seçimlerinden oluşan yaşayan
-            bir kimlik gösteriyor. Bu ilk Taste DNA sürümü tamamen mevcut veriden türetiliyor,
-            yeni backend endpoint'i gerektirmiyor. */}
+        {/* Zevk DNA artık backend'de kullanıcının TÜM like/dislike + tüm puan geçmişinden
+            hesaplanıyor. Bu ekranda yalnız aggregate sonuç gösteriliyor; profil özetindeki 30
+            içerik ve Diary'nin ilk sayfası artık DNA hesabını sınırlamıyor. */}
         <View style={styles.tasteCard}>
           <View style={styles.insightHeader}>
             <View style={[styles.insightIcon, { backgroundColor: "rgba(139,92,246,0.14)" }]}>
@@ -330,7 +333,7 @@ export default function ProfileScreen({ navigation, route }) {
                 <View key={genre.name} style={styles.genreDNARow}>
                   <Text style={styles.genreDNAName} numberOfLines={1}>{genre.name}</Text>
                   <View style={styles.genreDNATrack}>
-                    <View style={[styles.genreDNAFill, { width: `${Math.min(100, genre.percent * 2.1)}%` }]} />
+                    <View style={[styles.genreDNAFill, { width: `${Math.min(100, genre.strength ?? genre.percent * 2.1)}%` }]} />
                   </View>
                   <Text style={styles.genreDNAPercent}>%{genre.percent}</Text>
                 </View>
