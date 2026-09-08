@@ -1,0 +1,52 @@
+name: Submit existing Android build to Google Play
+
+# Zaten alınmış (5 Eylül, "Release current UX to production builds" #2) ama hiç submit
+# edilmemiş Android production AAB'sini submit ediyor — sıfırdan build almıyor, o çalıştırmanın
+# artifact'ını (pellix-current-ux-production-aab) doğrudan indirip yolluyor.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  submit-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout current production UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download existing Android production AAB (run 33976767519)
+        uses: actions/download-artifact@v4
+        with:
+          name: pellix-current-ux-production-aab
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: batuhanatis/falanfilan-native
+          run-id: 33976767519
+          path: dist
+
+      - name: Submit Android build to Google Play
+        run: eas submit --platform android --profile production --path ./dist/pellix-production.aab --non-interactive --wait
