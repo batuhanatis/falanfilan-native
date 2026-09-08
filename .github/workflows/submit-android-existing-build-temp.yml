@@ -1,0 +1,61 @@
+name: Submit already-built Android AAB to Google Play
+
+# android-build-and-submit-temp.yml'de üretilen pellix-android-production-aab
+# artifact'ini (run 34273824821) tekrar build almadan Google Play'e submit eder.
+# eas.json artik submit.production.android.serviceAccountKeyPath ile bir dosya
+# yolu bekliyor; o dosyayi GOOGLE_PLAY_SERVICE_ACCOUNT_KEY secret'indan yaziyoruz.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  submit-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout current production UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download existing Android production AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: pellix-android-production-aab
+          path: dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: batuhanatis/falanfilan-native
+          run-id: "34273824821"
+
+      - name: Write Google Play service account key
+        run: echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY" > ./google-play-service-account.json
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
+
+      - name: Submit Android build to Google Play
+        run: eas submit --platform android --profile production --path ./dist/pellix-production.aab --non-interactive --wait
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f ./google-play-service-account.json
