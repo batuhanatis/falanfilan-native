@@ -1,28 +1,7 @@
 name: Publish OTA Update (production)
 
-# ÖNEMLİ DÜZELTME: runtimeVersion policy'si "fingerprint" (app.json) — bir cihaz, SADECE
-# kendi kurulu native build'iyle AYNI fingerprint'e sahip OTA'yı alır, aksi halde update
-# sessizce hiç sunulmuyor. Kök neden ne OS (macOS/ubuntu) ne de Java/Android SDK/NDK kurulumu
-# — ikisi de denendi, ikisinde de aynı sonuç değişmedi. Gerçek sebep: `eas build --local`
-# önce `expo prebuild` ile native android/ klasörünü DİSKE üretiyor, sonra fingerprint'i O
-# NOKTADA hesaplıyor — eas-cli'nin workflow tespiti (project/workflow.js) o an android/app/
-# build.gradle'ı diskte BULUYOR ve projeyi "generic" (bare) sanıp fingerprint'i asıl üretilen
-# native dosyalardan hesaplıyor. `eas update` ise HİÇ prebuild yapmıyor, android/ diskte
-# olmadığı için projeyi "managed" kabul edip fingerprint'i SADECE kaynak/config'ten (native
-# çıktıyı YOK SAYARAK) hesaplıyor — sonuç olarak ikisi asla eşleşmiyor (doğrulandı: build'in
-# gerçek/gömülü fingerprint'i 947eb191d3afb3b2cbf3fdf445c2cf9243792126, `eas update`'in kendi
-# hesapladığı ise dc04c611fca015b4a202678ff81a6bb0a7ccfe3f — OS/SDK/NDK ne olursa olsun hep bu).
-#
-# EXPO_UPDATES_FINGERPRINT_OVERRIDE ile "eas update"'i zorlamayı denedik — o env var'ı SADECE
-# expo-updates'in native build betiği okuyor, eas-cli'nin "update" komutu tamamen görmezden
-# geliyor (denendi, sonuç değişmedi). Onun yerine ANDROID job'ı, app.json'daki runtimeVersion
-# policy'sini (commit edilmeyen, sadece bu job'ın çalışma kopyasında) GEÇİCİ olarak düz bir
-# string'e çeviriyor — cihazlarda ZATEN kurulu olan production build'in gerçek/gömülü
-# fingerprint'i (947eb191...). expo-updates client tarafında eşleşme salt string karşılaştırması
-# olduğu için bu, publish edilen update'in doğru runtimeVersion altında görünmesini garantiliyor.
-# Bir sonraki Android production build'i alındığında (yeni bir fingerprint gömülecek) bu sabit
-# değerin güncellenmesi/kaldırılması gerekecek.
-# iOS için henüz aynı sorun doğrulanmadı (build workflow'u zaten macOS'ta, publish de macOS'ta).
+# Production OTA'lar GitHub macOS runner'ından çalışır; fingerprint runtimeVersion iOS native
+# fingerprint'inin production build ile eşleşmesi için Xcode/CocoaPods ortamına ihtiyaç duyar.
 
 on:
   push:
@@ -36,63 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  publish-android:
-    name: Publish OTA update to production channel (Android)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_PUBLIC_API_BASE: https://api.pellix.app
-
-    steps:
-      - name: Checkout current production UX branch
-        uses: actions/checkout@v4
-        with:
-          ref: ux-retention-v1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # EXPO_UPDATES_FINGERPRINT_OVERRIDE denendi — eas update bunu okumuyor, fingerprint'i
-      # yine kendi hesaplıyor. Bunun yerine app.json'daki runtimeVersion policy'sini bu job'ın
-      # (commit edilmeyen) çalışma kopyasında GEÇİCİ olarak düz bir string'e çeviriyoruz —
-      # expo-updates client tarafında runtimeVersion eşleşmesi salt string karşılaştırması,
-      # nasıl üretildiği önemli değil. Böylece publish, Play Store'daki build'in GÖMÜLÜ
-      # fingerprint'iyle (947eb191...) tam eşleşen bir runtimeVersion altında yapılıyor.
-      - name: Pin runtimeVersion to the currently-installed build's fingerprint
-        run: |
-          node -e '
-            const fs = require("fs");
-            const p = "app.json";
-            const app = JSON.parse(fs.readFileSync(p, "utf8"));
-            app.expo.runtimeVersion = "947eb191d3afb3b2cbf3fdf445c2cf9243792126";
-            fs.writeFileSync(p, JSON.stringify(app, null, 2) + "\n");
-          '
-
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Verify production target
-        run: |
-          test "$EXPO_PUBLIC_API_BASE" = "https://api.pellix.app"
-          node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.production?.channel!=="production") process.exit(1)'
-
-      - name: Publish OTA update
-        run: >-
-          eas update --channel production --platform android --environment production --non-interactive
-          --message "Production UX update from approved ux-retention-v1 branch"
-
-  publish-ios:
-    name: Publish OTA update to production channel (iOS)
+  publish:
+    name: Publish OTA update to production channel
     runs-on: macos-26
     timeout-minutes: 30
     env:
@@ -127,5 +51,5 @@ jobs:
 
       - name: Publish OTA update
         run: >-
-          eas update --channel production --platform ios --environment production --non-interactive
+          eas update --channel production --platform all --environment production --non-interactive
           --message "Production UX update from approved ux-retention-v1 branch"

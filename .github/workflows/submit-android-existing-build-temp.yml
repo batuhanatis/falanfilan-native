@@ -48,8 +48,19 @@ jobs:
           repository: batuhanatis/falanfilan-native
           run-id: "34273824821"
 
-      - name: Write Google Play service account key
-        run: echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY" > ./google-play-service-account.json
+      # ÖNEMLİ: serviceAccountKeyPath eas.json'a COMMIT EDİLMİYOR — eas.json fingerprint
+      # kaynaklarından biri (@expo/fingerprint, reason "easBuild"), yani dosyayı değiştirmek
+      # runtimeVersion'ı değiştiriyor ve kurulu tüm build'lere OTA gitmesini sessizce
+      # engelliyor. Bu yüzden submit config'i sadece burada, çalışma kopyasına yazıyoruz.
+      - name: Write Google Play service account key and submit config
+        run: |
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY" > ./google-play-service-account.json
+          node -e '
+            const fs = require("fs");
+            const eas = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+            eas.submit.production.android = { serviceAccountKeyPath: "./google-play-service-account.json" };
+            fs.writeFileSync("eas.json", JSON.stringify(eas, null, 2) + "\n");
+          '
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
 

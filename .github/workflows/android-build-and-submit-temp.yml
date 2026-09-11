@@ -73,5 +73,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # ÖNEMLİ: Bu adım BUILD'DEN SONRA — eas.json fingerprint kaynaklarından biri
+      # (@expo/fingerprint, reason "easBuild"), dolayısıyla build'in gömülü runtimeVersion'ı
+      # commit'lenmiş (yamasız) eas.json'dan hesaplanmalı; aksi halde aynı koddan yayınlanan
+      # OTA'lar bu build'le eşleşmiyor. Submit config'i bu yüzden sadece submit öncesi yazılıyor.
+      - name: Write Google Play service account key and submit config
+        run: |
+          echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY" > ./google-play-service-account.json
+          node -e '
+            const fs = require("fs");
+            const eas = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+            eas.submit.production.android = { serviceAccountKeyPath: "./google-play-service-account.json" };
+            fs.writeFileSync("eas.json", JSON.stringify(eas, null, 2) + "\n");
+          '
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
+
       - name: Submit Android build to Google Play
         run: eas submit --platform android --profile production --path ./dist/pellix-production.aab --non-interactive --wait
+
+      - name: Remove service account key
+        if: always()
+        run: rm -f ./google-play-service-account.json
