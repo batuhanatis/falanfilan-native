@@ -2,19 +2,23 @@ name: Publish OTA Update (production)
 
 # ÖNEMLİ DÜZELTME: runtimeVersion policy'si "fingerprint" (app.json) — bir cihaz, SADECE
 # kendi kurulu native build'iyle AYNI fingerprint'e sahip OTA'yı alır, aksi halde update
-# sessizce hiç sunulmuyor. Fingerprint hesaplaması OS'a bağlı (özellikle CocoaPods/Xcode
-# etkisiyle iOS'ta, ama Android'de de farklı çıkabiliyor) — eskiden TÜM platformlar TEK bir
-# macOS job'ında `--platform all` ile yayınlanıyordu. Android production build'i
-# (android-build-and-submit-temp.yml) ubuntu-latest'te alınıyor; macOS'ta hesaplanan Android
-# fingerprint'i bununla EŞLEŞMİYORDU (doğrulandı: build'in gerçek fingerprint'i
-# 947eb191d3afb3b2cbf3fdf445c2cf9243792126 iken macOS'ta publish edilen OTA'nın runtimeVersion'ı
-# dc04c611fca015b4a202678ff81a6bb0a7ccfe3f çıktı — cihaz hiçbir zaman güncellemeyi görmedi).
-# Artık her platform, o platformun production build'iyle AYNI OS'ta ayrı job'da publish ediliyor:
-# Android → ubuntu-latest (android-build-and-submit-temp.yml ile aynı), iOS → macOS
-# (ios-production-build.yml ile aynı). Sadece OS eşleştirmek yetmedi — Android job'ı ayrıca
-# build workflow'undaki AYNI Java/Android SDK/NDK/build-tools kurulumunu da yapıyor, çünkü
-# fingerprint hesaplaması kurulu SDK/NDK sürümlerine de bağlı görünüyor (aynı ubuntu-latest'te
-# bu adımlar OLMADAN tekrar denendiğinde fingerprint YİNE eşleşmedi).
+# sessizce hiç sunulmuyor. Kök neden ne OS (macOS/ubuntu) ne de Java/Android SDK/NDK kurulumu
+# — ikisi de denendi, ikisinde de aynı sonuç değişmedi. Gerçek sebep: `eas build --local`
+# önce `expo prebuild` ile native android/ klasörünü DİSKE üretiyor, sonra fingerprint'i O
+# NOKTADA hesaplıyor — eas-cli'nin workflow tespiti (project/workflow.js) o an android/app/
+# build.gradle'ı diskte BULUYOR ve projeyi "generic" (bare) sanıp fingerprint'i asıl üretilen
+# native dosyalardan hesaplıyor. `eas update` ise HİÇ prebuild yapmıyor, android/ diskte
+# olmadığı için projeyi "managed" kabul edip fingerprint'i SADECE kaynak/config'ten (native
+# çıktıyı YOK SAYARAK) hesaplıyor — sonuç olarak ikisi asla eşleşmiyor (doğrulandı: build'in
+# gerçek/gömülü fingerprint'i 947eb191d3afb3b2cbf3fdf445c2cf9243792126, `eas update`'in kendi
+# hesapladığı ise dc04c611fca015b4a202678ff81a6bb0a7ccfe3f — OS/SDK/NDK ne olursa olsun hep bu).
+#
+# Kalıcı çözüm ("eas build --local" + fingerprint policy'nin bilinen bir tuzağı) için build
+# workflow'unu da EXPO_UPDATES_FINGERPRINT_OVERRIDE ile aynı değere sabitlemek gerekiyor —
+# şimdilik ANDROID publish'i, cihazlarda ZATEN kurulu olan production build'in gerçek/gömülü
+# fingerprint'ine (947eb191...) sabitliyoruz ki mevcut kullanıcılar OTA'yı alabilsin. Bir
+# sonraki Android production build'i alındığında bu override'ı güncellemek/kaldırmak gerekecek.
+# iOS için henüz aynı sorun doğrulanmadı (build workflow'u zaten macOS'ta, publish de macOS'ta).
 
 on:
   push:
@@ -35,6 +39,9 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_API_BASE: https://api.pellix.app
+      # Play Store'da yayınlanmış son Android production build'inin GÖMÜLÜ fingerprint'i —
+      # bkz. yukarıdaki açıklama. eas update'in kendi hesapladığı değer bununla hiç eşleşmiyor.
+      EXPO_UPDATES_FINGERPRINT_OVERRIDE: 947eb191d3afb3b2cbf3fdf445c2cf9243792126
 
     steps:
       - name: Checkout current production UX branch
@@ -48,22 +55,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Prepare Android SDK and NDK
-        shell: bash
-        run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-          test -n "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
