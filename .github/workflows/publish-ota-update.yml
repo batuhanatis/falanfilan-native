@@ -11,7 +11,10 @@ name: Publish OTA Update (production)
 # dc04c611fca015b4a202678ff81a6bb0a7ccfe3f çıktı — cihaz hiçbir zaman güncellemeyi görmedi).
 # Artık her platform, o platformun production build'iyle AYNI OS'ta ayrı job'da publish ediliyor:
 # Android → ubuntu-latest (android-build-and-submit-temp.yml ile aynı), iOS → macOS
-# (ios-production-build.yml ile aynı).
+# (ios-production-build.yml ile aynı). Sadece OS eşleştirmek yetmedi — Android job'ı ayrıca
+# build workflow'undaki AYNI Java/Android SDK/NDK/build-tools kurulumunu da yapıyor, çünkü
+# fingerprint hesaplaması kurulu SDK/NDK sürümlerine de bağlı görünüyor (aynı ubuntu-latest'te
+# bu adımlar OLMADAN tekrar denendiğinde fingerprint YİNE eşleşmedi).
 
 on:
   push:
@@ -45,8 +48,22 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare Android SDK and NDK
+        shell: bash
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
