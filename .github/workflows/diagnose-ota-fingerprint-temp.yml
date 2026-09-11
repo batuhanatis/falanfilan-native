@@ -1,0 +1,50 @@
+name: Diagnose OTA fingerprint mismatch
+
+# Kullanıcı cihazında Settings ekranındaki update ID hâlâ eski görünüyor — son iki OTA
+# publish'ine rağmen. runtimeVersion policy "fingerprint" olduğu için, cihazdaki build'in
+# fingerprint'i publish edilen update'in fingerprint'iyle eşleşmezse update sessizce hiç
+# sunulmuyor. Son production build'lerin ve son update'lerin runtimeVersion'larını
+# karşılaştırmak için build:list / update:list çıktısını döküyoruz.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout current production UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux-retention-v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: List recent Android builds
+        run: eas build:list --platform android --status finished --limit 5 --non-interactive --json
+
+      - name: List recent iOS builds
+        run: eas build:list --platform ios --status finished --limit 5 --non-interactive --json
+
+      - name: List recent production updates
+        run: eas update:list --branch production --limit 10 --non-interactive --json
