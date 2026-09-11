@@ -13,11 +13,15 @@ name: Publish OTA Update (production)
 # gerçek/gömülü fingerprint'i 947eb191d3afb3b2cbf3fdf445c2cf9243792126, `eas update`'in kendi
 # hesapladığı ise dc04c611fca015b4a202678ff81a6bb0a7ccfe3f — OS/SDK/NDK ne olursa olsun hep bu).
 #
-# Kalıcı çözüm ("eas build --local" + fingerprint policy'nin bilinen bir tuzağı) için build
-# workflow'unu da EXPO_UPDATES_FINGERPRINT_OVERRIDE ile aynı değere sabitlemek gerekiyor —
-# şimdilik ANDROID publish'i, cihazlarda ZATEN kurulu olan production build'in gerçek/gömülü
-# fingerprint'ine (947eb191...) sabitliyoruz ki mevcut kullanıcılar OTA'yı alabilsin. Bir
-# sonraki Android production build'i alındığında bu override'ı güncellemek/kaldırmak gerekecek.
+# EXPO_UPDATES_FINGERPRINT_OVERRIDE ile "eas update"'i zorlamayı denedik — o env var'ı SADECE
+# expo-updates'in native build betiği okuyor, eas-cli'nin "update" komutu tamamen görmezden
+# geliyor (denendi, sonuç değişmedi). Onun yerine ANDROID job'ı, app.json'daki runtimeVersion
+# policy'sini (commit edilmeyen, sadece bu job'ın çalışma kopyasında) GEÇİCİ olarak düz bir
+# string'e çeviriyor — cihazlarda ZATEN kurulu olan production build'in gerçek/gömülü
+# fingerprint'i (947eb191...). expo-updates client tarafında eşleşme salt string karşılaştırması
+# olduğu için bu, publish edilen update'in doğru runtimeVersion altında görünmesini garantiliyor.
+# Bir sonraki Android production build'i alındığında (yeni bir fingerprint gömülecek) bu sabit
+# değerin güncellenmesi/kaldırılması gerekecek.
 # iOS için henüz aynı sorun doğrulanmadı (build workflow'u zaten macOS'ta, publish de macOS'ta).
 
 on:
@@ -39,9 +43,6 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_API_BASE: https://api.pellix.app
-      # Play Store'da yayınlanmış son Android production build'inin GÖMÜLÜ fingerprint'i —
-      # bkz. yukarıdaki açıklama. eas update'in kendi hesapladığı değer bununla hiç eşleşmiyor.
-      EXPO_UPDATES_FINGERPRINT_OVERRIDE: 947eb191d3afb3b2cbf3fdf445c2cf9243792126
 
     steps:
       - name: Checkout current production UX branch
@@ -57,6 +58,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # EXPO_UPDATES_FINGERPRINT_OVERRIDE denendi — eas update bunu okumuyor, fingerprint'i
+      # yine kendi hesaplıyor. Bunun yerine app.json'daki runtimeVersion policy'sini bu job'ın
+      # (commit edilmeyen) çalışma kopyasında GEÇİCİ olarak düz bir string'e çeviriyoruz —
+      # expo-updates client tarafında runtimeVersion eşleşmesi salt string karşılaştırması,
+      # nasıl üretildiği önemli değil. Böylece publish, Play Store'daki build'in GÖMÜLÜ
+      # fingerprint'iyle (947eb191...) tam eşleşen bir runtimeVersion altında yapılıyor.
+      - name: Pin runtimeVersion to the currently-installed build's fingerprint
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "app.json";
+            const app = JSON.parse(fs.readFileSync(p, "utf8"));
+            app.expo.runtimeVersion = "947eb191d3afb3b2cbf3fdf445c2cf9243792126";
+            fs.writeFileSync(p, JSON.stringify(app, null, 2) + "\n");
+          '
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
