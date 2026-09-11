@@ -259,43 +259,6 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           style={StyleSheet.absoluteFillObject}
         />
 
-        <View style={styles.top}>
-          <View style={styles.segRow}>
-            {group.stories.map((s, i) => (
-              <View key={s.id} style={styles.segTrack}>
-                <Animated.View
-                  style={[
-                    styles.segFill,
-                    {
-                      width:
-                        i < storyIndex
-                          ? "100%"
-                          : i > storyIndex
-                          ? "0%"
-                          : progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
-                    },
-                  ]}
-                />
-              </View>
-            ))}
-          </View>
-          <View style={styles.headerRow}>
-            <RetryImage source={{ uri: avatarOr(group.user.avatar_url) }} style={styles.headerAvatar} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerName}>{group.isOwn ? "Sen" : group.user.name}</Text>
-              <Text style={styles.headerTime}>{relativeTime(story.created_at)}</Text>
-            </View>
-            {group.isOwn && (
-              <TouchableOpacity style={styles.iconBtn} onPress={deleteMine} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Trash2 size={17} color="#fff" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.iconBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X size={19} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={styles.center} pointerEvents="box-none">
           {!!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
         </View>
@@ -313,20 +276,58 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           </Animated.View>
         </PanGestureHandler>
 
-        {/* ÖNEMLİ DÜZELTME: Yanıt kutusu/gönder butonu (ve kendi story'nde görüntüleyenler pili)
-            eskiden PanGestureHandler'ın İÇİNDEYDİ — o yüzden üstteki dokun-ilerlet/kaydır-kapat
-            jest tanıyıcısı, bu alanlara yapılan her dokunuşu KENDİ jesti sanıp yutuyordu: TextInput
-            hiç focus almıyor (klavye açılmıyor), gönder butonuna basınca da story ilerleyip
-            kapanıyordu. Bu blok artık PanGestureHandler'ın DIŞINDA, ayrı bir kardeş katman —
-            böylece buradaki dokunuşlar hiçbir zaman o jest tanıyıcının alanına girmiyor, TextInput
-            ve TouchableOpacity'ler normal native dokunma/focus davranışını koruyor. Aynı dragY/
-            cardScale transform'u paylaşıyor ki story'i aşağı sürükleyip kapatırken kartla birlikte
-            hareket etsin.
+        {/* ÖNEMLİ DÜZELTME: Yanıt kutusu/gönder butonu, üst çubuktaki sil/kapat ikonları (ve kendi
+            story'nde görüntüleyenler pili) eskiden PanGestureHandler'ın İÇİNDEYDİ — o yüzden
+            üstteki dokun-ilerlet/kaydır-kapat jest tanıyıcısı, bu alanlara yapılan her dokunuşu
+            KENDİ jesti sanıp yutuyordu: TextInput hiç focus almıyor (klavye açılmıyor), gönder
+            butonuna basınca story ilerleyip kapanıyordu, sil/kapat ikonlarına basmak da bazen
+            hiçbir şey yapmıyordu. Bu blok artık PanGestureHandler'ın DIŞINDA, ayrı bir kardeş
+            katman — böylece buradaki dokunuşlar hiçbir zaman o jest tanıyıcının alanına girmiyor,
+            TextInput ve TouchableOpacity'ler normal native dokunma/focus davranışını koruyor. Aynı
+            dragY/cardScale transform'u paylaşıyor ki story'i aşağı sürükleyip kapatırken kartla
+            birlikte hareket etsin.
         */}
         <Animated.View
           pointerEvents="box-none"
           style={[StyleSheet.absoluteFillObject, { transform: [{ translateY: dragY }, { scale: cardScale }] }]}
         >
+          <View style={styles.top} pointerEvents="box-none">
+            <View style={styles.segRow}>
+              {group.stories.map((s, i) => (
+                <View key={s.id} style={styles.segTrack}>
+                  <Animated.View
+                    style={[
+                      styles.segFill,
+                      {
+                        width:
+                          i < storyIndex
+                            ? "100%"
+                            : i > storyIndex
+                            ? "0%"
+                            : progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
+                      },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+            <View style={styles.headerRow}>
+              <RetryImage source={{ uri: avatarOr(group.user.avatar_url) }} style={styles.headerAvatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerName}>{group.isOwn ? "Sen" : group.user.name}</Text>
+                <Text style={styles.headerTime}>{relativeTime(story.created_at)}</Text>
+              </View>
+              {group.isOwn && (
+                <TouchableOpacity style={styles.iconBtn} onPress={deleteMine} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Trash2 size={17} color="#fff" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.iconBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={19} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {group.isOwn ? (
             <View style={styles.replyBarWrap} pointerEvents="box-none">
               <TouchableOpacity style={styles.viewersPill} onPress={openViewers} activeOpacity={0.85}>
