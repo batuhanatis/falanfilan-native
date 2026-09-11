@@ -42,31 +42,72 @@ export function AuthProvider({ children }) {
   const logoutCleanupRef = useRef(Promise.resolve());
 
   useEffect(() => {
-    (async () => {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      if (!token) { setChecking(false); return; }
+    let cancelled = false;
 
+    (async () => {
+      // Cold start must not wait for Render/network. Read token + user snapshot in a single
+      // AsyncStorage bridge roundtrip and restore the last known session immediately.
+      let token = null;
       let cached = null;
       try {
-        const raw = await AsyncStorage.getItem(USER_CACHE_KEY);
-        cached = raw ? JSON.parse(raw) : null;
-      } catch { /* bozuk cache varsa ağ doğrulamasına devam et */ }
+        const [[, storedToken], [, rawSnapshot]] = await AsyncStorage.multiGet([TOKEN_KEY, USER_CACHE_KEY]);
+        token = storedToken || null;
+        cached = rawSnapshot ? JSON.parse(rawSnapshot) : null;
+      } catch {
+        // Local storage itself failed: fall through to the signed-out screen rather than
+        // trapping the user behind a boot loader.
+      }
 
+      if (cancelled) return;
+      if (!token) {
+        setChecking(false);
+        return;
+      }
+
+      if (cached?.id) {
+        // Stale-while-revalidate: the cached identity is enough to mount the real app. Network
+        // validation happens behind the already-visible UI, so a slow/cold backend can no longer
+        // create a second splash/loading screen after the intro animation.
+        setAuth({ ...cached, token, offline: false });
+        setChecking(false);
+
+        try {
+          const me = await api.me(token);
+          if (cancelled) return;
+          const next = toAuth(token, me, { offline: false });
+          setAuth(next);
+          AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(snapshotOf(next))).catch(() => {});
+        } catch (e) {
+          if (cancelled) return;
+          if (e?.status === 401 || e?.status === 403) {
+            await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
+            if (!cancelled) setAuth(null);
+          } else {
+            setAuth((current) => current?.token === token ? { ...current, offline: true } : current);
+          }
+        }
+        return;
+      }
+
+      // Migration/edge case: a token exists but an older install has no snapshot yet. There is no
+      // safe route to mount without knowing onboarding flags, so validate once and then create the
+      // snapshot. Normal subsequent launches use the instant cache-first path above.
       try {
         const me = await api.me(token);
+        if (cancelled) return;
         const next = toAuth(token, me, { offline: false });
         setAuth(next);
-        await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(snapshotOf(next)));
+        AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(snapshotOf(next))).catch(() => {});
       } catch (e) {
         if (e?.status === 401 || e?.status === 403) {
           await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
-        } else if (cached?.id) {
-          setAuth({ ...cached, token, offline: true });
         }
       } finally {
-        setChecking(false);
+        if (!cancelled) setChecking(false);
       }
     })();
+
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

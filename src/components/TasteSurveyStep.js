@@ -10,11 +10,6 @@ import { GENRE_FILTERS } from "../theme/theme";
 import { GENRE_COLORS } from "../utils/genreColors";
 import FavoritePicker from "./FavoritePicker";
 
-// Zevk anketi ekranı (türler + en sevdiğin film/dizi) — paylaşılabilir bir bileşen olarak
-// çıkarıldı: hem onboarding'in 1. adımında, hem de bunu HİÇ görmemiş (bu özellik eklenmeden ÖNCE
-// onboarding'i tamamlamış) mevcut kullanıcılara App.js'te bir kerelik geriye dönük olarak
-// gösteriliyor (bkz. Gate bileşeni). Kendi state'ini/kayıt mantığını taşıyor — her iki kullanım
-// da sadece başlık/alt başlık/buton etiketleri ve dışarı çıkış (onSkip/onContinue) sağlıyor.
 export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel = "Atla", continueLabel = "Devam Et", onSkip, onContinue }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -25,32 +20,21 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
   const [favMovie, setFavMovie] = useState(null);
   const [favShow, setFavShow] = useState(null);
 
-  // Bir FavoritePicker'ın dropdown'u açıldığında (bkz. FavoritePicker'daki onDropdownOpen),
-  // o alanı klavyenin üstüne kaydırmak için — her alanın ScrollView içeriğine göre y konumunu
-  // kendi sarmalayıcısının onLayout'undan öğreniyoruz (doğrudan çocuk olduğu için layout.y zaten
-  // ScrollView'ın içerik konumuyla aynı referans çerçevesinde).
   const scrollRef = useRef(null);
   const movieFieldY = useRef(0);
   const showFieldY = useRef(0);
   function scrollToField(yRef) {
-    // Klavye animasyonunun başlaması için küçük bir pay — hemen kaydırırsak klavye henüz
-    // açılmadan hesaplanan konum, klavye açılırken tekrar kayan içerikle çakışıyordu.
-    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, yRef.current - 16), animated: true }), 120);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, yRef.current - 16), animated: true }), 160);
   }
 
-  // Daha önce kısmen yanıtlanmış olabilir (ör. bir kullanıcı bu ekranı görüp bir şey seçtikten
-  // sonra "Atla" demiş, sonra geriye dönük hatırlatmayla tekrar karşılaştıysa) — mevcut cevapları
-  // önceden dolduruyoruz, sıfırdan başlatmıyoruz.
   useEffect(() => {
     api.me(auth.token).then((me) => {
       setSelectedGenres(new Set(me.preferredGenres || []));
       if (me.favoriteMovie) setFavMovie(me.favoriteMovie);
       if (me.favoriteShow) setFavShow(me.favoriteShow);
     }).catch(() => {});
-  }, []);
+  }, [auth.token]);
 
-  // Her değişiklik ANINDA kalıcı hale geliyor (WhatsApp'taki gibi "kaydet" butonu beklemeden) —
-  // kullanıcı "Atla" dese bile, o ana kadar verdiği cevaplar kaybolmuyor.
   function toggleGenre(genre) {
     hapticLight();
     setSelectedGenres((prev) => {
@@ -66,15 +50,19 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
     setFn(movie);
     if (movie) {
       api.updateFavorite(auth.token, { movie_id: movie.id }).catch(() => {});
-      api.recordInteraction(auth.token, movie.id, "like").catch(() => {}); // zevk motoruna da yansısın
+      api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
     } else {
       api.updateFavorite(auth.token, { movie_id: null, type }).catch(() => {});
     }
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 60, paddingBottom: 12 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
+      <View style={{ paddingHorizontal: 20, paddingTop: Math.max(insets.top, 12) + 18, paddingBottom: 12 }}>
         {topExtra}
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -83,8 +71,9 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 30 }}
+        contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: Math.max(30, insets.bottom + 20) }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.sectionHeaderRow}>
@@ -166,7 +155,7 @@ function makeStyles(c) {
       borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
     },
     genreChipText: { fontSize: 12.5, fontWeight: "700", color: c.text },
-    footer: { flexDirection: "row", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.border },
+    footer: { flexDirection: "row", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg },
     skipBtn: { paddingHorizontal: 18, justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: c.border },
     skipText: { color: c.dim, fontWeight: "700", fontSize: 13 },
     continueBtn: { flex: 1, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" },

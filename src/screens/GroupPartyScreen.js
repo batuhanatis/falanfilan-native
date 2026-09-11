@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator } from "react-native";
-import { ChevronLeft, Check, Users, History, ChevronDown, ChevronUp, Search, X } from "lucide-react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Share, KeyboardAvoidingView, Platform } from "react-native";
+import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap, Link2, Share2, ArrowRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { partyLinkApi } from "../api/partyLinks";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import { GENRE_FILTERS } from "../theme/theme";
@@ -12,14 +13,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ChipRow from "../components/ChipRow";
 import FilterFields from "../components/FilterFields";
 import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
+import ScreenHeader from "../components/ScreenHeader";
 
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
 
-// Birden fazla arkadaşı seçip TEK bir MatchParty oturumu açar. Eskiden bir DismissableSheet
-// popup'tı — ama arkadaş listesi + birden fazla filtre satırı kaydırmak, popup'ın kendi
-// "sürükleyerek kapat" jestiyle SÜREKLİ çakışıyordu (filtreleri kaydırmaya çalışırken popup
-// yanlışlıkla kapanıyordu). Artık ayrı bir SAYFA — geri tuşu/navigasyon yığını doğal olarak
-// çalışıyor, kaydırma jestiyle ilgili hiçbir çakışma riski yok.
 export default function GroupPartyScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -31,10 +28,11 @@ export default function GroupPartyScreen({ navigation }) {
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [sharingLink, setSharingLink] = useState(false);
+  const [linkAvailable, setLinkAvailable] = useState(null);
+  const [createdLinkSession, setCreatedLinkSession] = useState(null);
   const [friendQuery, setFriendQuery] = useState("");
-
-  // Son 3 eşleşme sonucu — MP7: eskiden varsayılan KAPALIYDI, ilgi çekici bir sosyal kanıt
-  // (kiminle ne eşleştiniz) bir ekstra dokunuş arkasında kalıyordu. Artık varsayılan açık.
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [recentMatches, setRecentMatches] = useState([]);
   const [showRecent, setShowRecent] = useState(true);
 
@@ -47,7 +45,8 @@ export default function GroupPartyScreen({ navigation }) {
   useEffect(() => {
     api.friends(auth.token).then((data) => setFriends(data.friends || [])).catch(() => {}).finally(() => setLoading(false));
     api.recentPartyMatches(auth.token).then((data) => setRecentMatches(data.results || [])).catch(() => {});
-  }, []);
+    setLinkAvailable(true);
+  }, [auth.token]);
 
   function toggle(id) {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -58,44 +57,103 @@ export default function GroupPartyScreen({ navigation }) {
   function togglePlatform(name) {
     setPlatformPrefs((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   }
-  // "Sürpriz Seç" — grup ne izleyeceğine karar veremiyorsa tam da bu ekranın ruhuna uygun.
   function shuffleGenre() {
     setGenrePref(GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)]);
+  }
+
+  function currentFilters() {
+    const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
+    return { type: typePref, genre: genrePref || "Hepsi", minImdb, years, platforms: [...platformPrefs] };
   }
 
   async function createGroupParty() {
     if (selected.size === 0 || creating) return;
     setCreating(true);
     try {
-      const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
-      const data = await api.createParty(auth.token, {
-        to_user_ids: [...selected],
-        filters: { type: typePref, genre: genrePref || "Hepsi", minImdb, years, platforms: [...platformPrefs] },
-      });
+      const data = await api.createParty(auth.token, { to_user_ids: [...selected], filters: currentFilters() });
       navigation.replace("MatchParty", { sessionId: data.id });
     } catch {
       setCreating(false);
     }
   }
 
+  async function createPartyLink() {
+    if (sharingLink) return;
+    setSharingLink(true);
+    try {
+      let data = createdLinkSession;
+      if (!data) {
+        data = await partyLinkApi.create(auth.token, currentFilters(), 6);
+        setCreatedLinkSession(data);
+      }
+      setLinkAvailable(true);
+      await Share.share({
+        title: "Pellix MatchParty",
+        message: `Benimle MatchParty yap 🎬\n${data.url}`,
+        url: data.url,
+      });
+      // Share sheet kapatılınca kullanıcıyı zorla lobiye taşımıyoruz. Özellikle Android'de
+      // Share API iptal/paylaşım ayrımını güvenilir vermediği için lobiye geçiş ayrı CTA.
+    } catch (e) {
+      if (e.unavailable || e.status === 404) setLinkAvailable(false);
+    }
+    setSharingLink(false);
+  }
+
   const filteredFriends = friendQuery.trim()
-    ? friends.filter((f) => f.name?.toLowerCase().includes(friendQuery.trim().toLowerCase()))
+    ? friends.filter((f) => {
+        const q = friendQuery.trim().toLocaleLowerCase("tr-TR");
+        return f.name?.toLocaleLowerCase("tr-TR").includes(q) || f.username?.toLocaleLowerCase("tr-TR").includes(q);
+      })
     : friends;
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Grup Party Oluştur</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
+      <ScreenHeader title="MatchParty" subtitle="Birlikte seçin" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom }}>
-        <Text style={styles.subtitle}>Birlikte izlemelik seçeceğiniz arkadaşlarını seç — birden fazla kişi seçebilirsin.</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: Math.max(24, 20 + insets.bottom) }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <Text style={styles.subtitle}>Arkadaşlarını seç. İstersen hemen başlat, istersen tek linkle WhatsApp'tan davet et.</Text>
 
-        {/* MP8 — arkadaş seçimi artık sadece checkbox'larla değil, üstte biriken bir "takım"
-            satırıyla da görünüyor — kaç kişi seçtiğin ve kimler oldukları tek bakışta belli. */}
+        {linkAvailable !== false && (
+          <>
+            <TouchableOpacity style={styles.linkInviteCard} onPress={createPartyLink} disabled={sharingLink} activeOpacity={0.86}>
+              <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.linkTitleRow}>
+                  <Text style={styles.linkTitle}>{createdLinkSession ? "Party Link Hazır" : "Party Link Oluştur"}</Text>
+                  {!createdLinkSession && <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>}
+                </View>
+                <Text style={styles.linkSub}>
+                  {createdLinkSession
+                    ? "Tekrar paylaşmak için dokun. Lobiye ne zaman geçeceğine sen karar ver."
+                    : "Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir."}
+                </Text>
+              </View>
+              {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
+            </TouchableOpacity>
+
+            {!!createdLinkSession?.sessionId && (
+              <TouchableOpacity
+                style={styles.linkLobbyBtn}
+                onPress={() => navigation.replace("MatchParty", { sessionId: createdLinkSession.sessionId })}
+                activeOpacity={0.86}
+              >
+                <Text style={styles.linkLobbyText}>Party Lobisine Git</Text>
+                <ArrowRight size={15} color={c.bg} />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
         {selected.size > 0 && (
           <View style={styles.squadRow}>
             {friends.filter((f) => selected.has(f.id)).map((f) => (
@@ -113,18 +171,12 @@ export default function GroupPartyScreen({ navigation }) {
               {showRecent ? <ChevronUp size={14} color={c.dim} /> : <ChevronDown size={14} color={c.dim} />}
             </TouchableOpacity>
             {showRecent && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow} keyboardShouldPersistTaps="handled">
                 {recentMatches.map((session) => (
                   <View key={session.sessionId} style={styles.recentCard}>
-                    <Text style={styles.recentWith} numberOfLines={1}>
-                      {session.others.map((o) => o.name).join(", ") || "Grup"}
-                    </Text>
+                    <Text style={styles.recentWith} numberOfLines={1}>{session.others.map((o) => o.name).join(", ") || "Grup"}</Text>
                     <View style={styles.recentPosters}>
-                      {session.matches.slice(0, 3).map((m, i) => (
-                        m.poster
-                          ? <Image key={i} source={{ uri: m.poster }} style={styles.recentPoster} />
-                          : <View key={i} style={[styles.recentPoster, { backgroundColor: c.surface2 }]} />
-                      ))}
+                      {session.matches.slice(0, 3).map((m, i) => m.poster ? <Image key={i} source={{ uri: m.poster }} style={styles.recentPoster} /> : <View key={i} style={[styles.recentPoster, { backgroundColor: c.surface2 }]} />)}
                     </View>
                     <Text style={styles.recentCount}>{session.matches.length} eşleşme</Text>
                   </View>
@@ -139,54 +191,31 @@ export default function GroupPartyScreen({ navigation }) {
             <Search size={16} color={c.dim} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Arkadaş ara"
+              placeholder="İsim veya kullanıcı adı ara"
               placeholderTextColor={c.dim}
               value={friendQuery}
               onChangeText={setFriendQuery}
+              autoCapitalize="none"
             />
-            {friendQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setFriendQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={15} color={c.dim} />
-              </TouchableOpacity>
-            )}
+            {friendQuery.length > 0 && <TouchableOpacity onPress={() => setFriendQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><X size={15} color={c.dim} /></TouchableOpacity>}
           </View>
         )}
 
         {loading ? (
           <ActivityIndicator color={c.accent} style={{ marginVertical: 24 }} />
         ) : friends.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Users size={26} color={c.dim} style={{ marginBottom: 8, opacity: 0.6 }} />
-            <Text style={styles.emptyText}>Henüz arkadaşın yok.</Text>
-          </View>
+          <View style={styles.emptyBox}><Users size={26} color={c.dim} style={{ marginBottom: 8, opacity: 0.6 }} /><Text style={styles.emptyText}>Henüz arkadaşın yok. İstersen yukarıdaki Party Link ile hemen davet paylaşabilirsin.</Text></View>
         ) : filteredFriends.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>"{friendQuery}" ile eşleşen arkadaş bulunamadı.</Text>
-          </View>
+          <View style={styles.emptyBox}><Text style={styles.emptyText}>"{friendQuery}" ile eşleşen arkadaş bulunamadı.</Text></View>
         ) : (
-          // Eskiden dümdüz, tek sütun bir liste idi — artık Instagram tarzı bir ızgara: her
-          // satırda 3 kişi, üstte profil fotoğrafı, altında isim. Seçim artık avatarın üstüne
-          // binen bir onay rozeti + halka ile gösteriliyor (satırdaki ayrı checkbox yerine).
           <View style={styles.friendGrid}>
             {filteredFriends.map((item) => {
               const isSelected = selected.has(item.id);
               return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.friendCell}
-                  onPress={() => toggle(item.id)}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity key={item.id} style={styles.friendCell} onPress={() => toggle(item.id)} activeOpacity={0.7}>
                   <View>
-                    <RetryImage
-                      source={{ uri: avatarOr(item.avatar_url, item.id) }}
-                      style={[styles.gridAvatar, isSelected && styles.gridAvatarSelected]}
-                    />
-                    {isSelected && (
-                      <View style={styles.gridCheckBadge}>
-                        <Check size={11} color={c.bg} strokeWidth={3} />
-                      </View>
-                    )}
+                    <RetryImage source={{ uri: avatarOr(item.avatar_url, item.id) }} style={[styles.gridAvatar, isSelected && styles.gridAvatarSelected]} />
+                    {isSelected && <View style={styles.gridCheckBadge}><Check size={11} color={c.bg} strokeWidth={3} /></View>}
                   </View>
                   <Text style={styles.gridName} numberOfLines={1}>{item.name}</Text>
                 </TouchableOpacity>
@@ -195,80 +224,70 @@ export default function GroupPartyScreen({ navigation }) {
           </View>
         )}
 
-        {/* Arkadaşına tek tek davet gönderirkenki (MatchPartyScreen setup) İLE AYNI filtreler —
-            artık Ana Sayfa'nın filtre paneli ve "Zevkine Göre Öner" ile de PAYLAŞILAN aynı
-            bileşen (bkz. FilterFields.js), burada modal olmadan doğrudan sayfanın akışına gömülü. */}
-        <FilterFields
-          typeValue={typePref}
-          onTypeChange={setTypePref}
-          genreValue={genrePref}
-          onGenreChange={setGenrePref}
-          yearSet={yearLabels}
-          onToggleYear={toggleYear}
-          platformSet={platformPrefs}
-          onTogglePlatform={togglePlatform}
-          platforms={commonPlatforms}
-          onShuffleGenre={shuffleGenre}
-        />
+        <TouchableOpacity style={styles.filterToggle} onPress={() => setShowAdvancedFilters((v) => !v)} activeOpacity={0.85}>
+          <View style={styles.filterIconWrap}><SlidersHorizontal size={16} color={c.accent} /></View>
+          <View style={{ flex: 1 }}><Text style={styles.filterTitle}>Filtrelerle Özelleştir</Text><Text style={styles.filterSubtitle}>Tür, yıl, platform ve IMDb puanı seç</Text></View>
+          {showAdvancedFilters ? <ChevronUp size={16} color={c.dim} /> : <ChevronDown size={16} color={c.dim} />}
+        </TouchableOpacity>
 
-        <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
-        <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
+        {showAdvancedFilters && (
+          <View style={styles.advancedWrap}>
+            <FilterFields typeValue={typePref} onTypeChange={setTypePref} genreValue={genrePref} onGenreChange={setGenrePref} yearSet={yearLabels} onToggleYear={toggleYear} platformSet={platformPrefs} onTogglePlatform={togglePlatform} platforms={commonPlatforms} onShuffleGenre={shuffleGenre} />
+            <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
+            <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
+          </View>
+        )}
 
         {selected.size > 0 && (
-          <TouchableOpacity style={styles.goBtn} onPress={createGroupParty} disabled={creating}>
-            {creating ? <ActivityIndicator size="small" color={c.bg} /> : (
-              <Text style={styles.goBtnText}>{selected.size} Kişiyle Party Oluştur</Text>
-            )}
+          <TouchableOpacity style={styles.goBtn} onPress={createGroupParty} disabled={creating} activeOpacity={0.88}>
+            {creating ? <ActivityIndicator size="small" color={c.bg} /> : <>{!showAdvancedFilters && <Zap size={17} color={c.bg} fill={c.bg} />}<Text style={styles.goBtnText}>{showAdvancedFilters ? `${selected.size} Kişiyle Party Oluştur` : `${selected.size} Kişiyle Hızlı Party Başlat`}</Text></>}
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 function makeStyles(c) {
   return StyleSheet.create({
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 14, fontWeight: "800", color: c.text },
-    subtitle: { fontSize: 11, color: c.dim, marginBottom: 6, lineHeight: 16 },
+    subtitle: { fontSize: 12, color: c.dim, marginBottom: 12, lineHeight: 17 },
+    linkInviteCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(219,39,119,0.08)", borderWidth: 1, borderColor: "rgba(219,39,119,0.24)", borderRadius: 16, padding: 13, marginBottom: 10 },
+    linkIconWrap: { width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(219,39,119,0.14)", alignItems: "center", justifyContent: "center" },
+    linkTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    linkTitle: { color: c.text, fontSize: 12.5, fontWeight: "900" },
+    linkSub: { color: c.dim, fontSize: 10.2, lineHeight: 14, marginTop: 2 },
+    newBadge: { backgroundColor: "#DB2777", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+    newBadgeText: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: 0.4 },
+    linkLobbyBtn: { minHeight: 42, marginBottom: 16, borderRadius: 13, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    linkLobbyText: { color: c.bg, fontSize: 12, fontWeight: "900" },
     squadRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, paddingLeft: 10 },
     squadAvatar: { width: 36, height: 36, borderRadius: 999, borderWidth: 2, borderColor: c.bg, marginLeft: -10, backgroundColor: c.surface2 },
     squadCount: { fontSize: 11.5, fontWeight: "700", color: c.dim, marginLeft: 12 },
     recentToggle: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 },
     recentToggleText: { flex: 1, fontSize: 12, fontWeight: "700", color: c.text },
     recentRow: { marginBottom: 10 },
-    recentCard: {
-      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12,
-      padding: 10, marginRight: 10, width: 140,
-    },
+    recentCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 10, marginRight: 10, width: 140 },
     recentWith: { fontSize: 11, fontWeight: "700", color: c.text, marginBottom: 6 },
     recentPosters: { flexDirection: "row", gap: 4 },
     recentPoster: { width: 34, height: 50, borderRadius: 6 },
     recentCount: { fontSize: 10, color: c.dim, marginTop: 6, fontWeight: "600" },
-    searchBox: {
-      flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface,
-      borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, marginBottom: 14,
-    },
+    searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12, marginBottom: 14 },
     searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 10 },
     friendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
     friendCell: { width: "31%", alignItems: "center", marginBottom: 16 },
     gridAvatar: { width: 68, height: 68, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2, borderColor: "transparent" },
     gridAvatarSelected: { borderColor: c.accent },
-    gridCheckBadge: {
-      position: "absolute", bottom: -2, right: 4, width: 20, height: 20, borderRadius: 999,
-      backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg,
-    },
+    gridCheckBadge: { position: "absolute", bottom: -2, right: 4, width: 20, height: 20, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
     gridName: { fontSize: 11.5, fontWeight: "700", color: c.text, marginTop: 6, textAlign: "center" },
-    emptyBox: { alignItems: "center", paddingVertical: 24 },
-    emptyText: { color: c.dim, fontSize: 12 },
+    emptyBox: { alignItems: "center", paddingVertical: 24, paddingHorizontal: 18 },
+    emptyText: { color: c.dim, fontSize: 12, textAlign: "center", lineHeight: 17 },
+    filterToggle: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12, marginTop: 4 },
+    filterIconWrap: { width: 34, height: 34, borderRadius: 11, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    filterTitle: { fontSize: 12.5, fontWeight: "800", color: c.text },
+    filterSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2 },
+    advancedWrap: { marginTop: 4 },
     label: { fontSize: 10, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 8, marginTop: 16 },
-    goBtn: {
-      flexDirection: "row", alignItems: "center", justifyContent: "center",
-      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14, marginTop: 14,
-    },
-    goBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    goBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 15, marginTop: 14 },
+    goBtnText: { color: c.bg, fontWeight: "900", fontSize: 13 },
   });
 }
