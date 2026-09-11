@@ -84,9 +84,15 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
         <View style={styles.item}>
           <View style={styles.ringWrap}>
             <TouchableOpacity onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))} activeOpacity={0.85}>
-              <View style={styles.ring}>
-                <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
-              </View>
+              {hasMine ? (
+                <LinearGradient colors={RING_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
+                  <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
+                </LinearGradient>
+              ) : (
+                <View style={styles.ring}>
+                  <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Plus size={12} color={c.bg} strokeWidth={3} />
