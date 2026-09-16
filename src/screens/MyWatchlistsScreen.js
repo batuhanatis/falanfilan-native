@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Plus, ListVideo } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -21,7 +22,11 @@ export default function MyWatchlistsScreen({ navigation }) {
     api.watchlists(auth.token).then((data) => setWatchlists(data.results || [])).catch(() => {}).finally(() => setLoading(false));
   }, [auth.token]);
 
-  useEffect(() => { load(); }, [load]);
+  // Ekrana her dönüşte tazeliyoruz (sadece ilk mount'ta değil): liste detayında ad değiştirmek,
+  // içerik silmek veya kapağı değiştirmek buradaki önizlemeyi/sayacı bayat bırakıyordu —
+  // güncel hali için ekrandan tamamen çıkıp yeniden girmek gerekiyordu. loading ilk yüklemeden
+  // sonra false kaldığı için geri dönüşlerde spinner yanıp sönmüyor, liste yerinde güncelleniyor.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
