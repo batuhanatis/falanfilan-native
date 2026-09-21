@@ -28,4 +28,6 @@ export const THEMES = {
 
 export const GENRE_FILTERS = ["Aksiyon", "Dram", "Komedi", "Bilim Kurgu", "Gerilim", "Romantik", "Belgesel", "Suç", "Fantastik", "Korku"];
 // TasteRecommendModal ve MatchParty davet filtresinde kullanılan, TR'de yaygın platformlar.
-export const COMMON_PLATFORMS = ["Netflix", "Amazon Prime Video", "Disney Plus", "BluTV", "Exxen", "Gain", "MUBI", "Apple TV Plus", "HBO Max"];
+// Apple'ın güncel adı "Apple TV"; eski "Apple TV+"/"Apple TV Plus" kayıtları da platformKey
+// sayesinde bu çiple eşleşiyor (bkz. utils/platform.js).
+export const COMMON_PLATFORMS = ["Netflix", "Amazon Prime Video", "Disney Plus", "BluTV", "Exxen", "Gain", "MUBI", "Apple TV", "HBO Max"];

@@ -39,7 +39,7 @@ import { diaryApi } from "../api/diary";
 import { GENRE_FILTERS } from "../theme/theme";
 import MovieCard from "../components/MovieCard";
 import PopularNowRow from "../components/PopularNowRow";
-import { platformName, platformLogo } from "../utils/platform";
+import { platformName, platformLogo, platformKey } from "../utils/platform";
 import { yearMatchesLabel } from "../utils/filterYears";
 import { recommendationReason, recommendationReasons } from "../utils/recommend";
 import TopBar from "../components/TopBar";
@@ -369,7 +369,8 @@ export default function HomeScreenV2({ navigation }) {
       });
     }
     if (platformFilters.size > 0) {
-      result = result.filter((m) => (m.platforms || []).some((p) => platformFilters.has(platformName(p))));
+      const wantedKeys = new Set([...platformFilters].map(platformKey));
+      result = result.filter((m) => (m.platforms || []).some((p) => wantedKeys.has(platformKey(p))));
     }
     if (yearFilters.size > 0) {
       result = result.filter((m) => [...yearFilters].some((label) => yearMatchesLabel(m.year, label)));
