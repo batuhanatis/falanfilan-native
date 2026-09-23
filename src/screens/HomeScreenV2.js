@@ -48,6 +48,7 @@ import ListPickerModal from "../components/ListPickerModal";
 import AIZone from "../components/AIZone";
 import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
+import { matchesOrigin } from "../utils/origin";
 import IslandModal from "../components/IslandModal";
 import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 import RecommendationWhyModal from "../components/RecommendationWhyModal";
@@ -136,6 +137,7 @@ export default function HomeScreenV2({ navigation }) {
   const [typeFilter, setTypeFilter] = useState("Hepsi");
   const [genreFilter, setGenreFilter] = useState(null);
   const [platformFilters, setPlatformFilters] = useState(new Set());
+  const [originFilter, setOriginFilter] = useState(null);   // null | "yerli" | "yabanci"
   const [yearFilters, setYearFilters] = useState(new Set());
   const [shortOnly, setShortOnly] = useState(false);
 
@@ -377,6 +379,7 @@ export default function HomeScreenV2({ navigation }) {
         const genres = Array.isArray(m.genres) && m.genres.length ? m.genres : [m.genre];
         if (!genres.includes(genreFilter)) return false;
       }
+      if (!matchesOrigin(m, originFilter)) return false;
       if (wantedPlatformKeys && !(m.platforms || []).some((p) => wantedPlatformKeys.has(platformKey(p)))) return false;
       if (yearLabels && !yearLabels.some((label) => yearMatchesLabel(m.year, label))) return false;
       if (shortOnly) {
@@ -385,7 +388,7 @@ export default function HomeScreenV2({ navigation }) {
       }
       return true;
     };
-  }, [typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds]);
+  }, [typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds, originFilter]);
 
   const filteredList = useMemo(() => movies.filter(matchesFilters), [movies, matchesFilters]);
 
@@ -399,8 +402,9 @@ export default function HomeScreenV2({ navigation }) {
     shortOnly,
     platformFilters: [...platformFilters],
     yearFilters: [...yearFilters],
+    origin: originFilter,
     aiLabel: describeResults ? aiResultsLabel : null,
-  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
+  }), [preferredGenres, genreFilter, typeFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel, originFilter]);
 
   const visiblePopularNow = useMemo(() => popularNow.filter((m) => !watchedIds.has(Number(m.id))), [popularNow, watchedIds]);
 
@@ -522,7 +526,7 @@ export default function HomeScreenV2({ navigation }) {
     return [...byName.values()];
   }, [movies]);
 
-  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0 || yearFilters.size > 0 || shortOnly;
+  const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0 || yearFilters.size > 0 || shortOnly || !!originFilter;
 
   // ÖNEMLİ (kasma düzeltmesi): Bir platform filtresi açıkken gelen sayfanın çoğu içerik
   // eleniyor ve listeye yalnızca birkaç kart ekleniyordu. Liste ekranı dolduracak kadar
@@ -659,6 +663,7 @@ export default function HomeScreenV2({ navigation }) {
     setPlatformFilters(new Set());
     setYearFilters(new Set());
     setShortOnly(false);
+    setOriginFilter(null);
   }
 
   function surpriseMe() {
@@ -1045,6 +1050,8 @@ export default function HomeScreenV2({ navigation }) {
           onGenreChange={setGenreFilter}
           yearSet={yearFilters}
           onToggleYear={toggleYear}
+          originValue={originFilter}
+          onOriginChange={setOriginFilter}
           platformSet={platformFilters}
           onTogglePlatform={togglePlatform}
           platforms={availablePlatformObjs}
