@@ -107,10 +107,14 @@ export default function HomeScreenV2({ navigation }) {
   const upcomingListRef = useRef(null);
   const heroListRef = useRef(null);
   const loadedIdsRef = useRef(new Set());
+  // Sayfalama durumu ref'te tutuluyor: setState bir sonraki render'a kadar işlemiyor,
+  // onEndReached ise o arada defalarca tetiklenebiliyor.
+  const pageRef = useRef(1);
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   const [activeTab, setActiveTab] = useState("forYou");
   const [movies, setMovies] = useState([]);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -269,7 +273,7 @@ export default function HomeScreenV2({ navigation }) {
       const [, , first] = await Promise.all([loadInteractions(), loadWatchedIds(), loadPage(1)]);
       if (!cancelled) {
         setMovies(first);
-        setPage(1);
+        pageRef.current = 1;
         setLoading(false);
       }
     })();
@@ -359,30 +363,31 @@ export default function HomeScreenV2({ navigation }) {
     return [...byId.values()];
   }, [likedMovies, liked, moviesById]);
 
-  const filteredList = useMemo(() => {
-    let result = movies.filter((m) => !watchedIds.has(Number(m.id)));
-    if (typeFilter !== "Hepsi") result = result.filter((m) => m.type === typeFilter);
-    if (genreFilter) {
-      result = result.filter((m) => {
+  // Filtre kuralları artık TEK bir yerde. İki yerden kullanılıyor: ekrandaki listeyi süzmek
+  // ve "daha fazla yükle" sırasında gelen sayfadan kaç içeriğin GERÇEKTEN görüneceğini bilmek.
+  // Ayrıca platform anahtarları ve yıl etiketleri eskiden her içerik için yeniden kuruluyordu
+  // (filter geri çağrısının içindeydiler) — şimdi liste başına bir kez hazırlanıyorlar.
+  const matchesFilters = useMemo(() => {
+    const wantedPlatformKeys = platformFilters.size > 0 ? new Set([...platformFilters].map(platformKey)) : null;
+    const yearLabels = yearFilters.size > 0 ? [...yearFilters] : null;
+    return (m) => {
+      if (watchedIds.has(Number(m.id))) return false;
+      if (typeFilter !== "Hepsi" && m.type !== typeFilter) return false;
+      if (genreFilter) {
         const genres = Array.isArray(m.genres) && m.genres.length ? m.genres : [m.genre];
-        return genres.includes(genreFilter);
-      });
-    }
-    if (platformFilters.size > 0) {
-      const wantedKeys = new Set([...platformFilters].map(platformKey));
-      result = result.filter((m) => (m.platforms || []).some((p) => wantedKeys.has(platformKey(p))));
-    }
-    if (yearFilters.size > 0) {
-      result = result.filter((m) => [...yearFilters].some((label) => yearMatchesLabel(m.year, label)));
-    }
-    if (shortOnly) {
-      result = result.filter((m) => {
+        if (!genres.includes(genreFilter)) return false;
+      }
+      if (wantedPlatformKeys && !(m.platforms || []).some((p) => wantedPlatformKeys.has(platformKey(p)))) return false;
+      if (yearLabels && !yearLabels.some((label) => yearMatchesLabel(m.year, label))) return false;
+      if (shortOnly) {
         const mins = runtimeMinutes(m.runtime);
-        return mins != null && mins <= 105;
-      });
-    }
-    return result;
-  }, [movies, typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds]);
+        if (mins == null || mins > 105) return false;
+      }
+      return true;
+    };
+  }, [typeFilter, genreFilter, platformFilters, yearFilters, shortOnly, watchedIds]);
+
+  const filteredList = useMemo(() => movies.filter(matchesFilters), [movies, matchesFilters]);
 
   const visibleList = describeResults
     ? describeResults.filter((m) => !watchedIds.has(Number(m.id))).slice(0, describeCount)
@@ -519,30 +524,69 @@ export default function HomeScreenV2({ navigation }) {
 
   const anyFilterActive = typeFilter !== "Hepsi" || !!genreFilter || platformFilters.size > 0 || yearFilters.size > 0 || shortOnly;
 
-  async function handleLoadMore() {
-    if (loadingMore || describeResults) return;
+  // ÖNEMLİ (kasma düzeltmesi): Bir platform filtresi açıkken gelen sayfanın çoğu içerik
+  // eleniyor ve listeye yalnızca birkaç kart ekleniyordu. Liste ekranı dolduracak kadar
+  // uzamadığı için onEndReached HEMEN yeniden tetikleniyor, kaydırma boyunca arka arkaya
+  // istek atılıyor ve her sonuçta tüm liste yeniden hesaplanıyordu. Üç şey değişti:
+  //   1. Devam eden yükleme state yerine REF ile bekçileniyor — setLoadingMore bir sonraki
+  //      render'a kadar işlemediği için, eski kontrol arka arkaya gelen tetiklemeleri
+  //      durduramıyordu.
+  //   2. Tek bir tetiklemede, filtreden geçen yeterli içerik toplanana kadar en fazla
+  //      MAX_PAGES_PER_BATCH sayfa peş peşe çekilip listeye TEK seferde ekleniyor.
+  //   3. API boş sayfa döndüğünde artık daha fazla istek atılmıyor.
+  const MIN_NEW_VISIBLE = 8;
+  const MAX_PAGES_PER_BATCH = 4;
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMoreRef.current || describeResults) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
-    const next = page + 1;
-    const items = await loadPage(next);
-    setMovies((prev) => dedupe([...prev, ...items]));
-    setPage(next);
-    setLoadingMore(false);
-  }
+    try {
+      let nextPage = pageRef.current;
+      const collected = [];
+      let newVisible = 0;
+      for (let i = 0; i < MAX_PAGES_PER_BATCH && newVisible < MIN_NEW_VISIBLE; i++) {
+        const items = await loadPage(nextPage + 1);
+        if (!items.length) { hasMoreRef.current = false; break; }
+        nextPage += 1;
+        collected.push(...items);
+        newVisible += items.filter(matchesFilters).length;
+      }
+      pageRef.current = nextPage;
+      if (collected.length) setMovies((prev) => dedupe([...prev, ...collected]));
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [describeResults, loadPage, matchesFilters]);
 
   async function handleRefresh() {
     setRefreshing(true);
     setHeroDayKey(localDayKey());
     loadedIdsRef.current.clear();
+    hasMoreRef.current = true;
     await loadInteractions();
     const first = await loadPage(1);
     setMovies(first);
-    setPage(1);
+    pageRef.current = 1;
     loadSecondary();
     setRefreshing(false);
   }
 
-  function like(id) {
-    const wasLiked = liked.has(id);
+  // MovieCard React.memo ile sarılı ve yorumunda da yazdığı gibi, işe yaraması için ona
+  // geçilen callback'lerin KARARLI referanslı olması şart. Bunlar eskiden her render'da
+  // yeniden tanımlanan düz fonksiyonlardı — yani memo tamamen devre dışı kalıyor, her yeni
+  // sayfa eklendiğinde ekrandaki bütün kartlar yeniden render oluyordu. Kullanıcının
+  // "üstteki içerikler de baştan yükleniyor" dediği şey buydu.
+  // Güncel beğeni/beğenmeme kümeleri ref üzerinden okunuyor ki callback'ler bağımlılık
+  // olarak onları taşımak zorunda kalmasın.
+  const likedRef = useRef(liked);
+  const dislikedRef = useRef(disliked);
+  useEffect(() => { likedRef.current = liked; }, [liked]);
+  useEffect(() => { dislikedRef.current = disliked; }, [disliked]);
+
+  const like = useCallback((id) => {
+    const wasLiked = likedRef.current.has(id);
     setLiked((prev) => {
       const next = new Set(prev);
       wasLiked ? next.delete(id) : next.add(id);
@@ -555,10 +599,10 @@ export default function HomeScreenV2({ navigation }) {
     });
     if (wasLiked) api.removeInteraction(auth.token, id, "like").catch(() => {});
     else api.recordInteraction(auth.token, id, "like").catch(() => {});
-  }
+  }, [auth.token]);
 
-  function dislike(id) {
-    const wasDisliked = disliked.has(id);
+  const dislike = useCallback((id) => {
+    const wasDisliked = dislikedRef.current.has(id);
     setDisliked((prev) => {
       const next = new Set(prev);
       wasDisliked ? next.delete(id) : next.add(id);
@@ -571,7 +615,9 @@ export default function HomeScreenV2({ navigation }) {
     });
     if (wasDisliked) api.removeInteraction(auth.token, id, "dislike").catch(() => {});
     else api.recordInteraction(auth.token, id, "dislike").catch(() => {});
-  }
+  }, [auth.token]);
+
+  const openDetail = useCallback((movie) => navigation.navigate("Detail", { movie }), [navigation]);
 
   const toggleNotify = useCallback(async (movieId) => {
     const wasSubscribed = notifySubs.has(movieId);
@@ -639,18 +685,34 @@ export default function HomeScreenV2({ navigation }) {
     }
   }
 
-  const renderCompactCard = useCallback(({ item, index }) => (
+  // Öneri gerekçesi eskiden renderItem'ın İÇİNDE, ilk 8 kart için her render'da yeniden
+  // hesaplanıyordu. recommendationReason her çağrısında beğenilen TÜM içerikleri baştan
+  // topluyor — yani bu, kart başına beğeni sayısı kadar iş demekti ve her sayfa eklendiğinde
+  // tekrarlanıyordu. Artık liste başına bir kez hesaplanıp kartlara hazır veriliyor; aynı
+  // içerik için aynı metin döndüğünden MovieCard'ın memo'su da boşuna bozulmuyor.
+  const REASON_COUNT = 8;
+  const reasonById = useMemo(() => {
+    const map = new Map();
+    if (describeResults) return map;
+    gridList.slice(0, REASON_COUNT).forEach((m) => {
+      const reason = recommendationReason(m, liked, moviesById);
+      if (reason) map.set(m.id, reason);
+    });
+    return map;
+  }, [gridList, liked, moviesById, describeResults]);
+
+  const renderCompactCard = useCallback(({ item }) => (
     <MovieCard
       movie={item}
       liked={liked.has(item.id)}
       disliked={disliked.has(item.id)}
       onLike={like}
       onDislike={dislike}
-      onPress={(movie) => navigation.navigate("Detail", { movie })}
-      reason={!describeResults && index < 8 ? recommendationReason(item, liked, moviesById) : null}
+      onPress={openDetail}
+      reason={reasonById.get(item.id) || null}
       compact
     />
-  ), [liked, disliked, describeResults, moviesById, navigation]);
+  ), [liked, disliked, like, dislike, openDetail, reasonById]);
 
   const renderUpcomingCard = useCallback(({ item }) => (
     <MovieCard
@@ -662,12 +724,12 @@ export default function HomeScreenV2({ navigation }) {
       onDislike={dislike}
       onAddToList={setPickerMovie}
       onSend={setSendMovie}
-      onPress={(movie) => navigation.navigate("Detail", { movie })}
+      onPress={openDetail}
       showNotify
       notifySubscribed={notifySubs.has(item.id)}
       onNotify={toggleNotify}
     />
-  ), [liked, disliked, watchlist, notifySubs, toggleNotify, navigation]);
+  ), [liked, disliked, watchlist, notifySubs, toggleNotify, openDetail]);
 
   if (loading) {
     return (
@@ -927,6 +989,9 @@ export default function HomeScreenV2({ navigation }) {
           nestedScrollEnabled
           ListHeaderComponent={forYouHeader}
           renderItem={renderCompactCard}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           onEndReachedThreshold={0.45}
           onEndReached={describeResults ? () => setDescribeCount((v) => v + 8) : handleLoadMore}
           ListFooterComponent={loadingMore ? <ActivityIndicator color={c.accent} style={{ marginVertical: 18 }} /> : null}
