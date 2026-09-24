@@ -138,6 +138,9 @@ export default function HomeScreenV2({ navigation }) {
   const [genreFilter, setGenreFilter] = useState(null);
   const [platformFilters, setPlatformFilters] = useState(new Set());
   const [originFilter, setOriginFilter] = useState(null);   // null | "yerli" | "yabanci"
+  // loadPage'in bağımlılık listesine girmesin diye ref'te de tutuluyor: kimliği değişse
+  // handleLoadMore de değişir, bu da gereksiz yeniden render demek.
+  const originFilterRef = useRef(null);
   const [yearFilters, setYearFilters] = useState(new Set());
   const [shortOnly, setShortOnly] = useState(false);
 
@@ -225,11 +228,15 @@ export default function HomeScreenV2({ navigation }) {
     }
   }, [auth.token, auth.id]);
 
-  const loadPage = useCallback(async (pageNum) => {
+  // ÖNEMLİ: yerli/yabancı süzmesi SUNUCUYA da gidiyor. Yalnızca istemcide süzülünce, gelen
+  // 30'ar içeriğin belki 1-2'si yerli çıkıyordu; liste ekranı dolduramadığı için arka arkaya
+  // sayfa isteniyor ve içerikler teker teker düşüyordu. Kaynakta süzülünce her sayfa dolu geliyor.
+  const loadPage = useCallback(async (pageNum, originOverride) => {
+    const origin = originOverride !== undefined ? originOverride : originFilterRef.current;
     const excludeIds = [...loadedIdsRef.current].slice(-500);
     const [movieRes, tvRes] = await Promise.all([
-      api.movies(auth.token, "movie", pageNum, null, excludeIds).catch(() => ({ results: [] })),
-      api.movies(auth.token, "tv", pageNum, null, excludeIds).catch(() => ({ results: [] })),
+      api.movies(auth.token, "movie", pageNum, null, excludeIds, origin).catch(() => ({ results: [] })),
+      api.movies(auth.token, "tv", pageNum, null, excludeIds, origin).catch(() => ({ results: [] })),
     ]);
     const items = dedupe([...(movieRes.results || []), ...(tvRes.results || [])]);
     items.forEach((m) => loadedIdsRef.current.add(m.id));
@@ -282,6 +289,28 @@ export default function HomeScreenV2({ navigation }) {
     loadSecondary();
     return () => { cancelled = true; };
   }, []);
+
+  // Yerli/yabancı değişince akışı BAŞTAN kuruyoruz: elimizdeki sayfalar eski filtreye göre
+  // çekilmişti, sadece istemcide süzmek birkaç kart bırakırdı. İlk render'da çalışmamalı,
+  // yoksa açılışta ikinci bir kez sayfa 1 çekilir.
+  const originFirstRunRef = useRef(true);
+  useEffect(() => {
+    originFilterRef.current = originFilter;
+    if (originFirstRunRef.current) { originFirstRunRef.current = false; return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      loadedIdsRef.current.clear();
+      hasMoreRef.current = true;
+      const first = await loadPage(1, originFilter);
+      if (cancelled) return;
+      setMovies(first);
+      pageRef.current = 1;
+      setLoading(false);
+      mainListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+    })();
+    return () => { cancelled = true; };
+  }, [originFilter, loadPage]);
 
   useEffect(() => {
     const unsub = navigation.addListener("focus", () => {
@@ -706,7 +735,18 @@ export default function HomeScreenV2({ navigation }) {
     return map;
   }, [gridList, liked, moviesById, describeResults]);
 
+  // numColumns={2} ızgarada son satırda TEK kart kalınca, kartın flex:1'i satırın tamamını
+  // kaplıyor ve kart iki kat büyük görünüyordu; yeni sayfa gelip satır tamamlanınca da
+  // aniden küçülüyordu. Veriyi çift sayıya tamamlayıp görünmez bir yer tutucu koyuyoruz,
+  // böylece gerçek kart her zaman diğerleriyle aynı genişlikte kalıyor.
+  const GRID_PLACEHOLDER = "__grid_placeholder__";
+  const paddedGridList = useMemo(
+    () => (gridList.length % 2 === 1 ? [...gridList, { id: GRID_PLACEHOLDER }] : gridList),
+    [gridList]
+  );
+
   const renderCompactCard = useCallback(({ item }) => (
+    item.id === GRID_PLACEHOLDER ? <View style={{ flex: 1 }} /> : (
     <MovieCard
       movie={item}
       liked={liked.has(item.id)}
@@ -717,6 +757,7 @@ export default function HomeScreenV2({ navigation }) {
       reason={reasonById.get(item.id) || null}
       compact
     />
+    )
   ), [liked, disliked, like, dislike, openDetail, reasonById]);
 
   const renderUpcomingCard = useCallback(({ item }) => (
@@ -984,7 +1025,7 @@ export default function HomeScreenV2({ navigation }) {
       {activeTab === "forYou" ? (
         <FlatList
           ref={mainListRef}
-          data={gridList}
+          data={paddedGridList}
           key="home-for-you-v2"
           keyExtractor={(item) => String(item.id)}
           numColumns={2}

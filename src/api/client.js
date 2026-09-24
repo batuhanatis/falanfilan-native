@@ -154,7 +154,7 @@ export const api = {
   addWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators`, { method: "POST", token, body: { userId } }),
   removeWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators/${userId}`, { method: "DELETE", token }),
 
-  movies: (token, type, page, sort, excludeIds) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}${excludeIds && excludeIds.length ? `&excludeIds=${excludeIds.join(",")}` : ""}`, { token }),
+  movies: (token, type, page, sort, excludeIds, origin) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}${origin ? `&origin=${origin}` : ""}${excludeIds && excludeIds.length ? `&excludeIds=${excludeIds.join(",")}` : ""}`, { token }),
   platforms: (token) => request("/api/platforms", { token }),
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
   recommendations: (token, type = null, limit = null) => {
