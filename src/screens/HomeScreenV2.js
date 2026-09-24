@@ -438,11 +438,16 @@ export default function HomeScreenV2({ navigation }) {
   const visiblePopularNow = useMemo(() => popularNow.filter((m) => !watchedIds.has(Number(m.id))), [popularNow, watchedIds]);
 
   const heroSourceList = describeResults ? describeResults.filter((m) => !watchedIds.has(Number(m.id))) : filteredList;
+  // "Varsayılan bağlam" = hiçbir filtre yok. Bu durumda hero, gün boyu sabit kalan günlük
+  // seçkiyi (dailyHeroSelections) gösteriyor; filtre varsa filtrelenmiş havuzdan seçiyor.
+  // originFilter buraya dahil DEĞİLDİ — yerli/yabancı seçilince bağlam hâlâ "varsayılan"
+  // sayılıyor, hero da filtreden habersiz günlük seçkiyi göstermeye devam ediyordu.
   const isDefaultHeroContext = !describeResults
     && typeFilter === "Hepsi"
     && !genreFilter
     && platformFilters.size === 0
     && yearFilters.size === 0
+    && !originFilter
     && !shortOnly;
 
   const candidateHeroSelections = useMemo(() => {
