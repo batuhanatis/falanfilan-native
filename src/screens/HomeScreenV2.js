@@ -861,6 +861,22 @@ export default function HomeScreenV2({ navigation }) {
           </View>
         )}
 
+        <TouchableOpacity
+          onPress={() => navigation.navigate("TonightPlanner")}
+          accessibilityRole="button"
+          accessibilityLabel="Bu Akşamı Planla, Premium"
+          activeOpacity={0.85}
+          style={{ marginTop: 14, padding: 16, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent, flexDirection: "row", alignItems: "center", gap: 12 }}
+        >
+          <Sparkles size={23} color={c.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.accent, fontSize: 9, fontWeight: "800", letterSpacing: 1 }}>PREMIUM</Text>
+            <Text style={{ color: c.text, fontSize: 16, fontWeight: "800", marginTop: 3 }}>Bu Akşamı Planla</Text>
+            <Text style={{ color: c.dim, fontSize: 12, marginTop: 4 }}>Senin platformların, ortak zevkiniz, tek bir seçim.</Text>
+          </View>
+          <ChevronRight size={19} color={c.accent} />
+        </TouchableOpacity>
+
         <AIZone
           navigation={navigation}
           hasResults={!!describeResults}
