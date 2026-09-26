@@ -49,7 +49,36 @@ jobs:
           test "$EXPO_PUBLIC_API_BASE" = "https://api.pellix.app"
           node -e 'const fs=require("fs"); const e=JSON.parse(fs.readFileSync("eas.json","utf8")); if(e.build?.production?.channel!=="production") process.exit(1)'
 
+      - name: Verify runtime compatibility before publishing
+        run: |
+          npx expo-updates runtimeversion:resolve --platform ios > "$RUNNER_TEMP/pellix-runtime-ios.json"
+          npx expo-updates runtimeversion:resolve --platform android > "$RUNNER_TEMP/pellix-runtime-android.json"
+          node <<'NODE'
+          const fs = require('fs');
+          const expected = {
+            ios: '88c1bbbc0f2ed9b1e573a105c4f791cf61a67ac5',
+            android: '947eb191d3afb3b2cbf3fdf445c2cf9243792126',
+          };
+          for (const [platform, runtime] of Object.entries(expected)) {
+            const file = process.env.RUNNER_TEMP + '/pellix-runtime-' + platform + '.json';
+            const actual = JSON.parse(fs.readFileSync(file, 'utf8')).runtimeVersion;
+            console.log(platform + ' runtime: ' + actual);
+            if (actual !== runtime) throw new Error(platform + ' runtime differs from the last production OTA; stop before publishing.');
+          }
+          NODE
+
+      - name: Verify planner API is available
+        run: |
+          node <<'NODE'
+          (async () => {
+            const res = await fetch('https://api.pellix.app/api/tonight/options', { signal: AbortSignal.timeout(20000) });
+            const body = await res.json();
+            if (res.status !== 401 || !body.error) throw new Error('Planner API is not ready');
+            console.log('Planner API is live and enforces authentication');
+          })().catch(e => { console.error(e.message); process.exit(1); });
+          NODE
+
       - name: Publish OTA update
         run: >-
           eas update --channel production --platform all --environment production --non-interactive
-          --message "Production UX update from approved ux-retention-v1 branch"
+          --message "Bu Aksami Planla: premium platforms and shared profiles"
