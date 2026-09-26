@@ -1,9 +1,8 @@
 // Web uygulamasıyla (falanfilan-app) TAMAMEN AYNI backend'e konuşur — sunucu tarafında
 // hiçbir değişiklik gerekmiyor. Sadece istekleri React Native'den atıyoruz.
-// ÖNEMLİ: Bu adres değiştirilmeden önce https://api.pellix.app'in gerçekten çalıştığı
-// (DNS + Render custom domain kurulumu tamamlanmış) tarayıcıda doğrulanmalı — aksi halde
-// uygulamanın TÜM ağ istekleri henüz hazır olmayan bir adrese gider.
-export const API_BASE = "https://api.pellix.app";
+// EXPO_PUBLIC_API_BASE preview/staging build ve update'lerinde staging API'ye yönlendirmek için
+// kullanılır. Tanımlı değilse production davranışı aynen korunur.
+export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "https://api.pellix.app").replace(/\/+$/, "");
 export const WS_BASE = API_BASE.replace(/^http/, "ws") + "/ws";
 
 const REQUEST_TIMEOUT_MS = 20000;
@@ -39,6 +38,7 @@ async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_
     const err = new Error(data.error || "Bir şeyler ters gitti.");
     if (data.limitReached) err.limitReached = true;
     err.status = res.status;
+    err.code = data.code;
     throw err;
   }
   return data;
@@ -132,6 +132,7 @@ export const api = {
   phoneVerify: (phone, code) => request("/api/auth/phone/verify", { method: "POST", body: { phone, code } }),
   phoneCompleteSignup: (ticket, name, username, termsAccepted, referredByUsername) => request("/api/auth/phone/complete-signup", { method: "POST", body: { ticket, name, username, termsAccepted, referredByUsername } }),
   me: (token) => request("/api/me", { token }),
+  tasteDNA: (token) => request("/api/me/taste-dna", { token }),
   setTastemateVisibility: (token, visible) => request("/api/me/tastemate-visibility", { method: "PATCH", token, body: { visible } }),
   updateMe: (token, payload) => request("/api/me", { method: "PUT", token, body: payload }),
   updatePhoto: (token, payload) => request("/api/me/photo", { method: "PUT", token, body: payload, timeoutMs: UPLOAD_TIMEOUT_MS }),
@@ -154,7 +155,7 @@ export const api = {
   addWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators`, { method: "POST", token, body: { userId } }),
   removeWatchlistCollaborator: (token, id, userId) => request(`/api/watchlists/${id}/collaborators/${userId}`, { method: "DELETE", token }),
 
-  movies: (token, type, page, sort, excludeIds) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}${excludeIds && excludeIds.length ? `&excludeIds=${excludeIds.join(",")}` : ""}`, { token }),
+  movies: (token, type, page, sort, excludeIds, origin) => request(`/api/movies?type=${type}&page=${page}${sort ? `&sort=${sort}` : ""}${origin ? `&origin=${origin}` : ""}${excludeIds && excludeIds.length ? `&excludeIds=${excludeIds.join(",")}` : ""}`, { token }),
   platforms: (token) => request("/api/platforms", { token }),
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
   recommendations: (token, type = null, limit = null) => {
@@ -166,6 +167,8 @@ export const api = {
   movieById: (token, id) => request(`/api/movies/${id}`, { token }),
   search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
   describe: (token, query) => request("/api/describe", { method: "POST", token, body: { query } }),
+  tonightOptions: (token) => request("/api/tonight/options", { token }),
+  tonightPlan: (token, payload) => request("/api/tonight/plan", { method: "POST", token, body: payload, timeoutMs: 45000 }),
   aiTaste: (token, payload) => request("/api/ai-taste", { method: "POST", token, body: payload }),
   identifyPhoto: (token, imageBase64) => request("/api/identify-photo", { method: "POST", token, body: { image: imageBase64 }, timeoutMs: UPLOAD_TIMEOUT_MS }),
   recordInteraction: (token, movieId, action) => request("/api/interactions", { method: "POST", token, body: { movie_id: movieId, action } }),

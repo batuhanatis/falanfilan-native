@@ -316,15 +316,19 @@ function ChatMessageRow({
             </View>
           )}
           <View style={styles.activityShareInfo}>
-            <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={4}>
-              {storyReplyShared.note}
-            </Text>
             {storyActive ? (
-              !!storyMovie?.title && (
-                <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                  {storyMovie.title}
+              <>
+                <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                  {storyMovie?.title || "İçerik"}
                 </Text>
-              )
+                <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                  {[
+                    storyMovie?.type === "tv" ? "Dizi" : "Film",
+                    storyMovie?.genre,
+                    storyMovie?.imdb > 0 ? `★ ${Number(storyMovie.imdb).toFixed(1)}` : null,
+                  ].filter(Boolean).join(" · ")}
+                </Text>
+              </>
             ) : (
               <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
                 Bu story artık görüntülenemiyor

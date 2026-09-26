@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
-import { ChevronLeft, Search, Check, X, Users, UserPlus2 } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Search, Check, X, Users, UserPlus2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
+import ScreenHeader from "../components/ScreenHeader";
 
-// Arkadaş arama artık ayrı bir SAYFA — eskiden ekranın üstünden açılan bir popup'tı (bkz. git
-// geçmişindeki FriendSearchModal), ama arama sonuçları/istekler listesi tam bir sayfayı hak
-// ediyor. Arama kutusu EN ÜSTTE — bir şey yazar yazmaz istekler bölümü gizlenip sadece arama
-// sonuçları gösteriliyor, karışıklık olmasın diye.
 export default function FriendSearchScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const styles = makeStyles(c);
+  const insets = useSafeAreaInsets();
+  const styles = makeStyles(c, insets);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -47,13 +46,13 @@ export default function FriendSearchScreen({ navigation }) {
         .finally(() => setLoading(false));
     }, 400);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, auth.token]);
 
   async function addFriend(userId) {
     try {
       await api.friendRequest(auth.token, userId);
       setSentTo((prev) => new Set([...prev, userId]));
-    } catch { /* sessizce geç */ }
+    } catch {}
   }
 
   async function respond(fromUserId, accept) {
@@ -61,20 +60,19 @@ export default function FriendSearchScreen({ navigation }) {
     try {
       await api.friendRespond(auth.token, fromUserId, accept);
       setRequests((prev) => prev.filter((r) => r.id !== fromUserId));
-    } catch { /* sessizce geç */ }
+    } catch {}
     setBusyIds((prev) => { const n = new Set(prev); n.delete(fromUserId); return n; });
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Arkadaşlar</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: c.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
+      <ScreenHeader title="Arkadaşlar" subtitle="Bul, ekle veya davet et" onBack={() => navigation.goBack()} />
 
-      <View style={{ flex: 1, padding: 20 }}>
+      <View style={styles.body}>
         <TouchableOpacity
           style={styles.inviteRow}
           onPress={() => navigation.navigate("InviteFriend")}
@@ -92,6 +90,7 @@ export default function FriendSearchScreen({ navigation }) {
             value={query}
             onChangeText={setQuery}
             autoCapitalize="none"
+            returnKeyType="search"
           />
         </View>
 
@@ -101,7 +100,9 @@ export default function FriendSearchScreen({ navigation }) {
             <FlatList
               data={results}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={{ paddingVertical: 8 }}
+              contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               renderItem={({ item }) => {
                 const isFriend = friendIds.has(item.id);
                 return (
@@ -135,9 +136,7 @@ export default function FriendSearchScreen({ navigation }) {
                   </View>
                 );
               }}
-              ListEmptyComponent={
-                !loading ? <Text style={styles.empty}>Kullanıcı bulunamadı.</Text> : null
-              }
+              ListEmptyComponent={!loading ? <Text style={styles.empty}>Kullanıcı bulunamadı.</Text> : null}
             />
           </>
         ) : (
@@ -154,6 +153,8 @@ export default function FriendSearchScreen({ navigation }) {
               <FlatList
                 data={requests}
                 keyExtractor={(item) => String(item.id)}
+                contentContainerStyle={styles.listContent}
+                keyboardShouldPersistTaps="handled"
                 renderItem={({ item: r }) => (
                   <View style={styles.requestRow}>
                     <TouchableOpacity
@@ -186,13 +187,10 @@ export default function FriendSearchScreen({ navigation }) {
   );
 }
 
-function makeStyles(c) {
+function makeStyles(c, insets) {
   return StyleSheet.create({
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 14, fontWeight: "800", color: c.text },
+    body: { flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Math.max(20, insets.bottom + 12) },
+    listContent: { paddingVertical: 8, paddingBottom: Math.max(16, insets.bottom + 8) },
     inviteRow: {
       flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.accent,
       borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 14,
@@ -207,7 +205,7 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2,
       borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
     },
-    input: { flex: 1, color: c.text, fontSize: 13 },
+    input: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 0 },
     row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
     requestRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
     avatarPlaceholder: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2 },

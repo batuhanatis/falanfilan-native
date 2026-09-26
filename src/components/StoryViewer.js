@@ -259,43 +259,6 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           style={StyleSheet.absoluteFillObject}
         />
 
-        <View style={styles.top}>
-          <View style={styles.segRow}>
-            {group.stories.map((s, i) => (
-              <View key={s.id} style={styles.segTrack}>
-                <Animated.View
-                  style={[
-                    styles.segFill,
-                    {
-                      width:
-                        i < storyIndex
-                          ? "100%"
-                          : i > storyIndex
-                          ? "0%"
-                          : progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
-                    },
-                  ]}
-                />
-              </View>
-            ))}
-          </View>
-          <View style={styles.headerRow}>
-            <RetryImage source={{ uri: avatarOr(group.user.avatar_url) }} style={styles.headerAvatar} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerName}>{group.isOwn ? "Sen" : group.user.name}</Text>
-              <Text style={styles.headerTime}>{relativeTime(story.created_at)}</Text>
-            </View>
-            {group.isOwn && (
-              <TouchableOpacity style={styles.iconBtn} onPress={deleteMine} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Trash2 size={17} color="#fff" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.iconBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X size={19} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={styles.center} pointerEvents="box-none">
           {!!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
         </View>
@@ -310,88 +273,142 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           )}
         </View>
 
-        {group.isOwn ? (
-          <View style={styles.replyBarWrap} pointerEvents="box-none">
-            <TouchableOpacity style={styles.viewersPill} onPress={openViewers} activeOpacity={0.85}>
-              <Eye size={14} color="#fff" />
-              <Text style={styles.viewersPillText}>
-                {story.viewCount > 0 ? `${story.viewCount} görüntüleme` : "Henüz görüntüleyen yok"}
-              </Text>
-              <ChevronDown size={13} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: "180deg" }] }} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.replyBarWrap}
-            pointerEvents="box-none"
-          >
-            {replySent ? (
-              <View style={styles.replySentPill}>
-                <Check size={13} color="#fff" />
-                <Text style={styles.replySentText}>Yanıtın gönderildi</Text>
-              </View>
-            ) : (
-              <View style={styles.replyBar}>
-                <TextInput
-                  ref={replyInputRef}
-                  style={styles.replyInput}
-                  placeholder="Yanıt gönder…"
-                  placeholderTextColor="rgba(255,255,255,0.55)"
-                  value={replyText}
-                  onChangeText={setReplyText}
-                  onFocus={() => setPaused(true)}
-                  onBlur={() => setPaused(false)}
-                  maxLength={300}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[styles.replySendBtn, (!replyText.trim() || replySending) && { opacity: 0.4 }]}
-                  onPress={submitReply}
-                  disabled={!replyText.trim() || replySending}
-                >
-                  <Send size={15} color="#000" />
-                </TouchableOpacity>
-              </View>
-            )}
-            {!!replyError && <Text style={styles.replyErrorText}>{replyError}</Text>}
-          </KeyboardAvoidingView>
-        )}
-
-        {viewersOpen && (
-          <View style={styles.viewersOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeViewers} />
-            <Animated.View style={[styles.viewersSheet, { transform: [{ translateY: sheetAnim }] }]}>
-              <View style={styles.viewersHandle} />
-              <View style={styles.viewersTitleRow}>
-                <Eye size={14} color="#fff" />
-                <Text style={styles.viewersTitle}>
-                  {viewers.length > 0 ? `${viewers.length} kişi görüntüledi` : "Görüntüleyenler"}
-                </Text>
-              </View>
-              {viewersLoading ? (
-                <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 20 }} />
-              ) : viewers.length === 0 ? (
-                <Text style={styles.viewersEmpty}>Bu story'i henüz kimse görmedi.</Text>
-              ) : (
-                <FlatList
-                  data={viewers}
-                  keyExtractor={(v) => String(v.id)}
-                  style={{ maxHeight: 320 }}
-                  renderItem={({ item }) => (
-                    <View style={styles.viewerRow}>
-                      <RetryImage source={{ uri: avatarOr(item.avatar_url) }} style={styles.viewerAvatar} />
-                      <Text style={styles.viewerName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.viewerTime}>{relativeTime(item.seen_at)}</Text>
-                    </View>
-                  )}
-                />
-              )}
-            </Animated.View>
-          </View>
-        )}
           </Animated.View>
         </PanGestureHandler>
+
+        {/* ÖNEMLİ DÜZELTME: Yanıt kutusu/gönder butonu, üst çubuktaki sil/kapat ikonları (ve kendi
+            story'nde görüntüleyenler pili) eskiden PanGestureHandler'ın İÇİNDEYDİ — o yüzden
+            üstteki dokun-ilerlet/kaydır-kapat jest tanıyıcısı, bu alanlara yapılan her dokunuşu
+            KENDİ jesti sanıp yutuyordu: TextInput hiç focus almıyor (klavye açılmıyor), gönder
+            butonuna basınca story ilerleyip kapanıyordu, sil/kapat ikonlarına basmak da bazen
+            hiçbir şey yapmıyordu. Bu blok artık PanGestureHandler'ın DIŞINDA, ayrı bir kardeş
+            katman — böylece buradaki dokunuşlar hiçbir zaman o jest tanıyıcının alanına girmiyor,
+            TextInput ve TouchableOpacity'ler normal native dokunma/focus davranışını koruyor. Aynı
+            dragY/cardScale transform'u paylaşıyor ki story'i aşağı sürükleyip kapatırken kartla
+            birlikte hareket etsin.
+        */}
+        <Animated.View
+          pointerEvents="box-none"
+          style={[StyleSheet.absoluteFillObject, { transform: [{ translateY: dragY }, { scale: cardScale }] }]}
+        >
+          <View style={styles.top} pointerEvents="box-none">
+            <View style={styles.segRow}>
+              {group.stories.map((s, i) => (
+                <View key={s.id} style={styles.segTrack}>
+                  <Animated.View
+                    style={[
+                      styles.segFill,
+                      {
+                        width:
+                          i < storyIndex
+                            ? "100%"
+                            : i > storyIndex
+                            ? "0%"
+                            : progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
+                      },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+            <View style={styles.headerRow}>
+              <RetryImage source={{ uri: avatarOr(group.user.avatar_url) }} style={styles.headerAvatar} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerName}>{group.isOwn ? "Sen" : group.user.name}</Text>
+                <Text style={styles.headerTime}>{relativeTime(story.created_at)}</Text>
+              </View>
+              {group.isOwn && (
+                <TouchableOpacity style={styles.iconBtn} onPress={deleteMine} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Trash2 size={17} color="#fff" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.iconBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={19} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {group.isOwn ? (
+            <View style={styles.replyBarWrap} pointerEvents="box-none">
+              <TouchableOpacity style={styles.viewersPill} onPress={openViewers} activeOpacity={0.85}>
+                <Eye size={14} color="#fff" />
+                <Text style={styles.viewersPillText}>
+                  {story.viewCount > 0 ? `${story.viewCount} görüntüleme` : "Henüz görüntüleyen yok"}
+                </Text>
+                <ChevronDown size={13} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: "180deg" }] }} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={styles.replyBarWrap}
+              pointerEvents="box-none"
+            >
+              {replySent ? (
+                <View style={styles.replySentPill}>
+                  <Check size={13} color="#fff" />
+                  <Text style={styles.replySentText}>Yanıtın gönderildi</Text>
+                </View>
+              ) : (
+                <View style={styles.replyBar}>
+                  <TextInput
+                    ref={replyInputRef}
+                    style={styles.replyInput}
+                    placeholder="Yanıt gönder…"
+                    placeholderTextColor="rgba(255,255,255,0.55)"
+                    value={replyText}
+                    onChangeText={setReplyText}
+                    onFocus={() => setPaused(true)}
+                    onBlur={() => setPaused(false)}
+                    maxLength={300}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[styles.replySendBtn, (!replyText.trim() || replySending) && { opacity: 0.4 }]}
+                    onPress={submitReply}
+                    disabled={!replyText.trim() || replySending}
+                  >
+                    <Send size={15} color="#000" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!!replyError && <Text style={styles.replyErrorText}>{replyError}</Text>}
+            </KeyboardAvoidingView>
+          )}
+
+          {viewersOpen && (
+            <View style={styles.viewersOverlay}>
+              <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeViewers} />
+              <Animated.View style={[styles.viewersSheet, { transform: [{ translateY: sheetAnim }] }]}>
+                <View style={styles.viewersHandle} />
+                <View style={styles.viewersTitleRow}>
+                  <Eye size={14} color="#fff" />
+                  <Text style={styles.viewersTitle}>
+                    {viewers.length > 0 ? `${viewers.length} kişi görüntüledi` : "Görüntüleyenler"}
+                  </Text>
+                </View>
+                {viewersLoading ? (
+                  <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 20 }} />
+                ) : viewers.length === 0 ? (
+                  <Text style={styles.viewersEmpty}>Bu story'i henüz kimse görmedi.</Text>
+                ) : (
+                  <FlatList
+                    data={viewers}
+                    keyExtractor={(v) => String(v.id)}
+                    style={{ maxHeight: 320 }}
+                    renderItem={({ item }) => (
+                      <View style={styles.viewerRow}>
+                        <RetryImage source={{ uri: avatarOr(item.avatar_url) }} style={styles.viewerAvatar} />
+                        <Text style={styles.viewerName} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.viewerTime}>{relativeTime(item.seen_at)}</Text>
+                      </View>
+                    )}
+                  />
+                )}
+              </Animated.View>
+            </View>
+          )}
+        </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );

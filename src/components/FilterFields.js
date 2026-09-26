@@ -6,6 +6,7 @@ import { GENRE_FILTERS } from "../theme/theme";
 import { GENRE_COLORS } from "../utils/genreColors";
 import { YEAR_OPTIONS } from "../utils/filterYears";
 import { platformName, platformLogo } from "../utils/platform";
+import { ORIGIN_OPTIONS } from "../utils/origin";
 import { hapticLight, hapticMedium } from "../utils/haptics";
 
 const TYPE_OPTIONS = ["Hepsi", "Film", "Dizi"];
@@ -68,6 +69,9 @@ export default function FilterFields({
   genreValue, onGenreChange,
   yearSet, onToggleYear,
   platformSet, onTogglePlatform, platforms = [],
+  // Yerli/yabancı. Bu satır yalnızca onOriginChange verildiğinde çiziliyor, böylece
+  // bileşeni kullanan ama bu filtreyi desteklemeyen ekranlar etkilenmiyor.
+  originValue = null, onOriginChange,
   onShuffleGenre,
   anyActive, onClear,
 }) {
@@ -131,6 +135,27 @@ export default function FilterFields({
           />
         ))}
       </View>
+
+      {!!onOriginChange && (
+        <>
+          <Text style={styles.sectionLabel}>🌍 YAPIM</Text>
+          <View style={styles.wrapGrid}>
+            {ORIGIN_OPTIONS.map(({ key, label }) => {
+              const active = (originValue || null) === key;
+              return (
+                <TouchableOpacity
+                  key={label}
+                  activeOpacity={0.85}
+                  style={[styles.yearChip, active && { backgroundColor: c.accent, borderColor: c.accent }]}
+                  onPress={() => { hapticLight(); onOriginChange(key); }}
+                >
+                  <Text style={[styles.yearChipText, active && { color: c.bg, fontWeight: "800" }]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      )}
 
       <Text style={styles.sectionLabel}>📅 YAPIM YILI</Text>
       <View style={styles.wrapGrid}>

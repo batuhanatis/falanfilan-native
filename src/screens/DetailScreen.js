@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2, Play } from "lucide-react-native";
+import { ChevronLeft, ChevronUp, Film, Tv, Clock, Star, Heart, X, Bookmark, Send, Share2, Play } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -20,19 +20,16 @@ import { DetailExtraSkeleton, CommentsSkeleton } from "../components/skeletons/D
 const DETAIL_HINT_KEY = "pellix_detail_drag_hint_seen";
 
 const { height: SCREEN_H } = Dimensions.get("window");
-// Poster ARTIK sabit boyutta — sadece panel, TRANSFORM (translateY) ile üstüne kayıyor/açılıyor.
-// Bu, her karede pahalı bir "yeniden yerleşim" (layout) hesabı gerektiren height/top animasyonuna
-// göre çok daha hafif, bu yüzden takılma çok azalıyor.
-const POSTER_MAX_H = SCREEN_H - 240;   // poster'ın görünebileceği en büyük hâli (panel tam kapalıyken) — gradyan + başlık + IMDB puanı rahatça sığacak kadar pay bırakıyor
-const PANEL_TOP = SCREEN_H * 0.08;     // panelin çıkabileceği en yukarı nokta
-const DEFAULT_POSTER_H = SCREEN_H * 0.48; // ekran ilk açıldığındaki dinlenme konumu
+const POSTER_MAX_H = SCREEN_H - 240;
+const PANEL_TOP = SCREEN_H * 0.08;
+const DEFAULT_POSTER_H = SCREEN_H * 0.48;
 
-const TRAVEL = POSTER_MAX_H - PANEL_TOP; // panelin toplam kayma mesafesi
+const TRAVEL = POSTER_MAX_H - PANEL_TOP;
 const DEFAULT_TRANSLATE = POSTER_MAX_H - DEFAULT_POSTER_H;
-const SNAP_TRANSLATES = [0, DEFAULT_TRANSLATE, TRAVEL]; // en açık, varsayılan, en kapalı
-const POSTER_MIN_SCALE = 0.62; // panel en yukarı çekildiğinde posterin küçüleceği en düşük ölçek
-const FADE_H = 90; // panelin üstündeki saydamlaşan geçiş şeridinin yüksekliği
-const HANDLE_AREA_H = 100; // tutamaç + başlık + puan alanının kapladığı yaklaşık yükseklik
+const SNAP_TRANSLATES = [0, DEFAULT_TRANSLATE, TRAVEL];
+const POSTER_MIN_SCALE = 0.62;
+const FADE_H = 90;
+const HANDLE_AREA_H = 100;
 
 export default function DetailScreen({ route, navigation }) {
   const { movie } = route.params;
@@ -58,7 +55,6 @@ export default function DetailScreen({ route, navigation }) {
   const [socialStats, setSocialStats] = useState(null);
   const scrollRef = useRef(null);
 
-  // DT1 — Like butonuna basınca küçük bir kalp sıçraması.
   const likeScale = useRef(new Animated.Value(1)).current;
   function popLike() {
     Animated.sequence([
@@ -67,10 +63,8 @@ export default function DetailScreen({ route, navigation }) {
     ]).start();
   }
 
-  // DT2 — favori yıldızına basınca kısa bir parıltı sıçraması.
   const favScale = useRef(new Animated.Value(1)).current;
 
-  // DT4 — favori işaretlenince (sessizce de beğeni sayan bir birleşik aksiyon) kısa bir onay.
   const [favToast, setFavToast] = useState(false);
   const favToastOpacity = useRef(new Animated.Value(0)).current;
   function showFavToast() {
@@ -82,12 +76,16 @@ export default function DetailScreen({ route, navigation }) {
     ]).start(() => setFavToast(false));
   }
 
-  // DT3 — sürüklenebilir poster-panel mekaniği ilk kez görülüyorsa tutamacı bir kere
-  // hafifçe zıplatıp "buradan sürükleyebilirsin" ipucu veriyoruz; bir daha gösterilmiyor.
+  // Sadece tutamacı zıplatmak bazı kullanıcılar için yeterince açıklayıcı değildi. İlk kullanımda
+  // kısa bir metin de gösteriyoruz; hareket hâlâ ipucu veriyor ama kullanıcı ne yapacağını okumak
+  // zorunda kalmadan anlayabiliyor. Bir kez görüldükten sonra kalıcı olarak kayboluyor.
+  const [showDragHint, setShowDragHint] = useState(false);
   const handleBounce = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    let hideTimer;
     AsyncStorage.getItem(DETAIL_HINT_KEY).then((seen) => {
       if (seen) return;
+      setShowDragHint(true);
       Animated.sequence([
         Animated.delay(500),
         Animated.timing(handleBounce, { toValue: -10, duration: 260, useNativeDriver: true }),
@@ -96,13 +94,12 @@ export default function DetailScreen({ route, navigation }) {
         Animated.timing(handleBounce, { toValue: -6, duration: 220, useNativeDriver: true }),
         Animated.spring(handleBounce, { toValue: 0, useNativeDriver: true, bounciness: 18 }),
       ]).start();
+      hideTimer = setTimeout(() => setShowDragHint(false), 3200);
       AsyncStorage.setItem(DETAIL_HINT_KEY, "1").catch(() => {});
     }).catch(() => {});
+    return () => hideTimer && clearTimeout(hideTimer);
   }, []);
 
-  // Yorum kutusu panelin en altında olduğu için klavye açılınca gizleniyordu. Çözüm: klavyenin
-  // yüksekliğini takip edip hem panele o kadar EKSTRA boşluk bırakıyoruz (kutu gerçekten
-  // kaydırılıp görülebilsin diye) hem de yorum kutusuna dokununca paneli tam açıp en alta kaydırıyoruz.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -113,12 +110,10 @@ export default function DetailScreen({ route, navigation }) {
   }, []);
 
   function focusCommentInput() {
-    snapTo(0); // paneli tam aç — yorum kutusuna en fazla yer bu konumda ayrılıyor
+    snapTo(0);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
   }
 
-  // Panelin konumu — TEK bir transform (translateY) değeri, hem sürüklemede hem
-  // yapışma animasyonunda kullanılıyor.
   const translateY = useRef(new Animated.Value(DEFAULT_TRANSLATE)).current;
   const startValue = useRef(DEFAULT_TRANSLATE);
   const currentValue = useRef(DEFAULT_TRANSLATE);
@@ -145,8 +140,6 @@ export default function DetailScreen({ route, navigation }) {
         startValue.current = currentValue.current;
       },
       onPanResponderMove: (_, g) => {
-        // Yukarı çekmek (g.dy negatif) => translateY 0'a yaklaşır => panel yukarı çıkar, poster daha çok örtülür.
-        // Aşağı çekmek (g.dy pozitif) => translateY TRAVEL'e yaklaşır => panel aşağı iner, poster tamamen açılır.
         const next = startValue.current + g.dy;
         translateY.setValue(Math.min(TRAVEL, Math.max(0, next)));
       },
@@ -163,11 +156,6 @@ export default function DetailScreen({ route, navigation }) {
     })
   ).current;
 
-  // Poster, panel tamamen kapanınca (translateY=TRAVEL, poster tam açık) doğal boyutunda,
-  // panel yukarı çekilince (translateY=0) hafifçe küçülüyor. React Native scale'i MERKEZDEN
-  // uygular; posterin ÜSTTEN sabit kalması (yapışık durması) için küçülürken yukarı doğru
-  // NEGATİF bir telafi ofseti gerekiyor — önceki sürümde bu işaret yanlıştı, bu yüzden poster
-  // üstten kopup aşağı kayıyormuş gibi görünüyordu.
   const posterScale = translateY.interpolate({ inputRange: [0, TRAVEL], outputRange: [POSTER_MIN_SCALE, 1], extrapolate: "clamp" });
   const posterOffsetY = translateY.interpolate({
     inputRange: [0, TRAVEL],
@@ -175,13 +163,6 @@ export default function DetailScreen({ route, navigation }) {
     extrapolate: "clamp",
   });
 
-  // ÖNEMLİ DÜZELTME: panelin kendi iç yüksekliği hep SABİTTİ (SCREEN_H - PANEL_TOP), sadece
-  // transform ile kaydırılıyordu. Bu yüzden panel "orta" konumdayken, ekranda görünen kısmın
-  // ALTINDA KALAN içerik (yorumlar vs.) normal kaydırmayla asla erişilemiyordu — çünkü
-  // ScrollView'ın kendi görünür alanı hep panelin TAM AÇIK haliyle aynı boyuttaydı, panel o an
-  // ekranda ne kadar yer kaplıyorsa ona göre KÜÇÜLMÜYORDU. Şimdi kaydırılabilir alanın
-  // yüksekliğini translateY'e bağlı, gerçekten görünen panel yüksekliğine göre hesaplıyoruz —
-  // böylece panel büyütülmeden de altındaki içerik normal kaydırmayla görülebiliyor.
   const scrollAreaHeight = translateY.interpolate({
     inputRange: [0, TRAVEL],
     outputRange: [SCREEN_H - PANEL_TOP - FADE_H - HANDLE_AREA_H, SCREEN_H - PANEL_TOP - TRAVEL - FADE_H - HANDLE_AREA_H],
@@ -233,15 +214,12 @@ export default function DetailScreen({ route, navigation }) {
       await api.updateFavorite(auth.token, isFavorite ? { movie_id: null, type: movie.type } : { movie_id: movie.id });
       if (movie.type === "Film") setFavMovieId(isFavorite ? null : movie.id);
       else setFavShowId(isFavorite ? null : movie.id);
-      // Bir içeriği "favorim" olarak seçmek, onu zaten beğenmiş olman demek — otomatik like say.
       if (!isFavorite && !liked) {
         setLiked(true); setDisliked(false);
         setSocialStats((prev) => prev ? { ...prev, likes: Number(prev.likes || 0) + 1 } : prev);
         api.recordInteraction(auth.token, movie.id, "like").catch(() => {});
       }
       if (becomingFavorite) {
-        // DT2/DT4 — özel, tek kişilik bir slota bir şey atarken sadece renk değişmesin diye
-        // kısa bir parıltı sıçraması + "favorin oldu" onayı.
         hapticSuccess();
         Animated.sequence([
           Animated.spring(favScale, { toValue: 1.08, useNativeDriver: true, speed: 30, bounciness: 10 }),
@@ -257,16 +235,14 @@ export default function DetailScreen({ route, navigation }) {
     const text = comment.trim();
     if (!text) return;
     setComment("");
-    // İyimser ekleme: hemen ekranda göster.
     const tempId = `temp-${Date.now()}`;
     setComments((cs) => [...cs, { id: tempId, name: auth.name, avatar_url: null, body: text, created_at: new Date().toISOString() }]);
     try {
       await api.addComment(auth.token, movie.id, text);
-      // Geçici eşleştirme yerine listeyi doğrudan sunucudan tazeliyoruz — daha güvenilir.
       const fresh = await api.comments(auth.token, movie.id);
       setComments(fresh.results || []);
     } catch (e) {
-      setComments((cs) => cs.filter((c) => c.id !== tempId)); // başarısız olursa geri al
+      setComments((cs) => cs.filter((c) => c.id !== tempId));
       console.warn("Yorum eklenemedi:", e.message);
     }
   }
@@ -279,9 +255,6 @@ export default function DetailScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      {/* Poster: kabı sabit boyutta, ama içindeki görsel translateY'e bağlı hafif bir
-          scale ile büyüyüp küçülüyor — üstten sabit kalacak şekilde (transformOrigin
-          desteklenmediği için manuel telafi ediliyor). */}
       <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: POSTER_MAX_H, backgroundColor: c.bg, overflow: "hidden" }}>
         <Animated.View style={{ width: "100%", height: "100%", transform: [{ translateY: posterOffsetY }, { scale: posterScale }] }}>
           {movie.poster ? (
@@ -297,19 +270,12 @@ export default function DetailScreen({ route, navigation }) {
         <ChevronLeft size={18} color="#fff" />
       </TouchableOpacity>
 
-      {/* Panel: sabit boyutlu bir kutu (PANEL_TOP'tan ekranın altına kadar), sadece
-          transform: translateY ile kayıyor — bu, height/top animasyonuna göre çok daha hafif.
-          DIŞ kapsayıcı SAYDAM — böylece üstteki gradyan şeridi posteri gerçekten gösterebiliyor.
-          Katı (opak) arka plan sadece İÇ kapsayıcıda. */}
       <Animated.View
         style={{
           position: "absolute", left: 0, right: 0, top: PANEL_TOP, bottom: 0,
           transform: [{ translateY }],
         }}
       >
-        {/* Panelin TAM SINIRLARI İÇİNDE (negatif konum değil — önceki sürümde overflow:hidden
-            tarafından tamamen kesiliyordu). Saydamdan panelin arka plan rengine geçiyor,
-            altındaki poster gerçekten görünüyor. */}
         <LinearGradient
           colors={["rgba(0,0,0,0)", c.bg]}
           locations={[0, 1]}
@@ -322,6 +288,12 @@ export default function DetailScreen({ route, navigation }) {
             <Animated.View style={{ transform: [{ translateY: handleBounce }] }}>
               <View style={[styles.handle, { backgroundColor: c.dim }]} />
             </Animated.View>
+            {showDragHint && (
+              <Animated.View style={[styles.dragHint, { transform: [{ translateY: handleBounce }] }]} pointerEvents="none">
+                <ChevronUp size={12} color={c.accent} />
+                <Text style={styles.dragHintText}>Detaylar için yukarı çek</Text>
+              </Animated.View>
+            )}
             <View style={styles.peek}>
               <Text style={styles.title} numberOfLines={1}>{movie.title}</Text>
               <View style={styles.ratingRow}>
@@ -374,21 +346,16 @@ export default function DetailScreen({ route, navigation }) {
             <SocialProofRow stats={socialStats} />
           </View>
 
-          {/* Aksiyon butonları (like/dislike/paylaş/favorile) — eskiden oyuncular ve benzer
-              içeriklerin ALTINDA, yorumların hemen üstünde duruyordu; kullanıcı içeriği
-              beğenmek/kaydetmek için önce cast+benzer içerikleri geçmek zorunda kalıyordu.
-              Artık platform bilgisinin hemen altında, oyuncular/benzer içeriklerin hemen
-              üzerinde — ilk bakışta görülüyor. */}
           <View style={styles.actionsRow}>
             <TouchableOpacity style={[styles.actionMain, liked && { backgroundColor: c.accent2, borderColor: c.accent2 }]} onPress={like}>
               <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                 <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
               </Animated.View>
-              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Like</Text>
+              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Zevkime göre</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
               <X size={16} color={disliked ? "#fff" : c.text} />
-              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Dislike</Text>
+              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Bana göre değil</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
               <Bookmark size={16} color={c.text} />
@@ -406,8 +373,6 @@ export default function DetailScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* DT2 — favori tek kişilik, özel bir slot; artık diğer aksiyon kareleriyle aynı düz
-              ağırlıkta değil, aktifken altın bir gradyan + basınca kısa bir parıltı sıçraması var. */}
           <Animated.View style={{ transform: [{ scale: favScale }] }}>
             <TouchableOpacity onPress={toggleFavorite} disabled={favBusy} activeOpacity={0.85}>
               {isFavorite ? (
@@ -581,7 +546,13 @@ function makeStyles(c) {
     },
     sheetBg: { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 12 },
     handleWrap: { alignItems: "center", paddingTop: 10 },
-    handle: { width: 40, height: 5, borderRadius: 999, opacity: 0.5, marginBottom: 8 },
+    handle: { width: 40, height: 5, borderRadius: 999, opacity: 0.5, marginBottom: 6 },
+    dragHint: {
+      flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surface2,
+      borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4,
+      marginBottom: 5,
+    },
+    dragHintText: { fontSize: 9.5, fontWeight: "800", color: c.dim },
     peek: { paddingHorizontal: 18, paddingBottom: 14, width: "100%" },
     body: { paddingHorizontal: 18, paddingBottom: 30 },
     title: { fontSize: 22, fontWeight: "700", color: c.text },
@@ -609,14 +580,14 @@ function makeStyles(c) {
     castName: { fontSize: 10, fontWeight: "700", color: c.text, marginTop: 5, textAlign: "center" },
     castCharacter: { fontSize: 9, color: c.dim, marginTop: 1, textAlign: "center" },
     similarPoster: { width: 90, height: 132, borderRadius: 10, marginBottom: 5 },
-    actionsRow: { flexDirection: "row", gap: 10, marginTop: 18 },
+    actionsRow: { flexDirection: "row", gap: 8, marginTop: 18 },
     actionMain: {
-      flex: 1, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 12,
+      flex: 1, minHeight: 46, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 8,
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
     },
-    actionMainText: { fontWeight: "700", fontSize: 12, color: c.text },
+    actionMainText: { fontWeight: "700", fontSize: 11, color: c.text, textAlign: "center" },
     actionSquare: {
-      width: 48, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12,
+      width: 46, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 12,
       alignItems: "center", justifyContent: "center",
     },
     tastePostBtn: {
