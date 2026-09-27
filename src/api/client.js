@@ -251,7 +251,7 @@ export const api = {
   // "Sinemadayım" seçicisi — Türkiye'deki sinemalar (OpenStreetMap). Boş q en çok kullanılanları getirir.
   cinemas: (token, q = "") => request(`/api/cinemas?q=${encodeURIComponent(q)}`, { token }),
   socialStories: (token) => request("/api/social/stories", { token }),
-  socialCreateStory: (token, payload) => request("/api/social/stories", { method: "POST", token, body: payload }),
+  socialCreateStory: (token, payload) => request("/api/social/stories", { method: "POST", token, body: payload, timeoutMs: payload?.photo ? UPLOAD_TIMEOUT_MS : undefined }),
   socialDeleteStory: (token, id) => request(`/api/social/stories/${id}`, { method: "DELETE", token }),
   socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
   socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),

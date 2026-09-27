@@ -1,9 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Check, CheckCircle2, Search, Send, X } from "lucide-react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Camera, Check, CheckCircle2, ImagePlus, Search, Send, X } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import CinemaPicker from "./CinemaPicker";
+
+// Sunucudaki sınırla aynı (social-routes.js → CHECKIN_PHOTO_MAX_BYTES). İstemcide de kontrol
+// ediyoruz ki kullanıcı megabaytlarca veriyi yükleyip ancak sonunda "çok büyük" duymasın.
+const STORY_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 
 // SocialPostComposer'daki arama/eşleştirme mantığının küçültülmüş hali — burada tek bir
 // içerik seçiliyor, anket/öner modları yok. Story'ler ayrı bir tabloda (stories), post değil.
@@ -19,6 +25,9 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
   const [sending, setSending] = useState(false);
   const [posted, setPosted] = useState(false);
   const [error, setError] = useState("");
+  // "Sinemadayım": story'ye isteğe bağlı sinema + fotoğraf (eskiden sosyal akışta ayrı bir post modu idi).
+  const [cinema, setCinema] = useState(null);
+  const [photo, setPhoto] = useState(null);            // { uri, dataUri }
   const searchInputRef = useRef(null);
   const closeTimer = useRef(null);
 
@@ -31,6 +40,8 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
     setSending(false);
     setPosted(false);
     setError("");
+    setCinema(null);
+    setPhoto(null);
   }, [visible]);
 
   useEffect(() => () => clearTimeout(closeTimer.current), []);
@@ -83,12 +94,49 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [visible, movie, query, auth.token]);
 
+  // Kamera, sohbetteki fotoğraf çekme ile AYNI izin ve modülü kullanıyor — native bir değişiklik
+  // gerekmiyor. Kırpma yok: story tam ekran gösteriliyor, iOS'ta allowsEditing kare kırpmaya zorluyor.
+  async function pickPhoto(fromCamera = false) {
+    setError("");
+    try {
+      const perm = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError(fromCamera ? "Fotoğraf çekmek için kamera izni gerekiyor." : "Fotoğraf eklemek için galeri izni gerekiyor.");
+        return;
+      }
+      const options = { mediaTypes: ["images"], allowsEditing: false, quality: 0.4, base64: true };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.base64) { setError("Fotoğraf okunamadı."); return; }
+      const bytes = Math.floor((asset.base64.length * 3) / 4);
+      if (bytes > STORY_PHOTO_MAX_BYTES) { setError("Fotoğraf çok büyük (en fazla 4 MB)."); return; }
+      // Sohbet/profil fotoğraflarıyla aynı: picker sıkıştırırken JPEG'e çeviriyor (HEIC gelse bile),
+      // o yüzden asset.mimeType'a değil sadece PNG istisnasına bakıyoruz — HEIC etiketlenirse
+      // Android'de görüntülenemez.
+      const mime = asset.mimeType === "image/png" ? "image/png" : "image/jpeg";
+      setPhoto({ uri: asset.uri, dataUri: `data:${mime};base64,${asset.base64}` });
+    } catch (e) {
+      setError("Fotoğraf açılamadı: " + (e?.message || "bilinmeyen hata"));
+    }
+  }
+
   async function submit() {
     if (!movie || sending) return;
     setSending(true);
     setError("");
     try {
-      await api.socialCreateStory(auth.token, { movieId: movie.id, note: note.trim() });
+      await api.socialCreateStory(auth.token, {
+        movieId: movie.id,
+        note: note.trim(),
+        cinemaId: cinema?.id || undefined,
+        cinemaName: cinema && !cinema.id ? cinema.label : undefined,
+        photo: photo?.dataUri || undefined,
+      });
       onCreated?.();
       setSending(false);
       setPosted(true);
@@ -126,10 +174,16 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
           {sending && (
             <View style={styles.sendingOverlay} pointerEvents="auto">
               <ActivityIndicator size="large" color={c.accent} />
-              <Text style={styles.sendingText}>Paylaşılıyor…</Text>
+              <Text style={styles.sendingText}>{photo ? "Fotoğraf yükleniyor…" : "Paylaşılıyor…"}</Text>
             </View>
           )}
 
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
           {movie ? (
             <TouchableOpacity style={styles.selectedCard} onPress={() => { setMovie(null); requestAnimationFrame(() => searchInputRef.current?.focus()); }}>
               {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.selectedPoster} /> : <View style={[styles.selectedPoster, { backgroundColor: c.surface2 }]} />}
@@ -155,25 +209,51 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
                 />
                 {searching && <ActivityIndicator size="small" color={c.accent} />}
               </View>
+              {/* Sonuçlar artık açılır katman değil, akışın içinde: form bir ScrollView'da ve
+                  ScrollView taşan mutlak konumlu katmanı kırpıyor. */}
               {results.length > 0 && (
-                <FlatList
-                  data={results}
-                  keyExtractor={(item) => String(item.id)}
-                  style={styles.results}
-                  keyboardShouldPersistTaps="always"
-                  nestedScrollEnabled
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.resultRow} onPress={() => { setMovie(item); setQuery(""); setResults([]); }}>
+                <View style={styles.results}>
+                  {results.map((item) => (
+                    <TouchableOpacity key={item.id} style={styles.resultRow} onPress={() => { setMovie(item); setQuery(""); setResults([]); }}>
                       {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
                       <View style={{ flex: 1 }}>
                         <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
                         <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
                       </View>
                     </TouchableOpacity>
-                  )}
-                />
+                  ))}
+                </View>
               )}
             </View>
+          )}
+
+          {!!movie && (
+            <>
+              <Text style={styles.sectionLabel}>Sinemada mısın? (isteğe bağlı)</Text>
+              <CinemaPicker value={cinema} onChange={setCinema} />
+
+              <Text style={styles.sectionLabel}>Fotoğraf (isteğe bağlı)</Text>
+              {photo ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+                  <TouchableOpacity style={styles.photoRemove} onPress={() => setPhoto(null)} accessibilityLabel="Fotoğrafı kaldır">
+                    <X size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.photoButtons}>
+                  <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(true)} activeOpacity={0.85}>
+                    <Camera size={16} color={c.accent} />
+                    <Text style={styles.photoAddText}>Kamerayla çek</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(false)} activeOpacity={0.85}>
+                    <ImagePlus size={16} color={c.accent} />
+                    <Text style={styles.photoAddText}>Galeriden seç</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={{ height: 12 }} />
+            </>
           )}
 
           <TextInput
@@ -191,6 +271,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
             {sending ? <ActivityIndicator size="small" color={c.bg} /> : <Send size={15} color={c.bg} />}
             <Text style={styles.submitText}>Story olarak paylaş</Text>
           </TouchableOpacity>
+          </ScrollView>
         </View>
         )}
       </KeyboardAvoidingView>
@@ -201,7 +282,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
 function makeStyles(c) {
   return StyleSheet.create({
     backdrop: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: "rgba(0,0,0,0.7)" },
-    sheet: { width: "100%", maxWidth: 420, backgroundColor: c.bg, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: c.border, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16, position: "relative" },
+    sheet: { width: "100%", maxWidth: 420, maxHeight: "92%", backgroundColor: c.bg, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: c.border, shadowColor: "#000", shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 16, position: "relative" },
     sendingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: c.bg, opacity: 0.94, borderRadius: 24, alignItems: "center", justifyContent: "center", gap: 10, zIndex: 100, elevation: 100 },
     sendingText: { color: c.dim, fontSize: 12, fontWeight: "700" },
     postedWrap: { alignItems: "center", paddingVertical: 26, gap: 8 },
@@ -212,10 +293,11 @@ function makeStyles(c) {
     title: { color: c.text, fontWeight: "900", fontSize: 18 },
     subtitle: { color: c.dim, fontSize: 11, marginTop: 2 },
     closeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    searchArea: { position: "relative", zIndex: 40, elevation: 40, marginBottom: 10 },
+    scroll: { flexGrow: 0 },
+    searchArea: { marginBottom: 10 },
     searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 11, minHeight: 42 },
     searchInput: { flex: 1, color: c.text, fontSize: 12.5 },
-    results: { position: "absolute", top: 48, left: 0, right: 0, maxHeight: 260, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface, zIndex: 50, elevation: 50, shadowColor: "#000", shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+    results: { marginTop: 7, borderWidth: 1, borderColor: c.border, borderRadius: 13, backgroundColor: c.surface, overflow: "hidden" },
     resultRow: { flexDirection: "row", alignItems: "center", gap: 9, padding: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
     resultPoster: { width: 36, height: 53, borderRadius: 6 },
     resultTitle: { color: c.text, fontWeight: "800", fontSize: 12 },
@@ -226,6 +308,13 @@ function makeStyles(c) {
     selectedMeta: { color: c.dim, fontSize: 10, marginTop: 2 },
     noteInput: { minHeight: 42, color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 12, fontSize: 12.5, marginBottom: 12 },
     error: { color: c.danger, fontSize: 11, marginBottom: 8 },
+    sectionLabel: { color: c.dim, fontSize: 10.5, fontWeight: "800", marginTop: 4, marginBottom: 6 },
+    photoButtons: { flexDirection: "row", gap: 8 },
+    photoAdd: { flex: 1, minHeight: 44, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    photoAddText: { color: c.accent, fontSize: 12, fontWeight: "800" },
+    photoPreviewWrap: { alignSelf: "flex-start" },
+    photoPreview: { width: 96, height: 170, borderRadius: 12, backgroundColor: c.surface2 },
+    photoRemove: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center" },
     submit: { minHeight: 44, borderRadius: 13, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     submitText: { color: c.bg, fontWeight: "900", fontSize: 13 },
   });

@@ -328,6 +328,11 @@ function ChatMessageRow({
                     storyMovie?.imdb > 0 ? `★ ${Number(storyMovie.imdb).toFixed(1)}` : null,
                   ].filter(Boolean).join(" · ")}
                 </Text>
+                {!!storyReplyShared.cinema?.name && (
+                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
+                    📍 {storyReplyShared.cinema.name}
+                  </Text>
+                )}
               </>
             ) : (
               <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>

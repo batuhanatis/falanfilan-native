@@ -6,7 +6,7 @@ import {
 import { GestureHandlerRootView, PanGestureHandler, State } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, ChevronDown, Eye, Info, Send, Trash2, X } from "lucide-react-native";
+import { Check, ChevronDown, Eye, Info, MapPin, Send, Trash2, X } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -253,6 +253,11 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
         {!!story.movie?.poster && (
           <Image source={{ uri: story.movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={3} />
         )}
+        {/* Fotoğraflı story (sinemadan): fotoğraf tam ekran, bulanık afişin üstünde — fotoğraf
+            yüklenene kadar arkada afiş görünüyor, siyah ekran kalmıyor. */}
+        {!!story.photoUrl && (
+          <Image key={story.photoUrl} source={{ uri: story.photoUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+        )}
         <LinearGradient
           colors={["rgba(0,0,0,0.8)", "transparent", "rgba(0,0,0,0.88)"]}
           locations={[0, 0.35, 1]}
@@ -260,10 +265,18 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
         />
 
         <View style={styles.center} pointerEvents="box-none">
-          {!!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
+          {!story.photoUrl && !!story.movie?.poster && <Image source={{ uri: story.movie.poster }} style={styles.poster} resizeMode="contain" />}
         </View>
 
         <View style={[styles.bottom, styles.bottomWithReply]} pointerEvents="box-none">
+          {!!story.cinema?.name && (
+            <View style={styles.cinemaPill}>
+              <MapPin size={13} color="#fff" />
+              <Text style={styles.cinemaPillText} numberOfLines={1}>
+                {story.cinema.name}{story.cinema.place ? ` · ${story.cinema.place}` : ""}
+              </Text>
+            </View>
+          )}
           {!!story.note && <Text style={styles.note}>{story.note}</Text>}
           {!!story.movie && (
             <TouchableOpacity style={styles.detailBtn} onPress={openDetail}>
@@ -432,6 +445,8 @@ function makeStyles(c, insets) {
     bottomWithReply: { bottom: insets.bottom + 78 },
     note: { color: "#fff", fontSize: 13.5, fontWeight: "600", textAlign: "center", marginBottom: 10, lineHeight: 19 },
     detailBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, maxWidth: "90%" },
+    cinemaPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 10, maxWidth: "92%" },
+    cinemaPillText: { color: "#fff", fontWeight: "800", fontSize: 12, flexShrink: 1 },
     detailText: { color: c.bg, fontWeight: "800", fontSize: 12.5 },
     replyBarWrap: { position: "absolute", left: 14, right: 14, bottom: insets.bottom + 12 },
     replyBar: { flexDirection: "row", alignItems: "flex-end", gap: 8, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", borderRadius: 22, paddingLeft: 15, paddingRight: 5, paddingVertical: 5 },
