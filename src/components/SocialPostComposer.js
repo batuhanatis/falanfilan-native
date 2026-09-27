@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, Search, Send, Sparkles, Swords, X } from "lucide-react-native";
+import { Check, ImagePlus, Lock, MapPin, Search, Send, Sparkles, Swords, Ticket, X } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -10,7 +11,12 @@ const MODES = [
   ["thought", "Bir şey söyle"],
   ["recommend", "Öner"],
   ["poll", "Anket"],
+  ["checkin", "Sinemadayım"],
 ];
+
+// Sunucudaki sınırla aynı (social-routes.js → CHECKIN_PHOTO_MAX_BYTES). İstemcide de kontrol
+// ediyoruz ki kullanıcı megabaytlarca veriyi yükleyip ancak sonunda "çok büyük" duymasın.
+const CHECKIN_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 
 export default function SocialPostComposer({ visible, initialMovie = null, initialType = null, initialContext = null, presentation = "sheet", onClose, onCreated }) {
   const { c } = useAppTheme();
@@ -29,6 +35,12 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const searchInputRef = useRef(null);
+  // "Sinemadayım"
+  const [cinema, setCinema] = useState(null);          // { id, label, place } ya da elle yazılan { id: null, label }
+  const [cinemaQuery, setCinemaQuery] = useState("");
+  const [cinemaResults, setCinemaResults] = useState([]);
+  const [cinemaSearching, setCinemaSearching] = useState(false);
+  const [photo, setPhoto] = useState(null);            // { uri, dataUri }
   const island = presentation === "island";
 
   useEffect(() => {
@@ -43,10 +55,60 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     setQuery("");
     setResults([]);
     setError("");
+    setCinema(null);
+    setCinemaQuery("");
+    setCinemaResults([]);
+    setPhoto(null);
   }, [visible, initialMovie?.id, initialType, initialContext]);
 
+  // Sinema araması. Kutu boşken de istek atıyoruz: sunucu boş sorguda en çok check-in alan
+  // salonları döndürüyor, kullanıcı yazmadan tanıdık bir salon görebilsin.
   useEffect(() => {
-    if (!visible || mode === "thought" || query.trim().length < 2) {
+    if (!visible || mode !== "checkin" || cinema) {
+      setCinemaSearching(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setCinemaSearching(true);
+      try {
+        const data = await api.cinemas(auth.token, cinemaQuery.trim());
+        if (!cancelled) setCinemaResults(data.results || []);
+      } catch {
+        if (!cancelled) setCinemaResults([]);
+      }
+      if (!cancelled) setCinemaSearching(false);
+    }, cinemaQuery.trim() ? 250 : 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [visible, mode, cinema, cinemaQuery, auth.token]);
+
+  async function pickPhoto() {
+    setError("");
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { setError("Fotoğraf eklemek için galeri izni gerekiyor."); return; }
+      // Sohbet fotoğraflarıyla aynı sıkıştırma; kırpma 4:5'e zorluyor ki akışta her kart aynı oranda dursun.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 5],
+        quality: 0.5,
+        base64: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.base64) { setError("Fotoğraf okunamadı."); return; }
+      const bytes = Math.floor((asset.base64.length * 3) / 4);
+      if (bytes > CHECKIN_PHOTO_MAX_BYTES) { setError("Fotoğraf çok büyük (en fazla 4 MB)."); return; }
+      const mime = asset.mimeType && asset.mimeType.startsWith("image/") ? asset.mimeType : "image/jpeg";
+      setPhoto({ uri: asset.uri, dataUri: `data:${mime};base64,${asset.base64}` });
+    } catch (e) {
+      setError("Fotoğraf açılamadı: " + (e?.message || "bilinmeyen hata"));
+    }
+  }
+
+  useEffect(() => {
+    if (!visible || mode === "thought" || (mode === "checkin" && !cinema) || query.trim().length < 2) {
       setResults([]);
       setSearching(false);
       return;
@@ -85,10 +147,10 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
       if (!cancelled) setSearching(false);
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [visible, mode, query, auth.token]);
+  }, [visible, mode, cinema, query, auth.token]);
 
   function choose(item) {
-    if (mode === "recommend") {
+    if (mode === "recommend" || mode === "checkin") {
       setMovie(item);
       setQuery("");
       setResults([]);
@@ -108,6 +170,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
 
   const canSend = mode === "thought" ? !!body.trim()
     : mode === "recommend" ? !!movie
+    : mode === "checkin" ? !!cinema
     : !!pollA && !!pollB && Number(pollA.id) !== Number(pollB.id);
 
   async function submit() {
@@ -122,9 +185,16 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
       await api.socialCreatePost(auth.token, {
         type: mode,
         body: outgoingBody,
-        movieId: mode === "recommend" ? movie?.id : undefined,
+        movieId: mode === "recommend" || mode === "checkin" ? movie?.id : undefined,
         pollMovieAId: mode === "poll" ? pollA?.id : undefined,
         pollMovieBId: mode === "poll" ? pollB?.id : undefined,
+        ...(mode === "checkin"
+          ? {
+              cinemaId: cinema?.id || undefined,
+              cinemaName: cinema?.id ? undefined : cinema?.label,
+              photo: photo?.dataUri || undefined,
+            }
+          : {}),
       });
       onCreated?.();
       onClose?.();
@@ -147,7 +217,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
       setQuery("");
       setResults([]);
       setSelecting(slot);
-      if (mode === "recommend") setMovie(null);
+      if (mode === "recommend" || mode === "checkin") setMovie(null);
       else if (slot === "a") setPollA(null);
       else setPollB(null);
       requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -187,14 +257,68 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
             </View>
 
-            <View style={styles.modeRow}>
+            {/* Dört mod küçük ekranlarda tek satıra sığmıyor; yatay kaydırılabilir satır. */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modeRow} style={styles.modeScroll} keyboardShouldPersistTaps="handled">
               {MODES.map(([id, label]) => (
                 <TouchableOpacity key={id} style={[styles.modeChip, mode === id && styles.modeChipActive]} onPress={() => { setMode(id); setError(""); }}>
-                  {id === "recommend" ? <Sparkles size={12} color={mode === id ? c.bg : c.dim} /> : id === "poll" ? <Swords size={12} color={mode === id ? c.bg : c.dim} /> : null}
+                  {id === "recommend" ? <Sparkles size={12} color={mode === id ? c.bg : c.dim} />
+                    : id === "poll" ? <Swords size={12} color={mode === id ? c.bg : c.dim} />
+                    : id === "checkin" ? <Ticket size={12} color={mode === id ? c.bg : c.dim} />
+                    : null}
                   <Text style={[styles.modeText, mode === id && styles.modeTextActive]}>{label}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
+
+            {mode === "checkin" && (
+              cinema ? (
+                <TouchableOpacity style={styles.cinemaSelected} onPress={() => { setCinema(null); setCinemaQuery(""); }} activeOpacity={0.85}>
+                  <View style={styles.cinemaIcon}><MapPin size={16} color={c.bg} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.cinemaName} numberOfLines={2}>{cinema.label}</Text>
+                    <Text style={styles.cinemaPlace} numberOfLines={1}>{cinema.place || "Elle eklendi"}</Text>
+                  </View>
+                  <Text style={styles.cinemaChange}>Değiştir</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.searchArea}>
+                  <View style={styles.searchWrap}>
+                    <MapPin size={15} color={c.accent} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Hangi sinemadasın?"
+                      placeholderTextColor={c.dim}
+                      value={cinemaQuery}
+                      onChangeText={setCinemaQuery}
+                      autoCorrect={false}
+                    />
+                    {cinemaSearching && <ActivityIndicator size="small" color={c.accent} />}
+                  </View>
+                  {(cinemaResults.length > 0 || cinemaQuery.trim().length >= 2) && (
+                    <View style={styles.results}>
+                      {cinemaResults.slice(0, 8).map((item) => (
+                        <TouchableOpacity key={item.id} style={styles.resultRow} onPress={() => { setCinema(item); setCinemaResults([]); }}>
+                          <MapPin size={15} color={c.dim} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.resultTitle} numberOfLines={1}>{item.label}</Text>
+                            {!!item.place && <Text style={styles.resultMeta}>{item.place}</Text>}
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                      {/* Listede olmayan salon: yazılan adla devam. */}
+                      {cinemaQuery.trim().length >= 2 && (
+                        <TouchableOpacity style={styles.resultRow} onPress={() => { setCinema({ id: null, label: cinemaQuery.trim().slice(0, 80), place: null }); setCinemaResults([]); }}>
+                          <View style={styles.customPlus}><Text style={styles.customPlusText}>+</Text></View>
+                          <Text style={[styles.resultTitle, { flex: 1 }]} numberOfLines={1}>“{cinemaQuery.trim()}” olarak ekle</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  {/* ODbL atıf zorunluluğu: sinema listesi OpenStreetMap'ten. */}
+                  <Text style={styles.attribution}>Sinema listesi © OpenStreetMap katkıcıları</Text>
+                </View>
+              )
+            )}
 
             {!!initialContext && (
               <View style={styles.contextCard}>
@@ -206,7 +330,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
 
             <TextInput
               style={styles.bodyInput}
-              placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
+              placeholder={mode === "checkin" ? "Nasıl geçiyor? (isteğe bağlı)…" : mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
               placeholderTextColor={c.dim}
               value={body}
               onChangeText={setBody}
@@ -214,7 +338,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
               maxLength={800}
             />
 
-            {mode === "recommend" && movie && selectedCard(movie, "a")}
+            {(mode === "recommend" || mode === "checkin") && movie && selectedCard(movie, "a")}
             {mode === "poll" && (
               <View style={styles.pollSelectedRow}>
                 <View style={{ flex: 1 }}>{selectedCard(pollA, "a")}</View>
@@ -223,14 +347,14 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
               </View>
             )}
 
-            {mode !== "thought" && ((mode === "recommend" && !movie) || mode === "poll") && (
+            {mode !== "thought" && ((mode === "recommend" && !movie) || mode === "poll" || (mode === "checkin" && !!cinema && !movie)) && (
               <View style={styles.searchArea}>
                 <View style={styles.searchWrap}>
                   <Search size={15} color={c.dim} />
                   <TextInput
                     ref={searchInputRef}
                     style={styles.searchInput}
-                    placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
+                    placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : mode === "checkin" ? "Ne izliyorsun? (isteğe bağlı)" : "Film veya dizi ara…"}
                     placeholderTextColor={c.dim}
                     value={query}
                     onChangeText={setQuery}
@@ -252,6 +376,29 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                     ))}
                   </View>
                 )}
+              </View>
+            )}
+
+            {mode === "checkin" && !!cinema && (
+              photo ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+                  <TouchableOpacity style={styles.photoRemove} onPress={() => setPhoto(null)} accessibilityLabel="Fotoğrafı kaldır">
+                    <X size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto} activeOpacity={0.85}>
+                  <ImagePlus size={16} color={c.accent} />
+                  <Text style={styles.photoAddText}>Fotoğraf ekle (isteğe bağlı)</Text>
+                </TouchableOpacity>
+              )
+            )}
+
+            {mode === "checkin" && (
+              <View style={styles.privacyNote}>
+                <Lock size={11} color={c.dim} />
+                <Text style={styles.privacyText}>Yalnızca arkadaşların görür. Konumun paylaşılmaz, sadece sinemanın adı.</Text>
               </View>
             )}
 
@@ -286,8 +433,9 @@ function makeStyles(c, insets) {
     title: { color: c.text, fontWeight: "900", fontSize: 18 },
     subtitle: { color: c.dim, fontSize: 11, marginTop: 2 },
     closeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    modeRow: { flexDirection: "row", gap: 7, marginBottom: 12 },
-    modeChip: { flex: 1, minHeight: 36, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+    modeScroll: { marginBottom: 12, flexGrow: 0 },
+    modeRow: { flexDirection: "row", gap: 7 },
+    modeChip: { minHeight: 36, paddingHorizontal: 13, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
     modeChipActive: { backgroundColor: c.accent, borderColor: c.accent },
     modeText: { color: c.dim, fontSize: 11, fontWeight: "800" },
     modeTextActive: { color: c.bg },
@@ -313,6 +461,21 @@ function makeStyles(c, insets) {
     pollSelectedRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 2 },
     vs: { color: c.accent, fontWeight: "900", fontSize: 10 },
     error: { color: c.danger, fontSize: 11, marginTop: 8 },
+    cinemaSelected: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: c.accent, borderRadius: 14, backgroundColor: c.surface2, padding: 10, marginBottom: 10 },
+    cinemaIcon: { width: 32, height: 32, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
+    cinemaName: { color: c.text, fontSize: 13, fontWeight: "900" },
+    cinemaPlace: { color: c.dim, fontSize: 10.5, marginTop: 2 },
+    cinemaChange: { color: c.accent, fontSize: 11, fontWeight: "800" },
+    customPlus: { width: 20, height: 20, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
+    customPlusText: { color: c.accent, fontWeight: "900", fontSize: 13, lineHeight: 16 },
+    attribution: { color: c.dim, fontSize: 9, marginTop: 6, marginBottom: 8, opacity: 0.8 },
+    photoAdd: { marginTop: 10, minHeight: 44, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    photoAddText: { color: c.accent, fontSize: 12, fontWeight: "800" },
+    photoPreviewWrap: { marginTop: 10, alignSelf: "flex-start" },
+    photoPreview: { width: 120, height: 150, borderRadius: 12, backgroundColor: c.surface2 },
+    photoRemove: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center" },
+    privacyNote: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
+    privacyText: { flex: 1, color: c.dim, fontSize: 10.5, lineHeight: 14 },
     submit: { marginTop: 12, minHeight: 44, borderRadius: 13, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     submitText: { color: c.bg, fontWeight: "900", fontSize: 13 },
   });

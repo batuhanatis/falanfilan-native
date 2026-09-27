@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { MessageCircle, MoreHorizontal, Send, Sparkles, Star } from "lucide-react-native";
+import { MapPin, MessageCircle, MoreHorizontal, Send, Sparkles, Star, Ticket } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -49,6 +49,7 @@ function activityMood(item) {
 function postLabel(type, cardPayload) {
   if (type === "recommend") return "öneriyor";
   if (type === "poll") return "soruyor";
+  if (type === "checkin") return "sinemada";
   if (type === "card" && cardPayload?.kind === "diary_rating") return "puanını paylaştı";
   if (type === "card") return "bir kart paylaştı";
   return "paylaştı";
@@ -289,7 +290,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
   // Ana kartın "yıldızı" bir poster olduğunda (aktivitede beğendi/favori, ya da bir öneri
   // postunda) kişi bilgisini ve menüyü AYRI bir başlık satırında değil, doğrudan posterin
   // içinde (sol üst kişi, sağ üst menü) gösteriyoruz — bkz. tasarım incelemesi.
-  const isHeroMovie = !!primaryMovie && !(state.kind === "post" && post?.type === "poll");
+  const isCheckin = state.kind === "post" && post?.type === "checkin" && !!post?.checkin;
+  const isHeroMovie = !!primaryMovie && !isCheckin && !(state.kind === "post" && post?.type === "poll");
   const reactionTargetId = state.kind === "post" ? post?.id : state.activityId;
   const myReaction = post?.myReaction ?? state.myReaction;
   const reactionCounts = post?.reactionCounts || state.reactionCounts || {};
@@ -353,7 +355,37 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
       {!isHeroMovie && post?.type !== "poll" && !!body && <Text style={styles.body}>{body}</Text>}
 
-      {state.kind === "post" && post?.type === "card" && post.cardPayload ? (
+      {isCheckin ? (
+        <View style={styles.checkinWrap}>
+          {!!post.checkin.photoUrl && (
+            <RetryImage source={{ uri: post.checkin.photoUrl }} style={styles.checkinPhoto} resizeMode="cover" />
+          )}
+          {/* Bilet koçanı: solda sinema, kesik çizginin sağında (varsa) izlenen film. */}
+          <View style={styles.ticket}>
+            <View style={styles.ticketMain}>
+              <View style={styles.ticketEyebrowRow}>
+                <Ticket size={11} color={c.accent} />
+                <Text style={styles.ticketEyebrow}>SİNEMADA</Text>
+              </View>
+              <Text style={styles.ticketCinema} numberOfLines={2}>{post.checkin.name}</Text>
+              {!!post.checkin.place && (
+                <View style={styles.ticketPlaceRow}>
+                  <MapPin size={10} color={c.dim} />
+                  <Text style={styles.ticketPlace} numberOfLines={1}>{post.checkin.place}</Text>
+                </View>
+              )}
+            </View>
+            {!!primaryMovie && (
+              <TouchableOpacity style={styles.ticketStub} onPress={() => openMovie(primaryMovie)} activeOpacity={0.85}>
+                {primaryMovie.poster
+                  ? <Image source={{ uri: primaryMovie.poster }} style={styles.ticketPoster} />
+                  : <View style={[styles.ticketPoster, { backgroundColor: c.surface2 }]} />}
+                <Text style={styles.ticketMovie} numberOfLines={2}>{primaryMovie.title}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ) : state.kind === "post" && post?.type === "card" && post.cardPayload ? (
         <SocialSharedCard payload={post.cardPayload} navigation={navigation} currentUserId={auth.id} />
       ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
         <>
@@ -554,6 +586,19 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
 function makeStyles(c) {
   return StyleSheet.create({
+    checkinWrap: { marginTop: 4, gap: 8 },
+    checkinPhoto: { width: "100%", aspectRatio: 4 / 5, borderRadius: 14, backgroundColor: c.surface2 },
+    ticket: { flexDirection: "row", borderWidth: 1, borderColor: c.border, borderRadius: 14, backgroundColor: c.surface2, overflow: "hidden" },
+    ticketMain: { flex: 1, padding: 12, minWidth: 0 },
+    ticketEyebrowRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+    ticketEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.8 },
+    ticketCinema: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 5, lineHeight: 18 },
+    ticketPlaceRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+    ticketPlace: { color: c.dim, fontSize: 10.5, flex: 1 },
+    // Kesik çizgili sol kenar: biletin yırtılan koçanı.
+    ticketStub: { width: 86, padding: 10, alignItems: "center", borderLeftWidth: 1.5, borderStyle: "dashed", borderLeftColor: c.border },
+    ticketPoster: { width: 44, height: 64, borderRadius: 6 },
+    ticketMovie: { color: c.text, fontSize: 9.5, fontWeight: "800", textAlign: "center", marginTop: 5 },
     card: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, borderRadius: 16, padding: 14, marginBottom: 12, overflow: "hidden" },
     activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
     activityRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },

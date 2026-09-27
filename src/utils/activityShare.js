@@ -5,6 +5,7 @@ function activityText(item) {
   if (item?.kind === "post") {
     if (item?.post?.type === "recommend") return `${userName} bir içerik önerdi`;
     if (item?.post?.type === "poll") return `${userName} bir anket paylaştı`;
+    if (item?.post?.type === "checkin") return `${userName} sinemada${item?.post?.checkin?.name ? `: ${item.post.checkin.name}` : ""}`;
     if (item?.post?.type === "card") return `${userName} bir kart paylaştı`;
     return `${userName} bir paylaşım yaptı`;
   }

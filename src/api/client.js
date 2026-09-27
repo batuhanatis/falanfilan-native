@@ -242,7 +242,11 @@ export const api = {
   markFeedSeen: (token, ids) => request("/api/social/feed/seen", { method: "POST", token, body: { ids } }),
   socialPostById: (token, id) => request(`/api/social/posts/${id}`, { token }),
   socialActivityById: (token, id) => request(`/api/social/activities/${id}`, { token }),
-  socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload }),
+  // Fotoğraflı check-in megabaytlarca veri taşıyabiliyor; zayıf bağlantıda 20 sn'lik varsayılan
+  // zaman aşımına takılmasın diye sohbet fotoğraflarıyla aynı yükleme süresini kullanıyoruz.
+  socialCreatePost: (token, payload) => request("/api/social/posts", { method: "POST", token, body: payload, timeoutMs: payload?.photo ? UPLOAD_TIMEOUT_MS : undefined }),
+  // "Sinemadayım" seçicisi — Türkiye'deki sinemalar (OpenStreetMap). Boş q en çok kullanılanları getirir.
+  cinemas: (token, q = "") => request(`/api/cinemas?q=${encodeURIComponent(q)}`, { token }),
   socialStories: (token) => request("/api/social/stories", { token }),
   socialCreateStory: (token, payload) => request("/api/social/stories", { method: "POST", token, body: payload }),
   socialDeleteStory: (token, id) => request(`/api/social/stories/${id}`, { method: "DELETE", token }),
