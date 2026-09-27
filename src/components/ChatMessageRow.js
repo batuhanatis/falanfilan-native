@@ -75,7 +75,7 @@ function renderLeftActions(dragX, c, styles) {
 function ChatMessageRow({
   id, body, isMine, myId, createdAt, editedAt, deletedForEveryone, status, reactionsKey, showSeenTick,
   replyToId, replySnippet, rowSpacing, isSelected, isHighlighted, selectionMode,
-  friendId, friendAvatar, storyActive, c, styles, actions,
+  friendId, friendAvatar, storyActive, storyPhotoUrl, c, styles, actions,
 }) {
   const isFailed = status === "failed";
   const isSending = status === "sending";
@@ -302,11 +302,16 @@ function ChatMessageRow({
               onPress={() => (selectionMode ? actions.toggleSelected(id) : storyMovie ? actions.navigateDetail(storyMovie) : null)}
               onLongPress={handleLongPress}
             >
-              {storyMovie?.poster ? (
+              {/* Kartta story'nin küçültülmüş hali: fotoğraflı story'de fotoğrafın kendisi (sunucu
+                  story aktifken storyPhotoUrl'yi canlı ekliyor), film afişi DEĞİL. Afiş yalnızca
+                  fotoğrafsız eski film story'lerinde — o story'nin görseli zaten afişti. */}
+              {storyPhotoUrl ? (
+                <Image source={{ uri: storyPhotoUrl }} style={styles.storyReplyThumb} resizeMode="cover" />
+              ) : !storyReplyShared.photo && storyMovie?.poster ? (
                 <Image source={{ uri: storyMovie.poster }} style={styles.activitySharePoster} />
               ) : (
-                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
-                  {storyMovie ? <Film size={22} color="#fff" /> : <Camera size={22} color="#fff" />}
+                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.storyReplyThumb, { alignItems: "center", justifyContent: "center" }]}>
+                  <Camera size={22} color="#fff" />
                 </LinearGradient>
               )}
             </TouchableOpacity>
