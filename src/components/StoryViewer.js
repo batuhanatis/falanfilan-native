@@ -262,11 +262,11 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
               { transform: [{ translateY: dragY }, { scale: cardScale }] },
             ]}
           >
-        {!!story.movie?.poster && (
+        {/* Afiş yalnızca eski, fotoğrafsız film story'lerinde görünüyor. Fotoğraflı story'de film
+            seçilmiş olsa bile görseli YOK (fotoğraf öne çıksın) — sadece altta detay düğmesi. */}
+        {!story.photoUrl && !!story.movie?.poster && (
           <Image source={{ uri: story.movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={3} />
         )}
-        {/* Fotoğraflı story (sinemadan): fotoğraf tam ekran, bulanık afişin üstünde — fotoğraf
-            yüklenene kadar arkada afiş görünüyor, siyah ekran kalmıyor. */}
         {!!story.photoUrl && (
           <Image
             key={story.photoUrl}
