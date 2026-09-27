@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, ImagePlus, Lock, MapPin, Search, Send, Sparkles, Swords, Ticket, X } from "lucide-react-native";
+import { Camera, Check, ImagePlus, Lock, MapPin, Search, Send, Sparkles, Swords, Ticket, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -82,19 +82,30 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
     return () => { cancelled = true; clearTimeout(timer); };
   }, [visible, mode, cinema, cinemaQuery, auth.token]);
 
-  async function pickPhoto() {
+  // Kamera, sohbetteki fotoğraf çekme ile AYNI izin ve modülü kullanıyor — native bir değişiklik
+  // gerekmiyor. Not: iOS'un ilk seferde gösterdiği izin metni hâlâ "filmi bulabilmen için" diyor;
+  // app.json'daki metin parmak izine dahil olduğu için bir sonraki build'de genelleştirilecek.
+  async function pickPhoto(fromCamera = false) {
     setError("");
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { setError("Fotoğraf eklemek için galeri izni gerekiyor."); return; }
+      const perm = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError(fromCamera ? "Fotoğraf çekmek için kamera izni gerekiyor." : "Fotoğraf eklemek için galeri izni gerekiyor.");
+        return;
+      }
       // Sohbet fotoğraflarıyla aynı sıkıştırma; kırpma 4:5'e zorluyor ki akışta her kart aynı oranda dursun.
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const options = {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.5,
         base64: true,
-      });
+      };
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled) return;
       const asset = result.assets?.[0];
       if (!asset?.base64) { setError("Fotoğraf okunamadı."); return; }
@@ -403,10 +414,19 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto} activeOpacity={0.85}>
-                  <ImagePlus size={16} color={c.accent} />
-                  <Text style={styles.photoAddText}>Fotoğraf ekle (isteğe bağlı)</Text>
-                </TouchableOpacity>
+                <View>
+                  <Text style={styles.photoLabel}>Fotoğraf ekle (isteğe bağlı)</Text>
+                  <View style={styles.photoButtons}>
+                    <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(true)} activeOpacity={0.85}>
+                      <Camera size={16} color={c.accent} />
+                      <Text style={styles.photoAddText}>Kamerayla çek</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(false)} activeOpacity={0.85}>
+                      <ImagePlus size={16} color={c.accent} />
+                      <Text style={styles.photoAddText}>Galeriden seç</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )
             )}
 
@@ -488,7 +508,9 @@ function makeStyles(c, insets) {
     customCinemaBtn: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 9, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, borderRadius: 13, paddingVertical: 9, paddingHorizontal: 11 },
     customCinemaTitle: { color: c.accent, fontSize: 12, fontWeight: "800" },
     customCinemaSub: { color: c.dim, fontSize: 10.5, marginTop: 1 },
-    photoAdd: { marginTop: 10, minHeight: 44, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    photoLabel: { color: c.dim, fontSize: 10.5, fontWeight: "700", marginTop: 12, marginBottom: 6 },
+    photoButtons: { flexDirection: "row", gap: 8 },
+    photoAdd: { flex: 1, minHeight: 44, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     photoAddText: { color: c.accent, fontSize: 12, fontWeight: "800" },
     photoPreviewWrap: { marginTop: 10, alignSelf: "flex-start" },
     photoPreview: { width: 120, height: 150, borderRadius: 12, backgroundColor: c.surface2 },
