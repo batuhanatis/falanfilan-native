@@ -38,6 +38,7 @@ async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_
     const err = new Error(data.error || "Bir şeyler ters gitti.");
     if (data.limitReached) err.limitReached = true;
     err.status = res.status;
+    err.code = data.code;
     throw err;
   }
   return data;
@@ -166,6 +167,8 @@ export const api = {
   movieById: (token, id) => request(`/api/movies/${id}`, { token }),
   search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
   describe: (token, query) => request("/api/describe", { method: "POST", token, body: { query } }),
+  tonightOptions: (token) => request("/api/tonight/options", { token }),
+  tonightPlan: (token, payload) => request("/api/tonight/plan", { method: "POST", token, body: payload, timeoutMs: 45000 }),
   aiTaste: (token, payload) => request("/api/ai-taste", { method: "POST", token, body: payload }),
   identifyPhoto: (token, imageBase64) => request("/api/identify-photo", { method: "POST", token, body: { image: imageBase64 }, timeoutMs: UPLOAD_TIMEOUT_MS }),
   recordInteraction: (token, movieId, action) => request("/api/interactions", { method: "POST", token, body: { movie_id: movieId, action } }),

@@ -10,6 +10,7 @@ import { getCurrentOffering, purchasePackage, restorePurchases, hasActivePremium
 // PM1 — üç fayda artık salt limit kaldırmakla sınırlı değil, profilde görünen bir KİMLİK de
 // içeriyor (altın çerçeve — bkz. ProfileScreen/OtherProfileScreen avatarPremiumRing).
 const BENEFITS = [
+  { icon: Sparkles, text: "Bu Akşamı Planla: platformlarına ve ortak zevkinize göre öneri" },
   { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Zevkine Göre Öner, Fotoğraftan Bul)" },
   { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
   { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
@@ -20,6 +21,7 @@ const BENEFITS = [
 // PM2 — ücretsiz/premium farkı artık iki ayrı kartı zihinde karşılaştırmaya bırakılmıyor, tek
 // bir tabloda yan yana.
 const COMPARISON_ROWS = [
+  { label: "Bu Akşamı Planla", free: false, premium: true },
   { label: "AI önerisi (günlük)", free: "Sınırlı", premium: "Sınırsız" },
   { label: "TasteMate kaydırma", free: "Sınırlı", premium: "Sınırsız" },
   { label: "Profil çerçevesi", free: false, premium: true },
@@ -30,6 +32,7 @@ const COMPARISON_ROWS = [
 // PM4 — kullanıcı buraya BOŞ yere değil, bir limite takıldığı için geldiyse, bunu bağlama
 // duyarlı bir başlıkla karşılıyoruz.
 const REASON_COPY = {
+  tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak zevkinize göre bir ana öneri ve iki alternatif bulalım." },
   ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Zevkine Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
   tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp zevk uyumu yüksek kişileri keşfetmeye devam et." },
 };

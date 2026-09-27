@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, LayoutAnimation, Platform, UIManager } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Sparkles, ChevronDown, MessageSquareText, Wand2, Image as ImageIcon } from "lucide-react-native";
+import { Moon, Sparkles, ChevronDown, MessageSquareText, Wand2, Image as ImageIcon } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import DescribeModal from "./DescribeModal";
 import TasteRecommendModal from "./TasteRecommendModal";
@@ -72,6 +72,14 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
 
       {aiOpen && (
         <View style={styles.aiPanel}>
+          <TouchableOpacity style={styles.aiRow} onPress={() => navigation.navigate("TonightPlanner")} activeOpacity={0.78} accessibilityRole="button">
+            <View style={[styles.aiRowIcon, { backgroundColor: c.surface2 }]}><Moon size={18} color={c.accent} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.aiRowTitle}>Bu Akşamı Planla · Premium</Text>
+              <Text style={styles.aiRowSubtitle}>Platformlarına ve ortak zevkinize göre akşamın seçimi</Text>
+            </View>
+            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.aiRow} onPress={() => setDescribeModalOpen(true)} activeOpacity={0.78}>
             <View style={[styles.aiRowIcon, { backgroundColor: "rgba(109,40,217,0.15)" }]}>
               <MessageSquareText size={16} color="#8B5CF6" />

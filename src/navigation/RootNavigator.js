@@ -11,6 +11,7 @@ import SettingsScreen from "../screens/SettingsScreen";
 import BlockedUsersScreen from "../screens/BlockedUsersScreen";
 import BlendScreen from "../screens/BlendScreen";
 import BlendLeaderboardScreen from "../screens/BlendLeaderboardScreen";
+import TonightPlannerScreen from "../screens/TonightPlannerScreen";
 import PremiumScreen from "../screens/PremiumScreen";
 import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import PellixPlayScreen from "../screens/PellixPlayScreen";
@@ -76,6 +77,7 @@ export default function RootNavigator() {
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Blend" component={BlendScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="BlendLeaderboard" component={BlendLeaderboardScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="TonightPlanner" component={TonightPlannerScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Premium" component={PremiumScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="WeeklyQuests" component={WeeklyQuestsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
