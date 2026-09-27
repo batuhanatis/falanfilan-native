@@ -4,7 +4,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Star, Film, ListVideo, BarChart2, Crown, Check, CalendarClock, Clock, AlertCircle,
-  RotateCcw, X, Eye, EyeOff, Reply, Sparkles, MessageCircle,
+  RotateCcw, X, Eye, EyeOff, Reply, Sparkles, MessageCircle, Camera,
 } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 import { platformLogo } from "../utils/platform";
@@ -299,14 +299,14 @@ function ChatMessageRow({
           {storyActive ? (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => (selectionMode ? actions.toggleSelected(id) : actions.navigateDetail(storyMovie))}
+              onPress={() => (selectionMode ? actions.toggleSelected(id) : storyMovie ? actions.navigateDetail(storyMovie) : null)}
               onLongPress={handleLongPress}
             >
               {storyMovie?.poster ? (
                 <Image source={{ uri: storyMovie.poster }} style={styles.activitySharePoster} />
               ) : (
                 <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
-                  <Film size={22} color="#fff" />
+                  {storyMovie ? <Film size={22} color="#fff" /> : <Camera size={22} color="#fff" />}
                 </LinearGradient>
               )}
             </TouchableOpacity>
@@ -319,15 +319,17 @@ function ChatMessageRow({
             {storyActive ? (
               <>
                 <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                  {storyMovie?.title || "İçerik"}
+                  {storyMovie?.title || (storyReplyShared.cinema?.name ? "Sinemada" : "Fotoğraf story'si")}
                 </Text>
-                <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                  {[
-                    storyMovie?.type === "tv" ? "Dizi" : "Film",
-                    storyMovie?.genre,
-                    storyMovie?.imdb > 0 ? `★ ${Number(storyMovie.imdb).toFixed(1)}` : null,
-                  ].filter(Boolean).join(" · ")}
-                </Text>
+                {!!storyMovie && (
+                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                    {[
+                      storyMovie.type === "tv" ? "Dizi" : "Film",
+                      storyMovie.genre,
+                      storyMovie.imdb > 0 ? `★ ${Number(storyMovie.imdb).toFixed(1)}` : null,
+                    ].filter(Boolean).join(" · ")}
+                  </Text>
+                )}
                 {!!storyReplyShared.cinema?.name && (
                   <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
                     📍 {storyReplyShared.cinema.name}

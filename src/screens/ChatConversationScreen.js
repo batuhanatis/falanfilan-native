@@ -70,7 +70,7 @@ function messageSnippet(msg) {
   const plan = decodePlan(msg.body);
   if (plan) return `📅 ${formatPlanTime(plan.scheduledAt)}`;
   const storyReply = decodeStoryReply(msg.body);
-  if (storyReply) return `💬 ${storyReply.movie?.title || "Story"}`;
+  if (storyReply) return `💬 ${storyReply.movie?.title || storyReply.cinema?.name || "Story"}`;
   return msg.body;
 }
 

@@ -63,6 +63,17 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
 
   const group = groups[groupIndex];
   const story = group?.stories?.[storyIndex];
+  // Fotoğraflı story'de süre, fotoğraf ekrana gelince başlıyor — yavaş bağlantıda 5 saniye
+  // fotoğraf yüklenmeden bitip story boş ekranla geçmesin diye.
+  const [photoLoadedFor, setPhotoLoadedFor] = useState(null);
+  const waitingPhoto = !!story?.photoUrl && photoLoadedFor !== story.id;
+
+  // Sıradaki story'nin fotoğrafını önceden indir, geçişte beklemesin.
+  useEffect(() => {
+    const next = group?.stories?.[storyIndex + 1] || groups[groupIndex + 1]?.stories?.[0];
+    if (next?.photoUrl) Image.prefetch(next.photoUrl).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupIndex, storyIndex]);
 
   function advance(dir) {
     if (!group) return;
@@ -92,11 +103,12 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
       api.markFeedSeen(auth.token, [story.id]).catch(() => seenSent.current.delete(story.id));
     }
     progress.setValue(0);
+    if (waitingPhoto) return;
     animRef.current = Animated.timing(progress, { toValue: 1, duration: DURATION, useNativeDriver: false });
     animRef.current.start(({ finished }) => { if (finished) advance(1); });
     return () => animRef.current?.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupIndex, storyIndex, paused]);
+  }, [groupIndex, storyIndex, paused, waitingPhoto]);
 
   useEffect(() => () => clearTimeout(sentTimer.current), []);
 
@@ -256,7 +268,19 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
         {/* Fotoğraflı story (sinemadan): fotoğraf tam ekran, bulanık afişin üstünde — fotoğraf
             yüklenene kadar arkada afiş görünüyor, siyah ekran kalmıyor. */}
         {!!story.photoUrl && (
-          <Image key={story.photoUrl} source={{ uri: story.photoUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+          <Image
+            key={story.photoUrl}
+            source={{ uri: story.photoUrl }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+            onLoad={() => setPhotoLoadedFor(story.id)}
+            onError={() => setPhotoLoadedFor(story.id)}
+          />
+        )}
+        {waitingPhoto && (
+          <View style={[StyleSheet.absoluteFillObject, { alignItems: "center", justifyContent: "center" }]} pointerEvents="none">
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
         )}
         <LinearGradient
           colors={["rgba(0,0,0,0.8)", "transparent", "rgba(0,0,0,0.88)"]}
