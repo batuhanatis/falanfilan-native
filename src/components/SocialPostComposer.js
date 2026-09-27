@@ -294,7 +294,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                     />
                     {cinemaSearching && <ActivityIndicator size="small" color={c.accent} />}
                   </View>
-                  {(cinemaResults.length > 0 || cinemaQuery.trim().length >= 2) && (
+                  {cinemaResults.length > 0 && (
                     <View style={styles.results}>
                       {cinemaResults.slice(0, 8).map((item) => (
                         <TouchableOpacity key={item.id} style={styles.resultRow} onPress={() => { setCinema(item); setCinemaResults([]); }}>
@@ -305,14 +305,29 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                           </View>
                         </TouchableOpacity>
                       ))}
-                      {/* Listede olmayan salon: yazılan adla devam. */}
-                      {cinemaQuery.trim().length >= 2 && (
-                        <TouchableOpacity style={styles.resultRow} onPress={() => { setCinema({ id: null, label: cinemaQuery.trim().slice(0, 80), place: null }); setCinemaResults([]); }}>
-                          <View style={styles.customPlus}><Text style={styles.customPlusText}>+</Text></View>
-                          <Text style={[styles.resultTitle, { flex: 1 }]} numberOfLines={1}>“{cinemaQuery.trim()}” olarak ekle</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
+                  )}
+                  {/* Listede olmayan salon. ÖNEMLİ: bu seçenek eskiden sonuç listesinin İÇİNDE, sonuçlarla
+                      aynı görünümde duruyordu ve bir liste kaydı sanılıyordu ("CKM listede var ama öyle bir
+                      sinema yok"). Artık listenin dışında, kesik çizgili ayrı bir düğme; aramada sonuç
+                      çıkmadığında da bunu açıkça söylüyor. */}
+                  {cinemaQuery.trim().length >= 2 && !cinemaSearching && (
+                    <>
+                      {cinemaResults.length === 0 && (
+                        <Text style={styles.noCinemaText}>“{cinemaQuery.trim()}” listede bulunamadı.</Text>
+                      )}
+                      <TouchableOpacity
+                        style={styles.customCinemaBtn}
+                        onPress={() => { setCinema({ id: null, label: cinemaQuery.trim().slice(0, 80), place: null }); setCinemaResults([]); }}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.customPlus}><Text style={styles.customPlusText}>+</Text></View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.customCinemaTitle}>Listede yok mu? Elle ekle</Text>
+                          <Text style={styles.customCinemaSub} numberOfLines={1}>“{cinemaQuery.trim()}” adıyla paylaşılır</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </>
                   )}
                   {/* ODbL atıf zorunluluğu: sinema listesi OpenStreetMap'ten. */}
                   <Text style={styles.attribution}>Sinema listesi © OpenStreetMap katkıcıları</Text>
@@ -469,6 +484,10 @@ function makeStyles(c, insets) {
     customPlus: { width: 20, height: 20, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     customPlusText: { color: c.accent, fontWeight: "900", fontSize: 13, lineHeight: 16 },
     attribution: { color: c.dim, fontSize: 9, marginTop: 6, marginBottom: 8, opacity: 0.8 },
+    noCinemaText: { color: c.dim, fontSize: 11, marginTop: 8 },
+    customCinemaBtn: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 9, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, borderRadius: 13, paddingVertical: 9, paddingHorizontal: 11 },
+    customCinemaTitle: { color: c.accent, fontSize: 12, fontWeight: "800" },
+    customCinemaSub: { color: c.dim, fontSize: 10.5, marginTop: 1 },
     photoAdd: { marginTop: 10, minHeight: 44, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", borderColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     photoAddText: { color: c.accent, fontSize: 12, fontWeight: "800" },
     photoPreviewWrap: { marginTop: 10, alignSelf: "flex-start" },
