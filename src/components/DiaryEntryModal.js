@@ -12,13 +12,14 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, Trash2, X, Star, CalendarDays, BookOpen, ChevronRight, Share2 } from "lucide-react-native";
+import { Check, Trash2, X, CalendarDays, BookOpen, ChevronRight, Share2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { diaryApi } from "../api/diary";
 import { api } from "../api/client";
 import { hapticSuccess } from "../utils/haptics";
 import RatingShareCard from "./RatingShareCard";
+import RatingStars from "./RatingStars";
 
 export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved, onOpenDiary }) {
   const { c } = useAppTheme();
@@ -194,18 +195,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
 
               <Text style={styles.label}>PUANIN</Text>
               <Text style={styles.helper}>İstersen boş bırakabilirsin. Pellix puanın 10 üzerinden.</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ratingRow} keyboardShouldPersistTaps="handled">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => (
-                  <TouchableOpacity
-                    key={value}
-                    style={[styles.ratingChip, rating === value && styles.ratingChipActive]}
-                    onPress={() => setRating((current) => current === value ? null : value)}
-                  >
-                    <Star size={11} color={rating === value ? "#14121a" : c.accent} fill={rating === value ? "#14121a" : "none"} />
-                    <Text style={[styles.ratingText, rating === value && styles.ratingTextActive]}>{value}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RatingStars value={rating} onChange={setRating} allowClear />
 
               <Text style={styles.label}>KISA NOT</Text>
               <TextInput
@@ -279,11 +269,6 @@ function makeStyles(c, insets) {
     closeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     label: { color: c.text, fontSize: 10, fontWeight: "900", letterSpacing: 0.7, marginTop: 20 },
     helper: { color: c.dim, fontSize: 10.5, marginTop: 3 },
-    ratingRow: { gap: 7, paddingTop: 10, paddingBottom: 3 },
-    ratingChip: { minWidth: 44, height: 36, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
-    ratingChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-    ratingText: { color: c.text, fontSize: 11.5, fontWeight: "800" },
-    ratingTextActive: { color: "#14121a" },
     noteInput: { minHeight: 104, marginTop: 9, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2, padding: 12, color: c.text, fontSize: 12.5, lineHeight: 18 },
     charCount: { color: c.dim, fontSize: 9.5, alignSelf: "flex-end", marginTop: 4 },
     error: { color: c.danger, fontSize: 11, marginTop: 8, textAlign: "center" },

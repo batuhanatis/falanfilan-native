@@ -10,6 +10,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
 import SocialSharedCard from "./SocialSharedCard";
+import RatingStars from "./RatingStars";
 import { reportSocialContent } from "../utils/socialReporting";
 import SendToFriendModal from "./SendToFriendModal";
 
@@ -494,21 +495,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             </TouchableOpacity>
           </View>
           {viewerDiaryLoaded ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.inlineRatingRow}>
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
-                const selected = Number(viewerDiaryEntry?.rating) === value;
-                return (
-                  <TouchableOpacity
-                    key={value}
-                    style={[styles.inlineRatingChip, selected && styles.inlineRatingChipActive]}
-                    onPress={() => rateFromFeed(value)}
-                    disabled={ratingSaving}
-                  >
-                    <Text style={[styles.inlineRatingText, selected && styles.inlineRatingTextActive]}>{value}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <RatingStars compact value={viewerDiaryEntry?.rating} onChange={rateFromFeed} disabled={ratingSaving} />
           ) : (
             <View style={styles.inlineRatingLoading}><ActivityIndicator size="small" color={c.dim} /></View>
           )}
@@ -693,11 +680,6 @@ function makeStyles(c) {
     watchedMiniDone: { backgroundColor: "rgba(111,196,179,0.08)", borderColor: "rgba(111,196,179,0.28)" },
     watchedMiniText: { color: c.text, fontSize: 9.5, fontWeight: "800" },
     watchedMiniTextDone: { color: c.accent2 || c.accent },
-    inlineRatingRow: { gap: 6, paddingTop: 10, paddingBottom: 2 },
-    inlineRatingChip: { width: 32, height: 32, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    inlineRatingChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-    inlineRatingText: { color: c.text, fontSize: 10.5, fontWeight: "900" },
-    inlineRatingTextActive: { color: c.bg },
     inlineRatingLoading: { height: 42, alignItems: "center", justifyContent: "center" },
     opinionPrompt: { marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
     opinionQuestion: { color: c.dim, fontSize: 9.5, fontWeight: "800", marginBottom: 8 },
