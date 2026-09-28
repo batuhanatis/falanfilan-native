@@ -28,8 +28,6 @@ import {
   Users,
   Shuffle,
   Timer,
-  Trophy,
-  Puzzle,
   ChevronRight,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -87,16 +85,6 @@ function runtimeMinutes(runtime) {
   return null;
 }
 
-function questSummary(data) {
-  const quests = data?.quests || [];
-  const complete = quests.filter((q) => q.completed).length;
-  return {
-    complete,
-    total: quests.length,
-    percent: quests.length ? Math.round((complete / quests.length) * 100) : 0,
-  };
-}
-
 export default function HomeScreenV2({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -147,7 +135,6 @@ export default function HomeScreenV2({ navigation }) {
   const [popularNow, setPopularNow] = useState([]);
   const [spotlight, setSpotlight] = useState({ upcoming: [] });
   const [notifySubs, setNotifySubs] = useState(new Set());
-  const [questData, setQuestData] = useState(null);
   const [diaryStats, setDiaryStats] = useState(null);
 
   const [describeResults, setDescribeResults] = useState(null);
@@ -270,7 +257,6 @@ export default function HomeScreenV2({ navigation }) {
     api.notifySubscriptions(auth.token)
       .then((data) => setNotifySubs(new Set(data.movieIds || [])))
       .catch(() => {});
-    api.quests(auth.token).then(setQuestData).catch(() => setQuestData(null));
     diaryApi.stats(auth.token).then(setDiaryStats).catch(() => setDiaryStats(null));
     loadTrending();
   }, [auth.token, loadTrending]);
@@ -314,7 +300,6 @@ export default function HomeScreenV2({ navigation }) {
 
   useEffect(() => {
     const unsub = navigation.addListener("focus", () => {
-      api.quests(auth.token).then(setQuestData).catch(() => {});
       loadWatchedIds();
       setHeroDayKey(localDayKey());
     });
@@ -791,8 +776,6 @@ export default function HomeScreenV2({ navigation }) {
     );
   }
 
-  const q = questSummary(questData);
-
   const forYouHeader = (
     <View>
       <View style={styles.searchBlock}>
@@ -972,42 +955,6 @@ export default function HomeScreenV2({ navigation }) {
             <ChevronRight size={17} color={c.dim} />
           </TouchableOpacity>
         )}
-
-        <View style={styles.todayHeaderRow}>
-          <View>
-            <Text style={styles.sectionEyebrow}>BUGÜN PELLIX'TE</Text>
-            <Text style={styles.sectionTitle}>Kısa bir şey yap, geri dönmek için sebebin olsun</Text>
-          </View>
-        </View>
-
-        <View style={styles.todayRow}>
-          <TouchableOpacity style={styles.todayCard} activeOpacity={0.86} onPress={() => navigation.navigate("DailyPosterPuzzle")}>
-            <View style={[styles.todayIcon, { backgroundColor: "rgba(124,58,237,0.16)" }]}>
-              <Puzzle size={18} color="#8B5CF6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.todayKicker}>GÜNÜN OYUNU</Text>
-              <Text style={styles.todayTitle}>Poster Puzzle</Text>
-              <Text style={styles.todaySub}>1 dakikalık günlük tahmin</Text>
-            </View>
-            <ChevronRight size={16} color={c.dim} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.todayCard} activeOpacity={0.86} onPress={() => navigation.navigate("WeeklyQuests")}>
-            <View style={[styles.todayIcon, { backgroundColor: "rgba(201,164,76,0.16)" }]}>
-              <Trophy size={18} color={c.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.todayKicker}>HAFTALIK HEDEF</Text>
-              <Text style={styles.todayTitle}>{q.total ? `${q.complete}/${q.total} tamamlandı` : "Görevlerini gör"}</Text>
-              <View style={styles.questTrack}>
-                <View style={[styles.questFill, { width: `${q.percent}%` }]} />
-              </View>
-            </View>
-            <ChevronRight size={16} color={c.dim} />
-          </TouchableOpacity>
-        </View>
-
 
         <View style={styles.popularNowSection}>
           <PopularNowRow items={visiblePopularNow} onPress={(movie) => navigation.navigate("Detail", { movie })} />
@@ -1270,18 +1217,9 @@ function makeStyles(c) {
     ratingNudgeEyebrow: { color: "#FFD76A", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.65 },
     ratingNudgeTitle: { color: c.text, fontSize: 12.5, fontWeight: "850", marginTop: 2 },
     ratingNudgeText: { color: c.dim, fontSize: 10, lineHeight: 14, marginTop: 2 },
-    todayHeaderRow: { marginTop: 22, marginBottom: 10 },
     sectionEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.9 },
     sectionTitle: { color: c.text, fontSize: 14, fontWeight: "800", marginTop: 3 },
-    todayRow: { gap: 8 },
     popularNowSection: { marginTop: 22 },
-    todayCard: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 11 },
-    todayIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    todayKicker: { color: c.dim, fontSize: 8.5, fontWeight: "900", letterSpacing: 0.7 },
-    todayTitle: { color: c.text, fontSize: 12.5, fontWeight: "800", marginTop: 2 },
-    todaySub: { color: c.dim, fontSize: 10, marginTop: 2 },
-    questTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 6, overflow: "hidden" },
-    questFill: { height: 4, borderRadius: 999, backgroundColor: c.accent },
 
     searchBlock: { marginTop: 14, marginBottom: 10 },
     searchRow: { flexDirection: "row", gap: 8 },

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
+import { ChevronRight, Flame, PartyPopper, Plus, Puzzle, Sparkles, Trophy, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -142,6 +142,19 @@ export default function ActivityScreen({ navigation }) {
   const [blendPickerNudge, setBlendPickerNudge] = useState(null);
   const [stories, setStories] = useState({ myStories: [], friends: [] });
   const [myAvatar, setMyAvatar] = useState(null);
+  // Haftalık görevler ve Pellix Play ana sayfadan buraya taşındı (ana sayfa kalabalık olmasın);
+  // günün sorusu gibi akışın aralarına kart olarak giriyorlar.
+  const [questData, setQuestData] = useState(null);
+
+  const refreshQuests = useCallback(() => {
+    api.quests(auth.token).then(setQuestData).catch(() => {});
+  }, [auth.token]);
+
+  // Görevler, kullanıcı başka ekranlarda bir şey yaptıkça ilerliyor — sekmeye her dönüşte tazele.
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", refreshQuests);
+    return unsub;
+  }, [navigation, refreshQuests]);
 
   const refreshStories = useCallback(async () => {
     try {
@@ -153,12 +166,14 @@ export default function ActivityScreen({ navigation }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const fallbackQuestion = getDailyQuestion();
-    const [feedResult, questionResult, storiesResult, meResult] = await Promise.allSettled([
+    const [feedResult, questionResult, storiesResult, meResult, questsResult] = await Promise.allSettled([
       api.socialFeed(auth.token),
       api.dailyQuestion(localDateKey()),
       api.socialStories(auth.token),
       api.me(auth.token),
+      api.quests(auth.token),
     ]);
+    if (questsResult.status === "fulfilled") setQuestData(questsResult.value);
     if (feedResult.status === "fulfilled") setFeed(groupActivities(expandActivityItems(feedResult.value.results)));
     else setFeed([]);
     setDailyQuestion(
@@ -196,7 +211,7 @@ export default function ActivityScreen({ navigation }) {
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     for (const v of viewableItems) {
       const it = v.item;
-      if (!it || ["nudge", "daily-question", "feature-shortcuts"].includes(it.kind)) continue;
+      if (!it || ["nudge", "daily-question", "feature-shortcuts", "play-card", "quests-card"].includes(it.kind)) continue;
       if (it.kind === "activity-group") {
         it.items.forEach((sub) => { if (sub.feedKey) seenPending.current.add(sub.feedKey); });
       } else {
@@ -242,8 +257,50 @@ export default function ActivityScreen({ navigation }) {
     if (!feed.length) return [];
     const result = [...feed];
     result.splice(Math.min(2, result.length), 0, { kind: "daily-question", id: "daily-question", feedKey: "daily-question" });
+    // Pellix Play ve haftalık görevler daha aşağıda, arkadaş içeriğinin arasına serpiştirilmiş.
+    // Akış kısaysa sona ekleniyorlar ki hiç görünmemezlik olmasın.
+    result.splice(Math.min(6, result.length), 0, { kind: "play-card", id: "play-card", feedKey: "play-card" });
+    result.splice(Math.min(11, result.length), 0, { kind: "quests-card", id: "quests-card", feedKey: "quests-card" });
     return result;
   }, [feed, dailyQuestion]);
+
+  function renderPlayCard() {
+    return (
+      <View style={styles.playCard}>
+        <TouchableOpacity style={styles.playMain} onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86}>
+          <View style={styles.playIcon}><Puzzle size={18} color="#8B5CF6" /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.playEyebrow}>PELLIX PLAY · GÜNÜN OYUNU</Text>
+            <Text style={styles.playTitle}>Poster Puzzle</Text>
+            <Text style={styles.playSub}>1 dakikalık günlük tahmin</Text>
+          </View>
+          <ChevronRight size={16} color={c.dim} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.playMore} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.8}>
+          <Text style={styles.playMoreText}>Tüm oyunlar →</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderQuestsCard() {
+    const quests = questData?.quests || [];
+    const done = quests.filter((q) => q.completed).length;
+    const percent = quests.length ? Math.round((done / quests.length) * 100) : 0;
+    return (
+      <TouchableOpacity style={styles.questsCard} onPress={() => navigation.navigate("WeeklyQuests")} activeOpacity={0.86}>
+        <View style={styles.questsIcon}><Trophy size={18} color={c.accent} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.questsEyebrow}>HAFTALIK GÖREVLER</Text>
+          <Text style={styles.questsTitle}>{quests.length ? `${done}/${quests.length} tamamlandı` : "Görevlerini gör"}</Text>
+          {quests.length > 0 && (
+            <View style={styles.questsTrack}><View style={[styles.questsFill, { width: `${percent}%` }]} /></View>
+          )}
+          <Text style={styles.questsCta}>Görevlerine göz at →</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   function renderDailyQuestionCard() {
     return (
@@ -321,6 +378,8 @@ export default function ActivityScreen({ navigation }) {
           viewabilityConfig={viewabilityConfig}
           renderItem={({ item }) => {
             if (item.kind === "daily-question") return renderDailyQuestionCard();
+            if (item.kind === "play-card") return renderPlayCard();
+            if (item.kind === "quests-card") return renderQuestsCard();
             if (item.kind === "feature-shortcuts") return renderFeatureShortcuts();
             if (item.kind === "nudge") {
               return (
@@ -340,6 +399,8 @@ export default function ActivityScreen({ navigation }) {
           ListEmptyComponent={
             <View>
               {renderDailyQuestionCard()}
+              {renderPlayCard()}
+              {renderQuestsCard()}
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
                 <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
@@ -400,6 +461,21 @@ function makeStyles(c) {
     dailyEyebrow: { color: "#F97316", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
     dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "800", lineHeight: 18, marginTop: 3 },
     dailyCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
+    playCard: { backgroundColor: "rgba(139,92,246,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.32)", borderRadius: 16, marginTop: 7, marginBottom: 14, overflow: "hidden" },
+    playMain: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, paddingBottom: 8 },
+    playIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(139,92,246,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.3)", alignItems: "center", justifyContent: "center" },
+    playEyebrow: { color: "#8B5CF6", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+    playTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
+    playSub: { color: c.dim, fontSize: 11, marginTop: 2 },
+    playMore: { paddingHorizontal: 13, paddingBottom: 12, paddingLeft: 60 },
+    playMoreText: { color: c.accent, fontSize: 11, fontWeight: "800" },
+    questsCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(201,164,76,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.32)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
+    questsIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(201,164,76,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.3)", alignItems: "center", justifyContent: "center" },
+    questsEyebrow: { color: c.accent, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+    questsTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
+    questsTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 7, overflow: "hidden" },
+    questsFill: { height: 4, borderRadius: 999, backgroundColor: c.accent },
+    questsCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
     feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 10 },
     feedTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
     emptyCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },
