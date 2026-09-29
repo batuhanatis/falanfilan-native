@@ -3,7 +3,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Heart, X, Star, ListVideo, Send } from "lucide-react-native";
+import { Heart, X, Star, ListVideo, Send, Gamepad2 } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
@@ -18,6 +19,13 @@ import Confetti from "../components/Confetti";
 import SocialProofRow from "../components/SocialProofRow";
 
 const STOCK_TARGET = 10;
+
+// DailyPosterPuzzleScreen'deki sonuç anahtarıyla AYNI — bugünün bulmacası çözüldü mü?
+function todaysPuzzleResultKey() {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `pellix_daily_poster_result_v2_${date}`;
+}
 const TASTE_MILESTONE = 5;
 
 export default function DiscoverScreen({ navigation }) {
@@ -51,6 +59,16 @@ export default function DiscoverScreen({ navigation }) {
   const votedIdsPromiseRef = useRef(null);
   const watchedIdsPromiseRef = useRef(null);
   const watchedIdsRef = useRef(new Set());
+  // Pellix Play'in sabit girişi (sağ üst). Bugünün Poster Puzzle'ı henüz çözülmediyse üzerinde
+  // bir nokta yanıyor — ana sayfadan kaldırılınca oyunların görünür bir girişi kalmamıştı.
+  const [puzzlePending, setPuzzlePending] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    AsyncStorage.getItem(todaysPuzzleResultKey())
+      .then((v) => { if (active) setPuzzlePending(!v); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []));
 
   function getVotedIds() {
     if (!votedIdsPromiseRef.current) {
@@ -381,7 +399,7 @@ export default function DiscoverScreen({ navigation }) {
       )}
 
       <View style={styles.topBar}>
-        <View style={{ width: 38 }} />
+        <View style={{ width: 42 }} />
         <View style={styles.pillWrap}>
           <View style={styles.pillRow}>
             {[["All", "Tümü"], ["Movie", "Film"], ["TV Shows", "Dizi"]].map(([id, label]) => (
@@ -395,7 +413,19 @@ export default function DiscoverScreen({ navigation }) {
             ))}
           </View>
         </View>
-        <View style={{ width: 38 }} />
+        <TouchableOpacity
+          style={styles.playBtnWrap}
+          onPress={() => navigation.navigate("PellixPlay")}
+          activeOpacity={0.85}
+          accessibilityLabel="Pellix Play oyunları"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <LinearGradient colors={["#8B5CF6", "#6D28D9"]} style={styles.playBtn}>
+            <Gamepad2 size={18} color="#fff" />
+          </LinearGradient>
+          {puzzlePending && <View style={styles.playDot} />}
+          <Text style={styles.playLabel}>Oyunlar</Text>
+        </TouchableOpacity>
       </View>
 
       {stockReady && current && (
@@ -458,6 +488,10 @@ function makeStyles(c, insets) {
     platformFallbackText: { fontSize: 9, color: "#fff" },
     topBar: { position: "absolute", top: topInset, left: 14, right: 14, flexDirection: "row", alignItems: "center" },
     pillWrap: { flex: 1, alignItems: "center" },
+    playBtnWrap: { width: 46, alignItems: "center", marginRight: -4 },
+    playBtn: { width: 38, height: 38, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
+    playDot: { position: "absolute", top: 0, right: 3, width: 10, height: 10, borderRadius: 999, backgroundColor: "#F97316", borderWidth: 1.5, borderColor: "#14121a" },
+    playLabel: { color: "#fff", fontSize: 9, fontWeight: "800", marginTop: 3, textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 3 },
     pillRow: {
       flexDirection: "row", gap: 3,
       backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999, padding: 3,
