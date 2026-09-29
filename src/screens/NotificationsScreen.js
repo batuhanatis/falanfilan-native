@@ -26,8 +26,13 @@ function notificationText(n) {
     case "party_declined": return `${p.by?.name} MatchParty davetini reddetti`;
     case "party_match": return `MatchParty'de bir eşleşme buldun: ${p.movie?.title} 🎉`;
     case "party_link_joined": return `${p.by?.name || "Biri"} paylaştığın Party linkine katıldı 🎬`;
-    case "referral_completed": return "Davet tamamlandı — 5 ekstra AI önerisi hakkı kazandın 🎁";
-    case "referral_bonus_received": return "Hoş geldin bonusu — 3 ekstra AI önerisi hakkı kazandın 🎁";
+    // Eski bildirimlerde (ödül AI hakkıyken) payload.days yok — onlar eski metinle kalıyor.
+    case "referral_completed": return p?.days
+      ? `${p?.with?.name || "Davet ettiğin arkadaşın"} Pellix'e katıldı — ${p.days} gün Premium kazandın 🎁`
+      : "Davet tamamlandı — 5 ekstra AI önerisi hakkı kazandın 🎁";
+    case "referral_bonus_received": return p?.days
+      ? `Hoş geldin hediyesi — ${p.days} gün Premium hesabına tanımlandı 🎁`
+      : "Hoş geldin bonusu — 3 ekstra AI önerisi hakkı kazandın 🎁";
     case "watchlist_collaborator_added": return `${p.by?.name} seni "${p.listName}" listesine ortak düzenleyici ekledi`;
     case "watchlist_item_added": return p.movieTitle
       ? `${p.by?.name}, "${p.listName}" listesine "${p.movieTitle}" ekledi`

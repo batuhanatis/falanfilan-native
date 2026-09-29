@@ -2,7 +2,8 @@ import React, { useRef, useState } from "react";
 import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated, useWindowDimensions } from "react-native";
 import ViewShot from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
-import { X, Share2, Download, Check, Radio } from "lucide-react-native";
+import * as Sharing from "expo-sharing";
+import { X, Share2, Download, Check, Radio, Image as ImageIcon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -68,14 +69,37 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
   // paylaşabiliyor, metin+link birlikte paylaşamıyor. "Link olarak açılsın" isteği için, film
   // paylaşımında zaten kullandığımız YÖNTEME (React Native'in kendi Share API'si, message+url)
   // geçtik — bu, WhatsApp/Mesajlar gibi kanallarda gerçek, tıklanabilir bir link olarak açılıyor.
+  //
+  // ÖNEMLİ DÜZELTME: Link eskiden yalnızca `url` alanında gidiyordu — Android `url`'yi HİÇ
+  // kullanmıyor, yani Android'den paylaşılan metinlerde link yoktu (paylaşım yeni kullanıcı
+  // getiremiyordu). Link artık metnin içinde; zaten içeriyorsa tekrar eklenmiyor.
   async function handleShare() {
     if (sharing) return;
     setSharing(true);
     try {
-      const message = shareMessage || "pellix'te profilime göz at 🎬";
-      await Share.share({ message, url: shareUrl });
+      const base = shareMessage || "pellix'te profilime göz at 🎬";
+      const message = base.includes("pellix.app") ? base : `${base}\n${shareUrl}`;
+      await Share.share({ message });
     } catch { /* kullanıcı paylaşımı iptal etmiş olabilir, sorun değil */ }
     setSharing(false);
+  }
+
+  // Kartın GÖRSELİNİ paylaşım menüsüne veriyor — Instagram burada "Hikaye" seçeneğini gösteriyor,
+  // WhatsApp/Telegram vb. de resim olarak alıyor. (Instagram'a doğrudan geçiş güvenilir değildi,
+  // bkz. dosya başındaki not; sistemin kendi menüsü her iki platformda da çalışıyor.)
+  const [imageSharing, setImageSharing] = useState(false);
+  async function handleImageShare() {
+    if (imageSharing) return;
+    setImageSharing(true);
+    try {
+      const uri = await shotRef.current.capture();
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "Görseli paylaş" });
+      } else {
+        await Share.share({ url: uri });
+      }
+    } catch { /* iptal edilmiş olabilir */ }
+    setImageSharing(false);
   }
 
   async function handleSocialShare() {
@@ -150,21 +174,29 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                 </TouchableOpacity>
               )}
 
-              <View style={[styles.btnRow, { marginBottom: insets.bottom }]}>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+              <View style={styles.btnRow}>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} accessibilityLabel="Galeriye kaydet">
                   {saving ? <ActivityIndicator color="#fff" /> : saved ? <Check size={20} color="#fff" /> : <Download size={20} color="#fff" />}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
-                  {sharing ? (
+                <TouchableOpacity style={styles.shareBtn} onPress={handleImageShare} disabled={imageSharing}>
+                  {imageSharing ? (
                     <ActivityIndicator color={c.bg} />
                   ) : (
                     <>
-                      <Share2 size={16} color={c.bg} />
-                      <Text style={styles.shareBtnText}>Diğer Uygulamalarla Paylaş</Text>
+                      <ImageIcon size={16} color={c.bg} />
+                      <Text style={styles.shareBtnText}>Görseli Paylaş (Story, WhatsApp…)</Text>
                     </>
                   )}
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity style={[styles.linkBtn, { marginBottom: insets.bottom }]} onPress={handleShare} disabled={sharing}>
+                {sharing ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Share2 size={15} color="#fff" />
+                    <Text style={styles.linkBtnText}>Metin ve link olarak paylaş</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </DismissableSheet>
           </TouchableWithoutFeedback>
         </View>
@@ -193,5 +225,10 @@ function makeStyles(c) {
       borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13,
     },
     shareBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    linkBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 10,
+      borderRadius: 999, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)",
+    },
+    linkBtnText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
   });
 }

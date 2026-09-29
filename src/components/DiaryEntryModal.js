@@ -19,7 +19,8 @@ import { diaryApi } from "../api/diary";
 import { api } from "../api/client";
 import { hapticSuccess } from "../utils/haptics";
 import RatingShareCard from "./RatingShareCard";
-import RatingStars from "./RatingStars";
+import RatingStars, { RATING_LABELS } from "./RatingStars";
+import ShareCardModal from "./ShareCardModal";
 
 export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved, onOpenDiary }) {
   const { c } = useAppTheme();
@@ -32,6 +33,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
   const [removing, setRemoving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareDraft, setShareDraft] = useState(null);
+  const [outsideShareOpen, setOutsideShareOpen] = useState(false);
   const [error, setError] = useState("");
 
   // Modal her yeni açılışta temiz bir draft ile başlar. Entry prop'u save sonrası parent tarafından
@@ -42,6 +44,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
     setRating(entry?.rating ?? null);
     setNote(entry?.note || "");
     setShareDraft(null);
+    setOutsideShareOpen(false);
     setSharing(false);
     setError("");
   }, [visible, movie?.id]);
@@ -164,9 +167,24 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                   <Text style={styles.shareBtnText}>Sosyal’de Paylaş</Text>
                 </>}
               </TouchableOpacity>
+              {/* Uygulama dışına (Instagram Story, WhatsApp…): kartın görseli ya da filmin web
+                  sayfasına giden linkli metin. Link, paylaşımdan gelenleri Trafik Kaynakları'nda
+                  ayrı görebilmek için kampanya etiketli. */}
+              <TouchableOpacity style={styles.outsideBtn} onPress={() => setOutsideShareOpen(true)} disabled={sharing} activeOpacity={0.86}>
+                <Share2 size={15} color={c.text} />
+                <Text style={styles.outsideBtnText}>Instagram / WhatsApp’ta Paylaş</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.skipBtn} onPress={onClose} disabled={sharing}>
                 <Text style={styles.skipText}>Şimdilik değil</Text>
               </TouchableOpacity>
+              {outsideShareOpen && (
+                <ShareCardModal
+                  onClose={() => setOutsideShareOpen(false)}
+                  shareMessage={`"${movie?.title || "Bu yapım"}" için puanım: ${shareDraft.rating}/10 ⭐ ${RATING_LABELS[shareDraft.rating] || ""}\nSen kaç verirsin? 👉 https://www.pellix.app/film/${movie?.id}?utm_source=app_share&utm_medium=share&utm_campaign=diary_rating`}
+                >
+                  <RatingShareCard movie={movie} rating={shareDraft.rating} note={shareDraft.note} />
+                </ShareCardModal>
+              )}
             </ScrollView>
           ) : (
             <ScrollView
@@ -276,6 +294,8 @@ function makeStyles(c, insets) {
     saveText: { color: "#14121a", fontSize: 12.5, fontWeight: "900" },
     shareBtn: { minHeight: 48, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     shareBtnText: { color: "#14121a", fontSize: 12.5, fontWeight: "900" },
+    outsideBtn: { minHeight: 44, marginTop: 9, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    outsideBtnText: { color: c.text, fontSize: 12.5, fontWeight: "800" },
     skipBtn: { minHeight: 40, marginTop: 3, alignItems: "center", justifyContent: "center" },
     skipText: { color: c.dim, fontSize: 11.5, fontWeight: "700" },
     removeBtn: { marginTop: 8, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },

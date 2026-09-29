@@ -241,6 +241,7 @@ export const api = {
   achievements: (token) => request("/api/achievements", { token }),
   activityFeed: (token) => request("/api/activity-feed", { token }),
   dailyQuestion: (date) => request(`/api/daily-question?date=${encodeURIComponent(date)}`),
+  dailyPosterPuzzle: () => request("/api/play/daily-poster"),
   socialFeed: (token) => request("/api/social/feed", { token }),
   markFeedSeen: (token, ids) => request("/api/social/feed/seen", { method: "POST", token, body: { ids } }),
   socialPostById: (token, id) => request(`/api/social/posts/${id}`, { token }),

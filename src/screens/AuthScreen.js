@@ -228,7 +228,7 @@ export default function AuthScreen() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Davet kodu (opsiyonel — bir arkadaşının kullanıcı adı)"
+              placeholder="Davet kodu (varsa 7 gün Premium hediye 🎁)"
               placeholderTextColor={c.dim}
               value={referredByUsername}
               autoCapitalize="none"

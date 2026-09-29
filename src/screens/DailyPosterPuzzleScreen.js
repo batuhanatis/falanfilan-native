@@ -28,12 +28,25 @@ function localDayNumber() {
   return Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);
 }
 
+// v2: bulmaca artık sunucudan, herkese aynı (bkz. /api/play/daily-poster). Eski anahtarlarda
+// kişiye özel üretilmiş bulmaca/sonuç duruyor olabilir — karışmasınlar diye anahtarlar ayrı.
 function puzzleStorageKey() {
-  return `pellix_daily_poster_puzzle_${localDateKey()}`;
+  return `pellix_daily_poster_puzzle_v2_${localDateKey()}`;
 }
 
 function resultStorageKey() {
-  return `pellix_daily_poster_result_${localDateKey()}`;
+  return `pellix_daily_poster_result_v2_${localDateKey()}`;
+}
+
+// Paylaşılan linkten gelen ziyaretleri admin'deki Trafik Kaynakları'nda ayrı görebilmek için.
+const PUZZLE_SHARE_URL = "https://www.pellix.app/?utm_source=app_share&utm_medium=share&utm_campaign=poster_puzzle";
+
+function shareText(puzzle, result) {
+  const title = puzzle?.number ? `Pellix Poster Puzzle #${puzzle.number} 🧩` : "Pellix Poster Puzzle 🧩";
+  const line = result.correct
+    ? `Posteri ${Number(result.wrongCount || 0) + 1}. denemede bildim 🎬`
+    : "Bugün poster beni yendi 😅";
+  return `${title}\n${resultSquares(result)}\n${line}\nSen kaçta bulursun? 👉 ${PUZZLE_SHARE_URL}`;
 }
 
 function dedupe(items) {
@@ -121,12 +134,21 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
           return;
         }
 
-        const [movies, shows] = await Promise.all([
-          api.movies(auth.token, "movie", 1, "popular").catch(() => ({ results: [] })),
-          api.movies(auth.token, "tv", 1, "popular").catch(() => ({ results: [] })),
-        ]);
-        const pool = dedupe([...(movies.results || []), ...(shows.results || [])]);
-        const generated = makePuzzle(pool);
+        // Önce herkese ortak günün bulmacası; sunucuya ulaşılamazsa eski yöntemle yerelde üret
+        // (o durumda numara olmaz, paylaşım metni numarasız gider).
+        let generated = null;
+        try {
+          const shared = await api.dailyPosterPuzzle();
+          if (shared?.target?.poster && shared?.options?.length >= 2) generated = shared;
+        } catch {}
+        if (!generated) {
+          const [movies, shows] = await Promise.all([
+            api.movies(auth.token, "movie", 1, "popular").catch(() => ({ results: [] })),
+            api.movies(auth.token, "tv", 1, "popular").catch(() => ({ results: [] })),
+          ]);
+          const pool = dedupe([...(movies.results || []), ...(shows.results || [])]);
+          generated = makePuzzle(pool);
+        }
         if (generated) await AsyncStorage.setItem(puzzleStorageKey(), JSON.stringify(generated));
         if (!cancelled) setPuzzle(generated);
       } catch {
@@ -189,7 +211,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
           <LinearGradient colors={["#6D28D9", "#4F46E5", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <View style={styles.heroGlow} />
             <Sparkles size={19} color="rgba(255,255,255,0.30)" style={styles.heroSparkle} />
-            <Text style={styles.heroEyebrow}>HER GÜN TEK POSTER</Text>
+            <Text style={styles.heroEyebrow}>{puzzle.number ? `#${puzzle.number} · HERKESE AYNI POSTER` : "HER GÜN TEK POSTER"}</Text>
             <Text style={styles.heroTitle}>{result ? (result.correct ? "Bildin! 🎉" : "Bugün olmadı") : "Bulanıklık açılmadan filmi bul"}</Text>
             <Text style={styles.heroSubtitle}>
               {result
@@ -272,7 +294,8 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
       {showShareCard && result && puzzle && (
         <ShareCardModal
           onClose={() => setShowShareCard(false)}
-          shareMessage={`Pellix Poster Puzzle · ${localDateKey()}\n${resultSquares(result)}\n${result.correct ? `Posteri ${Number(result.wrongCount || 0) + 1}. denemede bildim 🎬` : "Bugün poster beni yendi 😅"}\nCevabı göstermiyorum. Sen kaçta bulursun?`}
+          shareMessage={shareText(puzzle, result)}
+          shareUrl={PUZZLE_SHARE_URL}
           socialCard={{
             kind: "poster_puzzle",
             date: localDateKey(),
@@ -285,6 +308,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
         >
           <PosterPuzzleShareCard
             date={localDateKey()}
+            number={puzzle.number || null}
             correct={!!result.correct}
             wrongCount={Number(result.wrongCount || 0)}
             squares={resultSquares(result)}

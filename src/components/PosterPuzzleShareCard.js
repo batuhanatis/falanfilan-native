@@ -18,7 +18,7 @@ function dayLabel(date) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
-export default function PosterPuzzleShareCard({ date, correct, wrongCount = 0, squares = "" }) {
+export default function PosterPuzzleShareCard({ date, number = null, correct, wrongCount = 0, squares = "" }) {
   const resultText = correct ? "Posteri çözdüm" : "Poster bugün beni yendi";
 
   return (
@@ -43,7 +43,7 @@ export default function PosterPuzzleShareCard({ date, correct, wrongCount = 0, s
       <View style={styles.iconBubble}>
         {correct ? <Trophy size={26} color="#FFD76A" /> : <Eye size={26} color="#C4B5FD" />}
       </View>
-      <Text style={styles.eyebrow}>POSTER PUZZLE · {dayLabel(date)}</Text>
+      <Text style={styles.eyebrow}>POSTER PUZZLE{number ? ` #${number}` : ""} · {dayLabel(date)}</Text>
       <Text style={styles.title}>{resultText}</Text>
 
       <View style={styles.resultPanel}>

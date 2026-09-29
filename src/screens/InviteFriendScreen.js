@@ -29,7 +29,7 @@ export default function InviteFriendScreen({ navigation }) {
   useEffect(() => { load(); }, [load]);
 
   const storeLink = getStoreLink();
-  const inviteMessage = `${auth.name} seni pellix'e davet ediyor! 🎬\n\nArkadaşlarınla birlikte kaydırıp saniyeler içinde ne izleyeceğinize karar verin. Kayıt olup MatchParty'de eşleştiğinizde SEN de +3 ekstra AI önerisi hakkı kazanırsın 🎁\n\nKayıt olurken "Davet Kodu" alanına şunu yaz: ${auth.username}${storeLink ? `\n\n${storeLink}` : ""}`;
+  const inviteMessage = `${auth.name} seni Pellix'e davet ediyor! 🎬\n\n"Bu akşam ne izlesek?" derdine son: sana özel öneriler, arkadaşlarınla MatchParty ve daha fazlası.\n\n🎁 Kayıt olurken davet kodu alanına *${auth.username}* yaz, 7 gün Premium hediye!${storeLink ? `\n\n${storeLink}` : ""}`;
 
   async function copyCode() {
     await Clipboard.setStringAsync(auth.username);
@@ -66,16 +66,16 @@ export default function InviteFriendScreen({ navigation }) {
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <View style={styles.heroIconWrap}><PartyPopper size={25} color="#fff" /></View>
           <Text style={styles.heroEyebrow}>PELLIX'İ BİRLİKTE KULLANIN</Text>
-          <Text style={styles.heroTitle}>Arkadaşını getir, ilk MatchParty'nizi başlatın</Text>
-          <Text style={styles.heroSubtitle}>İlk ortak eşleşmenizde ikiniz de ekstra AI hakkı kazanırsınız.</Text>
+          <Text style={styles.heroTitle}>Arkadaşını getir, ikiniz de 7 gün Premium kazanın</Text>
+          <Text style={styles.heroSubtitle}>Arkadaşın kodunla katılıp ilk 10 içeriği değerlendirince Premium ikinize de otomatik tanımlanır.</Text>
           <View style={styles.rewardPillRow}>
             <View style={styles.rewardPill}>
               <Text style={styles.rewardPillEmoji}>🎁</Text>
-              <Text style={styles.rewardPillText}>Sana +5 AI</Text>
+              <Text style={styles.rewardPillText}>Sana 7 gün Premium</Text>
             </View>
             <View style={styles.rewardPill}>
               <Text style={styles.rewardPillEmoji}>🎉</Text>
-              <Text style={styles.rewardPillText}>Ona +3 AI</Text>
+              <Text style={styles.rewardPillText}>Ona 7 gün Premium</Text>
             </View>
           </View>
         </LinearGradient>
@@ -83,9 +83,9 @@ export default function InviteFriendScreen({ navigation }) {
         <View style={styles.stepsCard}>
           <Text style={styles.stepsTitle}>3 adımda tamamla</Text>
           {[
-            ["Davet kodunu paylaş", "Arkadaşın Pellix'e senin kodunla katılsın."],
-            ["Bir MatchParty başlatın", "Birlikte kartları kaydırıp ortak seçiminizi bulun."],
-            ["Eşleşin ve ödülü alın", "İlk ortak eşleşmede haklar otomatik tanımlansın."],
+            ["Davet kodunu paylaş", "Arkadaşın Pellix'e kayıt olurken senin kodunu yazsın."],
+            ["Arkadaşın Pellix'i denesin", "İlk 10 içeriği beğensin ya da geçsin (ya da birlikte bir MatchParty'de eşleşin)."],
+            ["Premium ikinize de gelsin", "7 gün Premium otomatik tanımlanır, bildirimle haber veririz."],
           ].map(([title, text], i) => (
             <View key={title} style={styles.stepRow}>
               <View style={styles.stepNumWrap}><Text style={styles.stepNum}>{i + 1}</Text></View>
@@ -137,7 +137,7 @@ export default function InviteFriendScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listName}>{r.name}</Text>
                     <Text style={styles.listMeta}>
-                      {r.completed ? "İlk eşleşme tamamlandı 🎉" : "Bir MatchParty eşleşmesi bekliyor"}
+                      {r.completed ? "Tamamlandı, Premium tanımlandı 🎉" : "Arkadaşının ilk 10 değerlendirmesi bekleniyor"}
                     </Text>
                   </View>
                   <View style={[styles.statusDot, r.completed && styles.statusDotDone]}>

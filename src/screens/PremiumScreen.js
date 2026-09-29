@@ -198,15 +198,15 @@ export default function PremiumScreen({ navigation, route }) {
             </View>
             <Text style={styles.referralHint}>
               {referrals.totalCompleted > 0
-                ? `${referrals.totalCompleted} arkadaşınla eşleştin, ödülünü kazandın 🎉`
-                : "Kodunu paylaş, MatchParty'de eşleşince ikiniz de AI hakkı kazanın."}
+                ? `${referrals.totalCompleted} davetin tamamlandı, Premium günlerin tanımlandı 🎉`
+                : "Kodunu paylaş, arkadaşın katılınca ikiniz de 7 gün Premium kazanın."}
             </Text>
             <View style={styles.limitRow}>
               <Text style={styles.limitLabel}>Davet edilen</Text>
               <Text style={styles.limitValue}>{referrals.totalInvited}</Text>
             </View>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>Tamamlanan (eşleşilen)</Text>
+              <Text style={styles.limitLabel}>Tamamlanan</Text>
               <Text style={[styles.limitValue, { color: c.accent }]}>{referrals.totalCompleted}</Text>
             </View>
           </TouchableOpacity>
