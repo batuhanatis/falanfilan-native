@@ -7,7 +7,7 @@ import { api } from "../api/client";
 import { GENRE_FILTERS } from "../theme/theme";
 import MovieCard from "../components/MovieCard";
 import PopularNowRow from "../components/PopularNowRow";
-import { platformName, platformLogo } from "../utils/platform";
+import { platformName, platformLogo, platformKey } from "../utils/platform";
 import { yearMatchesLabel } from "../utils/filterYears";
 import { recommendationReason } from "../utils/recommend";
 import TopBar from "../components/TopBar";
@@ -346,7 +346,10 @@ export default function HomeScreen({ navigation }) {
     // bir tür seçildiğinde, o türde olup da başka bir tür birincil olarak kaydedilmiş filmler
     // yanlışlıkla dışarıda kalıyordu. "genres" (çoğul, TÜM türleri içeren dizi) kullanıyoruz.
     if (genreFilter) list = list.filter((m) => (Array.isArray(m.genres) && m.genres.length > 0 ? m.genres.includes(genreFilter) : m.genre === genreFilter));
-    if (platformFilters.size > 0) list = list.filter((m) => (m.platforms || []).some((p) => platformFilters.has(platformName(p))));
+    if (platformFilters.size > 0) {
+      const wantedKeys = new Set([...platformFilters].map(platformKey));
+      list = list.filter((m) => (m.platforms || []).some((p) => wantedKeys.has(platformKey(p))));
+    }
     if (yearFilters.size > 0) list = list.filter((m) => [...yearFilters].some((label) => yearMatchesLabel(m.year, label)));
     return list;
   }, [movies, typeFilter, genreFilter, platformFilters, yearFilters]);

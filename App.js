@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, AppState, Animated, Easing, Image, StyleSheet } from "react-native";
+import { View, AppState, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from "@expo-google-fonts/baloo-2";
@@ -36,32 +36,9 @@ if (typeof ErrorUtils !== "undefined") {
   });
 }
 
-// İçerik/oturum kontrolü sürerken gösterilen logo — düz bir spinner yerine, hafif nabız
-// animasyonuyla (büyüyüp küçülerek) markayı hissettiriyor.
-function LoadingLogo() {
-  const scale = React.useRef(new Animated.Value(0.92)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 0.92, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
-  return (
-    <Animated.Image
-      source={require("./assets/icon.png")}
-      style={{ width: 110, height: 110, borderRadius: 26, transform: [{ scale }] }}
-      resizeMode="contain"
-    />
-  );
-}
-
 const PUSH_PRIMER_DISMISSED_KEY = "push_primer_dismissed_v1";
 
-function Gate({ fontsLoaded }) {
+function Gate() {
   const { c, mode } = useAppTheme();
   const { auth, checking, markTutorialSeen, markTasteSurveySeen } = useAuth();
   // ÖNEMLİ: Bildirim izni artık login olur olmaz bağlamsızca istenmiyor — önce KENDİ ekranımızda
@@ -223,7 +200,7 @@ function Gate({ fontsLoaded }) {
     return setupNotificationTapHandling(handleNavTarget);
   }, [auth?.token]);
 
-  const appReady = fontsLoaded && !checking;
+  const appReady = !checking;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -257,9 +234,7 @@ function Gate({ fontsLoaded }) {
           )}
         </>
       ) : (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg }}>
-          <LoadingLogo />
-        </View>
+        <View style={{ flex: 1, backgroundColor: c.bg }} />
       )}
 
       {/* OTA-güncellenebilir JS splash. Absolute overlay olduğu için uygulamanın yüklenmesini
@@ -270,10 +245,10 @@ function Gate({ fontsLoaded }) {
 }
 
 export default function App() {
-  // "pellix" markasının her yerde kullandığı eğlenceli, yuvarlak font (Baloo 2) — logo,
-  // giriş ekranı gibi marka gösterimlerinde kullanılıyor. Splash artık font yüklenmesini
-  // beklemiyor; Gate fontlar hazır olana kadar gerçek ekranı altta LoadingLogo ile tutuyor.
-  const [fontsLoaded] = useFonts({ Baloo2_700Bold, Baloo2_800ExtraBold });
+  // Baloo 2 uygulamayla birlikte yüklenmeye devam ediyor ama cold-start kritik yolunu
+  // bloklamıyor. Intro bittiğinde navigasyon açılır; font hazır değilse o ilk karede sistem
+  // fontu kullanılır ve hook tamamlandığında normal marka fontuna geçilir.
+  useFonts({ Baloo2_700Bold, Baloo2_800ExtraBold });
 
   return (
     <ErrorBoundary>
@@ -284,7 +259,7 @@ export default function App() {
               <WSProvider>
                 <UnreadProvider>
                   <PrefetchProvider>
-                    <Gate fontsLoaded={fontsLoaded} />
+                    <Gate />
                   </PrefetchProvider>
                 </UnreadProvider>
               </WSProvider>

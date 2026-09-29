@@ -31,6 +31,7 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
   const [type, setType] = useState(null);
   const [yearLabels, setYearLabels] = useState(new Set());
   const [platforms, setPlatforms] = useState(new Set());
+  const [origin, setOrigin] = useState(null);   // null | "yerli" | "yabanci"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const styles = makeStyles(c);
@@ -56,7 +57,7 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
     setError("");
     try {
       const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
-      const data = await api.aiTaste(auth.token, { genre, type, years, platforms: [...platforms] });
+      const data = await api.aiTaste(auth.token, { genre, type, years, platforms: [...platforms], origin });
       if ((data.results || []).length === 0) {
         setError("Bu kritere uyan bir şey bulamadım, farklı bir seçim deneyebilir misin?");
       } else {
@@ -91,6 +92,8 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
         onGenreChange={setGenre}
         yearSet={yearLabels}
         onToggleYear={toggleYear}
+        originValue={origin}
+        onOriginChange={setOrigin}
         platformSet={platforms}
         onTogglePlatform={togglePlatform}
         platforms={commonPlatforms}
@@ -98,7 +101,7 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
 
       {/* AI2 — filtrelerin hepsi boşken sonucun nereden geleceği belirsizdi ("kara kutu"
           hissi); artık ne olacağını açıkça söylüyoruz. */}
-      {!genre && !type && yearLabels.size === 0 && platforms.size === 0 && (
+      {!genre && !type && !origin && yearLabels.size === 0 && platforms.size === 0 && (
         <Text style={styles.helperText}>Boş bırakırsan geçmiş beğenilerine göre öneririz.</Text>
       )}
 

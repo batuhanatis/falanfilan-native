@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
-import { ChevronLeft, Plus, ListVideo } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Plus, ListVideo } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import WatchlistCover from "../components/WatchlistCover";
 import NewListModal from "../components/NewListModal";
 import EmptyState from "../components/EmptyState";
+import ScreenHeader from "../components/ScreenHeader";
 
-// Profil'deki "Liste" sayısına dokununca açılan, eskiden Profil sekmesinin İÇİNDE dümdüz bir
-// ızgara olan "Listelerim" alanının yerine geçen ayrı sayfa (bkz. FriendsListScreen — aynı
-// gerekçeyle: sayı zaten tıklanabilir olduğu belli, sekme olarak tekrarına gerek yok).
 export default function MyWatchlistsScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -23,16 +22,19 @@ export default function MyWatchlistsScreen({ navigation }) {
     api.watchlists(auth.token).then((data) => setWatchlists(data.results || [])).catch(() => {}).finally(() => setLoading(false));
   }, [auth.token]);
 
-  useEffect(() => { load(); }, [load]);
+  // Ekrana her dönüşte tazeliyoruz (sadece ilk mount'ta değil): liste detayında ad değiştirmek,
+  // içerik silmek veya kapağı değiştirmek buradaki önizlemeyi/sayacı bayat bırakıyordu —
+  // güncel hali için ekrandan tamamen çıkıp yeniden girmek gerekiyordu. loading ilk yüklemeden
+  // sonra false kaldığı için geri dönüşlerde spinner yanıp sönmüyor, liste yerinde güncelleniyor.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Listelerim{watchlists.length > 0 ? ` (${watchlists.length})` : ""}</Text>
-      </View>
+      <ScreenHeader
+        title="Listelerim"
+        subtitle={watchlists.length > 0 ? `${watchlists.length} liste` : undefined}
+        onBack={() => navigation.goBack()}
+      />
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={c.accent} />
@@ -78,11 +80,6 @@ export default function MyWatchlistsScreen({ navigation }) {
 
 function makeStyles(c) {
   return StyleSheet.create({
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border,
-    },
-    headerTitle: { fontSize: 14, fontWeight: "700", color: c.text },
     newListToggle: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
       borderWidth: 1, borderColor: c.accent, borderStyle: "dashed", borderRadius: 12,
