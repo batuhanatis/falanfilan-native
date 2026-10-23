@@ -14,6 +14,8 @@ import Confetti from "../components/Confetti";
 import SocialProofRow from "../components/SocialProofRow";
 
 const STOCK_TARGET = 10;
+const RECOMMENDATION_BATCH_SIZE = 120;
+const CATALOG_MAX_ATTEMPTS = 8;
 
 export default function DiscoverScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -79,19 +81,48 @@ export default function DiscoverScreen({ navigation }) {
       const usedIds = new Set([...existingQueue.map((m) => m.id), ...existingShown, ...votedIds]);
       const apiType = existingFilter === "Movie" ? "movie" : existingFilter === "TV Shows" ? "tv" : null;
 
-      // Taste Engine geniş cache havuzunu kullanıcının gerçek like/dislike geçmişine göre sıralıyor.
-      // 120 kart istiyoruz; ekranda kullanılanlar tekrar elendikten sonra da stok hızla tükenmesin.
-      const data = await api.recommendations(auth.token, apiType, 120);
+      // Önce Taste Engine: kullanıcının zevkine en yakın kartlar her zaman kuyruğun başında.
+      // Yalnızca ihtiyaç kadar kart ekliyoruz; böylece her swipe'tan sonra yeniden sıralanan
+      // önerilerle kuyruk 10 karta tamamlanabiliyor ve eski bir 120'lik deste donup kalmıyor.
+      const data = await api.recommendations(auth.token, apiType, RECOMMENDATION_BATCH_SIZE);
       if (generation !== filterGenerationRef.current || activeFilterRef.current !== existingFilter) return [];
-
-      return (data.results || [])
+      const gathered = (data.results || [])
         .filter((m) => !usedIds.has(m.id))
         .map((m) => existingFilter === "Movie"
           ? { ...m, type: "Film" }
           : existingFilter === "TV Shows"
             ? { ...m, type: "Dizi" }
             : m)
-        .filter((m) => existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
+        .filter((m) => existingFilter === "All" || (existingFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"))
+        .slice(0, STOCK_TARGET);
+      gathered.forEach((m) => usedIds.add(m.id));
+
+      // Özellikle dizi havuzu henüz küçükken Taste Engine 10 kart döndüremeyebilir. Eski
+      // çalışan katalog akışını sadece eksik kalan yerler için fallback olarak kullanıyoruz;
+      // böylece ekran boşalmaz, ama kişisel öneriler her zaman önce gösterilir.
+      let attempts = 0;
+      while (gathered.length < STOCK_TARGET && attempts < CATALOG_MAX_ATTEMPTS) {
+        attempts++;
+        const type = apiType || (Math.random() < 0.55 ? "movie" : "tv");
+        const page = Math.floor(Math.random() * 20) + 1;
+        try {
+          const catalog = await api.movies(auth.token, type, page);
+          if (generation !== filterGenerationRef.current || activeFilterRef.current !== existingFilter) return [];
+          for (const raw of catalog.results || []) {
+            const movie = existingFilter === "Movie"
+              ? { ...raw, type: "Film" }
+              : existingFilter === "TV Shows"
+                ? { ...raw, type: "Dizi" }
+                : raw;
+            const validType = existingFilter === "All" || (existingFilter === "Movie" ? movie.type === "Film" : movie.type === "Dizi");
+            if (!movie?.id || usedIds.has(movie.id) || !validType) continue;
+            usedIds.add(movie.id);
+            gathered.push(movie);
+            if (gathered.length >= STOCK_TARGET) break;
+          }
+        } catch { /* Başka bir rastgele katalog sayfasıyla devam et. */ }
+      }
+      return gathered;
     } catch {
       return [];
     } finally {
@@ -143,7 +174,10 @@ export default function DiscoverScreen({ navigation }) {
       setQueue((prev) => {
         const validPrev = prev.filter((m) => expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi"));
         const seen = new Set(validPrev.map((m) => m.id));
-        const validNew = gathered.filter((m) => !seen.has(m.id) && (expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")));
+        const missing = Math.max(0, STOCK_TARGET - validPrev.length);
+        const validNew = gathered
+          .filter((m) => !seen.has(m.id) && (expectedFilter === "All" || (expectedFilter === "Movie" ? m.type === "Film" : m.type === "Dizi")))
+          .slice(0, missing);
         return [...validPrev, ...validNew];
       });
     }
