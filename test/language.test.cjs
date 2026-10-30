@@ -61,4 +61,53 @@ test('popular cards keep movie titles unchanged in English', async()=>{
  assert.doesNotMatch(text(tree.toJSON()),/You/); await Renderer.act(async()=>tree.unmount());core.setLanguageValue('tr');
 });
 
+
+test('hero slider supports dots, swipes, auto advance, and pauses in background', async () => {
+  core.setLanguageValue('en');
+  let nextTimer = 0, timers = new Map(), appListener, panHandlers;
+  const previousInterval = global.setInterval, previousClear = global.clearInterval;
+  global.setInterval = (fn, ms) => { assert.equal(ms, 7000); timers.set(++nextTimer, fn); return nextTimer; };
+  global.clearInterval = id => timers.delete(id);
+  const native = { View:'View', Text:'Text', Image:'Image', TouchableOpacity:'TouchableOpacity', StyleSheet:{create:x=>x},
+    Animated:{Value:class {setValue(){} stopAnimation(){} interpolate(){return 1;}},Text:'AnimatedText',View:'AnimatedView',timing:()=>({start(){}})},
+    PanResponder:{create:handlers=>{panHandlers=handlers;return {panHandlers:handlers};}},
+    AccessibilityInfo:{isReduceMotionEnabled:async()=>false},AppState:{currentState:'active',addEventListener:(_,fn)=>{appListener=fn;return {remove(){}};}} };
+  let tree;
+  try {
+    const {default:Hero,formatHeroRuntime} = load('src/components/salon/SeansBoard.js', {
+      '../../i18n/core':core,react:React,'react-native':native,'@react-navigation/native':{useIsFocused:()=>true},
+      'lucide-react-native':{Heart:'Heart',ChevronRight:'ChevronRight',ChevronLeft:'ChevronLeft'},
+      '../../theme/fonts':{FONTS:{},upperTR:x=>String(x).toUpperCase()},'../../utils/platform':{platformName:p=>p.name,platformLogo:()=>null},
+      '../../utils/origin':{isDomestic:()=>false},'../../utils/haptics':{hapticSelection(){}},
+    });
+    const selections=[{movie:{id:1,title:'Sen',genre:'Gerilim',runtime:'2 Sezon · 10 Bölüm',year:2026},reasons:[]},{movie:{id:2,title:'Another',genre:'Komedi',runtime:'95 dk'},reasons:[]}];
+    function Harness(){const [index,setIndex]=React.useState(0);return React.createElement(Hero,{selections,index,onIndexChange:setIndex,isLiked:()=>false,onLike(){},onWhy(){},onOpen(){}});}
+    await Renderer.act(async()=>{tree=Renderer.create(React.createElement(Harness));});
+    assert.equal(formatHeroRuntime('1 Sezon · 1 Bölüm'),'1 season · 1 episode');
+    assert.match(text(tree.toJSON()),/THRILLER.*2 SEASONS.*10 EPISODES/);
+    assert.equal(timers.size,1);
+    await Renderer.act(async()=>{[...timers.values()][0]();});
+    assert.equal(tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 2 of 2').props.accessibilityState.selected,true);
+    await Renderer.act(async()=>panHandlers.onPanResponderRelease(null,{dx:60,dy:0}));
+    assert.equal(tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 1 of 2').props.accessibilityState.selected,true);
+    await Renderer.act(async()=>tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 2 of 2').props.onPress());
+    assert.match(text(tree.toJSON()),/95 MIN/);
+    await Renderer.act(async()=>appListener('background'));assert.equal(timers.size,0);
+    await Renderer.act(async()=>appListener('active'));assert.equal(timers.size,1);
+    await Renderer.act(async()=>tree.unmount());assert.equal(timers.size,0);
+  } finally { if(tree) await Renderer.act(async()=>tree.unmount());global.setInterval=previousInterval;global.clearInterval=previousClear;core.setLanguageValue('tr'); }
+});
+
+test('hero recommendation explanations translate dynamic genres and preserve title names', () => {
+  core.setLanguageValue('en');
+  const {recommendationReasons}=load('src/utils/recommend.js',{'../i18n/core':core,'./platform':{platformName:p=>p.name}});
+  const movie={id:1,title:'Taşacak Bu Deniz',genre:'Gerilim',type:'Film',runtime:'95 dk',year:2026,imdb:8};
+  const likes=[2,3,4,5].map(id=>({id,title:id===2?'Sen':'Title '+id,genre:'Gerilim',type:'Film',runtime:'100 dk',year:2022}));
+  const reasons=recommendationReasons(movie,likes,{preferredGenres:['Gerilim'],genreFilter:'Gerilim',shortOnly:true,typeFilter:'Film'});
+  assert.ok(reasons.some(x=>x.short==='Matches your Thriller preference'));
+  assert.ok(reasons.some(x=>x.short==='Similar taste signals to Sen'));
+  assert.doesNotMatch(reasons.map(x=>x.short+' '+x.detail).join(' '),/beğen|tercih|Gerilim|dakikalık/);
+  core.setLanguageValue('tr');assert.ok(recommendationReasons(movie,likes,{preferredGenres:['Gerilim']}).some(x=>x.short==='Gerilim tercihinle eşleşiyor'));
+});
+
 }

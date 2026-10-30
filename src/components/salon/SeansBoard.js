@@ -1,7 +1,8 @@
-import { t as translateUI } from "../../i18n/core";
+import { useIsFocused } from "@react-navigation/native";
+import { t as translateUI, getLanguage } from "../../i18n/core";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, TouchableOpacity, Animated, PanResponder, StyleSheet, AccessibilityInfo } from "react-native";
-import { Heart, ChevronRight } from "lucide-react-native";
+import { View, Text, Image, TouchableOpacity, Animated, PanResponder, StyleSheet, AccessibilityInfo, AppState } from "react-native";
+import { Heart, ChevronRight, ChevronLeft } from "lucide-react-native";
 import { FONTS, upperTR } from "../../theme/fonts";
 import { platformName, platformLogo } from "../../utils/platform";
 import { isDomestic } from "../../utils/origin";
@@ -111,12 +112,26 @@ function FlapGrid({ text, reduceMotion }) {
   );
 }
 
-function metaLine(movie) {
-  const genre = String(movie.genre || "").split(/[,/·|]/)[0]?.trim();
-  return [genre, movie.runtime, movie.year].filter(Boolean).map((part) => upperTR(part)).join(" · ");
+export function formatHeroRuntime(runtime) {
+  if (getLanguage() !== "en" || runtime == null) return runtime;
+  return String(runtime)
+    .replace(/(\d+)\s*Sezon/gi, (_, n) => `${n} season${Number(n) === 1 ? "" : "s"}`)
+    .replace(/(\d+)\s*Bölüm/gi, (_, n) => `${n} episode${Number(n) === 1 ? "" : "s"}`)
+    .replace(/\b(dakika|dk)\b/gi, "min")
+    .replace(/\bsaat\b/gi, "hr");
 }
 
-export default function SeansBoard({ selections, index, onIndexChange, isLiked, onLike, onWhy, onOpen }) {
+function metaLine(movie) {
+  const genre = String(movie.genre || "").split(/[,/·|]/)[0]?.trim();
+  return [translateUI(genre), formatHeroRuntime(movie.runtime), movie.year].filter(Boolean).map((part) => upperTR(part)).join(" · ");
+}
+
+export default function SeansBoard({ selections, index, onIndexChange, isLiked, onLike, onWhy, onOpen, paused = false }) {
+  const focused = useIsFocused();
+  const [interacting, setInteracting] = useState(false);
+  const [appActive, setAppActive] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive");
+  const slide = useRef(new Animated.Value(0)).current;
+  const lastIndex = useRef(index);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
@@ -127,13 +142,32 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
   const selection = selections[safeIndex];
   const movie = selection?.movie;
 
-  const go = (delta) => {
+  useEffect(() => {
+    const listener = AppState.addEventListener("change", state => setAppActive(state === "active"));
+    return () => listener.remove();
+  }, []);
+
+  useEffect(() => {
+    if (lastIndex.current === safeIndex) return;
+    lastIndex.current = safeIndex;
+    slide.stopAnimation();
+    if (reduceMotion) { slide.setValue(0); return; }
+    slide.setValue(24);
+    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+  }, [safeIndex, reduceMotion, slide]);
+
+  const go = (delta, feedback = true) => {
     if (count < 2) return;
-    hapticSelection();
+    if (feedback) hapticSelection();
     onIndexChange((safeIndex + delta + count) % count);
   };
   const goRef = useRef(go);
   goRef.current = go;
+  useEffect(() => {
+    if (paused || !focused || !appActive || interacting || reduceMotion || count < 2) return;
+    const timer = setInterval(() => goRef.current(1, false), 7000);
+    return () => clearInterval(timer);
+  }, [paused, focused, appActive, interacting, reduceMotion, safeIndex, count]);
 
   // Panoyu parmakla yana itmek de sıradakine geçiriyor; dikey kaydırma listeye kalıyor.
   const pan = useMemo(() => PanResponder.create({
@@ -144,19 +178,19 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
 
   if (!movie) return null;
   // Yerli yapımların adı Türkçe büyük harfle (Mavi → MAVİ), yabancılar düz büyük harfle yazılıyor.
-  const boardTitle = isDomestic(movie) ? upperTR(movie.title) : String(movie.title || "").toUpperCase();
+  const boardTitle = isDomestic(movie) ? String(movie.title || "").replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase() : String(movie.title || "").toUpperCase();
   const reason = selection.reasons?.find((r) => r.personalized)?.short || selection.reasons?.[0]?.short || null;
   const platform = (movie.platforms || [])[0];
   const liked = isLiked(movie.id);
 
   return (
-    <View style={styles.board}>
+    <View style={styles.board} onTouchStart={() => setInteracting(true)} onTouchEnd={() => setInteracting(false)} onTouchCancel={() => setInteracting(false)}>
       <View style={styles.boardTop}>
         <Text style={styles.boardLabel}>{translateUI("BU AKŞAM SENİN İÇİN")}</Text>
         <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}{translateUI("/")}{String(count).padStart(2, "0")}</Text>
       </View>
 
-      <View {...pan.panHandlers}>
+      <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: slide }], opacity: slide.interpolate({ inputRange: [0, 24], outputRange: [1, 0.5] }) }}>
         <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(movie)} accessibilityRole="button" accessibilityLabel={translateUI("{0}, detayı aç", {0: movie.title})}>
           <FlapGrid text={boardTitle} reduceMotion={reduceMotion} />
         </TouchableOpacity>
@@ -175,7 +209,25 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
             {!!reason && <Text style={styles.reason} numberOfLines={2}>{translateUI(reason)}</Text>}
           </View>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
+
+      {count > 1 && (
+        <View style={styles.sliderControls}>
+          <TouchableOpacity style={styles.arrow} onPress={() => go(-1)} accessibilityRole="button" accessibilityLabel={translateUI("Önceki seçim")}>
+            <ChevronLeft size={18} color={BOARD.ink} />
+          </TouchableOpacity>
+          <View style={styles.dots}>
+            {selections.map((item, i) => (
+              <TouchableOpacity key={item.movie.id} style={styles.dotHit} onPress={() => { hapticSelection(); onIndexChange(i); }} accessibilityRole="button" accessibilityLabel={translateUI("Seçim {0} / {1}", {0: i + 1, 1: count})} accessibilityState={{ selected: i === safeIndex }}>
+                <View style={[styles.dot, i === safeIndex && styles.dotActive]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.arrow} onPress={() => go(1)} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}>
+            <ChevronRight size={18} color={BOARD.ink} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.whyBtn} onPress={onWhy} activeOpacity={0.85} accessibilityRole="button">
@@ -205,6 +257,12 @@ const styles = StyleSheet.create({
     backgroundColor: BOARD.bg, borderRadius: 18, borderWidth: 1, borderColor: BOARD.border, padding: 12, paddingTop: 13,
     shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6,
   },
+  sliderControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 10, gap: 6 },
+  arrow: { width: 32, height: 36, alignItems: "center", justifyContent: "center" },
+  dots: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
+  dotHit: { width: 16, height: 36, alignItems: "center", justifyContent: "center" },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: BOARD.border },
+  dotActive: { width: 14, backgroundColor: BOARD.gold },
   boardTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
   boardLabel: { fontFamily: FONTS.monoMedium, fontSize: 10.5, color: BOARD.gold, letterSpacing: 0.8 },
   cell: { borderRadius: 3, overflow: "hidden", alignItems: "center", justifyContent: "center" },

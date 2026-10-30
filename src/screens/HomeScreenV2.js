@@ -870,6 +870,7 @@ export default function HomeScreenV2({ navigation }) {
             selections={heroSelections}
             index={safeHeroIndex}
             onIndexChange={setActiveHeroIndex}
+            paused={showHeroReasons}
             isLiked={(id) => liked.has(id)}
             onLike={(movie) => like(movie.id)}
             onWhy={() => setShowHeroReasons(true)}
