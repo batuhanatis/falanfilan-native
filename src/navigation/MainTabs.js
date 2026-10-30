@@ -9,6 +9,7 @@ import DiscoverScreen from "../screens/DiscoverScreen";
 import ActivityScreen from "../screens/ActivityScreen";
 import ChatStack from "./ChatStack";
 import ProfileScreen from "../screens/ProfileScreen";
+import LiquidTabBar from "../components/LiquidTabBar";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,6 +19,7 @@ export default function MainTabs() {
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <LiquidTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: c.accent,
