@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Sparkles, ChevronRight, Star } from "lucide-react-native";
@@ -17,7 +18,7 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
     <IslandModal
       visible={visible}
       onClose={onClose}
-      title="Bunu sana neden önerdik?"
+      title={translateUI("Bunu sana neden önerdik?")}
       icon={Sparkles}
       gradientColors={["#7C3AED", "#5B21B6", "#312E81"]}
       subtitle={movie.title}
@@ -33,14 +34,14 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
           <Text style={styles.movieTitle} numberOfLines={2}>{movie.title}</Text>
           <View style={styles.metaRow}>
             <Star size={11} color={c.accent} fill={c.accent} />
-            <Text style={styles.metaText}>{movie.imdb || "—"}</Text>
-            {!!movie.year && <Text style={styles.metaText}>· {movie.year}</Text>}
-            {!!movie.runtime && <Text style={styles.metaText}>· {movie.runtime}</Text>}
+            <Text style={styles.metaText}>{movie.imdb || translateUI("—")}</Text>
+            {!!movie.year && <Text style={styles.metaText}>{translateUI("· ")}{movie.year}</Text>}
+            {!!movie.runtime && <Text style={styles.metaText}>{translateUI("· ")}{movie.runtime}</Text>}
           </View>
           <Text style={styles.summaryText}>
             {personalizedCount > 0
-              ? `Pellix bu seçim için ${personalizedCount} kişisel sinyal buldu.`
-              : "Zevk profilin henüz gelişiyor; bu yüzden yalnızca doğrulayabildiğimiz sinyalleri gösteriyoruz."}
+              ? translateUI("Pellix bu seçim için {0} kişisel sinyal buldu.", {0: personalizedCount})
+              : translateUI("Zevk profilin henüz gelişiyor; bu yüzden yalnızca doğrulayabildiğimiz sinyalleri gösteriyoruz.")}
           </Text>
         </View>
       </View>
@@ -60,13 +61,11 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
 
       <View style={styles.trustBox}>
         <Sparkles size={14} color="#A78BFA" />
-        <Text style={styles.trustText}>
-          Bu açıklamalar yalnızca gerçek beğenilerin, profil tercihlerin, açık filtrelerin ve içeriğin ölçülebilir özelliklerinden üretilir. Elimizde olmayan bir sinyali uydurmuyoruz.
-        </Text>
+        <Text style={styles.trustText}>{translateUI(" Bu açıklamalar yalnızca gerçek beğenilerin, profil tercihlerin, açık filtrelerin ve içeriğin ölçülebilir özelliklerinden üretilir. Elimizde olmayan bir sinyali uydurmuyoruz. ")}</Text>
       </View>
 
       <TouchableOpacity style={styles.detailButton} onPress={onOpenDetail} activeOpacity={0.86}>
-        <Text style={styles.detailButtonText}>İçeriği Gör</Text>
+        <Text style={styles.detailButtonText}>{translateUI("İçeriği Gör")}</Text>
         <ChevronRight size={16} color="#14121a" />
       </TouchableOpacity>
     </IslandModal>

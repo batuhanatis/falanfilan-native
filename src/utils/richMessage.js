@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 // Sohbette mini anket ve izleme planı mesajlarını "zengin" kartlar olarak gösterebilmek için,
 // movieShare.js'teki AYNI yöntemi kullanıyoruz: mesaj metninin içine tanınabilir bir işaretle
 // birlikte veriyi JSON olarak gömüyoruz. Oy/kabul durumu değiştiğinde backend bu JSON'u güncelleyip
@@ -45,12 +46,12 @@ export function formatPlanTime(scheduledAt) {
   const now = new Date();
   const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dayDiff = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
-  const timeStr = date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = date.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
   if (dayDiff === 0) return `Bugün ${timeStr}`;
   if (dayDiff === 1) return `Yarın ${timeStr}`;
   if (dayDiff > 1 && dayDiff < 7) {
-    const dayName = date.toLocaleDateString("tr-TR", { weekday: "long" });
+    const dayName = date.toLocaleDateString(getLocale(), { weekday: "long" });
     return `${dayName} ${timeStr}`;
   }
-  return `${date.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} ${timeStr}`;
+  return `${date.toLocaleDateString(getLocale(), { day: "numeric", month: "short" })} ${timeStr}`;
 }

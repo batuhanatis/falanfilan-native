@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 // ChatConversationScreen (gün ayırıcıları) ve ChatMessageRow (balon içi saat) ikisi de aynı
 // formatlamayı kullanıyor — tek yerde tutuluyor ki ikisi asla birbirinden sapmasın.
 export function dayLabel(iso) {
@@ -8,9 +9,9 @@ export function dayLabel(iso) {
   const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   if (sameDay(d, today)) return "Bugün";
   if (sameDay(d, yesterday)) return "Dün";
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
+  return d.toLocaleDateString(getLocale(), { day: "numeric", month: "long", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
 }
 
 export function timeLabel(iso) {
-  return new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
 }

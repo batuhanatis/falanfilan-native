@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { MapPin } from "lucide-react-native";
@@ -46,10 +47,10 @@ export default function CinemaPicker({ value, onChange, placeholder = "Hangi sin
       <TouchableOpacity style={styles.selected} onPress={() => { setQuery(""); onChange?.(null); }} activeOpacity={0.85}>
         <View style={styles.icon}><MapPin size={16} color={c.bg} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.name} numberOfLines={2}>{value.label}</Text>
-          <Text style={styles.place} numberOfLines={1}>{value.place || "Elle eklendi"}</Text>
+          <Text style={styles.name} numberOfLines={2}>{translateUI(value.label)}</Text>
+          <Text style={styles.place} numberOfLines={1}>{value.place || translateUI("Elle eklendi")}</Text>
         </View>
-        <Text style={styles.change}>Değiştir</Text>
+        <Text style={styles.change}>{translateUI("Değiştir")}</Text>
       </TouchableOpacity>
     );
   }
@@ -75,7 +76,7 @@ export default function CinemaPicker({ value, onChange, placeholder = "Hangi sin
             <TouchableOpacity key={item.id} style={styles.resultRow} onPress={() => pick(item)}>
               <MapPin size={15} color={c.dim} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.resultTitle} numberOfLines={1}>{item.label}</Text>
+                <Text style={styles.resultTitle} numberOfLines={1}>{translateUI(item.label)}</Text>
                 {!!item.place && <Text style={styles.resultMeta}>{item.place}</Text>}
               </View>
             </TouchableOpacity>
@@ -86,22 +87,22 @@ export default function CinemaPicker({ value, onChange, placeholder = "Hangi sin
           kaydı sanılmasın ("CKM listede var ama öyle bir sinema yok" karışıklığı). */}
       {trimmed.length >= 2 && !searching && (
         <>
-          {results.length === 0 && <Text style={styles.noResult}>“{trimmed}” listede bulunamadı.</Text>}
+          {results.length === 0 && <Text style={styles.noResult}>{translateUI("“")}{trimmed}{translateUI("” listede bulunamadı.")}</Text>}
           <TouchableOpacity
             style={styles.customBtn}
             onPress={() => pick({ id: null, label: trimmed.slice(0, 80), place: null })}
             activeOpacity={0.85}
           >
-            <View style={styles.customPlus}><Text style={styles.customPlusText}>+</Text></View>
+            <View style={styles.customPlus}><Text style={styles.customPlusText}>{translateUI("+")}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.customTitle}>Listede yok mu? Elle ekle</Text>
-              <Text style={styles.customSub} numberOfLines={1}>“{trimmed}” adıyla paylaşılır</Text>
+              <Text style={styles.customTitle}>{translateUI("Listede yok mu? Elle ekle")}</Text>
+              <Text style={styles.customSub} numberOfLines={1}>{translateUI("“")}{trimmed}{translateUI("” adıyla paylaşılır")}</Text>
             </View>
           </TouchableOpacity>
         </>
       )}
       {/* ODbL atıf zorunluluğu: sinema listesi OpenStreetMap'ten. */}
-      <Text style={styles.attribution}>Sinema listesi © OpenStreetMap katkıcıları</Text>
+      <Text style={styles.attribution}>{translateUI("Sinema listesi © OpenStreetMap katkıcıları")}</Text>
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../../i18n/core";
 import React, { useRef, useState } from "react";
 import {
   Modal, View, Text, Pressable, Animated, Easing, StyleSheet, AccessibilityInfo, Linking, Share, useWindowDimensions,
@@ -114,7 +115,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
       </Pressable>
 
       <Modal visible={!!anchor} transparent animationType="fade" statusBarTranslucent onRequestClose={() => close()}>
-        <Pressable style={styles.backdrop} onPress={() => close()} accessibilityLabel="Paylaşımı kapat" />
+        <Pressable style={styles.backdrop} onPress={() => close()} accessibilityLabel={translateUI("Paylaşımı kapat")} />
         {!!anchor && (
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill} accessibilityViewIsModal>
             {list.map((opt, i) => {
@@ -139,11 +140,11 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
                     style={[styles.opt, { backgroundColor: picked === i ? c.accent : c.surface, borderColor: c.border }]}
                     onPress={() => choose(i)}
                     accessibilityRole="button"
-                    accessibilityLabel={opt.a11y || opt.label}
+                    accessibilityLabel={opt.a11y || translateUI(opt.label)}
                   >
                     {opt.Icon && <opt.Icon size={22} color={picked === i ? "#1a140b" : c.text} />}
                   </Pressable>
-                  <Text style={styles.optLabel} numberOfLines={2} maxFontSizeMultiplier={1.3}>{opt.label}</Text>
+                  <Text style={styles.optLabel} numberOfLines={2} maxFontSizeMultiplier={1.3}>{translateUI(opt.label)}</Text>
                 </Animated.View>
               );
             })}
@@ -151,7 +152,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
               style={[styles.hub, { left: anchor.cx - 24, top: anchor.cy - 24, backgroundColor: c.accent }]}
               onPress={() => close()}
               accessibilityRole="button"
-              accessibilityLabel="Kapat"
+              accessibilityLabel={translateUI("Kapat")}
             >
               <X size={20} color="#1a140b" />
             </Pressable>
@@ -175,12 +176,12 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
   }
   const run = (fn) => () => { payload().then((p) => p && fn(p)).catch(() => {}); };
   return [
-    card && { key: "card", label: "Görsel kart", Icon: ImageIcon, onPress: card },
-    sendToFriend && { key: "friend", label: "Arkadaşına", a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
-    feed && { key: "feed", label: "Akışta", a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
+    card && { key: "card", label: translateUI("Görsel kart"), Icon: ImageIcon, onPress: card },
+    sendToFriend && { key: "friend", label: translateUI("Arkadaşına"), a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
+    feed && { key: "feed", label: translateUI("Akışta"), a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
     {
       key: "whatsapp",
-      label: "WhatsApp",
+      label: translateUI("WhatsApp"),
       a11y: "WhatsApp'ta paylaş",
       Icon: MessageCircle,
       onPress: run(({ text }) => Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`)
@@ -188,7 +189,7 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
     },
     copy && (url || copyText || prepare) && {
       key: "copy",
-      label: "Kopyala",
+      label: translateUI("Kopyala"),
       a11y: copyText ? "Metni kopyala" : "Bağlantıyı kopyala",
       Icon: Link2,
       onPress: run(({ copyText: value }) => {
@@ -198,7 +199,7 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
           .catch(() => {});
       }),
     },
-    { key: "other", label: "Diğer", a11y: "Diğer uygulamalarla paylaş", Icon: Share2, onPress: run(({ text }) => Share.share({ message: text }).catch(() => {})) },
+    { key: "other", label: translateUI("Diğer"), a11y: "Diğer uygulamalarla paylaş", Icon: Share2, onPress: run(({ text }) => Share.share({ message: text }).catch(() => {})) },
   ].filter(Boolean);
 }
 

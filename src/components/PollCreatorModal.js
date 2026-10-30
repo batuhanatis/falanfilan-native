@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { X, Search, Check, BarChart2 } from "lucide-react-native";
@@ -84,13 +85,13 @@ export default function PollCreatorModal({ visible, onClose, onSubmit }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
               <View style={styles.header}>
-                <Text style={styles.title}>Mini Anket Oluştur</Text>
+                <Text style={styles.title}>{translateUI("Mini Anket Oluştur")}</Text>
                 <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
               </View>
 
               <TextInput
                 style={styles.questionInput}
-                placeholder="Soru (opsiyonel) — ör. Bu akşam ne izlesek?"
+                placeholder={translateUI("Soru (opsiyonel) — ör. Bu akşam ne izlesek?")}
                 placeholderTextColor={c.dim}
                 value={question}
                 onChangeText={setQuestion}
@@ -111,7 +112,7 @@ export default function PollCreatorModal({ visible, onClose, onSubmit }) {
                 <Search size={15} color={c.dim} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Film ara..."
+                  placeholder={translateUI("Film ara...")}
                   placeholderTextColor={c.dim}
                   value={query}
                   onChangeText={setQuery}
@@ -135,7 +136,7 @@ export default function PollCreatorModal({ visible, onClose, onSubmit }) {
                       </TouchableOpacity>
                     );
                   }}
-                  ListEmptyComponent={query.trim() ? <Text style={styles.emptyText}>Sonuç bulunamadı.</Text> : null}
+                  ListEmptyComponent={query.trim() ? <Text style={styles.emptyText}>{translateUI("Sonuç bulunamadı.")}</Text> : null}
                 />
               )}
 
@@ -146,7 +147,7 @@ export default function PollCreatorModal({ visible, onClose, onSubmit }) {
               >
                 <BarChart2 size={16} color={c.bg} />
                 <Text style={styles.submitBtnText}>
-                  {selected.length < 2 ? "En az 2 seçenek seç" : `Anketi Gönder (${selected.length})`}
+                  {selected.length < 2 ? translateUI("En az 2 seçenek seç") : translateUI("Anketi Gönder ({0})", {0: selected.length})}
                 </Text>
               </TouchableOpacity>
             </DismissableSheet>

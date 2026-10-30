@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -45,12 +46,12 @@ export default function TopBar({ centerLabel, leftAction = null }) {
             {leftAction.icon}
           </TouchableOpacity>
         ) : (
-          <Text style={styles.logo}>pell<Text style={{ color: c.accent }}>i</Text>x</Text>
+          <Text style={styles.logo}>{translateUI("pell")}<Text style={{ color: c.accent }}>{translateUI("i")}</Text>{translateUI("x")}</Text>
         )}
       </View>
 
       <View style={styles.barCenter}>
-        {!!centerLabel && <Text style={styles.centerLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{centerLabel}</Text>}
+        {!!centerLabel && <Text style={styles.centerLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{translateUI(centerLabel)}</Text>}
       </View>
 
       <View style={[styles.barSide, styles.barSideRight]}>
@@ -86,7 +87,7 @@ function BadgeCount({ count, styles }) {
   if (count <= 0) return null;
   return (
     <Animated.View style={[styles.badge, count > 9 ? styles.badgeWide : null, { transform: [{ scale }] }]}>
-      <Text style={styles.badgeText}>{count > 9 ? "9+" : count}</Text>
+      <Text style={styles.badgeText}>{count > 9 ? translateUI("9+") : count}</Text>
     </Animated.View>
   );
 }

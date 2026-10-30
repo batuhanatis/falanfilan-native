@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator, Alert, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator,  Linking } from "react-native";
 import { Radio, Bell, BellRing } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { FONTS, upperTR } from "../theme/fonts";
@@ -15,11 +17,11 @@ function startLabel(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const now = new Date();
-  const time = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const time = d.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
   const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
   if (dayDiff <= 0) return `BUGÜN ${time}`;
   if (dayDiff === 1) return `YARIN ${time}`;
-  return `${upperTR(d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }))} ${time}`;
+  return `${upperTR(d.toLocaleDateString(getLocale(), { day: "numeric", month: "long" }))} ${time}`;
 }
 
 export default function LiveRoomsList({ data, loading, refreshing, onRefresh, onOpen }) {
@@ -44,16 +46,16 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
       keyExtractor={(item) => item.key}
       contentContainerStyle={{ paddingBottom: 24 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent} colors={[c.accent]} />}
-      ListHeaderComponent={live.length ? <Text style={styles.sectionLabel}>ŞU AN AÇIK</Text> : null}
+      ListHeaderComponent={live.length ? <Text style={styles.sectionLabel}>{translateUI("ŞU AN AÇIK")}</Text> : null}
       ListEmptyComponent={(
         <View style={styles.empty}>
           <Radio size={26} color={c.dim} />
-          <Text style={styles.emptyTitle}>Şu an açık oda yok</Text>
-          <Text style={styles.emptyText}>Bölümler yayınlanırken burada canlı sohbet odaları açılıyor. Açılınca herkesle aynı anda konuşabilirsin.</Text>
+          <Text style={styles.emptyTitle}>{translateUI("Şu an açık oda yok")}</Text>
+          <Text style={styles.emptyText}>{translateUI("Bölümler yayınlanırken burada canlı sohbet odaları açılıyor. Açılınca herkesle aynı anda konuşabilirsin.")}</Text>
         </View>
       )}
       renderItem={({ item }) => {
-        if (item.label) return <Text style={[styles.sectionLabel, { marginTop: live.length ? 22 : 8 }]}>YAKINDA</Text>;
+        if (item.label) return <Text style={[styles.sectionLabel, { marginTop: live.length ? 22 : 8 }]}>{translateUI("YAKINDA")}</Text>;
         const { room } = item;
         return (
           <TouchableOpacity
@@ -62,8 +64,8 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
             onPress={() => onOpen(room)}
             accessibilityRole="button"
             accessibilityLabel={item.live
-              ? `${room.title}${room.episodeLabel ? `, ${room.episodeLabel}` : ""}, canlı, içeride ${room.participants} kişi`
-              : `${room.title}${room.episodeLabel ? `, ${room.episodeLabel}` : ""}, ${startLabel(room.startsAt)} açılacak`}
+              ? translateUI("{0}{1}, canlı, içeride {2} kişi", {0: room.title,1: room.episodeLabel ? `, ${room.episodeLabel}` : "",2: room.participants})
+              : translateUI("{0}{1}, {2} açılacak", {0: room.title,1: room.episodeLabel ? `, ${room.episodeLabel}` : "",2: startLabel(room.startsAt)})}
           >
             {room.poster
               ? <Image source={{ uri: room.poster }} style={styles.poster} />
@@ -74,7 +76,7 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
               <View style={styles.metaRow}>
                 {item.live && <LiveDot color={c.danger} />}
                 <Text style={[styles.meta, item.live && { color: c.danger }]} numberOfLines={1}>
-                  {item.live ? "CANLI" : startLabel(room.startsAt)}
+                  {item.live ? translateUI("CANLI") : translateUI(startLabel(room.startsAt))}
                 </Text>
               </View>
               {!item.live && <RoomReminder key={room.code} code={room.code} refreshKey={data} />}
@@ -82,7 +84,7 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
             {item.live && (
               <View style={styles.countBox}>
                 <Text style={styles.count}>{room.participants}</Text>
-                <Text style={styles.countLabel}>KİŞİ</Text>
+                <Text style={styles.countLabel}>{translateUI("KİŞİ")}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -161,12 +163,12 @@ function RoomReminder({ code, refreshKey }) {
       disabled={loading}
       accessibilityRole="button"
       accessibilityState={{ selected: subscribed, disabled: loading }}
-      accessibilityLabel={subscribed ? "Oda açılma bildirimini iptal et" : "Oda açılınca haber ver"}
+      accessibilityLabel={subscribed ? translateUI("Oda açılma bildirimini iptal et") : translateUI("Oda açılınca haber ver")}
       style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, marginTop: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: subscribed ? c.accent : c.border, backgroundColor: c.surface2 }}
     >
       {loading ? <ActivityIndicator size="small" color={c.accent} /> : <Icon size={15} color={c.accent} />}
       <Text style={{ color: c.accent, fontSize: 12, fontWeight: "600", flexShrink: 1 }}>
-        {failed ? "Tekrar dene" : subscribed ? "Bildirim açık · İptal et" : "Açılınca haber ver"}
+        {failed ? translateUI("Tekrar dene") : subscribed ? translateUI("Bildirim açık · İptal et") : translateUI("Açılınca haber ver")}
       </Text>
     </TouchableOpacity>
   );

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Check, Eye } from "lucide-react-native";
@@ -58,7 +59,7 @@ export default function DetailScreenV2(props) {
           onPress={() => setModalOpen(true)}
           activeOpacity={0.86}
           accessibilityRole="button"
-          accessibilityLabel={entry ? "Pellix Diary kaydını düzenle" : "İzledim olarak işaretle"}
+          accessibilityLabel={entry ? translateUI("Pellix Diary kaydını düzenle") : translateUI("İzledim olarak işaretle")}
         >
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -67,7 +68,7 @@ export default function DetailScreenV2(props) {
           ) : (
             <Eye size={14} color="#fff" />
           )}
-          <Text style={styles.diaryPillText}>{entry ? "İzlendi" : "İzledim"}</Text>
+          <Text style={styles.diaryPillText}>{entry ? translateUI("İzlendi") : translateUI("İzledim")}</Text>
         </TouchableOpacity>
       )}
 

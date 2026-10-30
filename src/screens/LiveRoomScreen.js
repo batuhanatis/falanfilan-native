@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, ActivityIndicator,
@@ -46,7 +47,7 @@ function whenLabel(iso) {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(getLocale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
 function restrictionText(r) {
@@ -55,7 +56,7 @@ function restrictionText(r) {
   if (r.kind === "kick") return "Bu odadan çıkarıldın.";
   if (r.kind === "mute") {
     if (!r.until) return "Moderatör seni bu oda boyunca susturdu.";
-    const time = new Date(r.until).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date(r.until).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
     return `Moderatör seni susturdu, ${time}'e kadar yazamazsın.`;
   }
   return "Bu odada mesaj yazman engellendi.";
@@ -396,19 +397,19 @@ export default function LiveRoomScreen({ route, navigation }) {
         onLongPress={() => handlers.current.openSheet(item)}
         delayLongPress={300}
         accessibilityLabel={`${own ? "Sen" : item.user.name}: ${item.body}`}
-        accessibilityHint={failed ? "Tekrar göndermek için dokun" : "Tepki ve seçenekler için basılı tut"}
+        accessibilityHint={failed ? translateUI("Tekrar göndermek için dokun") : translateUI("Tepki ve seçenekler için basılı tut")}
       >
         <RetryImage source={{ uri: avatarOr(item.user.avatarUrl, item.user.id) }} style={styles.avatar} />
         <View style={styles.msgBody}>
           <View style={styles.msgHead}>
-            <Text style={[styles.msgName, own && { color: c.accent }]} numberOfLines={1}>{own ? "Sen" : item.user.name}</Text>
-            {item.user.isModerator && <Text style={styles.modBadge}>MODERATÖR</Text>}
+            <Text style={[styles.msgName, own && { color: c.accent }]} numberOfLines={1}>{own ? translateUI("Sen") : item.user.name}</Text>
+            {item.user.isModerator && <Text style={styles.modBadge}>{translateUI("MODERATÖR")}</Text>}
             <Text style={[styles.msgTime, failed && { color: c.danger }]}>
-              {failed ? "GÖNDERİLEMEDİ" : pending ? "·  ·  ·" : timeLabel(item.createdAt)}
+              {failed ? translateUI("GÖNDERİLEMEDİ") : pending ? translateUI("·  ·  ·") : translateUI(timeLabel(item.createdAt))}
             </Text>
           </View>
           <Text style={[styles.msgText, failed && { opacity: 0.6 }]}>{item.body}</Text>
-          {failed && <Text style={styles.failedHint}>Tekrar göndermek için dokun</Text>}
+          {failed && <Text style={styles.failedHint}>{translateUI("Tekrar göndermek için dokun")}</Text>}
           {item.reactions?.length > 0 && (
             <View style={styles.reactRow}>
               {item.reactions.map((r) => {
@@ -446,13 +447,13 @@ export default function LiveRoomScreen({ route, navigation }) {
   if (kicked || loadError || !room) {
     return (
       <View style={[styles.root, { paddingTop: Math.max(insets.top, 12) }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel="Geri">
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel={translateUI("Geri")}>
           <ChevronLeft size={22} color={c.text} />
         </TouchableOpacity>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>{kicked ? "Bu odadan çıkarıldın" : loadError || "Bu sohbet odası bulunamadı."}</Text>
+          <Text style={styles.emptyTitle}>{kicked ? translateUI("Bu odadan çıkarıldın") : loadError || translateUI("Bu sohbet odası bulunamadı.")}</Text>
           <Text style={styles.emptyText}>
-            {kicked ? "Bir moderatör seni bu odadan çıkardı. Bu odaya tekrar giremezsin." : "Link hatalı ya da oda silinmiş olabilir."}
+            {kicked ? translateUI("Bir moderatör seni bu odadan çıkardı. Bu odaya tekrar giremezsin.") : translateUI("Link hatalı ya da oda silinmiş olabilir.")}
           </Text>
         </View>
       </View>
@@ -466,7 +467,7 @@ export default function LiveRoomScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel="Geri">
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel={translateUI("Geri")}>
           <ChevronLeft size={22} color={c.text} />
         </TouchableOpacity>
         <TouchableOpacity
@@ -474,7 +475,7 @@ export default function LiveRoomScreen({ route, navigation }) {
           activeOpacity={movie ? 0.8 : 1}
           onPress={() => movie && navigation.navigate("Detail", { movie })}
           accessibilityRole={movie ? "button" : undefined}
-          accessibilityLabel={movie ? `${room.title} detayını aç` : room.title}
+          accessibilityLabel={movie ? translateUI("{0} detayını aç", {0: room.title}) : room.title}
         >
           {!!room.poster && <Image source={{ uri: room.poster }} style={styles.poster} />}
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -483,14 +484,14 @@ export default function LiveRoomScreen({ route, navigation }) {
               {status === "live" && <LiveDot color={c.danger} />}
               <Text style={[styles.meta, status === "live" && { color: c.danger }]} numberOfLines={1}>
                 {status === "live"
-                  ? `CANLI · ${participants} KİŞİ`
-                  : status === "scheduled" ? "PLANLANDI" : "KAPANDI"}
+                  ? translateUI("CANLI · {0} KİŞİ", {0: participants})
+                  : status === "scheduled" ? translateUI("PLANLANDI") : translateUI("KAPANDI")}
                 {room.episodeLabel ? `  ·  ${upperTR(room.episodeLabel)}` : ""}
               </Text>
             </View>
           </View>
         </TouchableOpacity>
-        <ShareFan style={styles.iconBtn} options={shareFanOptions} accessibilityLabel="Odanın linkini paylaş">
+        <ShareFan style={styles.iconBtn} options={shareFanOptions} accessibilityLabel={translateUI("Odanın linkini paylaş")}>
           <Share2 size={18} color={c.text} />
         </ShareFan>
       </View>
@@ -509,12 +510,12 @@ export default function LiveRoomScreen({ route, navigation }) {
         ListEmptyComponent={(
           <View style={[styles.empty, { transform: [{ scaleY: -1 }] }]}>
             <Text style={styles.emptyTitle}>
-              {status === "live" ? "Oda açık, ilk mesajı sen yaz." : status === "scheduled" ? "Oda yayın saatinde açılacak." : "Bu odada mesaj kalmadı."}
+              {status === "live" ? translateUI("Oda açık, ilk mesajı sen yaz.") : status === "scheduled" ? translateUI("Oda yayın saatinde açılacak.") : translateUI("Bu odada mesaj kalmadı.")}
             </Text>
             <Text style={styles.emptyText}>
               {status === "scheduled"
-                ? (when ? `${when} itibarıyla burada birlikte izleyip konuşacağız.` : "Açıldığında burada birlikte izleyip konuşacağız.")
-                : "Bölümü izlerken aklından geçeni yaz. Spoiler'a dikkat, herkes aynı yerde olmayabilir."}
+                ? (when ? translateUI("{0} itibarıyla burada birlikte izleyip konuşacağız.", {0: when}) : translateUI("Açıldığında burada birlikte izleyip konuşacağız."))
+                : translateUI("Bölümü izlerken aklından geçeni yaz. Spoiler'a dikkat, herkes aynı yerde olmayabilir.")}
             </Text>
           </View>
         )}
@@ -529,18 +530,18 @@ export default function LiveRoomScreen({ route, navigation }) {
               style={styles.input}
               value={text}
               onChangeText={(v) => setText(v.slice(0, MAX_LEN))}
-              placeholder="Odaya yaz"
+              placeholder={translateUI("Odaya yaz")}
               placeholderTextColor={c.dim}
               multiline
               maxLength={MAX_LEN}
-              accessibilityLabel="Mesaj"
+              accessibilityLabel={translateUI("Mesaj")}
             />
             <TouchableOpacity
               style={[styles.sendBtn, !text.trim() && { opacity: 0.45 }]}
               onPress={sendMessage}
               disabled={!text.trim()}
               accessibilityRole="button"
-              accessibilityLabel="Gönder"
+              accessibilityLabel={translateUI("Gönder")}
             >
               <Send size={18} color="#1a140b" />
             </TouchableOpacity>
@@ -550,18 +551,18 @@ export default function LiveRoomScreen({ route, navigation }) {
             {restriction
               ? restrictionText(restriction)
               : status === "scheduled"
-                ? (when ? `Oda ${when}'de açılıyor.` : "Oda yayın saatinde açılıyor.")
-                : "Bu oda kapandı. Mesajları okuyabilirsin."}
+                ? (when ? translateUI("Oda {0}'de açılıyor.", {0: when}) : translateUI("Oda yayın saatinde açılıyor."))
+                : translateUI("Bu oda kapandı. Mesajları okuyabilirsin.")}
           </Text>
         )}
       </View>
 
       <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={closeSheet} statusBarTranslucent>
-        <Pressable style={styles.sheetBackdrop} onPress={closeSheet} accessibilityLabel="Kapat" />
+        <Pressable style={styles.sheetBackdrop} onPress={closeSheet} accessibilityLabel={translateUI("Kapat")} />
         {!!sheet && (
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetName} numberOfLines={1}>{sheetOwn ? "Senin mesajın" : sheet.user.name}</Text>
+            <Text style={styles.sheetName} numberOfLines={1}>{sheetOwn ? translateUI("Senin mesajın") : sheet.user.name}</Text>
             <Text style={styles.sheetPreview} numberOfLines={2}>{sheet.body}</Text>
 
             {canInteract && sheetStep === null && (
@@ -572,7 +573,7 @@ export default function LiveRoomScreen({ route, navigation }) {
                     style={[styles.emojiBtn, sheet.myReaction === e && styles.emojiBtnMine]}
                     onPress={() => { const m = sheet; closeSheet(); react(m, e); }}
                     accessibilityRole="button"
-                    accessibilityLabel={sheet.myReaction === e ? `${e} tepkini kaldır` : `${e} tepkisi bırak`}
+                    accessibilityLabel={sheet.myReaction === e ? translateUI("{0} tepkini kaldır", {0: e}) : translateUI("{0} tepkisi bırak", {0: e})}
                   >
                     <Text style={styles.emojiBig}>{e}</Text>
                   </TouchableOpacity>
@@ -583,18 +584,18 @@ export default function LiveRoomScreen({ route, navigation }) {
             {sheetStep === null && (
               <View>
                 {!sheetOwn && (
-                  <SheetRow icon={User} label="Profili gör" c={c} styles={styles}
+                  <SheetRow icon={User} label={translateUI("Profili gör")} c={c} styles={styles}
                     onPress={() => { const u = sheet.user; closeSheet(); navigation.navigate("OtherProfile", { userId: u.id }); }} />
                 )}
-                <SheetRow icon={Copy} label="Metni kopyala" c={c} styles={styles}
+                <SheetRow icon={Copy} label={translateUI("Metni kopyala")} c={c} styles={styles}
                   onPress={() => { Clipboard.setStringAsync(sheet.body).catch(() => {}); closeSheet(); showNotice("Mesaj kopyalandı.", "info"); }} />
                 {(sheetOwn || isModerator) && (
-                  <SheetRow icon={Trash2} label="Mesajı sil" danger c={c} styles={styles} onPress={() => deleteMessage(sheet)} />
+                  <SheetRow icon={Trash2} label={translateUI("Mesajı sil")} danger c={c} styles={styles} onPress={() => deleteMessage(sheet)} />
                 )}
                 {sheetCanModerate && (
                   <>
-                    <SheetRow icon={VolumeX} label="Sustur" more c={c} styles={styles} onPress={() => setSheetStep("mute")} />
-                    <SheetRow icon={LogOut} label="Odadan at" danger more c={c} styles={styles} onPress={() => setSheetStep("kick")} />
+                    <SheetRow icon={VolumeX} label={translateUI("Sustur")} more c={c} styles={styles} onPress={() => setSheetStep("mute")} />
+                    <SheetRow icon={LogOut} label={translateUI("Odadan at")} danger more c={c} styles={styles} onPress={() => setSheetStep("kick")} />
                   </>
                 )}
               </View>
@@ -602,21 +603,20 @@ export default function LiveRoomScreen({ route, navigation }) {
 
             {sheetStep === "mute" && (
               <View>
-                <Text style={styles.sheetQuestion}>{sheet.user.name} ne kadar yazamasın? Okumaya devam eder.</Text>
+                <Text style={styles.sheetQuestion}>{sheet.user.name}{translateUI(" ne kadar yazamasın? Okumaya devam eder.")}</Text>
                 {MUTE_OPTIONS.map((o) => (
-                  <SheetRow key={o.label} label={o.label} c={c} styles={styles} onPress={() => restrict(sheet.user, "mute", o.minutes)} />
+                  <SheetRow key={o.label} label={translateUI(o.label)} c={c} styles={styles} onPress={() => restrict(sheet.user, "mute", o.minutes)} />
                 ))}
-                <SheetRow label="Geri" muted c={c} styles={styles} onPress={() => setSheetStep(null)} />
+                <SheetRow label={translateUI("Geri")} muted c={c} styles={styles} onPress={() => setSheetStep(null)} />
               </View>
             )}
 
             {sheetStep === "kick" && (
               <View>
                 <Text style={styles.sheetQuestion}>
-                  {sheet.user.name} odadan atılsın mı? Bu odaya tekrar giremez, yazamaz; mesajları da kaldırılır.
-                </Text>
-                <SheetRow icon={LogOut} label="Odadan at" danger c={c} styles={styles} onPress={() => restrict(sheet.user, "kick")} />
-                <SheetRow label="Geri" muted c={c} styles={styles} onPress={() => setSheetStep(null)} />
+                  {sheet.user.name}{translateUI(" odadan atılsın mı? Bu odaya tekrar giremez, yazamaz; mesajları da kaldırılır. ")}</Text>
+                <SheetRow icon={LogOut} label={translateUI("Odadan at")} danger c={c} styles={styles} onPress={() => restrict(sheet.user, "kick")} />
+                <SheetRow label={translateUI("Geri")} muted c={c} styles={styles} onPress={() => setSheetStep(null)} />
               </View>
             )}
           </View>
@@ -641,9 +641,9 @@ export default function LiveRoomScreen({ route, navigation }) {
 function SheetRow({ icon: Icon, label, onPress, danger, muted, more, c, styles }) {
   const color = danger ? c.danger : muted ? c.dim : c.text;
   return (
-    <TouchableOpacity style={styles.sheetRow} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <TouchableOpacity style={styles.sheetRow} onPress={onPress} accessibilityRole="button" accessibilityLabel={translateUI(label)}>
       {Icon ? <Icon size={18} color={color} /> : <View style={{ width: 18 }} />}
-      <Text style={[styles.sheetRowText, { color }]}>{label}</Text>
+      <Text style={[styles.sheetRowText, { color }]}>{translateUI(label)}</Text>
       {more && <ChevronRight size={16} color={c.dim} />}
     </TouchableOpacity>
   );

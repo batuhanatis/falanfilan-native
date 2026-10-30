@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from "react-native";
 import { X, Flag } from "lucide-react-native";
@@ -44,22 +45,22 @@ export default function ReportUserModal({ userId, userName, onClose }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <View style={styles.header}>
-            <Text style={styles.title}>{userName} Kişisini Şikayet Et</Text>
+            <Text style={styles.title}>{userName}{translateUI(" Kişisini Şikayet Et")}</Text>
             <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
           </View>
 
           {done ? (
             <View style={{ alignItems: "center", paddingVertical: 20 }}>
               <Flag size={32} color={c.accent} style={{ marginBottom: 10 }} />
-              <Text style={styles.doneTitle}>Şikayetin alındı</Text>
-              <Text style={styles.doneSubtitle}>İncelememiz için gerekli ekibe iletildi.</Text>
+              <Text style={styles.doneTitle}>{translateUI("Şikayetin alındı")}</Text>
+              <Text style={styles.doneSubtitle}>{translateUI("İncelememiz için gerekli ekibe iletildi.")}</Text>
               <TouchableOpacity style={styles.button} onPress={onClose}>
-                <Text style={styles.buttonText}>Kapat</Text>
+                <Text style={styles.buttonText}>{translateUI("Kapat")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <>
-              <Text style={styles.label}>NEDEN</Text>
+              <Text style={styles.label}>{translateUI("NEDEN")}</Text>
               {REASONS.map((r) => (
                 <TouchableOpacity key={r} style={styles.reasonRow} onPress={() => setReason(r)}>
                   <View style={[styles.radio, reason === r && { borderColor: c.accent }]}>
@@ -68,10 +69,10 @@ export default function ReportUserModal({ userId, userName, onClose }) {
                   <Text style={styles.reasonText}>{r}</Text>
                 </TouchableOpacity>
               ))}
-              <Text style={[styles.label, { marginTop: 14 }]}>DETAY (İSTEĞE BAĞLI)</Text>
+              <Text style={[styles.label, { marginTop: 14 }]}>{translateUI("DETAY (İSTEĞE BAĞLI)")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Neler oldu, kısaca anlatır mısın?"
+                placeholder={translateUI("Neler oldu, kısaca anlatır mısın?")}
                 placeholderTextColor={c.dim}
                 value={details}
                 onChangeText={setDetails}
@@ -79,7 +80,7 @@ export default function ReportUserModal({ userId, userName, onClose }) {
                 numberOfLines={3}
               />
               <TouchableOpacity style={[styles.button, !reason && { opacity: 0.5 }]} onPress={submit} disabled={!reason || loading}>
-                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>Şikayeti Gönder</Text>}
+                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>{translateUI("Şikayeti Gönder")}</Text>}
               </TouchableOpacity>
             </>
           )}

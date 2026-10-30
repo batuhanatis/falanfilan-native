@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { Search, Star, X, Check } from "lucide-react-native";
@@ -53,7 +54,7 @@ export default function FavoritePicker({ label, type, value, onSelect, onDropdow
   // varsayılan DOM sırası kazanır) üzerine çıkabilsin diye zIndex'i sadece açıkken yükseltiyoruz.
   return (
     <View style={{ zIndex: dropdownOpen ? 50 : 1 }}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{translateUI(label)}</Text>
 
       {value ? (
         <View style={styles.selectedCard}>
@@ -65,10 +66,10 @@ export default function FavoritePicker({ label, type, value, onSelect, onDropdow
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.selectedCheckRow}>
               <Check size={12} color={c.accent} />
-              <Text style={styles.selectedCheckText}>Seçildi</Text>
+              <Text style={styles.selectedCheckText}>{translateUI("Seçildi")}</Text>
             </View>
             <Text style={styles.selectedTitle} numberOfLines={2}>{value.title}</Text>
-            <Text style={styles.selectedMeta} numberOfLines={1}>{value.year} · ⭐ {value.imdb}</Text>
+            <Text style={styles.selectedMeta} numberOfLines={1}>{value.year}{translateUI(" · ⭐ ")}{value.imdb}</Text>
           </View>
           <TouchableOpacity onPress={() => onSelect(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <X size={16} color={c.dim} />
@@ -80,7 +81,7 @@ export default function FavoritePicker({ label, type, value, onSelect, onDropdow
             <Search size={15} color={focused ? c.accent : c.dim} />
             <TextInput
               style={styles.input}
-              placeholder={type === "Film" ? "Bir film ara..." : "Bir dizi ara..."}
+              placeholder={type === "Film" ? translateUI("Bir film ara...") : translateUI("Bir dizi ara...")}
               placeholderTextColor={c.dim}
               value={query}
               onChangeText={setQuery}
@@ -94,7 +95,7 @@ export default function FavoritePicker({ label, type, value, onSelect, onDropdow
               {loading ? (
                 <ActivityIndicator style={{ paddingVertical: 18 }} color={c.accent} />
               ) : results.length === 0 ? (
-                <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
+                <Text style={styles.dropdownEmpty}>{translateUI("\"")}{query}{translateUI("\" için sonuç bulunamadı")}</Text>
               ) : (
                 <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: 260 }}>
                   {results.slice(0, 8).map((item) => (

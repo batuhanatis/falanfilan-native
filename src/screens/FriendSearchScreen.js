@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -70,7 +71,7 @@ export default function FriendSearchScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      <ScreenHeader title="Arkadaşlar" subtitle="Bul, ekle veya davet et" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("Arkadaşlar")} subtitle={translateUI("Bul, ekle veya davet et")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <TouchableOpacity
@@ -78,14 +79,14 @@ export default function FriendSearchScreen({ navigation }) {
           onPress={() => navigation.navigate("InviteFriend")}
         >
           <View style={styles.inviteIconWrap}><UserPlus2 size={15} color={c.bg} /></View>
-          <Text style={styles.inviteRowText}>Arkadaşını Davet Et</Text>
+          <Text style={styles.inviteRowText}>{translateUI("Arkadaşını Davet Et")}</Text>
         </TouchableOpacity>
 
         <View style={styles.searchBox}>
           <Search size={15} color={c.dim} />
           <TextInput
             style={styles.input}
-            placeholder="İsim veya @kullaniciadi ile ara"
+            placeholder={translateUI("İsim veya @kullaniciadi ile ara")}
             placeholderTextColor={c.dim}
             value={query}
             onChangeText={setQuery}
@@ -114,13 +115,13 @@ export default function FriendSearchScreen({ navigation }) {
                       <RetryImage source={{ uri: avatarOr(item.avatar_url, item.id) }} style={styles.avatarPlaceholder} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{item.name}</Text>
-                        {!!item.username && <Text style={styles.username}>@{item.username}</Text>}
+                        {!!item.username && <Text style={styles.username}>{translateUI("@")}{item.username}</Text>}
                       </View>
                     </TouchableOpacity>
                     {isFriend ? (
                       <View style={styles.friendBadge}>
                         <Check size={12} color={c.accent} />
-                        <Text style={styles.friendBadgeText}>Arkadaşsınız</Text>
+                        <Text style={styles.friendBadgeText}>{translateUI("Arkadaşsınız")}</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -129,25 +130,25 @@ export default function FriendSearchScreen({ navigation }) {
                         style={[styles.addBtn, sentTo.has(item.id) && { backgroundColor: c.surface2 }]}
                       >
                         <Text style={[styles.addBtnText, sentTo.has(item.id) && { color: c.dim }]}>
-                          {sentTo.has(item.id) ? "Gönderildi" : "Ekle"}
+                          {sentTo.has(item.id) ? translateUI("Gönderildi") : translateUI("Ekle")}
                         </Text>
                       </TouchableOpacity>
                     )}
                   </View>
                 );
               }}
-              ListEmptyComponent={!loading ? <Text style={styles.empty}>Kullanıcı bulunamadı.</Text> : null}
+              ListEmptyComponent={!loading ? <Text style={styles.empty}>{translateUI("Kullanıcı bulunamadı.")}</Text> : null}
             />
           </>
         ) : (
           <View style={{ marginTop: 16, flex: 1 }}>
-            <Text style={styles.sectionLabel}>İSTEKLER{requests.length > 0 ? ` (${requests.length})` : ""}</Text>
+            <Text style={styles.sectionLabel}>{translateUI("İSTEKLER")}{requests.length > 0 ? ` (${requests.length})` : ""}</Text>
             {requestsLoading ? (
               <ActivityIndicator color={c.accent} style={{ marginTop: 10 }} />
             ) : requests.length === 0 ? (
               <View style={styles.noRequestsBox}>
                 <Users size={20} color={c.dim} style={{ opacity: 0.6, marginBottom: 6 }} />
-                <Text style={styles.noRequestsText}>Arkadaşlık isteğiniz yok</Text>
+                <Text style={styles.noRequestsText}>{translateUI("Arkadaşlık isteğiniz yok")}</Text>
               </View>
             ) : (
               <FlatList

@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
-import { Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { Text, TouchableOpacity, StyleSheet} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Wand2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -80,10 +82,10 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
     <IslandModal
       visible
       onClose={onClose}
-      title="Zevkine Göre Öner"
+      title={translateUI("Zevkine Göre Öner")}
       icon={Wand2}
       gradientColors={BRAND_GRADIENT}
-      subtitle="Geçmişte beğendiklerine bakıp sana özel bir liste buluruz"
+      subtitle={translateUI("Geçmişte beğendiklerine bakıp sana özel bir liste buluruz")}
     >
       <FilterFields
         typeValue={type || "Hepsi"}
@@ -102,17 +104,17 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
       {/* AI2 — filtrelerin hepsi boşken sonucun nereden geleceği belirsizdi ("kara kutu"
           hissi); artık ne olacağını açıkça söylüyoruz. */}
       {!genre && !type && !origin && yearLabels.size === 0 && platforms.size === 0 && (
-        <Text style={styles.helperText}>Boş bırakırsan geçmiş beğenilerine göre öneririz.</Text>
+        <Text style={styles.helperText}>{translateUI("Boş bırakırsan geçmiş beğenilerine göre öneririz.")}</Text>
       )}
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={getRecommendation} disabled={loading}>
         <LinearGradient colors={BRAND_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
           {loading ? (
             <LoadingLines lines={TASTE_LOADING_LINES} style={styles.goBtnText} />
           ) : (
-            <Text style={styles.goBtnText}>Bana Bir Şey Öner</Text>
+            <Text style={styles.goBtnText}>{translateUI("Bana Bir Şey Öner")}</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>

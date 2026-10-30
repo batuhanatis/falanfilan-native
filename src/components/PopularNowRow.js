@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, Image, Animated, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -36,10 +37,10 @@ export default function PopularNowRow({ items, onPress, onTouchStart, onTouchEnd
   return (
     <View style={styles.wrap}>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>Şu an popüler</Text>
+        <Text style={styles.title}>{translateUI("Şu an popüler")}</Text>
         <View style={styles.liveBadge}>
           <Animated.View style={[styles.liveDot, { opacity: pulse }]} />
-          <Text style={styles.liveText}>CANLI</Text>
+          <Text style={styles.liveText}>{translateUI("CANLI")}</Text>
         </View>
       </View>
       <ScrollView

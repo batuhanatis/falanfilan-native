@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -106,85 +107,85 @@ export default function TonightPlannerScreen({ navigation }) {
   const choiceButton = (value, label, selected, onPress, extra = null) => (
     <TouchableOpacity key={String(value)} accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress}
       style={[styles.choice, selected && styles.selected]} activeOpacity={0.8}>
-      {extra}<Text style={styles.choiceText}>{label}</Text>{selected ? <Check size={18} color={c.accent} /> : null}
+      {extra}<Text style={styles.choiceText}>{translateUI(label)}</Text>{selected ? <Check size={18} color={c.accent} /> : null}
     </TouchableOpacity>
   );
   function body() {
     if (premiumRequired) return <View style={styles.gate}>
-      <Crown size={32} color={c.accent} /><Text style={styles.title}>Bu akşamın seçimi sana özel.</Text>
-      <Text style={styles.hint}>Platformlarına ve zevkine göre bir ana öneri, iki alternatif. İstersen sevgilinin veya arkadaşlarının Pellix profillerini de dahil et.</Text>
-      <TouchableOpacity style={styles.primary} onPress={() => navigation.navigate('Premium', { reason: 'tonight_planner' })}><Text style={styles.primaryText}>Premium ile akşamı planla</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.secondary} onPress={() => loadOptions()} disabled={loadingOptions}><Text style={styles.secondaryText}>Üyeliğimi tekrar kontrol et</Text></TouchableOpacity>
+      <Crown size={32} color={c.accent} /><Text style={styles.title}>{translateUI("Bu akşamın seçimi sana özel.")}</Text>
+      <Text style={styles.hint}>{translateUI("Platformlarına ve zevkine göre bir ana öneri, iki alternatif. İstersen sevgilinin veya arkadaşlarının Pellix profillerini de dahil et.")}</Text>
+      <TouchableOpacity style={styles.primary} onPress={() => navigation.navigate('Premium', { reason: 'tonight_planner' })}><Text style={styles.primaryText}>{translateUI("Premium ile akşamı planla")}</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.secondary} onPress={() => loadOptions()} disabled={loadingOptions}><Text style={styles.secondaryText}>{translateUI("Üyeliğimi tekrar kontrol et")}</Text></TouchableOpacity>
     </View>;
-    if (loadingOptions && !options) return <View style={styles.gate}><ActivityIndicator color={c.accent} /><Text style={styles.hint}>Platformlar ve profiller hazırlanıyor…</Text></View>;
-    if (!options) return <TouchableOpacity style={styles.primary} onPress={() => loadOptions()}><Text style={styles.primaryText}>Tekrar dene</Text></TouchableOpacity>;
-    if (busy) return <View style={styles.gate}><ActivityIndicator size="large" color={c.accent} /><Text style={styles.title}>Bu akşamı hazırlıyoruz.</Text><Text style={styles.hint}>Zevkleri karşılaştırıyor, platformları ve süreleri kontrol ediyoruz.</Text></View>;
+    if (loadingOptions && !options) return <View style={styles.gate}><ActivityIndicator color={c.accent} /><Text style={styles.hint}>{translateUI("Platformlar ve profiller hazırlanıyor…")}</Text></View>;
+    if (!options) return <TouchableOpacity style={styles.primary} onPress={() => loadOptions()}><Text style={styles.primaryText}>{translateUI("Tekrar dene")}</Text></TouchableOpacity>;
+    if (busy) return <View style={styles.gate}><ActivityIndicator size="large" color={c.accent} /><Text style={styles.title}>{translateUI("Bu akşamı hazırlıyoruz.")}</Text><Text style={styles.hint}>{translateUI("Zevkleri karşılaştırıyor, platformları ve süreleri kontrol ediyoruz.")}</Text></View>;
     if (result) return <>
-      <Text style={styles.eyebrow}>BU AKŞAMIN SEÇİMİ</Text><Text style={styles.title}>{answers.company === 'solo' ? 'Kendine bir akşam ayır.' : 'Birlikte güzel bir akşam.'}</Text>
-      {!!result.participants?.length && <Text style={styles.hint}>Sen + {result.participants.map(p => p.name).join(', ')}</Text>}
-      {answers.company !== 'solo' && !result.participants?.length && <Text style={styles.hint}>Başka profil eklemediğin için öneriler senin zevkine ve yanıtlarına göre.</Text>}
-      {!!result.participants?.some(p => !p.hasTaste) && <Text style={styles.hint}>Bazı profillerde henüz yeterli görünür beğeni yok; o kişilerin zevki sıralamaya dahil edilemedi.</Text>}
-      {result.tasteProfileCount === 0 && <Text style={styles.hint}>Henüz yeterli zevk verisi yok; bu seçimler sorulara verdiğin yanıtlara göre hazırlandı.</Text>}
+      <Text style={styles.eyebrow}>{translateUI("BU AKŞAMIN SEÇİMİ")}</Text><Text style={styles.title}>{answers.company === 'solo' ? translateUI('Kendine bir akşam ayır.') : translateUI('Birlikte güzel bir akşam.')}</Text>
+      {!!result.participants?.length && <Text style={styles.hint}>{translateUI("Sen + ")}{result.participants.map(p => p.name).join(', ')}</Text>}
+      {answers.company !== 'solo' && !result.participants?.length && <Text style={styles.hint}>{translateUI("Başka profil eklemediğin için öneriler senin zevkine ve yanıtlarına göre.")}</Text>}
+      {!!result.participants?.some(p => !p.hasTaste) && <Text style={styles.hint}>{translateUI("Bazı profillerde henüz yeterli görünür beğeni yok; o kişilerin zevki sıralamaya dahil edilemedi.")}</Text>}
+      {result.tasteProfileCount === 0 && <Text style={styles.hint}>{translateUI("Henüz yeterli zevk verisi yok; bu seçimler sorulara verdiğin yanıtlara göre hazırlandı.")}</Text>}
       {!result.results?.length && <Text style={styles.hint}>{result.emptyMessage}</Text>}
       {(result.results || []).map((movie, i) => <View key={movie.id} style={[styles.result, i === 0 && styles.featured]}>
-        <Text style={styles.eyebrow}>{i === 0 ? 'ANA ÖNERİ' : `ALTERNATİF ${i}`}</Text>
-        <TouchableOpacity style={styles.movieRow} accessibilityRole="button" accessibilityLabel={`${movie.title}, detayları gör`} onPress={() => navigation.navigate('Detail', { movie })}>
+        <Text style={styles.eyebrow}>{i === 0 ? translateUI('ANA ÖNERİ') : translateUI("ALTERNATİF {0}", {0: i})}</Text>
+        <TouchableOpacity style={styles.movieRow} accessibilityRole="button" accessibilityLabel={translateUI("{0}, detayları gör", {0: movie.title})} onPress={() => navigation.navigate('Detail', { movie })}>
           {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.poster} /> : null}
-          <View style={{ flex: 1 }}><Text style={styles.movieTitle}>{movie.title}</Text><Text style={styles.meta}>{movie.year} · {movie.type}{movie.tonightMinutes ? ` · ${movie.type === 'Dizi' ? 'Bölüm ~' : ''}${movie.tonightMinutes} dk` : ''}</Text></View><ChevronRight size={18} color={c.dim} />
+          <View style={{ flex: 1 }}><Text style={styles.movieTitle}>{movie.title}</Text><Text style={styles.meta}>{movie.year}{translateUI(" · ")}{translateUI(movie.type)}{movie.tonightMinutes ? translateUI(" · {0}{1} dk", {0: movie.type === 'Dizi' ? 'Bölüm ~' : '',1: movie.tonightMinutes}) : ''}</Text></View><ChevronRight size={18} color={c.dim} />
         </TouchableOpacity>
         <Text style={styles.overview} numberOfLines={i === 0 ? 4 : 2}>{movie.overview}</Text>
-        {(movie.reasons || []).map((r, j) => <Text key={j} style={styles.reason}>• {r}</Text>)}
+        {(movie.reasons || []).map((r, j) => <Text key={j} style={styles.reason}>{translateUI("• ")}{r}</Text>)}
         <View style={styles.platformBadges}>{(movie.availableOn || []).map(p => <View style={styles.platformBadge} key={p.id}>{p.logo ? <Image source={{ uri: p.logo }} style={styles.smallLogo} /> : null}<Text style={styles.meta}>{p.name}</Text></View>)}</View>
-        {!movie.availableOn?.length && <Text style={styles.hint}>Türkiye için abonelik platformu bilgisi bulunamadı.</Text>}
-        <View style={styles.actions}><TouchableOpacity style={styles.secondary} onPress={() => setListMovie(movie)}><Text style={styles.secondaryText}>Listeme ekle</Text></TouchableOpacity><TouchableOpacity style={styles.secondary} onPress={() => plan([movie.id])}><Text style={styles.secondaryText}>Bunu izledim</Text></TouchableOpacity></View>
+        {!movie.availableOn?.length && <Text style={styles.hint}>{translateUI("Türkiye için abonelik platformu bilgisi bulunamadı.")}</Text>}
+        <View style={styles.actions}><TouchableOpacity style={styles.secondary} onPress={() => setListMovie(movie)}><Text style={styles.secondaryText}>{translateUI("Listeme ekle")}</Text></TouchableOpacity><TouchableOpacity style={styles.secondary} onPress={() => plan([movie.id])}><Text style={styles.secondaryText}>{translateUI("Bunu izledim")}</Text></TouchableOpacity></View>
       </View>)}
       {!!result.notice && <Text style={styles.note}>{result.notice}</Text>}
-      {!!result.results?.length && <><Text style={styles.note}>Platform bilgisi: TMDB / JustWatch, Türkiye. “Bunu izledim” bu turdan çıkarır; günlüğünü değiştirmez.</Text><TouchableOpacity style={styles.primary} onPress={() => plan(result.results.map(m => m.id))}><Text style={styles.primaryText}>Başka öneriler bul</Text></TouchableOpacity></>}
-      <TouchableOpacity style={styles.secondary} onPress={edit}><Text style={styles.secondaryText}>Seçimlerimi değiştir</Text></TouchableOpacity>
+      {!!result.results?.length && <><Text style={styles.note}>{translateUI("Platform bilgisi: TMDB / JustWatch, Türkiye. “Bunu izledim” bu turdan çıkarır; günlüğünü değiştirmez.")}</Text><TouchableOpacity style={styles.primary} onPress={() => plan(result.results.map(m => m.id))}><Text style={styles.primaryText}>{translateUI("Başka öneriler bul")}</Text></TouchableOpacity></>}
+      <TouchableOpacity style={styles.secondary} onPress={edit}><Text style={styles.secondaryText}>{translateUI("Seçimlerimi değiştir")}</Text></TouchableOpacity>
     </>;
     const filteredFriends = options.friends.filter(f => `${f.name} ${f.username || ''}`.toLocaleLowerCase('tr').includes(query.toLocaleLowerCase('tr')));
     const filteredPlatforms = options.platforms.filter(p => p.name.toLocaleLowerCase('tr').includes(query.toLocaleLowerCase('tr')));
     return <>
       <View style={styles.progress}>{steps.map((s, i) => <View key={s} style={[styles.progressPart, i <= step && { backgroundColor: c.accent }]} />)}</View>
-      <Text style={styles.eyebrow}>BU AKŞAMI PLANLA · {step + 1} / {steps.length}</Text>
-      <Text style={styles.title}>{question.title}</Text><Text style={styles.hint}>{question.hint}</Text>
+      <Text style={styles.eyebrow}>{translateUI("BU AKŞAMI PLANLA · ")}{step + 1}{translateUI(" / ")}{steps.length}</Text>
+      <Text style={styles.title}>{translateUI(question.title)}</Text><Text style={styles.hint}>{translateUI(question.hint)}</Text>
       <View style={styles.choices}>
         {question.choices?.map(([value, label]) => choiceButton(value, label, key === 'avoidGenres' ? answers.avoidGenres.includes(value) : answers[key] === value,
           () => change(key, key === 'avoidGenres' ? toggle(answers.avoidGenres, value) : value)))}
         {key === 'avoidGenres' && choiceButton('none', 'Bir kısıtım yok', answers.avoidGenres.length === 0, () => change('avoidGenres', []))}
         {key === 'members' && <>
-          <TextInput accessibilityLabel="Pellix arkadaşlarında ara" style={styles.input} value={query} onChangeText={setQuery} placeholder="Ad veya kullanıcı adıyla ara" placeholderTextColor={c.dim} autoCapitalize="none" />
+          <TextInput accessibilityLabel={translateUI("Pellix arkadaşlarında ara")} style={styles.input} value={query} onChangeText={setQuery} placeholder={translateUI("Ad veya kullanıcı adıyla ara")} placeholderTextColor={c.dim} autoCapitalize="none" />
           {choiceButton('skip', 'Profil eklemeden devam', answers.participantIds.length === 0, () => change('participantIds', []))}
-          <Text style={styles.note}>{answers.company === 'partner' ? 'En fazla 1 profil' : 'En fazla 5 profil'} · Seçilen: {answers.participantIds.length}</Text>
+          <Text style={styles.note}>{answers.company === 'partner' ? translateUI('En fazla 1 profil') : translateUI('En fazla 5 profil')}{translateUI(" · Seçilen: ")}{answers.participantIds.length}</Text>
           {filteredFriends.map(f => choiceButton(f.id, `${f.name}${f.username ? ` · @${f.username}` : ''}`, answers.participantIds.includes(Number(f.id)), () => {
             const id = Number(f.id); const max = answers.company === 'partner' ? 1 : 5;
             if (!answers.participantIds.includes(id) && answers.participantIds.length >= max) { setError(`En fazla ${max} profil seçebilirsin.`); return; }
             change('participantIds', toggle(answers.participantIds, id));
           }, f.avatar_url ? <Image source={{ uri: f.avatar_url }} style={styles.avatar} /> : null))}
-          {!filteredFriends.length && <Text style={styles.hint}>Uygun profil bulunamadı. Burada yalnızca arkadaş olduğun, seni engellemeyen ve beğenileri arkadaşlarına açık profiller görünür. Profil eklemeden de devam edebilirsin.</Text>}
+          {!filteredFriends.length && <Text style={styles.hint}>{translateUI("Uygun profil bulunamadı. Burada yalnızca arkadaş olduğun, seni engellemeyen ve beğenileri arkadaşlarına açık profiller görünür. Profil eklemeden de devam edebilirsin.")}</Text>}
         </>}
         {key === 'platforms' && <>
           {choiceButton('any', 'Platform fark etmez', answers.platformMode === 'any', () => change('platformMode', answers.platformMode === 'any' ? 'selected' : 'any'))}
-          <TextInput accessibilityLabel="Platform ara" style={styles.input} value={query} onChangeText={setQuery} placeholder="Platform ara" placeholderTextColor={c.dim} />
-          <Text style={styles.note}>{answers.platformMode === 'any' ? 'Tüm platformlar dahil.' : `${answers.providerIds.length} platform seçili. Seçtiklerinden birinde olması yeterli.`}</Text>
+          <TextInput accessibilityLabel={translateUI("Platform ara")} style={styles.input} value={query} onChangeText={setQuery} placeholder={translateUI("Platform ara")} placeholderTextColor={c.dim} />
+          <Text style={styles.note}>{answers.platformMode === 'any' ? translateUI('Tüm platformlar dahil.') : translateUI("{0} platform seçili. Seçtiklerinden birinde olması yeterli.", {0: answers.providerIds.length})}</Text>
           {(query || showAllPlatforms ? filteredPlatforms : filteredPlatforms.slice(0, 12)).map(p => choiceButton(p.id, p.name, answers.platformMode === 'selected' && answers.providerIds.includes(p.id), () => {
             const next = toggle(answers.providerIds, p.id);
             if (next.length > 30) { setError('En fazla 30 platform seçebilirsin.'); return; }
             setAnswers(a => ({ ...a, platformMode: 'selected', providerIds: next })); setError('');
           }, p.logo ? <Image source={{ uri: p.logo }} style={styles.logo} /> : null))}
-          {!query && filteredPlatforms.length > 12 && <TouchableOpacity style={styles.secondary} onPress={() => setShowAllPlatforms(v => !v)}><Text style={styles.secondaryText}>{showAllPlatforms ? 'Daha az göster' : 'Tüm platformları göster'}</Text></TouchableOpacity>}
-          {!filteredPlatforms.length && <Text style={styles.hint}>Aramana uygun platform bulunamadı.</Text>}
+          {!query && filteredPlatforms.length > 12 && <TouchableOpacity style={styles.secondary} onPress={() => setShowAllPlatforms(v => !v)}><Text style={styles.secondaryText}>{showAllPlatforms ? translateUI('Daha az göster') : translateUI('Tüm platformları göster')}</Text></TouchableOpacity>}
+          {!filteredPlatforms.length && <Text style={styles.hint}>{translateUI("Aramana uygun platform bulunamadı.")}</Text>}
         </>}
       </View>
-      <TouchableOpacity style={styles.primary} onPress={() => step === steps.length - 1 ? plan() : move(step + 1)}><Text style={styles.primaryText}>{step === steps.length - 1 ? 'Bu akşamı planla' : 'Devam et'}</Text></TouchableOpacity>
-      {step > 0 && <TouchableOpacity style={styles.secondary} onPress={() => move(step - 1)}><Text style={styles.secondaryText}>Önceki soru</Text></TouchableOpacity>}
+      <TouchableOpacity style={styles.primary} onPress={() => step === steps.length - 1 ? plan() : move(step + 1)}><Text style={styles.primaryText}>{step === steps.length - 1 ? translateUI('Bu akşamı planla') : translateUI('Devam et')}</Text></TouchableOpacity>
+      {step > 0 && <TouchableOpacity style={styles.secondary} onPress={() => move(step - 1)}><Text style={styles.secondaryText}>{translateUI("Önceki soru")}</Text></TouchableOpacity>}
     </>;
   }
   return <View style={styles.root}>
-    <ScreenHeader title="Bu Akşamı Planla" subtitle="PELLIX PREMIUM" onBack={() => navigation.goBack()} right={<Moon size={20} color={c.accent} />} />
+    <ScreenHeader title={translateUI("Bu Akşamı Planla")} subtitle={translateUI("PELLIX PREMIUM")} onBack={() => navigation.goBack()} right={<Moon size={20} color={c.accent} />} />
     <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]}>
       {body()}
-      {!!error && <View accessibilityLiveRegion="polite"><Text style={styles.error}>{error}</Text>{options && !busy && !premiumRequired && <TouchableOpacity style={styles.secondary} onPress={edit}><Text style={styles.secondaryText}>Seçimlerime dön</Text></TouchableOpacity>}</View>}
+      {!!error && <View accessibilityLiveRegion="polite"><Text style={styles.error}>{translateUI(error)}</Text>{options && !busy && !premiumRequired && <TouchableOpacity style={styles.secondary} onPress={edit}><Text style={styles.secondaryText}>{translateUI("Seçimlerime dön")}</Text></TouchableOpacity>}</View>}
     </ScrollView>
     {listMovie && <ListPickerModal movie={listMovie} onClose={() => setListMovie(null)} />}
   </View>;

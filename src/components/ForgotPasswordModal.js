@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { X, Mail, KeyRound, CheckCircle2 } from "lucide-react-native";
@@ -51,18 +52,18 @@ export default function ForgotPasswordModal({ onClose }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <View style={styles.header}>
-            <Text style={styles.title}>Şifremi Unuttum</Text>
+            <Text style={styles.title}>{translateUI("Şifremi Unuttum")}</Text>
             <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
           </View>
 
           {step === "email" && (
             <>
-              <Text style={styles.subtitle}>Hesabına kayıtlı e-postayı gir, sana 6 haneli bir sıfırlama kodu gönderelim.</Text>
+              <Text style={styles.subtitle}>{translateUI("Hesabına kayıtlı e-postayı gir, sana 6 haneli bir sıfırlama kodu gönderelim.")}</Text>
               <View style={styles.inputRow}>
                 <Mail size={15} color={c.dim} />
                 <TextInput
                   style={styles.input}
-                  placeholder="E-posta"
+                  placeholder={translateUI("E-posta")}
                   placeholderTextColor={c.dim}
                   value={email}
                   onChangeText={setEmail}
@@ -70,21 +71,21 @@ export default function ForgotPasswordModal({ onClose }) {
                   keyboardType="email-address"
                 />
               </View>
-              {!!error && <Text style={styles.error}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
               <TouchableOpacity style={styles.button} onPress={sendCode} disabled={loading}>
-                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>Kod Gönder</Text>}
+                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>{translateUI("Kod Gönder")}</Text>}
               </TouchableOpacity>
             </>
           )}
 
           {step === "code" && (
             <>
-              <Text style={styles.subtitle}>{email} adresine bir kod gönderdik. Kodu ve yeni şifreni gir.</Text>
+              <Text style={styles.subtitle}>{email}{translateUI(" adresine bir kod gönderdik. Kodu ve yeni şifreni gir.")}</Text>
               <View style={styles.inputRow}>
                 <KeyRound size={15} color={c.dim} />
                 <TextInput
                   style={styles.input}
-                  placeholder="6 haneli kod"
+                  placeholder={translateUI("6 haneli kod")}
                   placeholderTextColor={c.dim}
                   value={code}
                   onChangeText={(v) => setCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
@@ -96,19 +97,19 @@ export default function ForgotPasswordModal({ onClose }) {
                 <KeyRound size={15} color={c.dim} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Yeni şifre"
+                  placeholder={translateUI("Yeni şifre")}
                   placeholderTextColor={c.dim}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
                 />
               </View>
-              {!!error && <Text style={styles.error}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
               <TouchableOpacity style={styles.button} onPress={resetPassword} disabled={loading}>
-                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>Şifreyi Sıfırla</Text>}
+                {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>{translateUI("Şifreyi Sıfırla")}</Text>}
               </TouchableOpacity>
               <TouchableOpacity onPress={sendCode} disabled={loading} style={{ marginTop: 12 }}>
-                <Text style={styles.resendText}>Kodu tekrar gönder</Text>
+                <Text style={styles.resendText}>{translateUI("Kodu tekrar gönder")}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -116,10 +117,10 @@ export default function ForgotPasswordModal({ onClose }) {
           {step === "done" && (
             <View style={{ alignItems: "center", paddingVertical: 10 }}>
               <CheckCircle2 size={40} color={c.accent2} style={{ marginBottom: 12 }} />
-              <Text style={styles.doneTitle}>Şifren güncellendi</Text>
-              <Text style={styles.subtitle}>Artık yeni şifrenle giriş yapabilirsin.</Text>
+              <Text style={styles.doneTitle}>{translateUI("Şifren güncellendi")}</Text>
+              <Text style={styles.subtitle}>{translateUI("Artık yeni şifrenle giriş yapabilirsin.")}</Text>
               <TouchableOpacity style={styles.button} onPress={onClose}>
-                <Text style={styles.buttonText}>Girişe Dön</Text>
+                <Text style={styles.buttonText}>{translateUI("Girişe Dön")}</Text>
               </TouchableOpacity>
             </View>
           )}

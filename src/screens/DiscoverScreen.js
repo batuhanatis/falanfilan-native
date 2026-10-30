@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing, useWindowDimensions } from "react-native";
@@ -216,7 +217,7 @@ export default function DiscoverScreen({ navigation }) {
         const topGenre = Object.entries(nextGenreCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
         emitLocalEvent({
           type: "toast",
-          title: "Seni daha iyi tanıyoruz",
+          title: translateUI("Seni daha iyi tanıyoruz"),
           message: topGenre ? `${topGenre} şu an öne çıkıyor.` : `${nextLikeCount} yeni sinyal öğrendik.`,
         });
       }
@@ -311,24 +312,21 @@ export default function DiscoverScreen({ navigation }) {
       {!stockReady ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={c.accent} />
-          <Text style={{ color: c.dim, marginTop: 10, fontSize: 12 }}>Kartların karılıyor...</Text>
+          <Text style={{ color: c.dim, marginTop: 10, fontSize: 12 }}>{translateUI("Kartların karılıyor...")}</Text>
         </View>
       ) : !current ? (
         <View style={styles.center}>
-          <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>Bu turu bitirdin</Text>
+          <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>{translateUI("Bu turu bitirdin")}</Text>
           {sessionLikes + sessionSkips > 0 ? (
-            <Text style={{ color: c.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", maxWidth: 260 }}>
-              Bu turda duvarına {sessionLikes} afiş astın
-              {(() => {
+            <Text style={{ color: c.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", maxWidth: 260 }}>{translateUI(" Bu turda duvarına ")}{sessionLikes}{translateUI(" afiş astın ")}{(() => {
                 const top = Object.entries(sessionGenreCounts).sort((a, b) => b[1] - a[1])[0];
                 return top ? `, en çok ${top[0]} seçtin` : "";
-              })()}.
-            </Text>
+              })()}{translateUI(". ")}</Text>
           ) : (
-            <Text style={{ color: c.dim, fontSize: 12, marginTop: 6 }}>Daha sonra tekrar bak, ya da baştan başla.</Text>
+            <Text style={{ color: c.dim, fontSize: 12, marginTop: 6 }}>{translateUI("Daha sonra tekrar bak, ya da baştan başla.")}</Text>
           )}
           <TouchableOpacity style={styles.restartBtn} onPress={() => resetForFilter(filterType)}>
-            <Text style={styles.restartBtnText}>Baştan Göster</Text>
+            <Text style={styles.restartBtnText}>{translateUI("Baştan Göster")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -373,19 +371,19 @@ export default function DiscoverScreen({ navigation }) {
                   >
                     {current.poster ? <Image source={{ uri: current.poster }} style={StyleSheet.absoluteFillObject} /> : null}
                     <View style={styles.cardActionsCol}>
-                      <TouchableOpacity style={styles.cardActionBtn} onPress={() => setPickerMovie(current)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Listeye ekle">
+                      <TouchableOpacity style={styles.cardActionBtn} onPress={() => setPickerMovie(current)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={translateUI("Listeye ekle")}>
                         <ListVideo size={16} color="#fff" />
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.cardActionBtn} onPress={() => setSendMovie(current)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Arkadaşına gönder">
+                      <TouchableOpacity style={styles.cardActionBtn} onPress={() => setSendMovie(current)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={translateUI("Arkadaşına gönder")}>
                         <Send size={16} color="#fff" />
                       </TouchableOpacity>
                     </View>
                     <Animated.View style={[styles.hintPin, { opacity: likeOpacity, transform: [{ scale: likeScale }] }]}>
                       <Pin size={14} color="#1a140b" />
-                      <Text style={styles.hintPinText}>AS</Text>
+                      <Text style={styles.hintPinText}>{translateUI("AS")}</Text>
                     </Animated.View>
                     <Animated.View style={[styles.hintSkip, { opacity: skipOpacity, transform: [{ scale: skipScale }] }]}>
-                      <Text style={styles.hintSkipText}>GEÇ</Text>
+                      <Text style={styles.hintSkipText}>{translateUI("GEÇ")}</Text>
                     </Animated.View>
                   </TouchableOpacity>
 
@@ -424,10 +422,10 @@ export default function DiscoverScreen({ navigation }) {
         <Animated.View style={{ transform: [{ scale: wallBump }] }}>
           <TouchableOpacity
             style={styles.wall}
-            onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Beğendiklerim" })}
+            onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: translateUI("Beğendiklerim") })}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={`Duvarın: bu turda ${sessionLikes} afiş astın`}
+            accessibilityLabel={translateUI("Duvarın: bu turda {0} afiş astın", {0: sessionLikes})}
           >
             <View style={styles.wallStack}>
               {wallPosters.length === 0 ? (
@@ -448,7 +446,7 @@ export default function DiscoverScreen({ navigation }) {
                 onPress={() => setFilterType(id)}
                 style={[styles.pill, filterType === id && styles.pillActive]}
               >
-                <Text style={[styles.pillText, filterType === id && styles.pillTextActive]}>{label}</Text>
+                <Text style={[styles.pillText, filterType === id && styles.pillTextActive]}>{translateUI(label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -457,23 +455,23 @@ export default function DiscoverScreen({ navigation }) {
           style={styles.playBtnWrap}
           onPress={() => navigation.navigate("PellixPlay")}
           activeOpacity={0.85}
-          accessibilityLabel="Pellix Play oyunları"
+          accessibilityLabel={translateUI("Pellix Play oyunları")}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
           <View style={styles.playBtn}>
             <Gamepad2 size={18} color="#d4a94a" />
           </View>
           {puzzlePending && <View style={styles.playDot} />}
-          <Text style={styles.playLabel}>Oyunlar</Text>
+          <Text style={styles.playLabel}>{translateUI("Oyunlar")}</Text>
         </TouchableOpacity>
       </View>
 
       {stockReady && current && (
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={[styles.actionCircle, styles.actionSkip]} onPress={() => cardRef.current?.swipeLeft()} accessibilityRole="button" accessibilityLabel="Geç">
+          <TouchableOpacity style={[styles.actionCircle, styles.actionSkip]} onPress={() => cardRef.current?.swipeLeft()} accessibilityRole="button" accessibilityLabel={translateUI("Geç")}>
             <X size={24} color="#f2ede2" />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.accent }]} onPress={() => cardRef.current?.swipeRight()} accessibilityRole="button" accessibilityLabel="Duvarıma as">
+          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.accent }]} onPress={() => cardRef.current?.swipeRight()} accessibilityRole="button" accessibilityLabel={translateUI("Duvarıma as")}>
             <Pin size={23} color="#1a140b" />
           </TouchableOpacity>
         </View>

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -15,8 +16,8 @@ export default function EmptyState({ icon: Icon, title, text, ctaLabel, onPress,
           <Icon size={26} color={c.accent} />
         </View>
       )}
-      {!!title && <Text style={styles.title}>{title}</Text>}
-      {!!text && <Text style={styles.text}>{text}</Text>}
+      {!!title && <Text style={styles.title}>{translateUI(title)}</Text>}
+      {!!text && <Text style={styles.text}>{translateUI(text)}</Text>}
       {!!ctaLabel && !!onPress && (
         <TouchableOpacity style={styles.cta} onPress={onPress} activeOpacity={0.85}>
           <Text style={styles.ctaText}>{ctaLabel}</Text>

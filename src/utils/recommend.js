@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import { platformName } from "./platform";
 
 function splitGenres(value) {
@@ -77,7 +78,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 98,
       source: "PROFİL TERCİHİN",
       personalized: true,
-      title: "Seçtiğin türlerle doğrudan eşleşiyor",
+      title: translateUI("Seçtiğin türlerle doğrudan eşleşiyor"),
       detail: `Profilinde özellikle seçtiğin ${preferredOverlap.slice(0, 2).join(" ve ")} türü bu içerikte var.`,
       short: `${preferredOverlap[0]} tercihinle eşleşiyor`,
     });
@@ -88,7 +89,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 100,
       source: "ŞU ANKİ İSTEĞİN",
       personalized: true,
-      title: "Az önce tarif ettiğin şeye göre seçildi",
+      title: translateUI("Az önce tarif ettiğin şeye göre seçildi"),
       detail: `“${context.aiLabel}” isteğin için çıkan sonuçlar arasında bu içerik üst sıralarda.`,
       short: "Az önceki isteğine göre öne çıktı",
     });
@@ -99,7 +100,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 96,
       source: "ŞU ANKİ FİLTREN",
       personalized: true,
-      title: "Tam seçtiğin türde",
+      title: translateUI("Tam seçtiğin türde"),
       detail: `Şu an akışı ${context.genreFilter} türüne daralttın; bu içerik o tercihle doğrudan eşleşiyor.`,
       short: `${context.genreFilter} filtrene uyuyor`,
     });
@@ -110,7 +111,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 95,
       source: "ŞU ANKİ FİLTREN",
       personalized: true,
-      title: "Kısa bir şey istediğin için öne çıktı",
+      title: translateUI("Kısa bir şey istediğin için öne çıktı"),
       detail: `${targetRuntime} dakikalık süresi, açtığın “Kısa bir şey” tercihine uyuyor.`,
       short: `${targetRuntime} dk · kısa içerik tercihine uyuyor`,
     });
@@ -134,7 +135,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 93,
       source: "ŞU ANKİ FİLTREN",
       personalized: true,
-      title: "İzleyebileceğin platformda",
+      title: translateUI("İzleyebileceğin platformda"),
       detail: `${selectedPlatformMatch} filtresini açtın ve bu içerik orada izlenebiliyor.`,
       short: `${selectedPlatformMatch} filtrene uyuyor`,
     });
@@ -145,7 +146,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 88,
       source: "ŞU ANKİ FİLTREN",
       personalized: true,
-      title: "Seçtiğin dönem aralığında",
+      title: translateUI("Seçtiğin dönem aralığında"),
       detail: `${movie.year || "Bu yapım"}, seçtiğin ${context.yearFilters.join(", ")} dönem filtresinden geçti.`,
       short: "Seçtiğin dönem filtresine uyuyor",
     });
@@ -170,7 +171,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 92 + Math.min(count, 5),
       source: "BEĞENİ GEÇMİŞİN",
       personalized: true,
-      title: "Beğeni geçmişinle güçlü tür eşleşmesi var",
+      title: translateUI("Beğeni geçmişinle güçlü tür eşleşmesi var"),
       detail: `${genre}, beğendiğin ${count} içerikte de var${knownGenreLikes >= 4 ? `; kayıtlı beğenilerinin yaklaşık %${pct}'ine denk geliyor` : ""}.`,
       short: `${genre} · ${count} beğeninle eşleşiyor`,
     });
@@ -188,7 +189,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
         score: 90,
         source: "BEĞENDİĞİN İÇERİKLER",
         personalized: true,
-        title: "Daha önce sevdiğin yapımlarla ortak tarafı var",
+        title: translateUI("Daha önce sevdiğin yapımlarla ortak tarafı var"),
         detail: `${examples.map((x) => `“${x}”`).join(" ve ")} ile ${sharedGenres.join(" / ")} tarafında kesişiyor.`,
         short: `${examples[0]} ile benzer zevk sinyali`,
       });
@@ -219,7 +220,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
         score: 72,
         source: "SÜRE ALIŞKANLIĞIN",
         personalized: true,
-        title: "Sevdiğin içeriklerin süresine yakın",
+        title: translateUI("Sevdiğin içeriklerin süresine yakın"),
         detail: `Beğendiğin yapımların tipik süresi yaklaşık ${typical} dakika; bu içerik ${targetRuntime} dakika.`,
         short: `Süre zevkine yakın · ${targetRuntime} dk`,
       });
@@ -237,7 +238,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 68,
       source: "DÖNEM ZEVKİN",
       personalized: true,
-      title: "Sık beğendiğin dönemden",
+      title: translateUI("Sık beğendiğin dönemden"),
       detail: `Beğeni geçmişinde ${targetDecade}'lar öne çıkıyor; bu yapım da ${movie.year || targetDecade} tarihli.`,
       short: `${targetDecade}'lar zevkine uyuyor`,
     });
@@ -255,7 +256,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 61,
       source: "İZLEME ERİŞİMİN",
       personalized: true,
-      title: "Sık denk geldiğin platformlardan birinde",
+      title: translateUI("Sık denk geldiğin platformlardan birinde"),
       detail: `Beğendiğin içeriklerin en az ${platformMatch[1]} tanesi de ${platformMatch[0]} kataloğunda; bu yapım da orada.`,
       short: `${platformMatch[0]} · geçmişinle örtüşüyor`,
     });
@@ -267,7 +268,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 35,
       source: "İÇERİK SİNYALİ",
       personalized: false,
-      title: "Kalite sinyali de güçlü",
+      title: translateUI("Kalite sinyali de güçlü"),
       detail: `IMDb puanı ${rating.toFixed(1)}; kişisel eşleşmeyi destekleyen güçlü bir genel kalite sinyali.`,
       short: `${rating.toFixed(1)} IMDb · güçlü kalite sinyali`,
     });
@@ -278,7 +279,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 10,
       source: "PELLIX SEÇİMİ",
       personalized: false,
-      title: "Zevk profilin henüz gelişiyor",
+      title: translateUI("Zevk profilin henüz gelişiyor"),
       detail: `${targetGenres.slice(0, 2).join(" / ")} türündeki bu içerik akışında öne çıktı. Birkaç beğeni daha verdikçe nedenler daha kişisel hale gelecek.`,
       short: `${targetGenres[0]} · zevk profilin geliştikçe daha kişisel olacak`,
     });

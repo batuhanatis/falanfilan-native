@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Animated, Dimensions, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform,
@@ -305,7 +306,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
           {!!story.movie && (
             <TouchableOpacity style={styles.detailBtn} onPress={openDetail}>
               <Info size={14} color={c.bg} />
-              <Text style={styles.detailText} numberOfLines={1}>{story.movie.title} · Detay</Text>
+              <Text style={styles.detailText} numberOfLines={1}>{story.movie.title}{translateUI(" · Detay")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -351,7 +352,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
             <View style={styles.headerRow}>
               <RetryImage source={{ uri: avatarOr(group.user.avatar_url) }} style={styles.headerAvatar} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.headerName}>{group.isOwn ? "Sen" : group.user.name}</Text>
+                <Text style={styles.headerName}>{group.isOwn ? translateUI("Sen") : group.user.name}</Text>
                 <Text style={styles.headerTime}>{relativeTime(story.created_at)}</Text>
               </View>
               {group.isOwn && (
@@ -370,7 +371,7 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
               <TouchableOpacity style={styles.viewersPill} onPress={openViewers} activeOpacity={0.85}>
                 <Eye size={14} color="#fff" />
                 <Text style={styles.viewersPillText}>
-                  {story.viewCount > 0 ? `${story.viewCount} görüntüleme` : "Henüz görüntüleyen yok"}
+                  {story.viewCount > 0 ? translateUI("{0} görüntüleme", {0: story.viewCount}) : translateUI("Henüz görüntüleyen yok")}
                 </Text>
                 <ChevronDown size={13} color="rgba(255,255,255,0.7)" style={{ transform: [{ rotate: "180deg" }] }} />
               </TouchableOpacity>
@@ -384,14 +385,14 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
               {replySent ? (
                 <View style={styles.replySentPill}>
                   <Check size={13} color="#fff" />
-                  <Text style={styles.replySentText}>Yanıtın gönderildi</Text>
+                  <Text style={styles.replySentText}>{translateUI("Yanıtın gönderildi")}</Text>
                 </View>
               ) : (
                 <View style={styles.replyBar}>
                   <TextInput
                     ref={replyInputRef}
                     style={styles.replyInput}
-                    placeholder="Yanıt gönder…"
+                    placeholder={translateUI("Yanıt gönder…")}
                     placeholderTextColor="rgba(255,255,255,0.55)"
                     value={replyText}
                     onChangeText={setReplyText}
@@ -421,13 +422,13 @@ export default function StoryViewer({ groups, startGroupIndex, navigation, onSto
                 <View style={styles.viewersTitleRow}>
                   <Eye size={14} color="#fff" />
                   <Text style={styles.viewersTitle}>
-                    {viewers.length > 0 ? `${viewers.length} kişi görüntüledi` : "Görüntüleyenler"}
+                    {viewers.length > 0 ? translateUI("{0} kişi görüntüledi", {0: viewers.length}) : translateUI("Görüntüleyenler")}
                   </Text>
                 </View>
                 {viewersLoading ? (
                   <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 20 }} />
                 ) : viewers.length === 0 ? (
-                  <Text style={styles.viewersEmpty}>Bu story'i henüz kimse görmedi.</Text>
+                  <Text style={styles.viewersEmpty}>{translateUI("Bu story'i henüz kimse görmedi.")}</Text>
                 ) : (
                   <FlatList
                     data={viewers}

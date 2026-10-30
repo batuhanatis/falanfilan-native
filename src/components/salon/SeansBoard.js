@@ -1,3 +1,4 @@
+import { t as translateUI } from "../../i18n/core";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, TouchableOpacity, Animated, PanResponder, StyleSheet, AccessibilityInfo } from "react-native";
 import { Heart, ChevronRight } from "lucide-react-native";
@@ -151,12 +152,12 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
   return (
     <View style={styles.board}>
       <View style={styles.boardTop}>
-        <Text style={styles.boardLabel}>BU AKŞAM SENİN İÇİN</Text>
-        <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}/{String(count).padStart(2, "0")}</Text>
+        <Text style={styles.boardLabel}>{translateUI("BU AKŞAM SENİN İÇİN")}</Text>
+        <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}{translateUI("/")}{String(count).padStart(2, "0")}</Text>
       </View>
 
       <View {...pan.panHandlers}>
-        <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(movie)} accessibilityRole="button" accessibilityLabel={`${movie.title}, detayı aç`}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(movie)} accessibilityRole="button" accessibilityLabel={translateUI("{0}, detayı aç", {0: movie.title})}>
           <FlapGrid text={boardTitle} reduceMotion={reduceMotion} />
         </TouchableOpacity>
 
@@ -164,34 +165,34 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
           {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.poster} /> : <View style={[styles.poster, { backgroundColor: BOARD.top }]} />}
           <View style={styles.meta}>
             <Text style={styles.metaLine} numberOfLines={1}>{metaLine(movie)}</Text>
-            {!!movie.imdb && <Text style={styles.metaLine}>IMDb {movie.imdb}</Text>}
+            {!!movie.imdb && <Text style={styles.metaLine}>{translateUI("IMDb ")}{movie.imdb}</Text>}
             {!!platform && (
               <View style={styles.platformRow}>
                 {!!platformLogo(platform) && <Image source={{ uri: platformLogo(platform) }} style={styles.platformLogo} />}
                 <Text style={styles.platformText} numberOfLines={1}>{platformName(platform)}</Text>
               </View>
             )}
-            {!!reason && <Text style={styles.reason} numberOfLines={2}>{reason}</Text>}
+            {!!reason && <Text style={styles.reason} numberOfLines={2}>{translateUI(reason)}</Text>}
           </View>
         </TouchableOpacity>
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.whyBtn} onPress={onWhy} activeOpacity={0.85} accessibilityRole="button">
-          <Text style={styles.whyText}>Neden bu?</Text>
+          <Text style={styles.whyText}>{translateUI("Neden bu?")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.likeBtn, liked && styles.likeBtnOn]}
           onPress={() => onLike(movie)}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={liked ? "Beğenildi" : "Beğen"}
+          accessibilityLabel={liked ? translateUI("Beğenildi") : translateUI("Beğen")}
           accessibilityState={{ selected: liked }}
         >
           <Heart size={18} color={liked ? "#fff" : BOARD.ink} fill={liked ? "#fff" : "none"} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextBtn} onPress={() => go(1)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Sıradaki seçim">
-          <Text style={styles.nextText}>Sıradaki</Text>
+        <TouchableOpacity style={styles.nextBtn} onPress={() => go(1)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}>
+          <Text style={styles.nextText}>{translateUI("Sıradaki")}</Text>
           <ChevronRight size={16} color={BOARD.ink} />
         </TouchableOpacity>
       </View>

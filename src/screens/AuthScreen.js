@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Linking, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -175,12 +176,10 @@ export default function AuthScreen() {
         />
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo}>
-          pell<Text style={{ color: c.accent }}>i</Text>x
-        </Text>
-        <Text style={styles.title}>{view === "login" ? "Tekrar hoş geldin" : "Hesabını oluştur"}</Text>
+        <Text style={styles.logo}>{translateUI(" pell")}<Text style={{ color: c.accent }}>{translateUI("i")}</Text>{translateUI("x ")}</Text>
+        <Text style={styles.title}>{view === "login" ? translateUI("Tekrar hoş geldin") : translateUI("Hesabını oluştur")}</Text>
         <Text style={styles.subtitle}>
-          {view === "login" ? "Film zevkine göre önerilerine devam et" : "Zevkine göre önerilerin bir dakikada hazır"}
+          {view === "login" ? translateUI("Film zevkine göre önerilerine devam et") : translateUI("Zevkine göre önerilerin bir dakikada hazır")}
         </Text>
 
         {appleAvailable && (
@@ -204,23 +203,23 @@ export default function AuthScreen() {
           ) : (
             <>
               <GoogleLogo size={18} />
-              <Text style={styles.googleBtnText}>Google ile Devam Et</Text>
+              <Text style={styles.googleBtnText}>{translateUI("Google ile Devam Et")}</Text>
             </>
           )}
         </TouchableOpacity>
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>ya da e-posta ile</Text>
+          <Text style={styles.dividerText}>{translateUI("ya da e-posta ile")}</Text>
           <View style={styles.dividerLine} />
         </View>
 
         {view === "signup" && (
           <>
-            <TextInput style={styles.input} placeholder="İsim" placeholderTextColor={c.dim} value={name} onChangeText={setName} />
+            <TextInput style={styles.input} placeholder={translateUI("İsim")} placeholderTextColor={c.dim} value={name} onChangeText={setName} />
             <TextInput
               style={styles.input}
-              placeholder="kullaniciadi"
+              placeholder={translateUI("kullaniciadi")}
               placeholderTextColor={c.dim}
               value={username}
               autoCapitalize="none"
@@ -228,7 +227,7 @@ export default function AuthScreen() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Davet kodu (varsa 7 gün Premium hediye 🎁)"
+              placeholder={translateUI("Davet kodu (varsa 7 gün Premium hediye 🎁)")}
               placeholderTextColor={c.dim}
               value={referredByUsername}
               autoCapitalize="none"
@@ -236,12 +235,12 @@ export default function AuthScreen() {
             />
           </>
         )}
-        <TextInput style={styles.input} placeholder="E-posta" placeholderTextColor={c.dim} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-        <TextInput style={styles.input} placeholder="Şifre" placeholderTextColor={c.dim} value={password} onChangeText={setPassword} secureTextEntry />
+        <TextInput style={styles.input} placeholder={translateUI("E-posta")} placeholderTextColor={c.dim} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        <TextInput style={styles.input} placeholder={translateUI("Şifre")} placeholderTextColor={c.dim} value={password} onChangeText={setPassword} secureTextEntry />
 
         {view === "login" && (
           <TouchableOpacity onPress={() => setShowForgotPassword(true)} style={{ alignSelf: "flex-end", marginBottom: 8 }}>
-            <Text style={styles.forgotText}>Şifremi unuttum</Text>
+            <Text style={styles.forgotText}>{translateUI("Şifremi unuttum")}</Text>
           </TouchableOpacity>
         )}
 
@@ -251,26 +250,25 @@ export default function AuthScreen() {
         {view === "signup" && (
           <TouchableOpacity style={styles.consentRow} onPress={() => setTermsAccepted((v) => !v)} activeOpacity={0.7}>
             <View style={[styles.checkbox, termsAccepted && { backgroundColor: c.accent, borderColor: c.accent }]}>
-              {termsAccepted && <Text style={{ color: c.bg, fontSize: 11, fontWeight: "800" }}>✓</Text>}
+              {termsAccepted && <Text style={{ color: c.bg, fontSize: 11, fontWeight: "800" }}>{translateUI("✓")}</Text>}
             </View>
             <Text style={styles.consentText}>
-              <Text onPress={() => Linking.openURL(`${API_BASE}/privacy`)} style={styles.consentLink}>Gizlilik Politikası</Text>
-              {" "}ve{" "}
-              <Text onPress={() => Linking.openURL(`${API_BASE}/terms`)} style={styles.consentLink}>Kullanım Şartları</Text>
-              {"'"}nı okudum, kabul ediyorum.
-            </Text>
+              <Text onPress={() => Linking.openURL(`${API_BASE}/privacy`)} style={styles.consentLink}>{translateUI("Gizlilik Politikası")}</Text>
+              {" "}{translateUI("ve")}{" "}
+              <Text onPress={() => Linking.openURL(`${API_BASE}/terms`)} style={styles.consentLink}>{translateUI("Kullanım Şartları")}</Text>
+              {translateUI("'")}{translateUI("nı okudum, kabul ediyorum. ")}</Text>
           </TouchableOpacity>
         )}
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+        {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
 
         <TouchableOpacity style={styles.button} onPress={submit} disabled={loading}>
-          <Text style={styles.buttonText}>{loading ? "Bekleniyor..." : view === "login" ? "Giriş yap" : "Hesap oluştur"}</Text>
+          <Text style={styles.buttonText}>{loading ? translateUI("Bekleniyor...") : view === "login" ? translateUI("Giriş yap") : translateUI("Hesap oluştur")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => { setView(view === "login" ? "signup" : "login"); setError(""); }}>
           <Text style={styles.switchText}>
-            {view === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}
+            {view === "login" ? translateUI("Hesabın yok mu? Kayıt ol") : translateUI("Zaten hesabın var mı? Giriş yap")}
           </Text>
         </TouchableOpacity>
       </ScrollView>

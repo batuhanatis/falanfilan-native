@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Heart } from "lucide-react-native";
@@ -18,7 +19,7 @@ export default function SocialProofRow({ stats, overlay = false, compact = false
   let label;
   if (friendCount > 1) label = `${firstName} ve ${friendCount - 1} arkadaşın daha beğendi`;
   else if (friendCount === 1) label = `${firstName} bunu beğendi`;
-  else label = `Pellix'te ${totalLikes.toLocaleString("tr-TR")} kişi beğendi`;
+  else label = `Pellix'te ${totalLikes.toLocaleString(getLocale())} kişi beğendi`;
 
   return (
     <View style={[styles.row, overlay && styles.rowOverlay, compact && styles.rowCompact]}>
@@ -48,7 +49,7 @@ export default function SocialProofRow({ stats, overlay = false, compact = false
         style={[styles.label, overlay && styles.labelOverlay, compact && styles.labelCompact]}
         numberOfLines={1}
       >
-        {label}
+        {translateUI(label)}
       </Text>
     </View>
   );

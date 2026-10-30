@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from "react-native";
 import { X, Plus, Check } from "lucide-react-native";
@@ -43,14 +44,14 @@ export default function ListPickerModal({ movie, onClose }) {
         setLists((prev) => prev.map((l) => (
           l.id === list.id ? { ...l, alreadyAdded: false, count: Math.max(0, Number(l.count) - 1) } : l
         )));
-        emitLocalEvent({ type: "toast", title: "Listeden çıkarıldı", message: `${movie.title}, "${list.name}" listesinden çıkarıldı` });
+        emitLocalEvent({ type: "toast", title: translateUI("Listeden çıkarıldı"), message: `${movie.title}, "${list.name}" listesinden çıkarıldı` });
       } catch {}
       setBusyId(null);
       return;
     }
     try {
       await api.addToWatchlist(auth.token, list.id, movie.id);
-      emitLocalEvent({ type: "toast", title: "✅ Listeye eklendi", message: `${movie.title}, "${list.name}" listesine eklendi` });
+      emitLocalEvent({ type: "toast", title: translateUI("✅ Listeye eklendi"), message: `${movie.title}, "${list.name}" listesine eklendi` });
       onClose();
     } catch {
       setBusyId(null); // başarısız olursa tekrar denenebilsin, popup açık kalsın
@@ -64,7 +65,7 @@ export default function ListPickerModal({ movie, onClose }) {
     try {
       const list = await api.createWatchlist(auth.token, name);
       await api.addToWatchlist(auth.token, list.id, movie.id);
-      emitLocalEvent({ type: "toast", title: "✅ Listeye eklendi", message: `${movie.title}, "${list.name}" listesine eklendi` });
+      emitLocalEvent({ type: "toast", title: translateUI("✅ Listeye eklendi"), message: `${movie.title}, "${list.name}" listesine eklendi` });
       onClose();
     } catch {
       setCreating(false);
@@ -78,13 +79,13 @@ export default function ListPickerModal({ movie, onClose }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} handleOnly>
               <View style={styles.header}>
-                <Text style={styles.title} numberOfLines={1}>{movie.title} — bir listeye ekle</Text>
+                <Text style={styles.title} numberOfLines={1}>{movie.title}{translateUI(" — bir listeye ekle")}</Text>
                 <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
               </View>
               {loading ? (
                 <ActivityIndicator color={c.accent} style={{ marginVertical: 20 }} />
               ) : lists.length === 0 ? (
-                <Text style={styles.emptyText}>Henüz bir listen yok — aşağıdan ilkini oluşturabilirsin.</Text>
+                <Text style={styles.emptyText}>{translateUI("Henüz bir listen yok — aşağıdan ilkini oluşturabilirsin.")}</Text>
               ) : (
                 lists.map((l) => (
                   <TouchableOpacity key={l.id} style={styles.row} onPress={() => toggleList(l)} disabled={!!busyId}>
@@ -102,7 +103,7 @@ export default function ListPickerModal({ movie, onClose }) {
               <View style={styles.newListRow}>
                 <TextInput
                   style={styles.newListInput}
-                  placeholder="Yeni liste adı"
+                  placeholder={translateUI("Yeni liste adı")}
                   placeholderTextColor={c.dim}
                   value={newListName}
                   onChangeText={setNewListName}

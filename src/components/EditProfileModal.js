@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -90,11 +91,11 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
   }
 
   return (
-    <IslandModal visible onClose={onClose} title="Profili Düzenle" icon={Pencil} gradientColors={BRAND_GRADIENT}>
-      <Text style={styles.fieldLabel}>AD</Text>
+    <IslandModal visible onClose={onClose} title={translateUI("Profili Düzenle")} icon={Pencil} gradientColors={BRAND_GRADIENT}>
+      <Text style={styles.fieldLabel}>{translateUI("AD")}</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholderTextColor={c.dim} maxLength={40} />
 
-      <Text style={styles.fieldLabel}>KULLANICI ADI</Text>
+      <Text style={styles.fieldLabel}>{translateUI("KULLANICI ADI")}</Text>
       <TextInput
         style={styles.input}
         value={username}
@@ -105,13 +106,13 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
         maxLength={20}
       />
 
-      <Text style={styles.fieldLabel}>BİYOGRAFİ</Text>
+      <Text style={styles.fieldLabel}>{translateUI("BİYOGRAFİ")}</Text>
       <TextInput
         style={[styles.input, styles.bioInput]}
         value={bio}
         onChangeText={setBio}
         placeholderTextColor={c.dim}
-        placeholder="Kendinden bahset..."
+        placeholder={translateUI("Kendinden bahset...")}
         multiline
         maxLength={160}
       />
@@ -129,11 +130,11 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
               <Lock size={13} color={c.dim} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bgTitle}>Zevkine Özel Arka Plan</Text>
+              <Text style={styles.bgTitle}>{translateUI("Zevkine Özel Arka Plan")}</Text>
               <Text style={styles.bgSubtitle}>
                 {showLockedInfo
-                  ? "Bu özellik Premium'a özel — beğendiğin türlere ve favori yapımlarına göre AI ile sana özel bir profil teması üretiliyor."
-                  : "Kilitli — açmak için dokun."}
+                  ? translateUI("Bu özellik Premium'a özel — beğendiğin türlere ve favori yapımlarına göre AI ile sana özel bir profil teması üretiliyor.")
+                  : translateUI("Kilitli — açmak için dokun.")}
               </Text>
             </View>
           </View>
@@ -143,7 +144,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
               <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bgBtn}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Crown size={13} color="#fff" />
-                  <Text style={styles.bgBtnText}>Premium'a Geç</Text>
+                  <Text style={styles.bgBtnText}>{translateUI("Premium'a Geç")}</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -156,13 +157,13 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
           <View style={styles.bgHeaderRow}>
             <View style={styles.bgIconWrap}><Sparkles size={14} color="#fff" /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bgTitle}>Zevkine Özel Arka Plan</Text>
+              <Text style={styles.bgTitle}>{translateUI("Zevkine Özel Arka Plan")}</Text>
               <Text style={styles.bgSubtitle}>
                 {!bgUrl
-                  ? "Beğendiğin türlere ve favori yapımlarına göre AI ile senin için bir profil teması oluşturalım."
+                  ? translateUI("Beğendiğin türlere ve favori yapımlarına göre AI ile senin için bir profil teması oluşturalım.")
                   : canGenerateBackground
-                  ? "Zevkin değiştiyse yenileyebilirsin."
-                  : `Bir sonraki yenileme: ${bgNextAvailableAt.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}`}
+                  ? translateUI("Zevkin değiştiyse yenileyebilirsin.")
+                  : translateUI("Bir sonraki yenileme: {0}", {0: bgNextAvailableAt.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })})}
               </Text>
             </View>
           </View>
@@ -183,7 +184,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
                 {bgGenerating ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.bgBtnText}>{bgUrl ? "Yenile" : "Oluştur"}</Text>
+                  <Text style={styles.bgBtnText}>{bgUrl ? translateUI("Yenile") : translateUI("Oluştur")}</Text>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -196,7 +197,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
                 {bgResetting ? (
                   <ActivityIndicator size="small" color={c.text} />
                 ) : (
-                  <Text style={styles.bgSecondaryBtnText}>Varsayılana Dön</Text>
+                  <Text style={styles.bgSecondaryBtnText}>{translateUI("Varsayılana Dön")}</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -205,8 +206,8 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
           {!!bgUrl && (
             <View style={styles.intensityBlock}>
               <View style={styles.intensityLabelRow}>
-                <Text style={styles.fieldLabel}>ARKA PLAN BELİRGİNLİĞİ</Text>
-                <Text style={styles.intensityValue}>%{bgIntensity}</Text>
+                <Text style={styles.fieldLabel}>{translateUI("ARKA PLAN BELİRGİNLİĞİ")}</Text>
+                <Text style={styles.intensityValue}>{translateUI("%")}{bgIntensity}</Text>
               </View>
               <Slider value={bgIntensity} onChange={setBgIntensity} onSlidingComplete={commitBackgroundIntensity} />
             </View>
@@ -214,11 +215,11 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
         </View>
       )}
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={save} disabled={saving}>
         <LinearGradient colors={BRAND_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Kaydet</Text>}
+          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>{translateUI("Kaydet")}</Text>}
         </LinearGradient>
       </TouchableOpacity>
     </IslandModal>

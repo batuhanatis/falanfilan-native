@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -62,7 +63,7 @@ export default function WatchlistRouletteModal({ items, onClose, onOpenMovie, on
 
         <LinearGradient colors={["#F97316", "#DB2777", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerPill}>
           <Dices size={14} color="#fff" />
-          <Text style={styles.headerPillText}>{spinning ? "Seçiliyor…" : "Bu Gece Bu!"}</Text>
+          <Text style={styles.headerPillText}>{spinning ? translateUI("Seçiliyor…") : translateUI("Bu Gece Bu!")}</Text>
         </LinearGradient>
 
         <Animated.View style={{ transform: [{ scale: spinning ? 1 : winnerScale }], opacity: spinning ? 1 : winnerOpacity }}>
@@ -78,14 +79,14 @@ export default function WatchlistRouletteModal({ items, onClose, onOpenMovie, on
             <Text style={styles.winnerTitle} numberOfLines={2}>{winner.title}</Text>
             <View style={styles.winnerMetaRow}>
               <Star size={12} color={c.accent} fill={c.accent} />
-              <Text style={styles.winnerMeta}>{winner.imdb} · {winner.year} · {winner.type}</Text>
+              <Text style={styles.winnerMeta}>{winner.imdb}{translateUI(" · ")}{winner.year}{translateUI(" · ")}{translateUI(winner.type)}</Text>
             </View>
             <View style={styles.btnRow}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => onSend(winner)}>
-                <Text style={styles.secondaryBtnText}>Arkadaşa Gönder</Text>
+                <Text style={styles.secondaryBtnText}>{translateUI("Arkadaşa Gönder")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={() => onOpenMovie(winner)}>
-                <Text style={styles.primaryBtnText}>Detaya Git</Text>
+                <Text style={styles.primaryBtnText}>{translateUI("Detaya Git")}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>

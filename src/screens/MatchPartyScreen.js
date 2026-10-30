@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -268,9 +269,9 @@ export default function MatchPartyScreen({ route, navigation }) {
       const list = await api.createWatchlist(auth.token, listName);
       await Promise.all(matches.map((m) => api.addToWatchlist(auth.token, list.id, m.id).catch(() => {})));
       setWatchlistCreated(true);
-      emitLocalEvent({ type: "toast", title: "✅ Liste oluşturuldu", message: `"${listName}" listesine ${matches.length} içerik eklendi` });
+      emitLocalEvent({ type: "toast", title: translateUI("✅ Liste oluşturuldu"), message: `"${listName}" listesine ${matches.length} içerik eklendi` });
     } catch {
-      emitLocalEvent({ type: "toast", title: "Bir şeyler ters gitti", message: "Liste oluşturulamadı, tekrar dene" });
+      emitLocalEvent({ type: "toast", title: translateUI("Bir şeyler ters gitti"), message: "Liste oluşturulamadı, tekrar dene" });
     }
     setCreatingWatchlist(false);
   }
@@ -285,8 +286,8 @@ export default function MatchPartyScreen({ route, navigation }) {
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>MatchParty</Text>
-          <Text style={styles.headerSubtitle}>{displayName} ile birlikte izlemelik seçin</Text>
+          <Text style={styles.headerTitle}>{translateUI("MatchParty")}</Text>
+          <Text style={styles.headerSubtitle}>{displayName}{translateUI(" ile birlikte izlemelik seçin")}</Text>
         </View>
       </View>
 
@@ -312,12 +313,12 @@ export default function MatchPartyScreen({ route, navigation }) {
             platforms={commonPlatforms}
             onShuffleGenre={shuffleGenre}
           />
-          <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
+          <Text style={styles.label}>{translateUI("MİNİMUM IMDB PUANI: ")}{minImdb.toFixed(1)}</Text>
           <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
           <TouchableOpacity style={styles.primaryBtn} onPress={startInvite}>
-            <Text style={styles.primaryBtnText}>{displayName}'e Davet Gönder</Text>
+            <Text style={styles.primaryBtnText}>{displayName}{translateUI("'e Davet Gönder")}</Text>
           </TouchableOpacity>
-          <Text style={styles.hintText}>Davet gerçek zamanlı iletilir, karşı taraf bildirimler alanında görüp kabul/reddedebilir.</Text>
+          <Text style={styles.hintText}>{translateUI("Davet gerçek zamanlı iletilir, karşı taraf bildirimler alanında görüp kabul/reddedebilir.")}</Text>
         </ScrollView>
       )}
 
@@ -326,8 +327,8 @@ export default function MatchPartyScreen({ route, navigation }) {
         // hissini biraz daha canlı anlatıyoruz.
         <View style={styles.center}>
           <WaitingAvatars myAvatar={myAvatarUrl} myId={auth.id} friendAvatar={friend?.avatarUrl} friendId={friend?.id} c={c} />
-          <Text style={styles.waitTitle}>Davet gönderildi</Text>
-          <Text style={styles.waitSubtitle}>{displayName} kabul etmesi bekleniyor… Kabul edince otomatik başlayacak.</Text>
+          <Text style={styles.waitTitle}>{translateUI("Davet gönderildi")}</Text>
+          <Text style={styles.waitSubtitle}>{displayName}{translateUI(" kabul etmesi bekleniyor… Kabul edince otomatik başlayacak.")}</Text>
         </View>
       )}
 
@@ -336,13 +337,13 @@ export default function MatchPartyScreen({ route, navigation }) {
         // doğrudan başka bir arkadaşla tekrar denemeyi öneren bir CTA var.
         <View style={styles.center}>
           <RetryImage source={{ uri: avatarOr(friend?.avatarUrl, friend?.id) }} style={styles.declinedAvatar} />
-          <Text style={styles.waitTitle}>{declinedBy} şu an uygun değil</Text>
-          <Text style={styles.waitSubtitle}>Belki başka zaman — istersen başka bir arkadaşınla dene.</Text>
+          <Text style={styles.waitTitle}>{declinedBy}{translateUI(" şu an uygun değil")}</Text>
+          <Text style={styles.waitSubtitle}>{translateUI("Belki başka zaman — istersen başka bir arkadaşınla dene.")}</Text>
           <TouchableOpacity style={styles.primaryBtnSmall} onPress={() => navigation.replace("GroupParty")}>
-            <Text style={styles.primaryBtnSmallText}>Başka Arkadaşınla Dene</Text>
+            <Text style={styles.primaryBtnSmallText}>{translateUI("Başka Arkadaşınla Dene")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.secondaryBtnText}>Kapat</Text>
+            <Text style={styles.secondaryBtnText}>{translateUI("Kapat")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -370,7 +371,7 @@ export default function MatchPartyScreen({ route, navigation }) {
               <View style={styles.progressBlock}>
                 <View style={styles.progressBarRow}>
                   {iAmLeading && <Trophy size={11} color="#FFD700" />}
-                  <Text style={styles.progressLabel} numberOfLines={1}>Sen</Text>
+                  <Text style={styles.progressLabel} numberOfLines={1}>{translateUI("Sen")}</Text>
                   <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${Math.min(100, (cursor / maxProgress) * 100)}%`, backgroundColor: c.accent }]} />
                   </View>
@@ -392,12 +393,12 @@ export default function MatchPartyScreen({ route, navigation }) {
               </View>
             );
           })()}
-          <Text style={styles.matchesLabel}>Herkes sağa kaydırırsa eşleşme listesine eklenir · {matches.length} ortak eşleşme</Text>
+          <Text style={styles.matchesLabel}>{translateUI("Herkes sağa kaydırırsa eşleşme listesine eklenir · ")}{matches.length}{translateUI(" ortak eşleşme")}</Text>
 
           <View style={{ flex: 1, position: "relative" }}>
             {!current ? (
               <View style={styles.center}>
-                <Text style={styles.waitTitle}>Bu oturum için içerik kalmadı</Text>
+                <Text style={styles.waitTitle}>{translateUI("Bu oturum için içerik kalmadı")}</Text>
               </View>
             ) : (
               <SwipeableCard
@@ -414,7 +415,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                   return reason ? (
                     <View style={styles.reasonBadge} pointerEvents="none">
                       <Sparkles size={9} color={c.accent2} />
-                      <Text style={styles.reasonText} numberOfLines={1}>{reason}</Text>
+                      <Text style={styles.reasonText} numberOfLines={1}>{translateUI(reason)}</Text>
                     </View>
                   ) : null;
                 })()}
@@ -422,7 +423,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                   <Text style={styles.cardTitle} numberOfLines={1}>{current.title}</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
                     <Star size={11} color={c.accent} fill={c.accent} />
-                    <Text style={styles.cardMeta}>{current.imdb} · {current.year} · {current.genre}</Text>
+                    <Text style={styles.cardMeta}>{current.imdb}{translateUI(" · ")}{current.year}{translateUI(" · ")}{translateUI(current.genre)}</Text>
                   </View>
                 </View>
               </SwipeableCard>
@@ -447,7 +448,7 @@ export default function MatchPartyScreen({ route, navigation }) {
           </View>
 
           <TouchableOpacity style={[styles.endBtn, { marginBottom: insets.bottom }]} onPress={endSession}>
-            <Text style={styles.endBtnText}>Oturumu Bitir</Text>
+            <Text style={styles.endBtnText}>{translateUI("Oturumu Bitir")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -461,10 +462,10 @@ export default function MatchPartyScreen({ route, navigation }) {
           }}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.summaryTitle}>Ortak Eşleşmeleriniz</Text>
-          <Text style={styles.summarySubtitle}>{displayName} ile {matches.length} içerikte anlaştınız</Text>
+          <Text style={styles.summaryTitle}>{translateUI("Ortak Eşleşmeleriniz")}</Text>
+          <Text style={styles.summarySubtitle}>{displayName}{translateUI(" ile ")}{matches.length}{translateUI(" içerikte anlaştınız")}</Text>
           {matches.length === 0 ? (
-            <Text style={styles.hintText}>Bu oturumda ortak bir eşleşme olmadı.</Text>
+            <Text style={styles.hintText}>{translateUI("Bu oturumda ortak bir eşleşme olmadı.")}</Text>
           ) : (
             <>
               {/* MP6 — en güzel görsel (paylaşım kartı) artık bir buton arkasında saklı değil,
@@ -486,7 +487,7 @@ export default function MatchPartyScreen({ route, navigation }) {
               </View>
               <ShareFan
                 style={styles.shareResultBtn}
-                accessibilityLabel="Eşleşmeyi paylaş"
+                accessibilityLabel={translateUI("Eşleşmeyi paylaş")}
                 options={shareOptions({
                   message: `${displayName} ile Pellix'te ${matches.length} ortak içerikte eşleştik. Sen de arkadaşınla dene: https://www.pellix.app`,
                   url: "https://www.pellix.app",
@@ -495,7 +496,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                 })}
               >
                 <Share2 size={13} color="#fff" />
-                <Text style={styles.shareResultBtnText}>Eşleşmeyi Paylaş</Text>
+                <Text style={styles.shareResultBtnText}>{translateUI("Eşleşmeyi Paylaş")}</Text>
               </ShareFan>
               <TouchableOpacity
                 style={[styles.watchlistBtn, watchlistCreated && { opacity: 0.6 }]}
@@ -507,12 +508,12 @@ export default function MatchPartyScreen({ route, navigation }) {
                 ) : watchlistCreated ? (
                   <>
                     <Check size={13} color={c.text} />
-                    <Text style={styles.watchlistBtnText}>Listeye Eklendi</Text>
+                    <Text style={styles.watchlistBtnText}>{translateUI("Listeye Eklendi")}</Text>
                   </>
                 ) : (
                   <>
                     <BookmarkPlus size={13} color={c.text} />
-                    <Text style={styles.watchlistBtnText}>Listeye Kaydet</Text>
+                    <Text style={styles.watchlistBtnText}>{translateUI("Listeye Kaydet")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -521,14 +522,14 @@ export default function MatchPartyScreen({ route, navigation }) {
                   {m.poster ? <Image source={{ uri: m.poster }} style={styles.matchPoster} /> : <View style={[styles.matchPoster, { backgroundColor: c.surface2 }]} />}
                   <View>
                     <Text style={styles.matchTitle}>{m.title}</Text>
-                    <Text style={styles.matchMeta}>{m.year} · ⭐ {m.imdb}</Text>
+                    <Text style={styles.matchMeta}>{m.year}{translateUI(" · ⭐ ")}{m.imdb}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
             </>
           )}
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.secondaryBtnText}>Kapat</Text>
+            <Text style={styles.secondaryBtnText}>{translateUI("Kapat")}</Text>
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -570,14 +571,14 @@ export default function MatchPartyScreen({ route, navigation }) {
       {leaveConfirm && (
         <View style={styles.leaveOverlay}>
           <View style={styles.leaveCard}>
-            <Text style={styles.leaveTitle}>MatchParty'den çıkmak üzeresin</Text>
-            <Text style={styles.leaveSubtitle}>Şimdi çıkarsan bu oturuma geri dönemezsin. Devam mı etmek istersin, yoksa oturumu bitirip mi çıkmak istersin?</Text>
+            <Text style={styles.leaveTitle}>{translateUI("MatchParty'den çıkmak üzeresin")}</Text>
+            <Text style={styles.leaveSubtitle}>{translateUI("Şimdi çıkarsan bu oturuma geri dönemezsin. Devam mı etmek istersin, yoksa oturumu bitirip mi çıkmak istersin?")}</Text>
             <View style={styles.leaveBtnRow}>
               <TouchableOpacity style={styles.leaveStayBtn} onPress={cancelLeave} disabled={endingToLeave}>
-                <Text style={styles.leaveStayBtnText}>MatchParty'e Devam Et</Text>
+                <Text style={styles.leaveStayBtnText}>{translateUI("MatchParty'e Devam Et")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.leaveEndBtn} onPress={confirmEndAndLeave} disabled={endingToLeave}>
-                {endingToLeave ? <ActivityIndicator size="small" color={c.dim} /> : <Text style={styles.leaveEndBtnText}>Oturumu Bitir ve Çık</Text>}
+                {endingToLeave ? <ActivityIndicator size="small" color={c.dim} /> : <Text style={styles.leaveEndBtnText}>{translateUI("Oturumu Bitir ve Çık")}</Text>}
               </TouchableOpacity>
             </View>
           </View>

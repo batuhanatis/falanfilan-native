@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Star } from "lucide-react-native";
@@ -79,15 +80,15 @@ export default function RatingStars({ value, onChange, disabled = false, compact
         {shown ? (
           <>
             <Text style={styles.number}>{shown}</Text>
-            <Text style={styles.outOf}>/10</Text>
+            <Text style={styles.outOf}>{translateUI("/10")}</Text>
             <Text style={styles.label} numberOfLines={1}>{RATING_LABELS[shown]}</Text>
           </>
         ) : (
-          <Text style={styles.hint}>Yıldızlara dokun ya da parmağını kaydır</Text>
+          <Text style={styles.hint}>{translateUI("Yıldızlara dokun ya da parmağını kaydır")}</Text>
         )}
         {allowClear && !!current && !preview && (
           <TouchableOpacity onPress={() => onChange?.(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.clearBtn}>
-            <Text style={styles.clearText}>Temizle</Text>
+            <Text style={styles.clearText}>{translateUI("Temizle")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -96,7 +97,7 @@ export default function RatingStars({ value, onChange, disabled = false, compact
         onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel="Puan"
+        accessibilityLabel={translateUI("Puan")}
         accessibilityValue={{ min: 1, max: 10, now: current || undefined, text: current ? `${current}/10 ${RATING_LABELS[current]}` : "Puan yok" }}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
         onAccessibilityAction={(e) => {

@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -154,9 +155,9 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
             <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
               <View style={styles.header}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.eyebrow}>PUANIN KAYDEDİLDİ</Text>
-                  <Text style={styles.shareTitle}>Bunu Sosyal’de paylaş?</Text>
-                  <Text style={styles.shareSubtitle}>Feed’e yalnızca sen onaylarsan düşer.</Text>
+                  <Text style={styles.eyebrow}>{translateUI("PUANIN KAYDEDİLDİ")}</Text>
+                  <Text style={styles.shareTitle}>{translateUI("Bunu Sosyal’de paylaş?")}</Text>
+                  <Text style={styles.shareSubtitle}>{translateUI("Feed’e yalnızca sen onaylarsan düşer.")}</Text>
                 </View>
                 <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
                   <X size={17} color={c.text} />
@@ -165,12 +166,12 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
 
               <RatingShareCard movie={movie} rating={shareDraft.rating} note={shareDraft.note} />
 
-              {!!error && <Text style={styles.error}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
 
               <TouchableOpacity style={styles.shareBtn} onPress={shareRating} disabled={sharing} activeOpacity={0.86}>
                 {sharing ? <ActivityIndicator size="small" color="#14121a" /> : <>
                   <Share2 size={16} color="#14121a" strokeWidth={2.5} />
-                  <Text style={styles.shareBtnText}>Sosyal’de Paylaş</Text>
+                  <Text style={styles.shareBtnText}>{translateUI("Sosyal’de Paylaş")}</Text>
                 </>}
               </TouchableOpacity>
               {/* Uygulama dışına (Instagram Story, WhatsApp…): kartın görseli ya da filmin web
@@ -179,7 +180,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
               <ShareFan
                 style={styles.outsideBtn}
                 disabled={sharing}
-                accessibilityLabel="Uygulama dışında paylaş"
+                accessibilityLabel={translateUI("Uygulama dışında paylaş")}
                 options={shareOptions({
                   message: ratingShareMessage,
                   url: ratingShareUrl,
@@ -187,10 +188,10 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                 })}
               >
                 <Share2 size={15} color={c.text} />
-                <Text style={styles.outsideBtnText}>Instagram / WhatsApp’ta Paylaş</Text>
+                <Text style={styles.outsideBtnText}>{translateUI("Instagram / WhatsApp’ta Paylaş")}</Text>
               </ShareFan>
               <TouchableOpacity style={styles.skipBtn} onPress={onClose} disabled={sharing}>
-                <Text style={styles.skipText}>Şimdilik değil</Text>
+                <Text style={styles.skipText}>{translateUI("Şimdilik değil")}</Text>
               </TouchableOpacity>
               {outsideShareOpen && (
                 <ShareCardModal
@@ -210,14 +211,14 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
             >
               <View style={styles.header}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.eyebrow}>PELLIX DIARY</Text>
-                  <Text style={styles.title} numberOfLines={1}>{movie?.title || "İzlediğin içerik"}</Text>
+                  <Text style={styles.eyebrow}>{translateUI("PELLIX DIARY")}</Text>
+                  <Text style={styles.title} numberOfLines={1}>{movie?.title || translateUI("İzlediğin içerik")}</Text>
                   <View style={styles.dateRow}>
                     <CalendarDays size={11} color={c.dim} />
                     <Text style={styles.dateText}>
                       {entry?.watchedAt
-                        ? new Date(entry.watchedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
-                        : "Bugün izlendi olarak kaydedilecek"}
+                        ? new Date(entry.watchedAt).toLocaleDateString(getLocale(), { day: "numeric", month: "long", year: "numeric" })
+                        : translateUI("Bugün izlendi olarak kaydedilecek")}
                     </Text>
                   </View>
                 </View>
@@ -226,29 +227,29 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.label}>PUANIN</Text>
-              <Text style={styles.helper}>İstersen boş bırakabilirsin. Pellix puanın 10 üzerinden.</Text>
+              <Text style={styles.label}>{translateUI("PUANIN")}</Text>
+              <Text style={styles.helper}>{translateUI("İstersen boş bırakabilirsin. Pellix puanın 10 üzerinden.")}</Text>
               <RatingStars value={rating} onChange={setRating} allowClear />
 
-              <Text style={styles.label}>KISA NOT</Text>
+              <Text style={styles.label}>{translateUI("KISA NOT")}</Text>
               <TextInput
                 style={styles.noteInput}
                 value={note}
                 onChangeText={(text) => setNote(text.slice(0, 500))}
-                placeholder="Finali, oyunculukları, sende bıraktığı his…"
+                placeholder={translateUI("Finali, oyunculukları, sende bıraktığı his…")}
                 placeholderTextColor={c.dim}
                 multiline
                 maxLength={500}
                 textAlignVertical="top"
               />
-              <Text style={styles.charCount}>{note.length}/500</Text>
+              <Text style={styles.charCount}>{note.length}{translateUI("/500")}</Text>
 
-              {!!error && <Text style={styles.error}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
 
               <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.86}>
                 {saving ? <ActivityIndicator size="small" color="#14121a" /> : <>
                   <Check size={16} color="#14121a" strokeWidth={2.6} />
-                  <Text style={styles.saveText}>{entry ? "Günlüğü Güncelle" : "İzledim Olarak Kaydet"}</Text>
+                  <Text style={styles.saveText}>{entry ? translateUI("Günlüğü Güncelle") : translateUI("İzledim Olarak Kaydet")}</Text>
                 </>}
               </TouchableOpacity>
 
@@ -256,7 +257,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                 <TouchableOpacity style={styles.removeBtn} onPress={remove} disabled={removing}>
                   {removing ? <ActivityIndicator size="small" color={c.danger} /> : <>
                     <Trash2 size={14} color={c.danger} />
-                    <Text style={styles.removeText}>İzledim kaydını kaldır</Text>
+                    <Text style={styles.removeText}>{translateUI("İzledim kaydını kaldır")}</Text>
                   </>}
                 </TouchableOpacity>
               )}
@@ -268,7 +269,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                   activeOpacity={0.82}
                 >
                   <BookOpen size={14} color={c.text} />
-                  <Text style={styles.openDiaryText}>Tüm Pellix Diary’mi Gör</Text>
+                  <Text style={styles.openDiaryText}>{translateUI("Tüm Pellix Diary’mi Gör")}</Text>
                   <ChevronRight size={14} color={c.dim} />
                 </TouchableOpacity>
               )}

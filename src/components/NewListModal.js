@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { X, Plus, Check } from "lucide-react-native";
@@ -68,13 +69,13 @@ export default function NewListModal({ visible, onClose, onCreated }) {
             <TouchableWithoutFeedback onPress={() => {}}>
               <View>
                 <View style={styles.header}>
-                  <Text style={styles.title}>Yeni Liste Oluştur</Text>
+                  <Text style={styles.title}>{translateUI("Yeni Liste Oluştur")}</Text>
                   <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
                 </View>
 
                 <TextInput
                   style={styles.input}
-                  placeholder="Liste adı"
+                  placeholder={translateUI("Liste adı")}
                   placeholderTextColor={c.dim}
                   value={name}
                   onChangeText={setName}
@@ -83,8 +84,7 @@ export default function NewListModal({ visible, onClose, onCreated }) {
 
                 <CoverPicker emoji={coverEmoji} color={coverColor} onChangeEmoji={setCoverEmoji} onChangeColor={setCoverColor} />
 
-                <Text style={[styles.subLabel, { marginTop: 16 }]}>
-                  Hızlıca film ekle <Text style={{ opacity: 0.6, fontWeight: "600" }}>(opsiyonel)</Text>
+                <Text style={[styles.subLabel, { marginTop: 16 }]}>{translateUI(" Hızlıca film ekle ")}<Text style={{ opacity: 0.6, fontWeight: "600" }}>{translateUI("(opsiyonel)")}</Text>
                 </Text>
               </View>
             </TouchableWithoutFeedback>
@@ -123,7 +123,7 @@ export default function NewListModal({ visible, onClose, onCreated }) {
             <TouchableOpacity style={[styles.createBtn, !name.trim() && { opacity: 0.4 }]} onPress={handleCreate} disabled={!name.trim() || creating}>
               {creating ? <ActivityIndicator size="small" color={c.bg} /> : (
                 <Text style={styles.createBtnText}>
-                  {selected.size > 0 ? `Oluştur (${selected.size} film ile)` : "Oluştur"}
+                  {selected.size > 0 ? translateUI("Oluştur ({0} film ile)", {0: selected.size}) : translateUI("Oluştur")}
                 </Text>
               )}
             </TouchableOpacity>

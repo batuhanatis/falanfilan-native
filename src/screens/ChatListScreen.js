@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal, Animated, Alert, TouchableWithoutFeedback, RefreshControl, ScrollView, Platform, Easing } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal, Animated,  TouchableWithoutFeedback, RefreshControl, ScrollView, Platform, Easing } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import {
   MessageCircle, Heart, ListPlus, Star, Activity, X, Trash2, RefreshCw, Film, Tv, Camera, BarChart3, CalendarClock, List,
@@ -89,7 +91,7 @@ function lastAtLabel(iso) {
   if (days <= 0) return timeLabel(iso);
   if (days === 1) return "Dün";
   if (days < 7) return WEEKDAYS[d.getDay()];
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  return d.toLocaleDateString(getLocale(), { day: "numeric", month: "short" });
 }
 
 const nowLabel = () => {
@@ -314,12 +316,12 @@ export default function ChatListScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <TopBar />
       <View style={styles.titleRow}>
-        <Text style={styles.screenTitle}>Sohbetler</Text>
+        <Text style={styles.screenTitle}>{translateUI("Sohbetler")}</Text>
         <TouchableOpacity
           style={styles.refreshBtn}
           onPress={sub === "live" ? refreshLive : onPullRefresh}
           accessibilityRole="button"
-          accessibilityLabel="Yenile"
+          accessibilityLabel={translateUI("Yenile")}
         >
           <RefreshCw size={17} color={c.text} />
         </TouchableOpacity>
@@ -331,17 +333,17 @@ export default function ChatListScreen({ navigation }) {
           accessibilityRole="tab"
           accessibilityState={{ selected: sub === "chats" }}
         >
-          <Text style={[styles.tabLabel, sub === "chats" && styles.tabLabelActive]}>Sohbetler</Text>
+          <Text style={[styles.tabLabel, sub === "chats" && styles.tabLabelActive]}>{translateUI("Sohbetler")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabBtn, sub === "live" && styles.tabBtnActive]}
           onPress={() => { setSub("live"); loadLive(); }}
           accessibilityRole="tab"
           accessibilityState={{ selected: sub === "live" }}
-          accessibilityLabel={liveCount ? `Canlı, ${liveCount} açık oda` : "Canlı"}
+          accessibilityLabel={liveCount ? translateUI("Canlı, {0} açık oda", {0: liveCount}) : translateUI("Canlı")}
         >
           <View style={styles.tabInner}>
-            <Text style={[styles.tabLabel, sub === "live" && styles.tabLabelActive]}>Canlı</Text>
+            <Text style={[styles.tabLabel, sub === "live" && styles.tabLabelActive]}>{translateUI("Canlı")}</Text>
             {liveCount > 0 && (
               <View style={styles.liveCount}>
                 <LiveDot color={c.danger} size={6} />
@@ -410,7 +412,7 @@ export default function ChatListScreen({ navigation }) {
                       {!!when && <Text style={[styles.time, unread && { color: c.accent }]}>{when}</Text>}
                       {unread && (
                         <View style={styles.unreadBadge}>
-                          <Text style={styles.unreadBadgeText}>{item.unread_count > 99 ? "99+" : item.unread_count}</Text>
+                          <Text style={styles.unreadBadgeText}>{item.unread_count > 99 ? translateUI("99+") : item.unread_count}</Text>
                         </View>
                       )}
                     </View>
@@ -421,10 +423,10 @@ export default function ChatListScreen({ navigation }) {
             ListFooterComponent={
               friendsWithoutChat.length > 0 ? (
                 <View style={styles.newChat}>
-                  <Text style={styles.sectionLabel}>YENİ SOHBET BAŞLAT</Text>
+                  <Text style={styles.sectionLabel}>{translateUI("YENİ SOHBET BAŞLAT")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peopleRow}>
                     {friendsWithoutChat.map((f) => (
-                      <TouchableOpacity key={f.id} style={styles.person} activeOpacity={0.75} onPress={() => openWithFriend(f)} accessibilityLabel={`${f.name} ile sohbet başlat`}>
+                      <TouchableOpacity key={f.id} style={styles.person} activeOpacity={0.75} onPress={() => openWithFriend(f)} accessibilityLabel={translateUI("{0} ile sohbet başlat", {0: f.name})}>
                         <RetryImage source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.personAvatar} />
                         <Text style={styles.personName} numberOfLines={1}>{f.name}</Text>
                       </TouchableOpacity>
@@ -437,8 +439,8 @@ export default function ChatListScreen({ navigation }) {
               friendsWithoutChat.length === 0 ? (
                 <View style={styles.emptyBox}>
                   <View style={styles.emptyIconWrap}><MessageCircle size={26} color={c.accent} /></View>
-                  <Text style={styles.emptyTitle}>Henüz kimseyle sohbet etmiyorsun</Text>
-                  <Text style={styles.emptyText}>Üstteki arkadaş ekleme butonuyla bir arkadaş bulup ilk mesajı sen at.</Text>
+                  <Text style={styles.emptyTitle}>{translateUI("Henüz kimseyle sohbet etmiyorsun")}</Text>
+                  <Text style={styles.emptyText}>{translateUI("Üstteki arkadaş ekleme butonuyla bir arkadaş bulup ilk mesajı sen at.")}</Text>
                 </View>
               ) : null
             }
@@ -466,7 +468,7 @@ export default function ChatListScreen({ navigation }) {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name} numberOfLines={1}>{activityText(item)}</Text>
                 {item.movies.length === 1 && <Text style={styles.lastMessage} numberOfLines={1}>{item.movies[0].title}</Text>}
-                {item.movies.length > 1 && <Text style={styles.lastMessage}>Görmek için dokun</Text>}
+                {item.movies.length > 1 && <Text style={styles.lastMessage}>{translateUI("Görmek için dokun")}</Text>}
               </View>
               <View style={styles.activityIconWrap}>
                 {item.type === "like" && <Heart size={13} color={c.accent2} fill={c.accent2} />}
@@ -479,15 +481,15 @@ export default function ChatListScreen({ navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <View style={styles.emptyIconWrap}><Activity size={26} color={c.accent} /></View>
-              <Text style={styles.emptyTitle}>Henüz bir aktivite yok</Text>
-              <Text style={styles.emptyText}>Arkadaşların bir şey beğendiğinde ya da liste oluşturduğunda burada göreceksin.</Text>
+              <Text style={styles.emptyTitle}>{translateUI("Henüz bir aktivite yok")}</Text>
+              <Text style={styles.emptyText}>{translateUI("Arkadaşların bir şey beğendiğinde ya da liste oluşturduğunda burada göreceksin.")}</Text>
             </View>
           }
         />
       )}
         <View pointerEvents="none" style={styles.ticketClip}>
           <Animated.View style={[styles.ticket, { opacity: tearOpacity, transform: [{ translateY: ticketY }, { translateX: tearX }, { rotate: tearRotate }] }]}>
-            <Text style={styles.ticketSmall}>PELLIX · SOHBET</Text>
+            <Text style={styles.ticketSmall}>{translateUI("PELLIX · SOHBET")}</Text>
             <Text style={styles.ticketTime}>{ticketTime}</Text>
             <Text style={styles.ticketLabel}>{ticketLabel}</Text>
             <View style={styles.ticketPerf} />

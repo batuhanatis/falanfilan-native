@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -66,14 +67,14 @@ export default function BlendScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Blend</Text>
+        <Text style={styles.headerTitle}>{translateUI("Blend")}</Text>
       </View>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={c.accent} />
       ) : error ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>{error}</Text>
+          <Text style={styles.emptyText}>{translateUI(error)}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
@@ -84,17 +85,17 @@ export default function BlendScreen({ route, navigation }) {
               <RetryImage source={{ uri: avatarOr(myAvatarUrl, auth.id) }} style={[styles.heroAvatar, { marginRight: -14, zIndex: 2 }]} />
               <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={styles.heroAvatar} />
             </View>
-            <Text style={styles.heroTitle}>{auth.name?.split(" ")[0]} × {friendName?.split(" ")[0]}</Text>
+            <Text style={styles.heroTitle}>{auth.name?.split(" ")[0]}{translateUI(" × ")}{friendName?.split(" ")[0]}</Text>
             {data?.matchPercent != null ? (
               <>
-                <Text style={styles.heroPercent}>%{displayPercent}</Text>
+                <Text style={styles.heroPercent}>{translateUI("%")}{displayPercent}</Text>
                 {/* BL2 — paylaşım kartındaki eğlenceli yorum metni artık canlı ekranda da var,
                     "paylaş"a basmadan da bu kişilik payoff'unu görüyorsun. */}
                 <Text style={styles.heroVerdict}>{verdictFor(data.matchPercent)}</Text>
-                <Text style={styles.heroSubtitle}>beğeni uyumu</Text>
+                <Text style={styles.heroSubtitle}>{translateUI("beğeni uyumu")}</Text>
                 <ShareFan
                   style={styles.shareTriggerBtn}
-                  accessibilityLabel="Sonucu paylaş"
+                  accessibilityLabel={translateUI("Sonucu paylaş")}
                   options={shareOptions({
                     message: blendShareMessage,
                     url: blendShareUrl,
@@ -102,17 +103,17 @@ export default function BlendScreen({ route, navigation }) {
                   })}
                 >
                   <Share2 size={13} color="#fff" />
-                  <Text style={styles.shareTriggerText}>Sonucu Paylaş</Text>
+                  <Text style={styles.shareTriggerText}>{translateUI("Sonucu Paylaş")}</Text>
                 </ShareFan>
               </>
             ) : (
-              <Text style={styles.heroSubtitle}>Uyumu görmek için ikiniz de biraz daha film/dizi beğenin.</Text>
+              <Text style={styles.heroSubtitle}>{translateUI("Uyumu görmek için ikiniz de biraz daha film/dizi beğenin.")}</Text>
             )}
           </LinearGradient>
 
           {data?.common?.length > 0 && (
             <View style={{ marginTop: 10 }}>
-              <Text style={styles.sectionTitle}>İkinizin de Beğendiği</Text>
+              <Text style={styles.sectionTitle}>{translateUI("İkinizin de Beğendiği")}</Text>
               <FlatList
                 data={data.common}
                 horizontal
@@ -135,9 +136,9 @@ export default function BlendScreen({ route, navigation }) {
           <View style={{ marginTop: 24 }}>
             <View style={styles.recTitleRow}>
               <Sparkles size={15} color={c.accent} />
-              <Text style={styles.sectionTitle}>Birlikte İzleyebilecekleriniz</Text>
+              <Text style={styles.sectionTitle}>{translateUI("Birlikte İzleyebilecekleriniz")}</Text>
             </View>
-            <Text style={styles.recSubtitle}>İkinizin beğendiklerinden harmanlanmış, henüz beğenmediğiniz öneriler.</Text>
+            <Text style={styles.recSubtitle}>{translateUI("İkinizin beğendiklerinden harmanlanmış, henüz beğenmediğiniz öneriler.")}</Text>
             {data?.recommendations?.length > 0 ? (
               <FlatList
                 data={data.recommendations}
@@ -161,7 +162,7 @@ export default function BlendScreen({ route, navigation }) {
                 )}
               />
             ) : (
-              <Text style={[styles.emptyText, { paddingHorizontal: 16, marginTop: 10 }]}>Şu an için öneri çıkaramadık, biraz daha film/dizi beğenin.</Text>
+              <Text style={[styles.emptyText, { paddingHorizontal: 16, marginTop: 10 }]}>{translateUI("Şu an için öneri çıkaramadık, biraz daha film/dizi beğenin.")}</Text>
             )}
           </View>
         </ScrollView>

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -132,11 +133,11 @@ export default function FriendBattleScreen({ navigation, route }) {
   if (unavailable) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="Friend Battle" onBack={() => navigation.goBack()} />
+        <ScreenHeader title={translateUI("Friend Battle")} onBack={() => navigation.goBack()} />
         <View style={styles.centerContent}>
           <View style={styles.bigIcon}><Swords size={28} color="#FB7185" /></View>
-          <Text style={styles.emptyTitle}>Friend Battle hazırlanıyor</Text>
-          <Text style={styles.emptyText}>Bu özellik backend yayını tamamlandığında burada açılacak.</Text>
+          <Text style={styles.emptyTitle}>{translateUI("Friend Battle hazırlanıyor")}</Text>
+          <Text style={styles.emptyText}>{translateUI("Bu özellik backend yayını tamamlandığında burada açılacak.")}</Text>
         </View>
       </View>
     );
@@ -145,7 +146,7 @@ export default function FriendBattleScreen({ navigation, route }) {
   if (battle) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="Friend Battle" onBack={backToLobby} subtitle={battle.opponent?.name ? `${battle.opponent.name} ile` : undefined} />
+        <ScreenHeader title={translateUI("Friend Battle")} onBack={backToLobby} subtitle={battle.opponent?.name ? translateUI("{0} ile", {0: battle.opponent.name}) : undefined} />
         {battle.status === "completed" && battle.result ? (
           <BattleResult battle={battle} styles={styles} onAgain={backToLobby} />
         ) : battle.mySubmitted ? (
@@ -159,38 +160,38 @@ export default function FriendBattleScreen({ navigation, route }) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Friend Battle" subtitle="Aynı sorular, ayrı zamanlar" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("Friend Battle")} subtitle={translateUI("Aynı sorular, ayrı zamanlar")} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View style={styles.heroIcon}><Swords size={25} color="#fff" /></View>
-          <Text style={styles.heroEyebrow}>ASENKRON MEYDAN OKUMA</Text>
-          <Text style={styles.heroTitle}>Aynı 8 seçimi yapın.</Text>
-          <Text style={styles.heroSub}>Aynı anda online olmanız gerekmiyor. İkiniz de tamamlayınca beğeni uyumunuz ortaya çıkıyor.</Text>
+          <Text style={styles.heroEyebrow}>{translateUI("ASENKRON MEYDAN OKUMA")}</Text>
+          <Text style={styles.heroTitle}>{translateUI("Aynı 8 seçimi yapın.")}</Text>
+          <Text style={styles.heroSub}>{translateUI("Aynı anda online olmanız gerekmiyor. İkiniz de tamamlayınca beğeni uyumunuz ortaya çıkıyor.")}</Text>
         </LinearGradient>
 
         {!!actionError && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{actionError}</Text></View>}
 
         {battles.length > 0 && <>
-          <Text style={styles.sectionLabel}>MEYDAN OKUMALAR</Text>
+          <Text style={styles.sectionLabel}>{translateUI("MEYDAN OKUMALAR")}</Text>
           {battles.map((item) => (
             <TouchableOpacity key={item.id} style={styles.battleRow} onPress={() => openBattle(item.id)} activeOpacity={0.82}>
               <RetryImage source={{ uri: avatarOr(item.opponent?.avatarUrl, item.opponent?.id) }} style={styles.avatar} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.rowTitle} numberOfLines={1}>{item.opponent?.name || "Arkadaşın"}</Text>
+                <Text style={styles.rowTitle} numberOfLines={1}>{item.opponent?.name || translateUI("Arkadaşın")}</Text>
                 <Text style={styles.rowSub}>{statusText(item)}</Text>
               </View>
-              {item.status === "completed" && item.result ? <Text style={styles.scorePill}>%{item.result.percent}</Text> : <ChevronRight size={17} color={c.dim} />}
+              {item.status === "completed" && item.result ? <Text style={styles.scorePill}>{translateUI("%")}{item.result.percent}</Text> : <ChevronRight size={17} color={c.dim} />}
             </TouchableOpacity>
           ))}
         </>}
 
-        <Text style={styles.sectionLabel}>YENİ BATTLE BAŞLAT</Text>
+        <Text style={styles.sectionLabel}>{translateUI("YENİ BATTLE BAŞLAT")}</Text>
         {friends.length === 0 ? (
-          <View style={styles.emptyCard}><Users size={20} color={c.dim} /><Text style={styles.emptyText}>Battle başlatmak için önce bir arkadaş ekle.</Text></View>
+          <View style={styles.emptyCard}><Users size={20} color={c.dim} /><Text style={styles.emptyText}>{translateUI("Battle başlatmak için önce bir arkadaş ekle.")}</Text></View>
         ) : friends.map((friend) => (
           <TouchableOpacity key={friend.id} style={styles.friendRow} onPress={() => create(friend)} activeOpacity={0.82} disabled={!!creatingId}>
             <RetryImage source={{ uri: avatarOr(friend.avatar_url || friend.avatarUrl, friend.id) }} style={styles.avatar} />
-            <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{friend.name}</Text><Text style={styles.rowSub}>8 seçimlik meydan okuma gönder</Text></View>
+            <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{friend.name}</Text><Text style={styles.rowSub}>{translateUI("8 seçimlik meydan okuma gönder")}</Text></View>
             {creatingId === friend.id ? <ActivityIndicator size="small" color="#FB7185" /> : <View style={styles.challengeBtn}><Swords size={14} color="#fff" /></View>}
           </TouchableOpacity>
         ))}
@@ -204,17 +205,17 @@ function BattlePlay({ battle, index, styles, onChoose, submitting, error }) {
   if (!q) return null;
   return (
     <ScrollView contentContainerStyle={styles.playContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.progress}>{index + 1} / {battle.questions.length}</Text>
+      <Text style={styles.progress}>{index + 1}{translateUI(" / ")}{battle.questions.length}</Text>
       <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${((index + 1) / battle.questions.length) * 100}%` }]} /></View>
-      <Text style={styles.question}>Hangisini seçersin?</Text>
-      <Text style={styles.questionSub}>İlk içinden geleni seç. Arkadaşın aynı soruları kendi zamanında görecek.</Text>
+      <Text style={styles.question}>{translateUI("Hangisini seçersin?")}</Text>
+      <Text style={styles.questionSub}>{translateUI("İlk içinden geleni seç. Arkadaşın aynı soruları kendi zamanında görecek.")}</Text>
       <View style={styles.choiceRow}>
         <Choice movie={q.left} styles={styles} onPress={() => onChoose(q.left.id)} disabled={submitting} />
-        <View style={styles.vs}><Text style={styles.vsText}>VS</Text></View>
+        <View style={styles.vs}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
         <Choice movie={q.right} styles={styles} onPress={() => onChoose(q.right.id)} disabled={submitting} />
       </View>
       {submitting && <ActivityIndicator style={{ marginTop: 20 }} color="#FB7185" />}
-      {!!error && <Text style={styles.playError}>{error}</Text>}
+      {!!error && <Text style={styles.playError}>{translateUI(error)}</Text>}
     </ScrollView>
   );
 }
@@ -224,7 +225,7 @@ function Choice({ movie, styles, onPress, disabled }) {
     <TouchableOpacity style={styles.choice} onPress={onPress} activeOpacity={0.86} disabled={disabled}>
       <Image source={{ uri: movie.poster }} style={styles.choicePoster} />
       <Text style={styles.choiceTitle} numberOfLines={2}>{movie.title}</Text>
-      <Text style={styles.choiceMeta}>{movie.year} · {movie.type}</Text>
+      <Text style={styles.choiceMeta}>{movie.year}{translateUI(" · ")}{translateUI(movie.type)}</Text>
     </TouchableOpacity>
   );
 }
@@ -233,9 +234,9 @@ function Waiting({ battle, styles, onBack }) {
   return (
     <View style={styles.centerContent}>
       <View style={styles.bigIcon}><Clock3 size={28} color="#FB7185" /></View>
-      <Text style={styles.emptyTitle}>Sen tamamladın ✓</Text>
-      <Text style={styles.emptyText}>{battle.opponent?.name || "Arkadaşın"} turunu bitirince ortak skorunuz burada açılacak.</Text>
-      <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}><Text style={styles.secondaryBtnText}>Meydan Okumalara Dön</Text></TouchableOpacity>
+      <Text style={styles.emptyTitle}>{translateUI("Sen tamamladın ✓")}</Text>
+      <Text style={styles.emptyText}>{battle.opponent?.name || translateUI("Arkadaşın")}{translateUI(" turunu bitirince ortak skorunuz burada açılacak.")}</Text>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}><Text style={styles.secondaryBtnText}>{translateUI("Meydan Okumalara Dön")}</Text></TouchableOpacity>
     </View>
   );
 }
@@ -252,16 +253,16 @@ function BattleResult({ battle, styles, onAgain }) {
     <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} style={styles.resultHero}>
         <Trophy size={30} color="#fff" />
-        <Text style={styles.resultPercent}>%{result.percent}</Text>
-        <Text style={styles.resultTitle}>Beğeni uyumu</Text>
-        <Text style={styles.resultSub}>{message}</Text>
+        <Text style={styles.resultPercent}>{translateUI("%")}{result.percent}</Text>
+        <Text style={styles.resultTitle}>{translateUI("Beğeni uyumu")}</Text>
+        <Text style={styles.resultSub}>{translateUI(message)}</Text>
       </LinearGradient>
       <View style={styles.resultStats}>
-        <View style={styles.stat}><Text style={styles.statValue}>{result.agreements}</Text><Text style={styles.statLabel}>AYNI SEÇİM</Text></View>
-        <View style={styles.stat}><Text style={styles.statValue}>{result.total}</Text><Text style={styles.statLabel}>TOPLAM</Text></View>
+        <View style={styles.stat}><Text style={styles.statValue}>{result.agreements}</Text><Text style={styles.statLabel}>{translateUI("AYNI SEÇİM")}</Text></View>
+        <View style={styles.stat}><Text style={styles.statValue}>{result.total}</Text><Text style={styles.statLabel}>{translateUI("TOPLAM")}</Text></View>
       </View>
-      <ShareFan style={styles.shareBtn} options={shareFanOptions} accessibilityLabel="Sonucu paylaş"><Share2 size={16} color="#fff" /><Text style={styles.shareText}>Sonucu Paylaş</Text></ShareFan>
-      <TouchableOpacity style={styles.secondaryBtn} onPress={onAgain}><RotateCcw size={15} color="#fff" /><Text style={styles.secondaryBtnText}>Başka Battle Başlat</Text></TouchableOpacity>
+      <ShareFan style={styles.shareBtn} options={shareFanOptions} accessibilityLabel={translateUI("Sonucu paylaş")}><Share2 size={16} color="#fff" /><Text style={styles.shareText}>{translateUI("Sonucu Paylaş")}</Text></ShareFan>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={onAgain}><RotateCcw size={15} color="#fff" /><Text style={styles.secondaryBtnText}>{translateUI("Başka Battle Başlat")}</Text></TouchableOpacity>
     </ScrollView>
   );
 }

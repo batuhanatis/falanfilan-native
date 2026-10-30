@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,12 +12,12 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
       <View style={styles.goldGlow} />
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.brand}>pellix</Text>
-          <Text style={styles.type}>DIARY RATING</Text>
+          <Text style={styles.brand}>{translateUI("pellix")}</Text>
+          <Text style={styles.type}>{translateUI("DIARY RATING")}</Text>
         </View>
         <View style={styles.badge}>
           <Star size={10} color="#FFD76A" fill="#FFD76A" />
-          <Text style={styles.badgeText}>İZLEDİM</Text>
+          <Text style={styles.badgeText}>{translateUI("İZLEDİM")}</Text>
         </View>
       </View>
 
@@ -27,15 +28,15 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
           <View style={[styles.poster, styles.posterEmpty]} />
         )}
         <View style={styles.copy}>
-          <Text style={styles.title} numberOfLines={2}>{movie?.title || "İzlediğim içerik"}</Text>
+          <Text style={styles.title} numberOfLines={2}>{movie?.title || translateUI("İzlediğim içerik")}</Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {[movie?.type, movie?.year].filter(Boolean).join(" · ") || "Pellix Diary"}
+            {[movie?.type, movie?.year].filter(Boolean).join(" · ") || translateUI("Pellix Diary")}
           </Text>
           <View style={styles.scoreRow}>
-            <Text style={styles.score}>{safeScore ?? "—"}</Text>
+            <Text style={styles.score}>{safeScore ?? translateUI("—")}</Text>
             <View>
-              <Text style={styles.outOf}>/10</Text>
-              <Text style={styles.scoreLabel}>PELLIX PUANIM</Text>
+              <Text style={styles.outOf}>{translateUI("/10")}</Text>
+              <Text style={styles.scoreLabel}>{translateUI("PELLIX PUANIM")}</Text>
             </View>
           </View>
         </View>
@@ -43,14 +44,14 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
 
       {!!note && (
         <View style={styles.noteBox}>
-          <Text style={styles.quote}>“</Text>
+          <Text style={styles.quote}>{translateUI("“")}</Text>
           <Text style={styles.note} numberOfLines={3}>{note}</Text>
         </View>
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>İzledim. Puanladım. Zevkim biraz daha netleşti.</Text>
-        {!!onPress && <Text style={styles.openText}>İçeriği aç →</Text>}
+        <Text style={styles.footerText}>{translateUI("İzledim. Puanladım. Zevkim biraz daha netleşti.")}</Text>
+        {!!onPress && <Text style={styles.openText}>{translateUI("İçeriği aç →")}</Text>}
       </View>
     </LinearGradient>
   );

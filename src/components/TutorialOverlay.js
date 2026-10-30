@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -91,7 +92,7 @@ export default function TutorialOverlay({ onFinish }) {
         <Text style={styles.tooltipDesc}>{current.desc}</Text>
         <View style={styles.tooltipFooter}>
           <TouchableOpacity onPress={onFinish} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.skipText}>Atla</Text>
+            <Text style={styles.skipText}>{translateUI("Atla")}</Text>
           </TouchableOpacity>
           <View style={styles.dotsRow}>
             {STEPS.map((_, i) => (
@@ -99,7 +100,7 @@ export default function TutorialOverlay({ onFinish }) {
             ))}
           </View>
           <TouchableOpacity style={styles.nextBtn} onPress={next}>
-            <Text style={styles.nextBtnText}>{step === STEPS.length - 1 ? "Başla" : "İleri"}</Text>
+            <Text style={styles.nextBtnText}>{step === STEPS.length - 1 ? translateUI("Başla") : translateUI("İleri")}</Text>
             <ChevronRight size={14} color={c.bg} />
           </TouchableOpacity>
         </View>

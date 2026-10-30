@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,7 +12,7 @@ export default function MatchShareCard({ myAvatar, myId, myName, friendAvatar, f
     <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
       <PartyPopper size={90} color="rgba(255,255,255,0.08)" style={styles.bgIcon} />
 
-      <Text style={styles.logo}>pell<Text style={{ fontWeight: "900" }}>i</Text>x</Text>
+      <Text style={styles.logo}>{translateUI("pell")}<Text style={{ fontWeight: "900" }}>{translateUI("i")}</Text>{translateUI("x")}</Text>
 
       <View style={styles.avatarRow}>
         <RetryImage source={{ uri: avatarOr(myAvatar, myId) }} style={[styles.avatar, { marginRight: -18, zIndex: 2 }]} />
@@ -19,9 +20,9 @@ export default function MatchShareCard({ myAvatar, myId, myName, friendAvatar, f
       </View>
       <View style={styles.matchRow}>
         <PartyPopper size={16} color="#fff" />
-        <Text style={styles.matchText}>EŞLEŞTİK</Text>
+        <Text style={styles.matchText}>{translateUI("EŞLEŞTİK")}</Text>
       </View>
-      <Text style={styles.names}>{(myName || "").split(" ")[0]} × {(friendName || "").split(" ")[0]}</Text>
+      <Text style={styles.names}>{(myName || "").split(" ")[0]}{translateUI(" × ")}{(friendName || "").split(" ")[0]}</Text>
 
       {topMovie && (
         <View style={styles.movieBox}>
@@ -41,10 +42,10 @@ export default function MatchShareCard({ myAvatar, myId, myName, friendAvatar, f
       )}
 
       <Text style={styles.countText}>
-        {matchCount > 1 ? `+${matchCount - 1} ortak eşleşme daha` : "MatchParty'de eşleştiler"}
+        {matchCount > 1 ? translateUI("+{0} ortak eşleşme daha", {0: matchCount - 1}) : translateUI("MatchParty'de eşleştiler")}
       </Text>
 
-      <Text style={styles.footer}>pellix'te keşfedin 🎬</Text>
+      <Text style={styles.footer}>{translateUI("pellix'te keşfedin 🎬")}</Text>
     </LinearGradient>
   );
 }

@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator, Alert, Animated, TouchableWithoutFeedback, Keyboard, Linking } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator,  Animated, TouchableWithoutFeedback, Keyboard, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
@@ -939,7 +941,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           <TouchableOpacity onPress={exitSelection} style={{ padding: 2 }}>
             <X size={20} color={c.text} />
           </TouchableOpacity>
-          <Text style={[styles.name, { flex: 1 }]}>{selectedIds.size} seçildi</Text>
+          <Text style={[styles.name, { flex: 1 }]}>{selectedIds.size}{translateUI(" seçildi")}</Text>
           <TouchableOpacity onPress={bulkDelete} style={{ padding: 2 }} disabled={selectedIds.size === 0}>
             <Trash2 size={19} color={selectedIds.size > 0 ? c.danger : c.dim} />
           </TouchableOpacity>
@@ -953,19 +955,19 @@ export default function ChatConversationScreen({ route, navigation }) {
             <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={styles.avatar} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>{friendName}</Text>
-              {friendIsTyping && <Text style={styles.typingIndicator}>yazıyor...</Text>}
+              {friendIsTyping && <Text style={styles.typingIndicator}>{translateUI("yazıyor...")}</Text>}
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Blend", { friendId, friendName, friendAvatar })}>
             <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerPill}>
               <Sparkles size={12} color="#fff" />
-              <Text style={styles.headerPillText}>Blend</Text>
+              <Text style={styles.headerPillText}>{translateUI("Blend")}</Text>
             </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity onPress={startParty} style={{ position: "relative" }}>
             <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerPill}>
               <Film size={12} color="#fff" />
-              <Text style={styles.headerPillText}>Party</Text>
+              <Text style={styles.headerPillText}>{translateUI("Party")}</Text>
             </LinearGradient>
             {/* CH3 — bu arkadaşla bekleyen/aktif bir oturum varken nabız atan bir nokta. */}
             {partyActive && <Animated.View style={[styles.partyPulseDot, { opacity: partyPulse }]} />}
@@ -982,11 +984,11 @@ export default function ChatConversationScreen({ route, navigation }) {
           <View style={styles.chatMenuSheet}>
             <TouchableOpacity style={styles.chatMenuRow} onPress={() => { setShowChatMenu(false); setShowReportModal(true); }}>
               <View style={styles.chatMenuIconWrap}><Flag size={16} color={c.text} /></View>
-              <Text style={styles.chatMenuText}>Şikayet Et</Text>
+              <Text style={styles.chatMenuText}>{translateUI("Şikayet Et")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.chatMenuRow} onPress={confirmBlockFromChat}>
               <View style={styles.chatMenuIconWrap}><Ban size={16} color={c.danger} /></View>
-              <Text style={[styles.chatMenuText, { color: c.danger }]}>Engelle</Text>
+              <Text style={[styles.chatMenuText, { color: c.danger }]}>{translateUI("Engelle")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1063,7 +1065,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             if (item._type === "separator") {
               return (
                 <View style={styles.daySeparatorRow}>
-                  <View style={styles.daySeparatorPill}><Text style={styles.daySeparatorText}>{item.label}</Text></View>
+                  <View style={styles.daySeparatorPill}><Text style={styles.daySeparatorText}>{translateUI(item.label)}</Text></View>
                 </View>
               );
             }
@@ -1124,7 +1126,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <View style={styles.emptyIconWrap}><MessageCircle size={24} color={c.accent} /></View>
-              <Text style={styles.emptyText}>Henüz mesaj yok, ilk mesajı sen yaz.</Text>
+              <Text style={styles.emptyText}>{translateUI("Henüz mesaj yok, ilk mesajı sen yaz.")}</Text>
             </View>
           }
         />
@@ -1137,7 +1139,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             style={styles.newMessagesBubble}
             onPress={() => { setHasNewMessagesBelow(false); scrollToEnd(true); }}
           >
-            <Text style={styles.newMessagesBubbleText}>Yeni mesajlar</Text>
+            <Text style={styles.newMessagesBubbleText}>{translateUI("Yeni mesajlar")}</Text>
             <ChevronDown size={14} color={c.bg} />
           </TouchableOpacity>
         )}
@@ -1145,7 +1147,7 @@ export default function ChatConversationScreen({ route, navigation }) {
         {replyingTo && (
           <View style={styles.editingBar}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.replyingToLabel}>{replyingTo.sender_id === auth.id ? "Kendine" : friendName} yanıtlanıyor</Text>
+              <Text style={styles.replyingToLabel}>{replyingTo.sender_id === auth.id ? translateUI("Kendine") : friendName}{translateUI(" yanıtlanıyor")}</Text>
               <Text style={styles.editingBarText} numberOfLines={1}>
                 {messageSnippet(replyingTo)}
               </Text>
@@ -1155,7 +1157,7 @@ export default function ChatConversationScreen({ route, navigation }) {
         )}
         {editingMessage && (
           <View style={styles.editingBar}>
-            <Text style={styles.editingBarText}>Mesajı düzenliyorsun</Text>
+            <Text style={styles.editingBarText}>{translateUI("Mesajı düzenliyorsun")}</Text>
             <TouchableOpacity onPress={cancelEdit}><X size={16} color={c.dim} /></TouchableOpacity>
           </View>
         )}
@@ -1169,7 +1171,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           <TextInput
             ref={draftInputRef}
             style={styles.input}
-            placeholder="Mesaj yaz"
+            placeholder={translateUI("Mesaj yaz")}
             placeholderTextColor={c.dim}
             value={draft}
             onChangeText={handleDraftChange}
@@ -1215,26 +1217,26 @@ export default function ChatConversationScreen({ route, navigation }) {
             </View>
             <TouchableOpacity style={styles.chooserRow} onPress={() => startReply(menuFor)}>
               <View style={styles.chooserIconWrap}><Reply size={16} color={c.text} /></View>
-              <Text style={styles.chooserText}>Yanıtla</Text>
+              <Text style={styles.chooserText}>{translateUI("Yanıtla")}</Text>
             </TouchableOpacity>
             {menuFor.sender_id === auth.id && !decodePhotoMessage(menuFor.body) && !decodeMovieShare(menuFor.body) && (
               <TouchableOpacity style={styles.chooserRow} onPress={() => startEdit(menuFor)}>
                 <View style={styles.chooserIconWrap}><Pencil size={16} color={c.text} /></View>
-                <Text style={styles.chooserText}>Düzenle</Text>
+                <Text style={styles.chooserText}>{translateUI("Düzenle")}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.chooserRow} onPress={() => enterSelection(menuFor)}>
               <View style={styles.chooserIconWrap}><CheckSquare size={16} color={c.text} /></View>
-              <Text style={styles.chooserText}>Seç</Text>
+              <Text style={styles.chooserText}>{translateUI("Seç")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.chooserRow} onPress={() => deleteForMe(menuFor)}>
               <View style={styles.chooserIconWrap}><X size={16} color={c.text} /></View>
-              <Text style={styles.chooserText}>Benden Sil</Text>
+              <Text style={styles.chooserText}>{translateUI("Benden Sil")}</Text>
             </TouchableOpacity>
             {menuFor.sender_id === auth.id && (
               <TouchableOpacity style={styles.chooserRow} onPress={() => unsendForEveryone(menuFor)}>
                 <View style={styles.chooserIconWrap}><Trash2 size={16} color={c.danger} /></View>
-                <Text style={[styles.chooserText, { color: c.danger }]}>Herkesten Sil</Text>
+                <Text style={[styles.chooserText, { color: c.danger }]}>{translateUI("Herkesten Sil")}</Text>
               </TouchableOpacity>
             )}
           </DismissableSheet>
@@ -1247,11 +1249,11 @@ export default function ChatConversationScreen({ route, navigation }) {
           <DismissableSheet onClose={() => setShowPhotoChooser(false)} style={styles.chooserSheet} handleOnly>
             <TouchableOpacity style={styles.chooserRow} onPress={() => pickPhoto(true)}>
               <View style={styles.chooserIconWrap}><Camera size={18} color={c.text} /></View>
-              <Text style={styles.chooserText}>Kamerayla Çek</Text>
+              <Text style={styles.chooserText}>{translateUI("Kamerayla Çek")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.chooserRow} onPress={() => pickPhoto(false)}>
               <View style={styles.chooserIconWrap}><ImageIcon size={18} color={c.text} /></View>
-              <Text style={styles.chooserText}>Galeriden Seç</Text>
+              <Text style={styles.chooserText}>{translateUI("Galeriden Seç")}</Text>
             </TouchableOpacity>
           </DismissableSheet>
         </View>
@@ -1263,11 +1265,11 @@ export default function ChatConversationScreen({ route, navigation }) {
           <DismissableSheet onClose={() => setShowExtrasChooser(false)} style={styles.chooserSheet} handleOnly>
             <TouchableOpacity style={styles.chooserRow} onPress={() => { setShowExtrasChooser(false); setShowPollCreator(true); }}>
               <View style={styles.chooserIconWrap}><BarChart2 size={18} color={c.text} /></View>
-              <Text style={styles.chooserText}>Mini Anket Oluştur</Text>
+              <Text style={styles.chooserText}>{translateUI("Mini Anket Oluştur")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.chooserRow} onPress={() => { setShowExtrasChooser(false); setShowPlanCreator(true); }}>
               <View style={styles.chooserIconWrap}><CalendarClock size={18} color={c.text} /></View>
-              <Text style={styles.chooserText}>İzleme Planı Öner</Text>
+              <Text style={styles.chooserText}>{translateUI("İzleme Planı Öner")}</Text>
             </TouchableOpacity>
           </DismissableSheet>
         </View>
@@ -1283,7 +1285,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             <TouchableWithoutFeedback onPress={() => {}}>
               <DismissableSheet onClose={() => setPendingPhoto(null)} style={styles.modalSheet} handleOnly>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Fotoğrafı Gönder</Text>
+                  <Text style={styles.modalTitle}>{translateUI("Fotoğrafı Gönder")}</Text>
                   <TouchableOpacity onPress={() => setPendingPhoto(null)}><X size={20} color={c.text} /></TouchableOpacity>
                 </View>
                 {pendingPhoto && <Image source={{ uri: pendingPhoto.uri }} style={styles.previewImage} />}
@@ -1293,13 +1295,13 @@ export default function ChatConversationScreen({ route, navigation }) {
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
                   <TouchableOpacity style={styles.choiceBtn} onPress={() => sendPhoto(true)}>
                     <Timer size={16} color={c.text} />
-                    <Text style={styles.choiceBtnTitle}>Tek Seferlik</Text>
-                    <Text style={styles.choiceBtnSubtitle}>Görülünce silinir</Text>
+                    <Text style={styles.choiceBtnTitle}>{translateUI("Tek Seferlik")}</Text>
+                    <Text style={styles.choiceBtnSubtitle}>{translateUI("Görülünce silinir")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.choiceBtn, { backgroundColor: c.accent, borderColor: c.accent }]} onPress={() => sendPhoto(false)}>
                     <InfinityIcon size={16} color={c.bg} />
-                    <Text style={[styles.choiceBtnTitle, { color: c.bg }]}>Kalıcı</Text>
-                    <Text style={[styles.choiceBtnSubtitle, { color: c.bg, opacity: 0.8 }]}>Sohbette kalır</Text>
+                    <Text style={[styles.choiceBtnTitle, { color: c.bg }]}>{translateUI("Kalıcı")}</Text>
+                    <Text style={[styles.choiceBtnSubtitle, { color: c.bg, opacity: 0.8 }]}>{translateUI("Sohbette kalır")}</Text>
                   </TouchableOpacity>
                 </View>
               </DismissableSheet>
@@ -1323,9 +1325,9 @@ export default function ChatConversationScreen({ route, navigation }) {
                   {downloading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : downloaded ? (
-                    <><Check size={16} color="#fff" /><Text style={styles.downloadBtnText}>Kaydedildi</Text></>
+                    <><Check size={16} color="#fff" /><Text style={styles.downloadBtnText}>{translateUI("Kaydedildi")}</Text></>
                   ) : (
-                    <><Download size={16} color="#fff" /><Text style={styles.downloadBtnText}>İndir</Text></>
+                    <><Download size={16} color="#fff" /><Text style={styles.downloadBtnText}>{translateUI("İndir")}</Text></>
                   )}
                 </TouchableOpacity>
               )}

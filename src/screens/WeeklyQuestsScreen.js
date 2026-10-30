@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Animated } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator,  Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, Gift, Trophy, Clock } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -75,8 +77,8 @@ export default function WeeklyQuestsScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Haftalık Görevler"
-        subtitle={totalCount > 0 ? `${completedCount}/${totalCount} tamamlandı` : undefined}
+        title={translateUI("Haftalık Görevler")}
+        subtitle={totalCount > 0 ? translateUI("{0}/{1} tamamlandı", {0: completedCount,1: totalCount}) : undefined}
         onBack={() => navigation.goBack()}
       />
 
@@ -84,15 +86,14 @@ export default function WeeklyQuestsScreen({ navigation }) {
         <View style={styles.introCard}>
           <View style={styles.trophyWrap}><Trophy size={22} color={c.accent} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.introTitle}>Bu haftaki hedefin</Text>
+            <Text style={styles.introTitle}>{translateUI("Bu haftaki hedefin")}</Text>
             <Text style={styles.introText}>
-              {totalCount || 4} görevin tamamını bitir, {data?.rewardDays} günlük Premium kazan.
-            </Text>
+              {totalCount || 4}{translateUI(" görevin tamamını bitir, ")}{data?.rewardDays}{translateUI(" günlük Premium kazan. ")}</Text>
             <View style={styles.overallProgressTrack}>
               <View style={[styles.overallProgressFill, { width: `${overallPercent}%` }]} />
             </View>
             <View style={styles.introMetaRow}>
-              <Text style={styles.introProgressText}>{completedCount}/{totalCount || 4}</Text>
+              <Text style={styles.introProgressText}>{completedCount}{translateUI("/")}{totalCount || 4}</Text>
               {!!resetLabel && (
                 <View style={styles.resetRow}>
                   <Clock size={11} color={c.dim} />
@@ -109,14 +110,14 @@ export default function WeeklyQuestsScreen({ navigation }) {
               {q.completed && <Check size={13} color={c.bg} />}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.questLabel, q.completed && { color: c.dim, textDecorationLine: "line-through" }]}>{q.label}</Text>
+              <Text style={[styles.questLabel, q.completed && { color: c.dim, textDecorationLine: "line-through" }]}>{translateUI(q.label)}</Text>
               {q.target > 1 && !q.completed && (
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${Math.min(100, (q.progress / q.target) * 100)}%` }]} />
                 </View>
               )}
             </View>
-            {q.target > 1 && <Text style={styles.questCount}>{q.progress}/{q.target}</Text>}
+            {q.target > 1 && <Text style={styles.questCount}>{q.progress}{translateUI("/")}{q.target}</Text>}
           </View>
         ))}
 
@@ -131,7 +132,7 @@ export default function WeeklyQuestsScreen({ navigation }) {
             <>
               <Gift size={16} color={c.bg} />
               <Text style={styles.claimBtnText}>
-                {data?.claimed ? "Bu haftanın ödülünü aldın" : data?.allCompleted ? "Ödülü Al" : `${Math.max(0, totalCount - completedCount)} görev kaldı`}
+                {data?.claimed ? translateUI("Bu haftanın ödülünü aldın") : data?.allCompleted ? translateUI("Ödülü Al") : translateUI("{0} görev kaldı", {0: Math.max(0, totalCount - completedCount)})}
               </Text>
             </>
           )}
@@ -164,10 +165,10 @@ function RewardCelebration({ days, onClose }) {
       <Confetti count={40} spread={700} />
       <Animated.View style={[styles.rewardCard, { transform: [{ scale }] }]}>
         <View style={styles.rewardIconRing}><Gift size={38} color="#fff" /></View>
-        <Text style={styles.rewardTitle}>Tebrikler! 🎁</Text>
-        <Text style={styles.rewardDesc}>{days} günlük Premium hesabına tanımlandı.</Text>
+        <Text style={styles.rewardTitle}>{translateUI("Tebrikler! 🎁")}</Text>
+        <Text style={styles.rewardDesc}>{days}{translateUI(" günlük Premium hesabına tanımlandı.")}</Text>
         <TouchableOpacity style={styles.rewardCloseBtn} onPress={onClose} activeOpacity={0.85}>
-          <Text style={styles.rewardCloseBtnText}>Harika!</Text>
+          <Text style={styles.rewardCloseBtnText}>{translateUI("Harika!")}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>

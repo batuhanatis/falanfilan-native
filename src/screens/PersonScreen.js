@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { ChevronLeft, Star, Clapperboard } from "lucide-react-native";
@@ -81,7 +82,7 @@ export default function PersonScreen({ route, navigation }) {
               <View style={styles.profileMetaRow}>
                 <Clapperboard size={12} color={c.dim} />
                 <Text style={styles.profileMeta}>
-                  {totalCount > 0 ? `${totalCount} yapım ${isDirector ? "yönetti" : "oynadı"}` : "Bilinen bir yapım bulunamadı"}
+                  {totalCount > 0 ? translateUI("{0} yapım {1}", {0: totalCount,1: isDirector ? "yönetti" : "oynadı"}) : translateUI("Bilinen bir yapım bulunamadı")}
                 </Text>
               </View>
             )}
@@ -105,15 +106,15 @@ export default function PersonScreen({ route, navigation }) {
               </View>
             </View>
             <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.cardMeta} numberOfLines={1}>{item.year} · {item.type}</Text>
-            {!isDirector && !!item.character && <Text style={styles.cardCharacter} numberOfLines={1}>{item.character} olarak</Text>}
+            <Text style={styles.cardMeta} numberOfLines={1}>{item.year}{translateUI(" · ")}{translateUI(item.type)}</Text>
+            {!isDirector && !!item.character && <Text style={styles.cardCharacter} numberOfLines={1}>{item.character}{translateUI(" olarak")}</Text>}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" color={c.accent} style={{ marginTop: 40 }} />
           ) : (
-            <Text style={styles.emptyText}>Bu kişi için gösterilecek bir yapım bulunamadı.</Text>
+            <Text style={styles.emptyText}>{translateUI("Bu kişi için gösterilecek bir yapım bulunamadı.")}</Text>
           )
         }
         ListFooterComponent={
@@ -122,7 +123,7 @@ export default function PersonScreen({ route, navigation }) {
               {loadingMore ? (
                 <ActivityIndicator size="small" color={c.accent} />
               ) : (
-                <Text style={styles.seeAllBtnText}>Tümünü Gör</Text>
+                <Text style={styles.seeAllBtnText}>{translateUI("Tümünü Gör")}</Text>
               )}
             </TouchableOpacity>
           ) : null

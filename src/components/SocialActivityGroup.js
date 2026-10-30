@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ListVideo } from "lucide-react-native";
@@ -16,7 +17,7 @@ function relativeTime(value) {
   if (hour < 24) return `${hour} sa`;
   const day = Math.floor(hour / 24);
   if (day < 7) return `${day} gün`;
-  return new Date(value).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  return new Date(value).toLocaleDateString(getLocale(), { day: "numeric", month: "short" });
 }
 
 function activityCopy(item) {
@@ -74,7 +75,7 @@ function ActivityRow({ item, navigation, isLast }) {
       <Text style={styles.text} numberOfLines={2}>
         <Text style={styles.name}>{item.user?.name}</Text>
         <Text style={styles.action}> {activityCopy(item)}</Text>
-        {!!movie && <Text style={styles.title}> · {movie.title}</Text>}
+        {!!movie && <Text style={styles.title}>{translateUI(" · ")}{movie.title}</Text>}
       </Text>
 
       {movie?.poster ? (
@@ -87,7 +88,7 @@ function ActivityRow({ item, navigation, isLast }) {
 
       <View style={styles.metaCol}>
         <TouchableOpacity style={styles.reactBtn} onPress={toggleReaction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.icon}>{myReaction ? "🔥" : "🤍"}</Text>
+          <Text style={styles.icon}>{myReaction ? translateUI("🔥") : translateUI("🤍")}</Text>
           {total > 0 && <Text style={[styles.reactCount, !!myReaction && { color: c.accent }]}>{total}</Text>}
         </TouchableOpacity>
         <Text style={styles.time}>{relativeTime(item.created_at)}</Text>

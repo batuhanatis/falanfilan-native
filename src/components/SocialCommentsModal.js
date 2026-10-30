@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator,  FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Flag, Send, Trash2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
@@ -119,7 +121,7 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Yorumlar</Text>
+            <Text style={styles.title}>{translateUI("Yorumlar")}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color={c.text} /></TouchableOpacity>
           </View>
           {loading ? (
@@ -163,7 +165,7 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
                       onPress={() => requestDelete(item)}
                       disabled={deletingId === item.id}
                       accessibilityRole="button"
-                      accessibilityLabel="Yorumu sil"
+                      accessibilityLabel={translateUI("Yorumu sil")}
                     >
                       {deletingId === item.id
                         ? <ActivityIndicator size="small" color={c.dim} />
@@ -175,20 +177,20 @@ export default function SocialCommentsModal({ visible, postId, activityId, canMo
                       style={styles.deleteBtn}
                       onPress={() => requestReport(item)}
                       accessibilityRole="button"
-                      accessibilityLabel="Yorumu şikâyet et"
+                      accessibilityLabel={translateUI("Yorumu şikâyet et")}
                     >
                       <Flag size={14} color={c.dim} />
                     </TouchableOpacity>
                   )}
                 </View>
               )}
-              ListEmptyComponent={<Text style={styles.empty}>Henüz yorum yok. İlk yorumu sen bırak.</Text>}
+              ListEmptyComponent={<Text style={styles.empty}>{translateUI("Henüz yorum yok. İlk yorumu sen bırak.")}</Text>}
             />
           )}
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder="Yorum yaz..."
+              placeholder={translateUI("Yorum yaz...")}
               placeholderTextColor={c.dim}
               value={text}
               onChangeText={setText}

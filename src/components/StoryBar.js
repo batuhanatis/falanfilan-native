@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -71,7 +72,7 @@ function Seat({ avatarUri, glowId, glowPhase, lit, label, labelAccent, onPress, 
         <RetryImage source={{ uri: avatarUri }} style={[styles.avatar, !lit && styles.avatarDim]} />
         {badge}
       </View>
-      <Text style={[styles.label, labelAccent && styles.caption]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.label, labelAccent && styles.caption]} numberOfLines={1}>{translateUI(label)}</Text>
     </TouchableOpacity>
   );
 }
@@ -144,18 +145,18 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.rowLabel}>{noActiveStories ? "TANIYOR OLABİLECEKLERİN" : "ŞU AN İZLİYOR"}</Text>
+      <Text style={styles.rowLabel}>{noActiveStories ? translateUI("TANIYOR OLABİLECEKLERİN") : translateUI("ŞU AN İZLİYOR")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         <Seat
           styles={styles}
           avatarUri={avatarOr(myAvatar)}
           glowId="glow-me"
           lit={hasMine}
-          label="Sen"
+          label={translateUI("Sen")}
           onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))}
-          accessibilityLabel={hasMine ? "Story'ni gör" : "Ne izlediğini paylaş"}
+          accessibilityLabel={hasMine ? translateUI("Story'ni gör") : translateUI("Ne izlediğini paylaş")}
           badge={(
-            <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Story ekle">
+            <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={translateUI("Story ekle")}>
               <Plus size={12} color={c.bg} strokeWidth={3} />
             </TouchableOpacity>
           )}
@@ -190,14 +191,14 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
               lit={false}
               label={sg.name}
               onPress={() => navigation.navigate("OtherProfile", { userId: sg.id })}
-              accessibilityLabel={`${sg.name}, profili aç`}
+              accessibilityLabel={translateUI("{0}, profili aç", {0: sg.name})}
               badge={(
                 <TouchableOpacity
                   style={[styles.addBadge, requested && styles.addBadgeDone]}
                   onPress={() => addSuggested(sg.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   disabled={requested}
-                  accessibilityLabel={requested ? "İstek gönderildi" : "Arkadaş ekle"}
+                  accessibilityLabel={requested ? translateUI("İstek gönderildi") : translateUI("Arkadaş ekle")}
                 >
                   {requested ? <Check size={11} color={c.bg} strokeWidth={3} /> : <UserPlus size={11} color={c.bg} strokeWidth={2.5} />}
                 </TouchableOpacity>

@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator} from "react-native";
 import { ChevronLeft, Ban } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -38,7 +40,7 @@ export default function BlockedUsersScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Engellenen Kullanıcılar</Text>
+        <Text style={styles.headerTitle}>{translateUI("Engellenen Kullanıcılar")}</Text>
       </View>
 
       {loading ? (
@@ -53,17 +55,17 @@ export default function BlockedUsersScreen({ navigation }) {
               <RetryImage source={{ uri: avatarOr(item.avatar_url, item.id) }} style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.name}</Text>
-                {!!item.username && <Text style={styles.username}>@{item.username}</Text>}
+                {!!item.username && <Text style={styles.username}>{translateUI("@")}{item.username}</Text>}
               </View>
               <TouchableOpacity style={styles.unblockBtn} onPress={() => unblock(item)}>
-                <Text style={styles.unblockBtnText}>Engeli Kaldır</Text>
+                <Text style={styles.unblockBtnText}>{translateUI("Engeli Kaldır")}</Text>
               </TouchableOpacity>
             </View>
           )}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <View style={styles.emptyIconWrap}><Ban size={24} color={c.accent} /></View>
-              <Text style={styles.emptyText}>Henüz kimseyi engellemedin.</Text>
+              <Text style={styles.emptyText}>{translateUI("Henüz kimseyi engellemedin.")}</Text>
             </View>
           }
         />

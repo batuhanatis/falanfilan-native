@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MessageSquareText } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -64,24 +66,24 @@ export default function DescribeModal({ onClose, onResults, onClear, hasResults,
     <IslandModal
       visible
       onClose={onClose}
-      title="Anlat, Bulalım"
+      title={translateUI("Anlat, Bulalım")}
       icon={MessageSquareText}
       gradientColors={DESCRIBE_GRADIENT}
-      subtitle="Ne tür bir şey istediğini kendi cümlelerinle anlat"
+      subtitle={translateUI("Ne tür bir şey istediğini kendi cümlelerinle anlat")}
     >
-      <Text style={styles.moodLabel}>HIZLI SEÇİM</Text>
+      <Text style={styles.moodLabel}>{translateUI("HIZLI SEÇİM")}</Text>
       <View style={styles.moodRow}>
         {MOODS.map(([emoji, label, text]) => (
           <TouchableOpacity key={text} style={styles.moodChip} onPress={() => runDescribe(text)} disabled={loading}>
             <Text style={styles.moodChipEmoji}>{emoji}</Text>
-            <Text style={styles.moodChipLabel}>{label}</Text>
+            <Text style={styles.moodChipLabel}>{translateUI(label)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <TextInput
         style={styles.describeInput}
-        placeholder="Örn: kapalı havada geçen klostrofobik atmosferli hayatta kalma filmleri"
+        placeholder={translateUI("Örn: kapalı havada geçen klostrofobik atmosferli hayatta kalma filmleri")}
         placeholderTextColor={c.dim}
         value={prompt}
         onChangeText={setPrompt}
@@ -89,21 +91,21 @@ export default function DescribeModal({ onClose, onResults, onClear, hasResults,
         numberOfLines={3}
       />
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={() => runDescribe()} disabled={loading}>
         <LinearGradient colors={DESCRIBE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
           {loading ? (
             <LoadingLines lines={DESCRIBE_LOADING_LINES} style={styles.goBtnText} />
           ) : (
-            <Text style={styles.goBtnText}>Öneri Al</Text>
+            <Text style={styles.goBtnText}>{translateUI("Öneri Al")}</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>
 
       {hasResults && (
         <TouchableOpacity onPress={clearAndClose} style={{ alignSelf: "center", marginTop: 14 }}>
-          <Text style={styles.clearText}>Aramayı temizle</Text>
+          <Text style={styles.clearText}>{translateUI("Aramayı temizle")}</Text>
         </TouchableOpacity>
       )}
     </IslandModal>

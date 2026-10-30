@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Heart, Check, Sparkles } from "lucide-react-native";
@@ -64,8 +65,8 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
     >
       <View style={{ paddingHorizontal: 20, paddingTop: Math.max(insets.top, 12) + 18, paddingBottom: 12 }}>
         {topExtra}
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.title}>{translateUI(title)}</Text>
+        <Text style={styles.subtitle}>{translateUI(subtitle)}</Text>
       </View>
 
       <ScrollView
@@ -78,22 +79,22 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
       >
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionIconWrap}><Sparkles size={13} color={c.accent} /></View>
-          <Text style={styles.sectionTitle}>Hangi türleri seversin?</Text>
+          <Text style={styles.sectionTitle}>{translateUI("Hangi türleri seversin?")}</Text>
         </View>
-        <Text style={styles.sectionHint}>Birden fazla seçebilirsin</Text>
+        <Text style={styles.sectionHint}>{translateUI("Birden fazla seçebilirsin")}</Text>
         <View style={styles.genreGrid}>
           {GENRE_FILTERS.map((genre) => {
             const on = selectedGenres.has(genre);
             const color = GENRE_COLORS[genre] || c.accent;
             return (
               <TouchableOpacity
-                key={genre}
+                key={translateUI(genre)}
                 style={[styles.genreChip, on && { backgroundColor: color, borderColor: color }]}
                 onPress={() => toggleGenre(genre)}
                 activeOpacity={0.8}
               >
                 {on && <Check size={12} color="#fff" style={{ marginRight: 5 }} />}
-                <Text style={[styles.genreChipText, on && { color: "#fff" }]}>{genre}</Text>
+                <Text style={[styles.genreChipText, on && { color: "#fff" }]}>{translateUI(genre)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -101,13 +102,13 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
 
         <View style={[styles.sectionHeaderRow, { marginTop: 28 }]}>
           <View style={styles.sectionIconWrap}><Heart size={13} color={c.accent} /></View>
-          <Text style={styles.sectionTitle}>En sevdiklerin</Text>
+          <Text style={styles.sectionTitle}>{translateUI("En sevdiklerin")}</Text>
         </View>
-        <Text style={styles.sectionHint}>İstersen boş bırakabilirsin, sonra profilinden de ekleyebilirsin</Text>
+        <Text style={styles.sectionHint}>{translateUI("İstersen boş bırakabilirsin, sonra profilinden de ekleyebilirsin")}</Text>
 
         <View style={{ marginTop: 14 }} onLayout={(e) => { movieFieldY.current = e.nativeEvent.layout.y; }}>
           <FavoritePicker
-            label="En sevdiğin film"
+            label={translateUI("En sevdiğin film")}
             type="Film"
             value={favMovie}
             onSelect={(m) => pickFavorite("Film", m)}
@@ -116,7 +117,7 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
         </View>
         <View style={{ marginTop: 18 }} onLayout={(e) => { showFieldY.current = e.nativeEvent.layout.y; }}>
           <FavoritePicker
-            label="En sevdiğin dizi"
+            label={translateUI("En sevdiğin dizi")}
             type="Dizi"
             value={favShow}
             onSelect={(m) => pickFavorite("Dizi", m)}
@@ -127,10 +128,10 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
 
       <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
-          <Text style={styles.skipText}>{skipLabel}</Text>
+          <Text style={styles.skipText}>{translateUI(skipLabel)}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.continueBtn} onPress={onContinue}>
-          <Text style={styles.continueText}>{continueLabel}</Text>
+          <Text style={styles.continueText}>{translateUI(continueLabel)}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

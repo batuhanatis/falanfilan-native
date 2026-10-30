@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -67,13 +68,13 @@ export default function PlayHubCard({ navigation }) {
           <View style={styles.copy}>
             <View style={styles.eyebrowRow}>
               <CalendarDays size={10} color="rgba(255,255,255,0.78)" />
-              <Text style={styles.eyebrow}>BUGÜNÜN OYUNU</Text>
+              <Text style={styles.eyebrow}>{translateUI("BUGÜNÜN OYUNU")}</Text>
             </View>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>Poster Puzzle</Text>
-              <View style={styles.playBadge}><Text style={styles.playBadgeText}>GÜNLÜK</Text></View>
+              <Text style={styles.title}>{translateUI("Poster Puzzle")}</Text>
+              <View style={styles.playBadge}><Text style={styles.playBadgeText}>{translateUI("GÜNLÜK")}</Text></View>
             </View>
-            <Text style={styles.sub}>Bulanık posteri mümkün olan en az ipucuyla bul</Text>
+            <Text style={styles.sub}>{translateUI("Bulanık posteri mümkün olan en az ipucuyla bul")}</Text>
           </View>
 
           <View style={styles.arrowWrap}>
@@ -87,15 +88,15 @@ export default function PlayHubCard({ navigation }) {
           <View style={styles.battleIcon}><Swords size={15} color="#FB7185" /></View>
           <View style={{ flex: 1 }}>
             <View style={styles.rowTitleLine}>
-              <Text style={styles.battleTitle}>Friend Battle</Text>
-              <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>
+              <Text style={styles.battleTitle}>{translateUI("Friend Battle")}</Text>
+              <View style={styles.newBadge}><Text style={styles.newBadgeText}>{translateUI("YENİ")}</Text></View>
             </View>
             <Text style={styles.battleSub}>
               {battleInfo.waitingForMe > 0
-                ? `${battleInfo.waitingForMe} meydan okuma seni bekliyor`
+                ? translateUI("{0} meydan okuma seni bekliyor", {0: battleInfo.waitingForMe})
                 : battleInfo.resultReady > 0
-                  ? `${battleInfo.resultReady} battle sonucu hazır`
-                  : "Arkadaşınla aynı 8 seçimi ayrı zamanlarda yap"}
+                  ? translateUI("{0} battle sonucu hazır", {0: battleInfo.resultReady})
+                  : translateUI("Arkadaşınla aynı 8 seçimi ayrı zamanlarda yap")}
             </Text>
           </View>
           <ChevronRight size={16} color="rgba(255,255,255,0.54)" />
@@ -106,8 +107,8 @@ export default function PlayHubCard({ navigation }) {
         <TouchableOpacity style={styles.allGamesRow} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.78}>
           <View style={styles.allGamesIcon}><Gamepad2 size={14} color="#6366F1" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.allGamesTitle}>Pellix Play</Text>
-            <Text style={styles.allGamesSub}>{enabledCount} mini oyun daha</Text>
+            <Text style={styles.allGamesTitle}>{translateUI("Pellix Play")}</Text>
+            <Text style={styles.allGamesSub}>{enabledCount}{translateUI(" mini oyun daha")}</Text>
           </View>
           <ChevronRight size={16} color="rgba(255,255,255,0.54)" />
         </TouchableOpacity>

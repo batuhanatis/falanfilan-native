@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ScrollView, ActivityIndicator, Animated } from "react-native";
 import { Heart, ChevronLeft, Sparkles } from "lucide-react-native";
@@ -28,8 +29,8 @@ export default function OnboardingScreen() {
   if (step === 1) {
     return (
       <TasteSurveyStep
-        title={`Zevkini tanıyalım, ${auth?.name?.split(" ")[0] || ""}`}
-        subtitle="Birkaç soru, sana çok daha isabetli öneriler sunmamızı sağlıyor."
+        title={translateUI("Zevkini tanıyalım, {0}", {0: auth?.name?.split(" ")[0] || ""})}
+        subtitle={translateUI("Birkaç soru, sana çok daha isabetli öneriler sunmamızı sağlıyor.")}
         topExtra={<StepDots c={c} activeStep={1} />}
         onSkip={finishOnboarding}
         onContinue={() => setStep(2)}
@@ -78,15 +79,13 @@ function WelcomeStep({ c, styles, insets, name, onContinue }) {
   return (
     <View style={[styles.welcomeWrap, { paddingTop: Math.max(30, insets.top + 20), paddingBottom: Math.max(96, insets.bottom + 86) }]}>
       <Animated.View style={{ opacity, transform: [{ scale }], alignItems: "center" }}>
-        <Text style={styles.welcomeLogo}>
-          pell<Text style={{ color: c.accent }}>i</Text>x
-        </Text>
+        <Text style={styles.welcomeLogo}>{translateUI(" pell")}<Text style={{ color: c.accent }}>{translateUI("i")}</Text>{translateUI("x ")}</Text>
         <Sparkles size={18} color={c.accent} style={{ marginTop: 14, marginBottom: 10 }} />
-        <Text style={styles.welcomeTitle}>{name ? `Hoş geldin, ${name}` : "Hoş geldin"}</Text>
-        <Text style={styles.welcomeSubtitle}>Birkaç soru soralım, sana özel bir akış kuralım.</Text>
+        <Text style={styles.welcomeTitle}>{name ? translateUI("Hoş geldin, {0}", {0: name}) : translateUI("Hoş geldin")}</Text>
+        <Text style={styles.welcomeSubtitle}>{translateUI("Birkaç soru soralım, sana özel bir akış kuralım.")}</Text>
       </Animated.View>
       <TouchableOpacity style={[styles.welcomeBtn, { bottom: Math.max(24, insets.bottom + 16) }]} onPress={onContinue}>
-        <Text style={styles.welcomeBtnText}>Başlayalım</Text>
+        <Text style={styles.welcomeBtnText}>{translateUI("Başlayalım")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -117,7 +116,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
     const willBeSize = picked.has(id) ? picked.size - 1 : picked.size + 1;
     if (picked.size < 5 && willBeSize >= 5) {
       hapticSuccess();
-      emitLocalEvent({ type: "toast", title: "Zevkini öğrendik! 🎬", message: "Artık sana özel öneriler hazırlayabiliriz." });
+      emitLocalEvent({ type: "toast", title: translateUI("Zevkini öğrendik! 🎬"), message: "Artık sana özel öneriler hazırlayabiliriz." });
     }
 
     const wasPicked = picked.has(id);
@@ -157,12 +156,12 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
             <StepDots c={c} activeStep={2} />
           </View>
         </View>
-        <Text style={styles.title}>Son bir adım</Text>
-        <Text style={styles.subtitle}>Sana özel öneriler üretebilmemiz için en az 5 film/dizi beğen.</Text>
+        <Text style={styles.title}>{translateUI("Son bir adım")}</Text>
+        <Text style={styles.subtitle}>{translateUI("Sana özel öneriler üretebilmemiz için en az 5 film/dizi beğen.")}</Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${Math.min(count / 5, 1) * 100}%` }]} />
         </View>
-        <Text style={styles.progressLabel}>{count}/5</Text>
+        <Text style={styles.progressLabel}>{count}{translateUI("/5")}</Text>
       </View>
 
       <FlatList
@@ -189,11 +188,11 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
 
       <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
-          <Text style={styles.skipText}>Atla</Text>
+          <Text style={styles.skipText}>{translateUI("Atla")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={continueWithReveal}>
           <Text style={[styles.continueText, !done && { color: c.dim }]}>
-            {done ? "Zevkimi Göster" : `${5 - count} beğeni daha`}
+            {done ? translateUI("Zevkimi Göster") : translateUI("{0} beğeni daha", {0: 5 - count})}
           </Text>
         </TouchableOpacity>
       </View>
@@ -257,9 +256,9 @@ function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
           <View style={styles.revealSparkleRing}>
             <Sparkles size={28} color={c.accent} />
           </View>
-          <Text style={styles.revealEyebrow}>PELLIX TASTE</Text>
-          <Text style={styles.revealTitle}>{name ? `${name}, zevkini yakaladık` : "Zevkini yakaladık"}</Text>
-          <Text style={styles.revealSubtitle}>İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.</Text>
+          <Text style={styles.revealEyebrow}>{translateUI("PELLIX TASTE")}</Text>
+          <Text style={styles.revealTitle}>{name ? translateUI("{0}, zevkini yakaladık", {0: name}) : translateUI("Zevkini yakaladık")}</Text>
+          <Text style={styles.revealSubtitle}>{translateUI("İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.")}</Text>
 
           <View style={styles.genreRow}>
             {topGenres.map((genre) => (
@@ -282,14 +281,14 @@ function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
           )}
 
           <View style={styles.revealPromise}>
-            <Text style={styles.revealPromiseTitle}>İlk önerilerin hazır</Text>
-            <Text style={styles.revealPromiseText}>Ana Sayfa ve Keşfet artık verdiğin bu sinyallerle başlayacak.</Text>
+            <Text style={styles.revealPromiseTitle}>{translateUI("İlk önerilerin hazır")}</Text>
+            <Text style={styles.revealPromiseText}>{translateUI("Ana Sayfa ve Keşfet artık verdiğin bu sinyallerle başlayacak.")}</Text>
           </View>
         </Animated.View>
       </ScrollView>
 
       <TouchableOpacity style={[styles.revealBtn, { bottom: buttonBottom }]} onPress={onFinish} activeOpacity={0.88}>
-        <Text style={styles.revealBtnText}>Pellix'e Gir</Text>
+        <Text style={styles.revealBtnText}>{translateUI("Pellix'e Gir")}</Text>
       </TouchableOpacity>
     </View>
   );

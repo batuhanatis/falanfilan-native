@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -59,41 +60,41 @@ export default function PartyJoinScreen({ navigation, route }) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Party Daveti" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("Party Daveti")} onBack={() => navigation.goBack()} />
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={c.accent} /></View>
       ) : error && !preview ? (
         <ScrollView contentContainerStyle={styles.centerContent} showsVerticalScrollIndicator={false}>
           <View style={styles.errorIcon}><AlertCircle size={25} color={c.danger} /></View>
-          <Text style={styles.title}>Bu link açılamadı</Text>
-          <Text style={styles.sub}>{error}</Text>
+          <Text style={styles.title}>{translateUI("Bu link açılamadı")}</Text>
+          <Text style={styles.sub}>{translateUI(error)}</Text>
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.centerContent} showsVerticalScrollIndicator={false}>
           <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} style={styles.heroIcon}>
             <Link2 size={30} color="#fff" />
           </LinearGradient>
-          <Text style={styles.eyebrow}>MATCHPARTY DAVETİ</Text>
-          <Text style={styles.title}>{preview?.creator?.name || "Bir arkadaşın"} seni Party'ye çağırıyor</Text>
-          <Text style={styles.sub}>Aynı içerikleri kaydırın, hepinizin beğendiği yapımları birlikte bulun.</Text>
+          <Text style={styles.eyebrow}>{translateUI("MATCHPARTY DAVETİ")}</Text>
+          <Text style={styles.title}>{preview?.creator?.name || translateUI("Bir arkadaşın")}{translateUI(" seni Party'ye çağırıyor")}</Text>
+          <Text style={styles.sub}>{translateUI("Aynı içerikleri kaydırın, hepinizin beğendiği yapımları birlikte bulun.")}</Text>
 
           <View style={styles.creatorCard}>
             <RetryImage source={{ uri: avatarOr(preview?.creator?.avatarUrl, preview?.creator?.id) }} style={styles.avatar} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.creatorName}>{preview?.creator?.name || "Party sahibi"}</Text>
-              <Text style={styles.creatorMeta}>{preview?.uses || 0}/{preview?.maxUses || 6} kişi linki kullandı</Text>
+              <Text style={styles.creatorName}>{preview?.creator?.name || translateUI("Party sahibi")}</Text>
+              <Text style={styles.creatorMeta}>{preview?.uses || 0}{translateUI("/")}{preview?.maxUses || 6}{translateUI(" kişi linki kullandı")}</Text>
             </View>
             <Users size={17} color={c.dim} />
           </View>
 
           {preview?.expired ? (
-            <View style={styles.expiredBox}><AlertCircle size={15} color={c.danger} /><Text style={styles.expiredText}>Bu Party linkinin süresi dolmuş.</Text></View>
+            <View style={styles.expiredBox}><AlertCircle size={15} color={c.danger} /><Text style={styles.expiredText}>{translateUI("Bu Party linkinin süresi dolmuş.")}</Text></View>
           ) : (
             <TouchableOpacity style={styles.joinBtn} onPress={join} disabled={joining} activeOpacity={0.86}>
-              {joining ? <ActivityIndicator color="#14121a" /> : <><Check size={17} color="#14121a" strokeWidth={2.8} /><Text style={styles.joinText}>{preview?.alreadyMine ? "Kendi Party'me Dön" : "Party'ye Katıl"}</Text></>}
+              {joining ? <ActivityIndicator color="#14121a" /> : <><Check size={17} color="#14121a" strokeWidth={2.8} /><Text style={styles.joinText}>{preview?.alreadyMine ? translateUI("Kendi Party'me Dön") : translateUI("Party'ye Katıl")}</Text></>}
             </TouchableOpacity>
           )}
-          {!!error && !!preview && <Text style={styles.inlineError}>{error}</Text>}
+          {!!error && !!preview && <Text style={styles.inlineError}>{translateUI(error)}</Text>}
         </ScrollView>
       )}
     </View>

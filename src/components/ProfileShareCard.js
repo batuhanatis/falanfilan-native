@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, ImageBackground, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,20 +44,20 @@ export default function ProfileShareCard({
 
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.logo}>pellix</Text>
-          <Text style={styles.cardType}>TASTE ID</Text>
+          <Text style={styles.logo}>{translateUI("pellix")}</Text>
+          <Text style={styles.cardType}>{translateUI("TASTE ID")}</Text>
         </View>
         <View style={styles.badgeRow}>
           {Number(streak) > 0 && (
             <View style={styles.streakBadge}>
               <Flame size={10} color="#FDBA74" />
-              <Text style={styles.streakText}>{streak} HAFTA</Text>
+              <Text style={styles.streakText}>{streak}{translateUI(" HAFTA")}</Text>
             </View>
           )}
           {isPremium && (
             <View style={styles.premiumBadge}>
               <Crown size={10} color="#17120A" fill="#17120A" />
-              <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+              <Text style={styles.premiumBadgeText}>{translateUI("PREMIUM")}</Text>
             </View>
           )}
         </View>
@@ -65,10 +66,10 @@ export default function ProfileShareCard({
       <View style={styles.identityRow}>
         <RetryImage source={{ uri: avatarOr(avatarUrl, userId) }} style={styles.avatar} />
         <View style={styles.identityCopy}>
-          <Text style={styles.name} numberOfLines={1}>{name || "Pellix kullanıcısı"}</Text>
-          {!!username && <Text style={styles.username}>@{username}</Text>}
+          <Text style={styles.name} numberOfLines={1}>{name || translateUI("Pellix kullanıcısı")}</Text>
+          {!!username && <Text style={styles.username}>{translateUI("@")}{username}</Text>}
           <Text style={styles.signalText}>
-            {signalCount > 0 ? `${signalCount} zevk sinyalinden oluşuyor` : "Zevk profili oluşuyor"}
+            {signalCount > 0 ? translateUI("{0} zevk sinyalinden oluşuyor", {0: signalCount}) : translateUI("Zevk profili oluşuyor")}
           </Text>
         </View>
       </View>
@@ -76,9 +77,9 @@ export default function ProfileShareCard({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Sparkles size={12} color="#A78BFA" />
-          <Text style={styles.sectionTitle}>ZEVK DNA</Text>
+          <Text style={styles.sectionTitle}>{translateUI("ZEVK DNA")}</Text>
         </View>
-        <Text style={styles.sectionHint}>Pellix seni böyle tanıyor</Text>
+        <Text style={styles.sectionHint}>{translateUI("Pellix seni böyle tanıyor")}</Text>
       </View>
 
       {genres.length > 0 ? (
@@ -87,7 +88,7 @@ export default function ProfileShareCard({
             const percent = clampPercent(genre?.percent);
             return (
               <View key={`${genre?.name || "genre"}-${index}`} style={styles.genreRow}>
-                <Text style={styles.genreName} numberOfLines={1}>{genre?.name || "Karışık"}</Text>
+                <Text style={styles.genreName} numberOfLines={1}>{genre?.name || translateUI("Karışık")}</Text>
                 <View style={styles.genreTrack}>
                   <LinearGradient
                     colors={["#FFD76A", "#A78BFA"]}
@@ -96,21 +97,21 @@ export default function ProfileShareCard({
                     style={[styles.genreFill, { width: `${Math.max(8, percent)}%` }]}
                   />
                 </View>
-                <Text style={styles.genrePercent}>%{percent}</Text>
+                <Text style={styles.genrePercent}>{translateUI("%")}{percent}</Text>
               </View>
             );
           })}
         </View>
       ) : (
         <View style={styles.emptyTaste}>
-          <Text style={styles.emptyTasteText}>Birkaç seçim daha yaptıkça zevk imzan burada belirginleşecek.</Text>
+          <Text style={styles.emptyTasteText}>{translateUI("Birkaç seçim daha yaptıkça zevk imzan burada belirginleşecek.")}</Text>
         </View>
       )}
 
       <View style={styles.formatBlock}>
         <View style={styles.formatLabels}>
-          <Text style={styles.formatLabel}>FİLM %{filmPercent}</Text>
-          <Text style={styles.formatLabel}>DİZİ %{showPercent}</Text>
+          <Text style={styles.formatLabel}>{translateUI("FİLM %")}{filmPercent}</Text>
+          <Text style={styles.formatLabel}>{translateUI("DİZİ %")}{showPercent}</Text>
         </View>
         <View style={styles.formatTrack}>
           <View style={[styles.formatFilm, { width: `${filmPercent}%` }]} />
@@ -118,24 +119,24 @@ export default function ProfileShareCard({
       </View>
 
       <View style={styles.statsRow}>
-        <Stat icon={Heart} value={likeCount} label="BEĞENİ" />
-        <Stat icon={Users} value={friendCount} label="ARKADAŞ" />
-        <Stat icon={ListVideo} value={listCount} label="LİSTE" />
+        <Stat icon={Heart} value={likeCount} label={translateUI("BEĞENİ")} />
+        <Stat icon={Users} value={friendCount} label={translateUI("ARKADAŞ")} />
+        <Stat icon={ListVideo} value={listCount} label={translateUI("LİSTE")} />
       </View>
 
       {hasFavorites && (
         <View style={styles.favoriteSection}>
-          <Text style={styles.favoriteEyebrow}>İMZA SEÇİMLERİ</Text>
+          <Text style={styles.favoriteEyebrow}>{translateUI("İMZA SEÇİMLERİ")}</Text>
           <View style={styles.favoriteRow}>
-            {favoriteMovie && <FavoriteItem item={favoriteMovie} label="FAVORİ FİLM" />}
-            {favoriteShow && <FavoriteItem item={favoriteShow} label="FAVORİ DİZİ" />}
+            {favoriteMovie && <FavoriteItem item={favoriteMovie} label={translateUI("FAVORİ FİLM")} />}
+            {favoriteShow && <FavoriteItem item={favoriteShow} label={translateUI("FAVORİ DİZİ")} />}
           </View>
         </View>
       )}
 
       <View style={styles.footerRow}>
-        <Text style={styles.footer}>{username ? `pellix.app/@${username}` : "pellix.app"}</Text>
-        <Text style={styles.footerAccent}>Zevkini keşfet</Text>
+        <Text style={styles.footer}>{username ? translateUI("pellix.app/@{0}", {0: username}) : translateUI("pellix.app")}</Text>
+        <Text style={styles.footerAccent}>{translateUI("Zevkini keşfet")}</Text>
       </View>
     </>
   );
@@ -171,7 +172,7 @@ function Stat({ icon: Icon, value, label }) {
     <View style={styles.statBox}>
       <Icon size={13} color="rgba(255,255,255,0.66)" />
       <Text style={styles.statNum}>{Number(value || 0)}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel}>{translateUI(label)}</Text>
     </View>
   );
 }
@@ -185,8 +186,8 @@ function FavoriteItem({ item, label }) {
         <View style={[styles.favoritePoster, styles.posterFallback]} />
       )}
       <View style={styles.favoriteCopy}>
-        <Text style={styles.favoriteLabel}>{label}</Text>
-        <Text style={styles.favoriteTitle} numberOfLines={2}>{item?.title || "—"}</Text>
+        <Text style={styles.favoriteLabel}>{translateUI(label)}</Text>
+        <Text style={styles.favoriteTitle} numberOfLines={2}>{item?.title || translateUI("—")}</Text>
       </View>
     </View>
   );

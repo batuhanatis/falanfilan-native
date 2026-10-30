@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -140,17 +141,17 @@ export default function RateTasteScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="İzlediklerini puanla" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("İzlediklerini puanla")} onBack={() => navigation.goBack()} />
       <View style={styles.intro}>
         <View style={styles.introIcon}><Sparkles size={18} color="#8B5CF6" /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.introTitle}>Zevk profilini derinleştir</Text>
-          <Text style={styles.introText}>“Zevkime göre” işaretlediklerinden gerçekten izlediklerine puan ver. Puanladıkların bu listeden çıkar; sıradaki içerikler onların yerini alır.</Text>
+          <Text style={styles.introTitle}>{translateUI("Zevk profilini derinleştir")}</Text>
+          <Text style={styles.introText}>{translateUI("“Zevkime göre” işaretlediklerinden gerçekten izlediklerine puan ver. Puanladıkların bu listeden çıkar; sıradaki içerikler onların yerini alır.")}</Text>
         </View>
       </View>
       <View style={styles.progressRow}>
-        <Text style={styles.progressText}>{rows.length} yeni içerik hazır</Text>
-        <Text style={styles.progressHint}>{ratedTotal ? `Şimdiye kadar ${ratedTotal} içeriği puanladın.` : "İzledim ve zevk sinyali birbirinden ayrı kalır."}</Text>
+        <Text style={styles.progressText}>{rows.length}{translateUI(" yeni içerik hazır")}</Text>
+        <Text style={styles.progressHint}>{ratedTotal ? translateUI("Şimdiye kadar {0} içeriği puanladın.", {0: ratedTotal}) : translateUI("İzledim ve zevk sinyali birbirinden ayrı kalır.")}</Text>
       </View>
 
       {loading ? (
@@ -169,23 +170,23 @@ export default function RateTasteScreen({ navigation }) {
                   <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.meta} numberOfLines={1}>{[item.year, item.type].filter(Boolean).join(" · ")}</Text>
                   <Text style={styles.stateText}>
-                    {entry ? "İzlendi · henüz puan yok" : "İzledin mi? Puanını ekleyebilirsin"}
+                    {entry ? translateUI("İzlendi · henüz puan yok") : translateUI("İzledin mi? Puanını ekleyebilirsin")}
                   </Text>
                 </View>
                 <View style={styles.action}>
                   <Star size={14} color={c.accent} />
-                  <Text style={styles.actionText}>{entry ? "Puanla" : "İzledim"}</Text>
+                  <Text style={styles.actionText}>{entry ? translateUI("Puanla") : translateUI("İzledim")}</Text>
                 </View>
               </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>{hadLikes ? "Puanlanacak yeni içerik kalmadı" : "Henüz hızlı zevk sinyalin yok"}</Text>
+              <Text style={styles.emptyTitle}>{hadLikes ? translateUI("Puanlanacak yeni içerik kalmadı") : translateUI("Henüz hızlı zevk sinyalin yok")}</Text>
               <Text style={styles.emptyText}>
                 {hadLikes
-                  ? "Yeni içeriklere “Zevkime göre” dedikçe burada sadece henüz puanlamadıkların görünecek."
-                  : "Keşfet’te “Zevkime göre” dediklerin burada görünür."}
+                  ? translateUI("Yeni içeriklere “Zevkime göre” dedikçe burada sadece henüz puanlamadıkların görünecek.")
+                  : translateUI("Keşfet’te “Zevkime göre” dediklerin burada görünür.")}
               </Text>
             </View>
           }

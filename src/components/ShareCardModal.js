@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useRef, useState } from "react";
 import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated, useWindowDimensions } from "react-native";
 import ViewShot from "react-native-view-shot";
@@ -159,7 +160,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                       <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
                     ))}
                   </View>
-                  <Text style={styles.swipeHint}>Farklı bir görünüm için karta dokun</Text>
+                  <Text style={styles.swipeHint}>{translateUI("Farklı bir görünüm için karta dokun")}</Text>
                 </>
               )}
 
@@ -168,14 +169,14 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                   {socialSharing ? <ActivityIndicator color="#fff" /> : (
                     <>
                       {socialShared ? <Check size={17} color="#fff" /> : <Radio size={17} color="#fff" />}
-                      <Text style={styles.socialBtnText}>{socialShared ? "Sosyal akışta paylaşıldı" : "Sosyal Akışta Paylaş"}</Text>
+                      <Text style={styles.socialBtnText}>{socialShared ? translateUI("Sosyal akışta paylaşıldı") : translateUI("Sosyal Akışta Paylaş")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
               )}
 
               <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} accessibilityLabel="Galeriye kaydet">
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} accessibilityLabel={translateUI("Galeriye kaydet")}>
                   {saving ? <ActivityIndicator color="#fff" /> : saved ? <Check size={20} color="#fff" /> : <Download size={20} color="#fff" />}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.shareBtn} onPress={handleImageShare} disabled={imageSharing}>
@@ -184,7 +185,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                   ) : (
                     <>
                       <ImageIcon size={16} color={c.bg} />
-                      <Text style={styles.shareBtnText}>Görseli Paylaş (Story, WhatsApp…)</Text>
+                      <Text style={styles.shareBtnText}>{translateUI("Görseli Paylaş (Story, WhatsApp…)")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -193,7 +194,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                 {sharing ? <ActivityIndicator color="#fff" /> : (
                   <>
                     <Share2 size={15} color="#fff" />
-                    <Text style={styles.linkBtnText}>Metin ve link olarak paylaş</Text>
+                    <Text style={styles.linkBtnText}>{translateUI("Metin ve link olarak paylaş")}</Text>
                   </>
                 )}
               </TouchableOpacity>
