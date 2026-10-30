@@ -142,6 +142,7 @@ export default function HomeScreenV2({ navigation }) {
   const [pickerMovie, setPickerMovie] = useState(null);
   const [showHeroReasons, setShowHeroReasons] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [heroSliding, setHeroSliding] = useState(false);
   const [heroDayKey, setHeroDayKey] = useState(() => localDayKey());
   const [dailyHeroMovies, setDailyHeroMovies] = useState([]);
   const [dailyHeroHydrated, setDailyHeroHydrated] = useState(false);
@@ -871,6 +872,7 @@ export default function HomeScreenV2({ navigation }) {
             index={safeHeroIndex}
             onIndexChange={setActiveHeroIndex}
             paused={showHeroReasons}
+            onSlidingChange={setHeroSliding}
             isLiked={(id) => liked.has(id)}
             onLike={(movie) => like(movie.id)}
             onWhy={() => setShowHeroReasons(true)}
@@ -940,6 +942,7 @@ export default function HomeScreenV2({ navigation }) {
           ref={mainListRef}
           data={paddedGridList}
           key="home-for-you-v2"
+          scrollEnabled={!heroSliding}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}

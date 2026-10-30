@@ -1,7 +1,7 @@
 import { useIsFocused } from "@react-navigation/native";
 import { t as translateUI, getLanguage } from "../../i18n/core";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, TouchableOpacity, Animated, PanResponder, StyleSheet, AccessibilityInfo, AppState } from "react-native";
+import { View, Text, Image, TouchableOpacity, Animated, ScrollView, StyleSheet, AccessibilityInfo, AppState } from "react-native";
 import { Heart, ChevronRight, ChevronLeft } from "lucide-react-native";
 import { FONTS, upperTR } from "../../theme/fonts";
 import { platformName, platformLogo } from "../../utils/platform";
@@ -48,28 +48,25 @@ function boardLayout(title) {
   return { cols, rows, lines };
 }
 
-const FlapCell = memo(function FlapCell({ char, delay, steps, size, reduceMotion }) {
+const FlapCell = memo(function FlapCell({ char, delay, steps, size, reduceMotion, active }) {
   const [shown, setShown] = useState(char);
   const flip = useRef(new Animated.Value(1)).current;
-  const shownRef = useRef(char);
 
   useEffect(() => {
-    if (shownRef.current === char) return undefined;
-    if (reduceMotion) { shownRef.current = char; setShown(char); return undefined; }
+    if (!active || reduceMotion) { setShown(char); flip.setValue(1); return undefined; }
     const timers = [];
     let k = 0;
     const tick = () => {
       k += 1;
       const next = k >= steps ? char : CHARS[Math.floor(Math.random() * CHARS.length)];
-      shownRef.current = next;
       setShown(next);
       flip.setValue(0.12);
       Animated.timing(flip, { toValue: 1, duration: 70, useNativeDriver: true }).start();
       if (k < steps) timers.push(setTimeout(tick, 52));
     };
     timers.push(setTimeout(tick, delay));
-    return () => timers.forEach(clearTimeout);
-  }, [char]);
+    return () => { timers.forEach(clearTimeout); flip.stopAnimation(); };
+  }, [char, active, reduceMotion]);
 
   return (
     <View style={[styles.cell, { width: size.w, height: size.h }]}>
@@ -86,7 +83,7 @@ const FlapCell = memo(function FlapCell({ char, delay, steps, size, reduceMotion
   );
 });
 
-function FlapGrid({ text, reduceMotion }) {
+function FlapGrid({ text, reduceMotion, active }) {
   const [width, setWidth] = useState(0);
   const layout = useMemo(() => boardLayout(text), [text]);
   const { cols, rows, lines } = layout;
@@ -104,6 +101,7 @@ function FlapGrid({ text, reduceMotion }) {
               steps={Math.floor(3 + col * 0.45 + ((col * 7 + r * 3) % 3))}
               size={size}
               reduceMotion={reduceMotion}
+              active={active}
             />
           ))}
         </View>
@@ -126,127 +124,164 @@ function metaLine(movie) {
   return [translateUI(genre), formatHeroRuntime(movie.runtime), movie.year].filter(Boolean).map((part) => upperTR(part)).join(" · ");
 }
 
-export default function SeansBoard({ selections, index, onIndexChange, isLiked, onLike, onWhy, onOpen, paused = false }) {
+export default function SeansBoard({ selections, index, onIndexChange, isLiked, onLike, onWhy, onOpen, paused = false, onSlidingChange }) {
   const focused = useIsFocused();
   const [interacting, setInteracting] = useState(false);
   const [appActive, setAppActive] = useState(AppState.currentState !== "background" && AppState.currentState !== "inactive");
-  const slide = useRef(new Animated.Value(0)).current;
-  const lastIndex = useRef(index);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
-  }, []);
-
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const [pageWidth, setPageWidth] = useState(0);
+  const [arrivedIndex, setArrivedIndex] = useState(index);
+  const pager = useRef(null);
+  const releaseTimer = useRef(null);
+  const offset = useRef(0);
+  const momentum = useRef(false);
+  const dragging = useRef(false);
+  const slidingCallback = useRef(onSlidingChange);
+  slidingCallback.current = onSlidingChange;
   const count = selections.length;
   const safeIndex = Math.min(index, Math.max(0, count - 1));
-  const selection = selections[safeIndex];
-  const movie = selection?.movie;
+  const movie = selections[safeIndex]?.movie;
+  const ids = selections.map(item => item.movie.id).join(",");
 
+  const release = () => {
+    clearTimeout(releaseTimer.current);
+    dragging.current = false;
+    setInteracting(false);
+    slidingCallback.current?.(false);
+  };
+  const releaseRef = useRef(release);
+  releaseRef.current = release;
   useEffect(() => {
-    const listener = AppState.addEventListener("change", state => setAppActive(state === "active"));
-    return () => listener.remove();
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then(value => { if (mounted) setReduceMotion(value); }).catch(() => {});
+    const motion = AccessibilityInfo.addEventListener?.("reduceMotionChanged", setReduceMotion);
+    const app = AppState.addEventListener("change", state => {
+      setAppActive(state === "active");
+      if (state !== "active") releaseRef.current();
+    });
+    return () => {
+      mounted = false;
+      motion?.remove(); app.remove();
+      clearTimeout(releaseTimer.current);
+      slidingCallback.current?.(false);
+    };
   }, []);
 
+  // Native horizontal paging follows the finger; each page has the same width and height.
   useEffect(() => {
-    if (lastIndex.current === safeIndex) return;
-    lastIndex.current = safeIndex;
-    slide.stopAnimation();
-    if (reduceMotion) { slide.setValue(0); return; }
-    slide.setValue(24);
-    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
-  }, [safeIndex, reduceMotion, slide]);
+    if (!pageWidth || dragging.current) return;
+    const target = safeIndex * pageWidth;
+    if (Math.abs(offset.current - target) < 1) { setArrivedIndex(safeIndex); return; }
+    setArrivedIndex(-1);
+    pager.current?.scrollTo({ x: target, animated: !reduceMotion });
+    if (reduceMotion) { offset.current = target; setArrivedIndex(safeIndex); }
+  }, [safeIndex, pageWidth, reduceMotion, ids]);
 
-  const go = (delta, feedback = true) => {
+  const goTo = (next, feedback = true) => {
     if (count < 2) return;
     if (feedback) hapticSelection();
-    onIndexChange((safeIndex + delta + count) % count);
+    onIndexChange((next + count) % count);
   };
-  const goRef = useRef(go);
-  goRef.current = go;
+  const nextRef = useRef(null);
+  nextRef.current = () => goTo(safeIndex + 1, false);
   useEffect(() => {
     if (paused || !focused || !appActive || interacting || reduceMotion || count < 2) return;
-    const timer = setInterval(() => goRef.current(1, false), 7000);
+    const timer = setInterval(() => nextRef.current(), 7000);
     return () => clearInterval(timer);
   }, [paused, focused, appActive, interacting, reduceMotion, safeIndex, count]);
+  useEffect(() => { if (!focused || paused) releaseRef.current(); }, [focused, paused]);
 
-  // Panoyu parmakla yana itmek de sıradakine geçiriyor; dikey kaydırma listeye kalıyor.
-  const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
-    onPanResponderRelease: (_, g) => { if (Math.abs(g.dx) > 40) goRef.current(g.dx < 0 ? 1 : -1); },
-    onPanResponderTerminationRequest: () => true,
-  }), []);
-
+  const settle = () => {
+    const next = pageWidth ? Math.max(0, Math.min(count - 1, Math.round(offset.current / pageWidth))) : safeIndex;
+    release();
+    setArrivedIndex(next);
+    if (next !== safeIndex) { hapticSelection(); onIndexChange(next); }
+  };
+  const settleRef = useRef(settle); settleRef.current = settle;
+  const titles = selections.map(item => isDomestic(item.movie)
+    ? String(item.movie.title || "").replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase()
+    : String(item.movie.title || "").toUpperCase());
+  const titleHeight = pageWidth ? Math.ceil(Math.max(...titles.map(title => {
+    const { cols, rows } = boardLayout(title);
+    return rows * ((pageWidth - GAP * (cols - 1)) / cols / 0.66) + GAP * (rows - 1);
+  }))) : 110;
   if (!movie) return null;
-  // Yerli yapımların adı Türkçe büyük harfle (Mavi → MAVİ), yabancılar düz büyük harfle yazılıyor.
-  const boardTitle = isDomestic(movie) ? String(movie.title || "").replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase() : String(movie.title || "").toUpperCase();
-  const reason = selection.reasons?.find((r) => r.personalized)?.short || selection.reasons?.[0]?.short || null;
-  const platform = (movie.platforms || [])[0];
   const liked = isLiked(movie.id);
 
   return (
-    <View style={styles.board} onTouchStart={() => setInteracting(true)} onTouchEnd={() => setInteracting(false)} onTouchCancel={() => setInteracting(false)}>
+    <View style={styles.board} onTouchStart={() => setInteracting(true)} onTouchEnd={() => { if (!dragging.current) setInteracting(false); }} onTouchCancel={() => release()}>
       <View style={styles.boardTop}>
         <Text style={styles.boardLabel}>{translateUI("BU AKŞAM SENİN İÇİN")}</Text>
         <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}{translateUI("/")}{String(count).padStart(2, "0")}</Text>
       </View>
-
-      <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: slide }], opacity: slide.interpolate({ inputRange: [0, 24], outputRange: [1, 0.5] }) }}>
-        <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(movie)} accessibilityRole="button" accessibilityLabel={translateUI("{0}, detayı aç", {0: movie.title})}>
-          <FlapGrid text={boardTitle} reduceMotion={reduceMotion} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.row} activeOpacity={0.85} onPress={() => onOpen(movie)} accessible={false}>
-          {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.poster} /> : <View style={[styles.poster, { backgroundColor: BOARD.top }]} />}
-          <View style={styles.meta}>
-            <Text style={styles.metaLine} numberOfLines={1}>{metaLine(movie)}</Text>
-            {!!movie.imdb && <Text style={styles.metaLine}>{translateUI("IMDb ")}{movie.imdb}</Text>}
-            {!!platform && (
-              <View style={styles.platformRow}>
-                {!!platformLogo(platform) && <Image source={{ uri: platformLogo(platform) }} style={styles.platformLogo} />}
-                <Text style={styles.platformText} numberOfLines={1}>{platformName(platform)}</Text>
-              </View>
-            )}
-            {!!reason && <Text style={styles.reason} numberOfLines={2}>{translateUI(reason)}</Text>}
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {count > 1 && (
-        <View style={styles.sliderControls}>
-          <TouchableOpacity style={styles.arrow} onPress={() => go(-1)} accessibilityRole="button" accessibilityLabel={translateUI("Önceki seçim")}>
-            <ChevronLeft size={18} color={BOARD.ink} />
-          </TouchableOpacity>
-          <View style={styles.dots}>
-            {selections.map((item, i) => (
-              <TouchableOpacity key={item.movie.id} style={styles.dotHit} onPress={() => { hapticSelection(); onIndexChange(i); }} accessibilityRole="button" accessibilityLabel={translateUI("Seçim {0} / {1}", {0: i + 1, 1: count})} accessibilityState={{ selected: i === safeIndex }}>
-                <View style={[styles.dot, i === safeIndex && styles.dotActive]} />
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity style={styles.arrow} onPress={() => go(1)} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}>
-            <ChevronRight size={18} color={BOARD.ink} />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.whyBtn} onPress={onWhy} activeOpacity={0.85} accessibilityRole="button">
-          <Text style={styles.whyText}>{translateUI("Neden bu?")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.likeBtn, liked && styles.likeBtnOn]}
-          onPress={() => onLike(movie)}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={liked ? translateUI("Beğenildi") : translateUI("Beğen")}
-          accessibilityState={{ selected: liked }}
+      <View style={styles.pagerClip} onLayout={e => setPageWidth(e.nativeEvent.layout.width)}>
+        {!!pageWidth && <ScrollView
+          ref={pager}
+          horizontal
+          pagingEnabled
+          directionalLockEnabled
+          nestedScrollEnabled
+          bounces={false}
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          scrollEnabled={count > 1}
+          scrollEventThrottle={16}
+          onScroll={e => { offset.current = e.nativeEvent.contentOffset.x; }}
+          onScrollBeginDrag={() => {
+            dragging.current = true; momentum.current = false;
+            setArrivedIndex(-1);
+            setInteracting(true); slidingCallback.current?.(true);
+            clearTimeout(releaseTimer.current);
+          }}
+          onScrollEndDrag={() => {
+            clearTimeout(releaseTimer.current);
+            releaseTimer.current = setTimeout(() => { if (!momentum.current) settleRef.current(); }, 160);
+          }}
+          onMomentumScrollBegin={() => {
+            momentum.current = true;
+            clearTimeout(releaseTimer.current);
+            releaseTimer.current = setTimeout(() => settleRef.current(), 1500);
+          }}
+          onMomentumScrollEnd={() => { momentum.current = false; settleRef.current(); }}
         >
-          <Heart size={18} color={liked ? "#fff" : BOARD.ink} fill={liked ? "#fff" : "none"} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.nextBtn} onPress={() => go(1)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}>
-          <Text style={styles.nextText}>{translateUI("Sıradaki")}</Text>
-          <ChevronRight size={16} color={BOARD.ink} />
-        </TouchableOpacity>
+          {selections.map((item, pageIndex) => {
+            const pageMovie = item.movie;
+            const reason = item.reasons?.find(r => r.personalized)?.short || item.reasons?.[0]?.short;
+            const platform = (pageMovie.platforms || [])[0];
+            const active = pageIndex === safeIndex;
+            return (
+              <View key={pageMovie.id} style={{ width: pageWidth }} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"}>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(pageMovie)} accessibilityRole="button" accessibilityLabel={translateUI("{0}, detayı aç", {0: pageMovie.title})}>
+                  <View style={{ height: titleHeight, justifyContent: "center" }}>
+                    <FlapGrid text={titles[pageIndex]} reduceMotion={reduceMotion} active={pageIndex === arrivedIndex} />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.row} activeOpacity={0.85} onPress={() => onOpen(pageMovie)} accessible={false}>
+                  {pageMovie.poster ? <Image source={{ uri: pageMovie.poster }} style={styles.poster} /> : <View style={[styles.poster, { backgroundColor: BOARD.top }]} />}
+                  <View style={styles.meta}>
+                    <Text style={styles.metaLine} numberOfLines={1}>{metaLine(pageMovie)}</Text>
+                    {!!pageMovie.imdb && <Text style={styles.metaLine}>IMDb {pageMovie.imdb}</Text>}
+                    {!!platform && <View style={styles.platformRow}>
+                      {!!platformLogo(platform) && <Image source={{ uri: platformLogo(platform) }} style={styles.platformLogo} />}
+                      <Text style={styles.platformText} numberOfLines={1}>{platformName(platform)}</Text>
+                    </View>}
+                    {!!reason && <Text style={styles.reason} numberOfLines={2}>{translateUI(reason)}</Text>}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>}
+      </View>
+      {count > 1 && <View style={styles.sliderControls}>
+        <TouchableOpacity style={styles.arrow} onPress={() => goTo(safeIndex - 1)} accessibilityRole="button" accessibilityLabel={translateUI("Önceki seçim")}><ChevronLeft size={18} color={BOARD.ink} /></TouchableOpacity>
+        <View style={styles.dots}>{selections.map((item, i) => <TouchableOpacity key={item.movie.id} style={styles.dotHit} onPress={() => goTo(i)} accessibilityRole="button" accessibilityLabel={translateUI("Seçim {0} / {1}", {0:i+1,1:count})} accessibilityState={{ selected:i===safeIndex }}><View style={[styles.dot,i===safeIndex&&styles.dotActive]} /></TouchableOpacity>)}</View>
+        <TouchableOpacity style={styles.arrow} onPress={() => goTo(safeIndex + 1)} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}><ChevronRight size={18} color={BOARD.ink} /></TouchableOpacity>
+      </View>}
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.whyBtn} onPress={onWhy} activeOpacity={0.85} accessibilityRole="button"><Text style={styles.whyText}>{translateUI("Neden bu?")}</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.likeBtn,liked&&styles.likeBtnOn]} onPress={()=>onLike(movie)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={liked?translateUI("Beğenildi"):translateUI("Beğen")} accessibilityState={{selected:liked}}><Heart size={18} color={liked?"#fff":BOARD.ink} fill={liked?"#fff":"none"}/></TouchableOpacity>
+        <TouchableOpacity style={styles.nextBtn} onPress={()=>goTo(safeIndex+1)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={translateUI("Sıradaki seçim")}><Text style={styles.nextText}>{translateUI("Sıradaki")}</Text><ChevronRight size={16} color={BOARD.ink}/></TouchableOpacity>
       </View>
     </View>
   );
@@ -257,6 +292,7 @@ const styles = StyleSheet.create({
     backgroundColor: BOARD.bg, borderRadius: 18, borderWidth: 1, borderColor: BOARD.border, padding: 12, paddingTop: 13,
     shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6,
   },
+  pagerClip: { overflow: "hidden" },
   sliderControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 10, gap: 6 },
   arrow: { width: 32, height: 36, alignItems: "center", justifyContent: "center" },
   dots: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
@@ -269,7 +305,7 @@ const styles = StyleSheet.create({
   cellHalf: { position: "absolute", left: 0, right: 0, top: 0 },
   cellText: { fontFamily: FONTS.marqueeBold, color: BOARD.ink, textAlign: "center", includeFontPadding: false },
   seam: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: BOARD.seam },
-  row: { flexDirection: "row", gap: 12, marginTop: 14 },
+  row: { flexDirection: "row", gap: 12, marginTop: 14, height: 128 },
   poster: { width: 66, height: 99, borderRadius: 6 },
   meta: { flex: 1, minWidth: 0, gap: 4 },
   metaLine: { fontFamily: FONTS.mono, fontSize: 11, color: BOARD.dim, letterSpacing: 0.3 },

@@ -62,40 +62,56 @@ test('popular cards keep movie titles unchanged in English', async()=>{
 });
 
 
-test('hero slider supports dots, swipes, auto advance, and pauses in background', async () => {
+test('hero uses native paging, locks vertical scroll and animates every letter on each page', async () => {
   core.setLanguageValue('en');
-  let nextTimer = 0, timers = new Map(), appListener, panHandlers;
-  const previousInterval = global.setInterval, previousClear = global.clearInterval;
-  global.setInterval = (fn, ms) => { assert.equal(ms, 7000); timers.set(++nextTimer, fn); return nextTimer; };
-  global.clearInterval = id => timers.delete(id);
-  const native = { View:'View', Text:'Text', Image:'Image', TouchableOpacity:'TouchableOpacity', StyleSheet:{create:x=>x},
-    Animated:{Value:class {setValue(){} stopAnimation(){} interpolate(){return 1;}},Text:'AnimatedText',View:'AnimatedView',timing:()=>({start(){}})},
-    PanResponder:{create:handlers=>{panHandlers=handlers;return {panHandlers:handlers};}},
-    AccessibilityInfo:{isReduceMotionEnabled:async()=>false},AppState:{currentState:'active',addEventListener:(_,fn)=>{appListener=fn;return {remove(){}};}} };
+  let nextTimer=0,timers=new Map(),appListener,scrollCalls=[],locks=[],animationStarts=0;
+  const oldInterval=global.setInterval,oldClear=global.clearInterval,oldTimeout=global.setTimeout;
+  let letterSchedules=0;
+  global.setTimeout=(fn,ms)=>{if(ms<600){letterSchedules++;return oldTimeout(fn,60000);}return oldTimeout(fn,ms);};
+  global.setInterval=(fn,ms)=>{assert.equal(ms,7000);timers.set(++nextTimer,fn);return nextTimer;};
+  global.clearInterval=id=>timers.delete(id);
+  const Scroll=React.forwardRef((props,ref)=>{React.useImperativeHandle(ref,()=>({scrollTo:config=>scrollCalls.push(config)}));return React.createElement('HorizontalPager',props,props.children);});
+  const native={View:'View',Text:'Text',Image:'Image',TouchableOpacity:'TouchableOpacity',ScrollView:Scroll,StyleSheet:{create:x=>x},
+    Animated:{Value:class {setValue(){} stopAnimation(){}},Text:'AnimatedText',timing:()=>({start(){animationStarts++;}})},
+    AccessibilityInfo:{isReduceMotionEnabled:async()=>false,addEventListener:()=>({remove(){}})},
+    AppState:{currentState:'active',addEventListener:(_,fn)=>{appListener=fn;return {remove(){}};}}};
   let tree;
   try {
-    const {default:Hero,formatHeroRuntime} = load('src/components/salon/SeansBoard.js', {
+    const {default:Hero,formatHeroRuntime}=load('src/components/salon/SeansBoard.js',{
       '../../i18n/core':core,react:React,'react-native':native,'@react-navigation/native':{useIsFocused:()=>true},
       'lucide-react-native':{Heart:'Heart',ChevronRight:'ChevronRight',ChevronLeft:'ChevronLeft'},
       '../../theme/fonts':{FONTS:{},upperTR:x=>String(x).toUpperCase()},'../../utils/platform':{platformName:p=>p.name,platformLogo:()=>null},
       '../../utils/origin':{isDomestic:()=>false},'../../utils/haptics':{hapticSelection(){}},
     });
-    const selections=[{movie:{id:1,title:'Sen',genre:'Gerilim',runtime:'2 Sezon · 10 Bölüm',year:2026},reasons:[]},{movie:{id:2,title:'Another',genre:'Komedi',runtime:'95 dk'},reasons:[]}];
-    function Harness(){const [index,setIndex]=React.useState(0);return React.createElement(Hero,{selections,index,onIndexChange:setIndex,isLiked:()=>false,onLike(){},onWhy(){},onOpen(){}});}
+    // Identical titles ensure even unchanged characters animate on every page change.
+    const selections=Array.from({length:10},(_,i)=>i+1).map(id=>({movie:{id,title:'Same',genre:'Gerilim',runtime:'2 Sezon · 10 Bölüm'},reasons:[]}));
+    function Harness(){const [index,setIndex]=React.useState(0);return React.createElement(Hero,{selections,index,onIndexChange:setIndex,onSlidingChange:locked=>locks.push(locked),isLiked:()=>false,onLike(){},onWhy(){},onOpen(){}});}
     await Renderer.act(async()=>{tree=Renderer.create(React.createElement(Harness));});
+    const clip=tree.root.findAllByType('View').find(x=>x.props.onLayout&&!x.props.style?.gap);
+    await Renderer.act(async()=>clip.props.onLayout({nativeEvent:{layout:{width:300}}}));
+    const pager=()=>tree.root.findByType('HorizontalPager');
+    assert.equal(pager().props.pagingEnabled,true);assert.equal(pager().props.directionalLockEnabled,true);
     assert.equal(formatHeroRuntime('1 Sezon · 1 Bölüm'),'1 season · 1 episode');
-    assert.match(text(tree.toJSON()),/THRILLER.*2 SEASONS.*10 EPISODES/);
+    const grids=tree.root.findAllByType('View').filter(x=>x.props.onLayout&&x.props.style?.gap===3);
+    await Renderer.act(async()=>grids.forEach(g=>g.props.onLayout({nativeEvent:{layout:{width:300}}})));
+    assert.equal(tree.root.findAllByType('AnimatedText').length,220);
+    assert.equal(letterSchedules,22);
+    letterSchedules=0;
+    await Renderer.act(async()=>pager().props.onScrollBeginDrag());assert.equal(locks.at(-1),true);assert.equal(timers.size,0);
+    await Renderer.act(async()=>{pager().props.onScroll({nativeEvent:{contentOffset:{x:1200}}});pager().props.onMomentumScrollEnd();});
+    assert.equal(locks.at(-1),false);
+    assert.equal(letterSchedules,22);
+    assert.equal(tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 5 of 10').props.accessibilityState.selected,true);
+    letterSchedules=0;
+    await Renderer.act(async()=>tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 10 of 10').props.onPress());
+    assert.ok(scrollCalls.some(x=>x.x===2700));
+    await Renderer.act(async()=>{pager().props.onScroll({nativeEvent:{contentOffset:{x:2700}}});pager().props.onMomentumScrollEnd();});
+    assert.equal(letterSchedules,22);
+    // Each active page schedules all 22 cells, not just letters that changed.
     assert.equal(timers.size,1);
-    await Renderer.act(async()=>{[...timers.values()][0]();});
-    assert.equal(tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 2 of 2').props.accessibilityState.selected,true);
-    await Renderer.act(async()=>panHandlers.onPanResponderRelease(null,{dx:60,dy:0}));
-    assert.equal(tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 1 of 2').props.accessibilityState.selected,true);
-    await Renderer.act(async()=>tree.root.findAllByType('TouchableOpacity').find(x=>x.props.accessibilityLabel==='Pick 2 of 2').props.onPress());
-    assert.match(text(tree.toJSON()),/95 MIN/);
     await Renderer.act(async()=>appListener('background'));assert.equal(timers.size,0);
-    await Renderer.act(async()=>appListener('active'));assert.equal(timers.size,1);
-    await Renderer.act(async()=>tree.unmount());assert.equal(timers.size,0);
-  } finally { if(tree) await Renderer.act(async()=>tree.unmount());global.setInterval=previousInterval;global.clearInterval=previousClear;core.setLanguageValue('tr'); }
+    await Renderer.act(async()=>tree.unmount());assert.equal(locks.at(-1),false);
+  } finally {if(tree)await Renderer.act(async()=>tree.unmount());global.setInterval=oldInterval;global.clearInterval=oldClear;global.setTimeout=oldTimeout;core.setLanguageValue('tr');}
 });
 
 test('hero recommendation explanations translate dynamic genres and preserve title names', () => {
