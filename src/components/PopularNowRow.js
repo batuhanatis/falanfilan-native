@@ -52,8 +52,8 @@ export default function PopularNowRow({ items, onPress, onTouchStart, onTouchEnd
         onScrollEndDrag={onTouchEnd}
         onMomentumScrollEnd={onTouchEnd}
       >
-        {items.slice(0, 20).map((m, index) => (
-          <TouchableOpacity key={m.id} style={styles.item} onPress={() => onPress(m)} activeOpacity={0.9} accessibilityLabel={`${index + 1}. ${m.title}`}>
+        {items.slice(0, 20).map((m) => (
+          <TouchableOpacity key={m.id} style={styles.item} onPress={() => onPress(m)} activeOpacity={0.9} accessibilityLabel={m.title}>
             <View style={[styles.holes, styles.holesTop]}>{HOLES.map((h) => <View key={h} style={styles.hole} />)}</View>
             <View style={styles.posterWrap}>
               {m.poster ? (
@@ -63,7 +63,7 @@ export default function PopularNowRow({ items, onPress, onTouchStart, onTouchEnd
               )}
             </View>
             <View style={styles.caption}>
-              <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}{m.imdb ? `  ·  ${m.imdb}` : ""}</Text>
+              {m.imdb ? <Text style={styles.rating}>{m.imdb}</Text> : null}
               <Text style={styles.itemTitle} numberOfLines={1}>{m.title}</Text>
             </View>
             <View style={[styles.holes, styles.holesBottom]}>{HOLES.map((h) => <View key={h} style={styles.hole} />)}</View>
@@ -92,7 +92,7 @@ function makeStyles(c) {
     posterWrap: { width: 96, aspectRatio: 2 / 3, borderRadius: 4, overflow: "hidden", backgroundColor: "#1c1a24" },
     posterFallback: { backgroundColor: "#1c1a24" },
     caption: { marginTop: 7, minHeight: 32 },
-    rank: { fontSize: 11, fontFamily: FONTS.monoMedium, color: "#d4a94a" },
+    rating: { fontSize: 11, fontFamily: FONTS.monoMedium, color: "#d4a94a" },
     itemTitle: { fontSize: 12, fontWeight: "600", color: "#f2ede2", marginTop: 2 },
   });
 }
