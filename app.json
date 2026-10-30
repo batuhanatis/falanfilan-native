@@ -33,7 +33,8 @@
           "autoVerify": true,
           "data": [
             { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/u" },
-            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/blend" }
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/blend" },
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/oda" }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
