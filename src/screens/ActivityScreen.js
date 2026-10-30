@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
-import { ChevronRight, Flame, PartyPopper, Plus, Puzzle, Sparkles, Trophy, Users } from "lucide-react-native";
+import { ChevronRight, Compass, Plus, Puzzle, Trophy, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -14,6 +13,7 @@ import NudgeCard from "../components/NudgeCard";
 import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
 import StoryBar from "../components/StoryBar";
 import ActivitySkeleton from "../components/skeletons/ActivitySkeleton";
+import { FONTS } from "../theme/fonts";
 
 const DAILY_QUESTIONS = [
   "Herkesin sevdiği ama senin sevmediğin film hangisi?",
@@ -145,6 +145,8 @@ export default function ActivityScreen({ navigation }) {
   // Haftalık görevler ve Pellix Play ana sayfadan buraya taşındı (ana sayfa kalabalık olmasın);
   // günün sorusu gibi akışın aralarına kart olarak giriyorlar.
   const [questData, setQuestData] = useState(null);
+  // Günün sorusu bir klaket: cevaplamaya dokununca üst çıta çarpıyor, sonra yazma ekranı açılıyor.
+  const clap = useRef(new Animated.Value(0)).current;
 
   const refreshQuests = useCallback(() => {
     api.quests(auth.token).then(setQuestData).catch(() => {});
@@ -266,18 +268,16 @@ export default function ActivityScreen({ navigation }) {
 
   function renderPlayCard() {
     return (
-      <View style={styles.playCard}>
-        <TouchableOpacity style={styles.playMain} onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86}>
-          <View style={styles.playIcon}><Puzzle size={18} color="#8B5CF6" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.playEyebrow}>PELLIX PLAY · GÜNÜN OYUNU</Text>
-            <Text style={styles.playTitle}>Poster Puzzle</Text>
-            <Text style={styles.playSub}>1 dakikalık günlük tahmin</Text>
-          </View>
-          <ChevronRight size={16} color={c.dim} />
+      <View style={styles.tileRow}>
+        <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86}>
+          <Puzzle size={20} color={c.accent} />
+          <Text style={styles.tileTitle}>Poster Puzzle</Text>
+          <Text style={styles.tileSub}>Günün oyunu, 1 dakikalık tahmin</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.playMore} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.8}>
-          <Text style={styles.playMoreText}>Tüm oyunlar →</Text>
+        <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.86}>
+          <ChevronRight size={20} color={c.accent} />
+          <Text style={styles.tileTitle}>Tüm oyunlar</Text>
+          <Text style={styles.tileSub}>Pellix Play</Text>
         </TouchableOpacity>
       </View>
     );
@@ -289,47 +289,58 @@ export default function ActivityScreen({ navigation }) {
     const percent = quests.length ? Math.round((done / quests.length) * 100) : 0;
     return (
       <TouchableOpacity style={styles.questsCard} onPress={() => navigation.navigate("WeeklyQuests")} activeOpacity={0.86}>
-        <View style={styles.questsIcon}><Trophy size={18} color={c.accent} /></View>
+        <Trophy size={20} color={c.accent} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.questsEyebrow}>HAFTALIK GÖREVLER</Text>
-          <Text style={styles.questsTitle}>{quests.length ? `${done}/${quests.length} tamamlandı` : "Görevlerini gör"}</Text>
+          <Text style={styles.tileTitle}>{quests.length ? `${done}/${quests.length} görev` : "Haftalık görevler"}</Text>
           {quests.length > 0 && (
             <View style={styles.questsTrack}><View style={[styles.questsFill, { width: `${percent}%` }]} /></View>
           )}
-          <Text style={styles.questsCta}>Görevlerine göz at →</Text>
+          <Text style={styles.tileSub}>Bu haftanın görevlerine bak</Text>
         </View>
+        <ChevronRight size={16} color={c.dim} />
       </TouchableOpacity>
     );
   }
 
+  function answerDailyQuestion() {
+    clap.setValue(1);
+    Animated.spring(clap, { toValue: 0, friction: 5, tension: 220, useNativeDriver: true }).start();
+    setTimeout(() => openComposer("thought", dailyQuestion), 260);
+  }
+
   function renderDailyQuestionCard() {
+    const rotate = clap.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-14deg"] });
     return (
-      <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
-        <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>
-          <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>
-          <Text style={styles.dailyCta}>Yazı veya film/diziyle cevapla →</Text>
+      <View style={styles.slate}>
+        <Animated.View style={[styles.slateTop, { transform: [{ translateX: -170 }, { rotate }, { translateX: 170 }] }]}>
+          {Array.from({ length: 14 }, (_, i) => <View key={i} style={[styles.slateStripe, i % 2 ? styles.slateStripeDark : null]} />)}
+        </Animated.View>
+        <View style={styles.slateBody}>
+          <View style={styles.slateMeta}>
+            <Text style={styles.slateMetaText}>GÜNÜN SORUSU</Text>
+            <Text style={styles.slateMetaText}>SAHNE {new Date().getDate()} · ÇEKİM 1</Text>
+          </View>
+          <Text style={styles.slateQuestion}>{dailyQuestion}</Text>
+          <TouchableOpacity style={styles.slateBtn} onPress={answerDailyQuestion} activeOpacity={0.85} accessibilityRole="button">
+            <Text style={styles.slateBtnText}>Yazıyla ya da bir filmle cevapla</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
   function renderFeatureShortcuts() {
     return (
-      <View style={styles.topActions}>
-        <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("GroupParty")} activeOpacity={0.88}>
-          <LinearGradient colors={["#FF3D81", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.topActionCard}>
-            <View style={styles.topActionIcon}><PartyPopper size={19} color="#fff" /></View>
-            <View><Text style={styles.topActionEyebrow}>BİRLİKTE SEÇ</Text><Text style={styles.topActionTitle}>MatchParty</Text></View>
-          </LinearGradient>
+      <View style={styles.tileRow}>
+        <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("GroupParty")} activeOpacity={0.86}>
+          <Users size={20} color={c.accent} />
+          <Text style={styles.tileTitle}>MatchParty</Text>
+          <Text style={styles.tileSub}>Arkadaşınla aynı filmleri kaydırın, ortak olanı bulun</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.88}>
-          <LinearGradient colors={["#8B5CF6", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.topActionCard}>
-            <View style={styles.topActionIcon}><Users size={18} color="#fff" /></View>
-            <View><Text style={styles.topActionEyebrow}>KEŞFET</Text><Text style={styles.topActionTitle}>TasteMate</Text></View>
-            <Sparkles size={12} color="#FFE66D" style={styles.topActionSparkle} />
-          </LinearGradient>
+        <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.86}>
+          <Compass size={20} color={c.accent} />
+          <Text style={styles.tileTitle}>TasteMate</Text>
+          <Text style={styles.tileSub}>Senin gibi izleyen insanları bul</Text>
         </TouchableOpacity>
       </View>
     );
@@ -449,33 +460,24 @@ function makeStyles(c) {
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
-    topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 10 },
-    topActionTouch: { flex: 1, borderRadius: 16, shadowColor: "#8B5CF6", shadowOpacity: 0.2, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-    topActionCard: { height: 68, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9, overflow: "hidden" },
-    topActionIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" },
-    topActionEyebrow: { color: "rgba(255,255,255,0.7)", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.8 },
-    topActionTitle: { color: "#fff", fontSize: 13, fontWeight: "900", marginTop: 2 },
-    topActionSparkle: { position: "absolute", top: 8, right: 9 },
-    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(249,115,22,0.055)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.28)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
-    dailyIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(249,115,22,0.10)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.24)", alignItems: "center", justifyContent: "center" },
-    dailyEyebrow: { color: "#F97316", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-    dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "800", lineHeight: 18, marginTop: 3 },
-    dailyCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
-    playCard: { backgroundColor: "rgba(139,92,246,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.32)", borderRadius: 16, marginTop: 7, marginBottom: 14, overflow: "hidden" },
-    playMain: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, paddingBottom: 8 },
-    playIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(139,92,246,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.3)", alignItems: "center", justifyContent: "center" },
-    playEyebrow: { color: "#8B5CF6", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-    playTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
-    playSub: { color: c.dim, fontSize: 11, marginTop: 2 },
-    playMore: { paddingHorizontal: 13, paddingBottom: 12, paddingLeft: 60 },
-    playMoreText: { color: c.accent, fontSize: 11, fontWeight: "800" },
-    questsCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(201,164,76,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.32)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
-    questsIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(201,164,76,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.3)", alignItems: "center", justifyContent: "center" },
-    questsEyebrow: { color: c.accent, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-    questsTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
-    questsTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 7, overflow: "hidden" },
+    tileRow: { flexDirection: "row", gap: 10, marginTop: 10, marginBottom: 14 },
+    tile: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: 14, gap: 4 },
+    tileTitle: { color: c.text, fontSize: 22, fontFamily: FONTS.marquee, marginTop: 4 },
+    tileSub: { color: c.dim, fontSize: 12.5, lineHeight: 17 },
+    questsCard: { flexDirection: "row", gap: 12, alignItems: "center", borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: 14, marginTop: 4, marginBottom: 14 },
+    questsTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 6, marginBottom: 6, overflow: "hidden" },
     questsFill: { height: 4, borderRadius: 999, backgroundColor: c.accent },
-    questsCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
+    // Klaket iki temada da kendi renginde: koyu tahta, krem-siyah çizgili çıta.
+    slate: { borderRadius: 10, overflow: "hidden", backgroundColor: "#1e1d1b", borderWidth: 1, borderColor: "#34312c", marginTop: 4, marginBottom: 16 },
+    slateTop: { height: 26, flexDirection: "row", borderBottomWidth: 3, borderBottomColor: "#0d0b0a", overflow: "hidden" },
+    slateStripe: { width: 28, height: 40, marginTop: -7, backgroundColor: "#efe4cc", transform: [{ skewX: "-40deg" }] },
+    slateStripeDark: { backgroundColor: "#161311" },
+    slateBody: { padding: 14, paddingTop: 12 },
+    slateMeta: { flexDirection: "row", justifyContent: "space-between", paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#34312c" },
+    slateMetaText: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.9, color: "#b7ab95" },
+    slateQuestion: { fontFamily: FONTS.marqueeBold, fontSize: 25, lineHeight: 28, color: "#efe4cc", marginTop: 12, marginBottom: 14 },
+    slateBtn: { alignSelf: "flex-start", minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: "#4a453d" },
+    slateBtnText: { color: "#efe4cc", fontSize: 13, fontWeight: "600" },
     feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 10 },
     feedTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
     emptyCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },

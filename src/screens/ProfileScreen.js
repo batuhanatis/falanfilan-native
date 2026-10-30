@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 import {
-  Settings, Camera, Star, ChevronRight, Crown, Pencil, Share2, BookOpen,
-  Eye, EyeOff, Sparkles,
+  Settings, Camera, Star, ChevronRight, Pencil, Share2, BookOpen,
+  Eye, EyeOff,
 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -19,6 +21,39 @@ import RetryImage from "../components/RetryImage";
 import EditProfileModal from "../components/EditProfileModal";
 import SocialFeedCard from "../components/SocialFeedCard";
 import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
+import ReelChart from "../components/salon/ReelChart";
+import TicketCard from "../components/salon/TicketCard";
+import { FONTS, upperTR } from "../theme/fonts";
+
+// Profilin üst kısmı kişinin kendi filminin afişi: adı başlık, biyografisi slogan, sayıları
+// afişin altındaki künye yazısı. Kapak fotoğrafı varsa afişin zemini o; yoksa kadife perde.
+// Afiş fiziksel bir nesne olduğu için iki temada da aynı koyu renklerde.
+const CURTAIN_FOLDS = 18;
+function Curtain() {
+  return (
+    <View style={[StyleSheet.absoluteFillObject, { flexDirection: "row" }]} pointerEvents="none">
+      {Array.from({ length: CURTAIN_FOLDS }, (_, i) => (
+        <LinearGradient key={i} colors={["#3a1012", "#7a2428", "#4a1416"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+      ))}
+      <LinearGradient colors={["rgba(0,0,0,0)", "rgba(10,3,4,0.55)"]} style={StyleSheet.absoluteFillObject} />
+    </View>
+  );
+}
+
+function Spotlight() {
+  return (
+    <Svg style={StyleSheet.absoluteFillObject} width="100%" height="100%" pointerEvents="none">
+      <Defs>
+        <RadialGradient id="profileSpot" cx="50%" cy="22%" rx="60%" ry="62%" fx="50%" fy="18%">
+          <Stop offset="0" stopColor="#ffe4aa" stopOpacity="0.5" />
+          <Stop offset="0.55" stopColor="#ffe4aa" stopOpacity="0.1" />
+          <Stop offset="1" stopColor="#ffe4aa" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      <Ellipse cx="50%" cy="22%" rx="60%" ry="62%" fill="url(#profileSpot)" />
+    </Svg>
+  );
+}
 
 function splitGenres(value) {
   if (Array.isArray(value)) return value.flatMap(splitGenres);
@@ -100,6 +135,7 @@ function buildTasteDNA(likedMovies, profile, diaryEntries = []) {
 export default function ProfileScreen({ navigation, route }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(c);
 
   const [profile, setProfile] = useState(null);
@@ -219,27 +255,26 @@ export default function ProfileScreen({ navigation, route }) {
         </View>
       )}
       <ScrollView style={[styles.container, showPremiumBackground && { backgroundColor: "transparent" }]}>
-      <TouchableOpacity
-        style={[styles.cover, { backgroundColor: profile.coverUrl ? c.surface2 : c.accent }]}
-        onPress={() => pickPhoto("cover")}
-        activeOpacity={0.85}
-      >
-        {profile.coverUrl && <RetryImage source={{ uri: profile.coverUrl }} style={StyleSheet.absoluteFillObject} />}
-        <View style={styles.coverEditBadge}>
-          {uploadingCover ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={13} color="#fff" />}
-        </View>
-        <TouchableOpacity
-          style={styles.coverSettingsBadge}
-          onPress={() => navigation.navigate("Settings")}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Settings size={13} color="#fff" />
-        </TouchableOpacity>
-      </TouchableOpacity>
+      <View style={{ padding: 16, paddingTop: Math.max(insets.top, 12) + 6 }}>
+        <View style={styles.onesheet}>
+          {profile.coverUrl ? (
+            <>
+              <RetryImage source={{ uri: profile.coverUrl }} style={StyleSheet.absoluteFillObject} />
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(12,6,6,0.55)" }]} />
+            </>
+          ) : <Curtain />}
+          <Spotlight />
 
-      <View style={{ padding: 20 }}>
-        <View style={styles.igHeaderRow}>
-          <TouchableOpacity onPress={() => pickPhoto("avatar")} activeOpacity={0.85}>
+          <View style={styles.osTopRow}>
+            <TouchableOpacity style={styles.osIconBtn} onPress={() => pickPhoto("cover")} accessibilityRole="button" accessibilityLabel="Afiş zeminini değiştir">
+              {uploadingCover ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={16} color="#fbf2df" />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.osIconBtn} onPress={() => navigation.navigate("Settings")} accessibilityRole="button" accessibilityLabel="Ayarlar">
+              <Settings size={16} color="#fbf2df" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={() => pickPhoto("avatar")} activeOpacity={0.85} style={styles.osAvatarWrap} accessibilityRole="button" accessibilityLabel="Profil fotoğrafını değiştir">
             <RetryImage
               source={{ uri: avatarOr(profile.avatarUrl, auth.id) }}
               style={[styles.avatar, premiumStatus?.isPremium && styles.avatarPremiumRing]}
@@ -249,36 +284,34 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
           </TouchableOpacity>
 
-          <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")}>
-              <Text style={styles.statNum}>{likeCount}</Text>
-              <Text style={styles.statLabel}>Zevk</Text>
-            </TouchableOpacity>
-            <View style={styles.statDivider} />
-            <TouchableOpacity style={styles.statItem} onPress={() => navigation.navigate("FriendsList")}>
-              <Text style={styles.statNum}>{friends.length}</Text>
-              <Text style={styles.statLabel}>Arkadaş</Text>
-            </TouchableOpacity>
-            <View style={styles.statDivider} />
-            <TouchableOpacity style={styles.statItem} onPress={() => navigation.navigate("MyWatchlists")}>
-              <Text style={styles.statNum}>{watchlists.length}</Text>
-              <Text style={styles.statLabel}>Liste</Text>
-            </TouchableOpacity>
-            {questStreak > 0 && (
-              <>
-                <View style={styles.statDivider} />
-                <TouchableOpacity style={styles.statItem} onPress={() => navigation.navigate("WeeklyQuests")}>
+          <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{upperTR(profile.name)}</Text>
+          {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
+          <Text style={styles.bio}>{profile.bio || "Henüz bir biyografi eklemedin."}</Text>
+
+          <View style={styles.billing}>
+            <Text style={styles.billingLine} numberOfLines={1}>PELLIX SUNAR · BİR {upperTR(profile.name)} PROFİLİ</Text>
+            <View style={styles.statsRow}>
+              <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")} accessibilityLabel={`${likeCount} beğeni`}>
+                <Text style={styles.statNum}>{likeCount}</Text>
+                <Text style={styles.statLabel}>BEĞENİ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("FriendsList")} accessibilityLabel={`${friends.length} arkadaş`}>
+                <Text style={styles.statNum}>{friends.length}</Text>
+                <Text style={styles.statLabel}>ARKADAŞ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("MyWatchlists")} accessibilityLabel={`${watchlists.length} liste`}>
+                <Text style={styles.statNum}>{watchlists.length}</Text>
+                <Text style={styles.statLabel}>LİSTE</Text>
+              </TouchableOpacity>
+              {questStreak > 0 && (
+                <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("WeeklyQuests")} accessibilityLabel={`${questStreak} hafta seri`}>
                   <Text style={styles.statNum}>{questStreak}</Text>
-                  <Text style={styles.statLabel}>Hafta Seri</Text>
+                  <Text style={styles.statLabel}>HAFTA SERİ</Text>
                 </TouchableOpacity>
-              </>
-            )}
+              )}
+            </View>
           </View>
         </View>
-
-        <Text style={styles.name}>{profile.name}</Text>
-        {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
-        <Text style={styles.bio}>{profile.bio || "Henüz bir biyografi eklemedin."}</Text>
 
         <View style={styles.profileActionsRow}>
           <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowEditProfile(true)}>
@@ -317,30 +350,14 @@ export default function ProfileScreen({ navigation, route }) {
             içerik ve Diary'nin ilk sayfası artık DNA hesabını sınırlamıyor. */}
         <View style={styles.tasteCard}>
           <View style={styles.insightHeader}>
-            <View style={[styles.insightIcon, { backgroundColor: "rgba(139,92,246,0.14)" }]}>
-              <Sparkles size={15} color="#8B5CF6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.insightEyebrow}>ZEVK DNA'N</Text>
-              <Text style={styles.insightTitle}>Pellix seni böyle tanıyor</Text>
-            </View>
+            <Text style={styles.insightTitle}>Pellix seni böyle tanıyor</Text>
             <Text style={styles.signalText}>{tasteDNA.signalCount} sinyal</Text>
           </View>
 
           {tasteDNA.genres.length > 0 ? (
-            <View style={styles.genreDNAList}>
-              {tasteDNA.genres.map((genre) => (
-                <View key={genre.name} style={styles.genreDNARow}>
-                  <Text style={styles.genreDNAName} numberOfLines={1}>{genre.name}</Text>
-                  <View style={styles.genreDNATrack}>
-                    <View style={[styles.genreDNAFill, { width: `${Math.min(100, genre.strength ?? genre.percent * 2.1)}%` }]} />
-                  </View>
-                  <Text style={styles.genreDNAPercent}>%{genre.percent}</Text>
-                </View>
-              ))}
-            </View>
+            <ReelChart genres={tasteDNA.genres} />
           ) : (
-            <Text style={styles.insightEmpty}>Keşfet'te birkaç seçim yaptığında burada zevkinin ilk çizgileri oluşacak.</Text>
+            <Text style={styles.insightEmpty}>Keşfet'te birkaç seçim yaptığında makaran burada sarılmaya başlayacak.</Text>
           )}
 
           <View style={styles.typeSplitRow}>
@@ -355,7 +372,7 @@ export default function ProfileScreen({ navigation, route }) {
               <Star size={14} color={c.accent} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.deepenTasteTitle}>İzlediklerini puanla</Text>
-                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated} zevk sinyali daha derinleştirilebilir{diaryStats.ratedTotal ? ` · ${diaryStats.ratedTotal} puanın var` : ""}</Text>
+                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated} beğenine puan verebilirsin{diaryStats.ratedTotal ? ` · ${diaryStats.ratedTotal} puanın var` : ""}</Text>
               </View>
               <ChevronRight size={15} color={c.dim} />
             </TouchableOpacity>
@@ -366,22 +383,13 @@ export default function ProfileScreen({ navigation, route }) {
             Profil, kimlik + Zevk DNA + içerik odağında daha kompakt tutuluyor. */}
 
         {!premiumStatus?.isPremium && (
-          <TouchableOpacity
-            activeOpacity={0.88}
+          <TicketCard
+            style={{ marginTop: 16 }}
+            eyebrow="PREMIUM"
+            title="Premium'a geç"
+            subtitle="Sınırsız öneri ve TasteMate, haftalık"
             onPress={() => navigation.navigate("Premium")}
-            style={styles.premiumCardShadow}
-          >
-            <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.premiumCard}>
-              <View style={styles.partyIconWrap}>
-                <Crown size={24} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.partyTitle}>Premium'a Geç</Text>
-                <Text style={styles.partySubtitle}>Sınırsız AI önerisi ve TasteMate — haftalık</Text>
-              </View>
-              <ChevronRight size={20} color="rgba(255,255,255,0.85)" />
-            </LinearGradient>
-          </TouchableOpacity>
+          />
         )}
 
         {(profile.favoriteMovie || profile.favoriteShow) && (
@@ -396,7 +404,7 @@ export default function ProfileScreen({ navigation, route }) {
             <Text style={[styles.contentTabText, sub === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contentTab, sub === "likes" && styles.contentTabActive]} onPress={() => setSub("likes")}>
-            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Zevkim</Text>
+            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Beğendiklerim</Text>
           </TouchableOpacity>
         </View>
 
@@ -435,13 +443,13 @@ export default function ProfileScreen({ navigation, route }) {
               {likeCount > likedMovies.length && (
                 <TouchableOpacity
                   style={styles.seeAllBtn}
-                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Zevkime göre" })}
+                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Beğendiklerim" })}
                 >
                   <Text style={styles.seeAllBtnText}>Tümünü Gör ({likeCount})</Text>
                 </TouchableOpacity>
               )}
             </>
-          ) : <Text style={styles.emptyText}>Henüz bir zevk sinyalin yok.</Text>
+          ) : <Text style={styles.emptyText}>Henüz beğendiğin bir şey yok. Keşfet'te afişleri duvarına asmaya başla.</Text>
         )}
 
       </View>
@@ -546,10 +554,10 @@ function FavCard({ label, movie, c, onPress }) {
       )}
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-          <Star size={9} color={c.accent} fill={c.accent} />
-          <Text style={{ fontSize: 8, fontWeight: "800", color: c.accent }}>{label.toUpperCase()}</Text>
+          <Star size={10} color={c.accent} fill={c.accent} />
+          <Text style={{ fontSize: 10, fontFamily: FONTS.monoMedium, color: c.accent, letterSpacing: 0.6 }}>{upperTR(label)}</Text>
         </View>
-        <Text style={{ fontSize: 11, fontWeight: "700", color: c.text, marginTop: 2 }} numberOfLines={1}>{movie.title}</Text>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: c.text, marginTop: 3 }} numberOfLines={2}>{movie.title}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -558,69 +566,54 @@ function FavCard({ label, movie, c, onPress }) {
 function makeStyles(c) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    cover: { height: 100, position: "relative" },
-    coverEditBadge: {
-      position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 999,
-      backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
-    },
-    coverSettingsBadge: {
-      position: "absolute", bottom: 10, right: 10, width: 28, height: 28, borderRadius: 999,
-      backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
-    },
-    igHeaderRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: -40, zIndex: 5, elevation: 5 },
-    avatar: { width: 76, height: 76, borderRadius: 999, borderWidth: 4, borderColor: c.bg, zIndex: 6 },
+    onesheet: { borderRadius: 14, overflow: "hidden", backgroundColor: "#3f1214", alignItems: "center", paddingTop: 14, paddingHorizontal: 14 },
+    osTopRow: { alignSelf: "stretch", flexDirection: "row", justifyContent: "space-between" },
+    osIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
+    osAvatarWrap: { marginTop: -8 },
+    avatar: { width: 96, height: 96, borderRadius: 999, borderWidth: 3, borderColor: "#efe4cc", backgroundColor: "#2a2520" },
     avatarPremiumRing: { borderColor: "#F5C518" },
     avatarEditBadge: {
-      position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: 999, backgroundColor: c.accent,
-      alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg, zIndex: 10, elevation: 10,
+      position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 999, backgroundColor: c.accent,
+      alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#3f1214",
     },
-    name: { fontSize: 20, fontWeight: "700", color: c.text, marginTop: 12 },
-    username: { fontSize: 12, color: c.dim, marginTop: 2 },
-    bio: { fontSize: 13, color: c.text, marginTop: 8, lineHeight: 19 },
-    statsRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 16 },
+    name: { fontSize: 52, lineHeight: 50, fontFamily: FONTS.marquee, color: "#fbf2df", marginTop: 14, textAlign: "center", textShadowColor: "rgba(0,0,0,0.5)", textShadowRadius: 14 },
+    username: { fontSize: 12, fontFamily: FONTS.mono, color: "#e9d8b9", marginTop: 4 },
+    bio: { fontSize: 14, fontStyle: "italic", color: "#f0dfc0", marginTop: 10, lineHeight: 20, textAlign: "center", maxWidth: 300 },
+    billing: { alignSelf: "stretch", marginHorizontal: -14, marginTop: 20, paddingTop: 12, paddingBottom: 6, backgroundColor: "rgba(10,4,4,0.55)" },
+    billingLine: { fontFamily: FONTS.marqueeMedium, fontSize: 11.5, letterSpacing: 1.6, color: "rgba(233,216,185,0.8)", textAlign: "center", paddingHorizontal: 10, marginBottom: 4 },
+    statsRow: { flexDirection: "row" },
     profileActionsRow: { flexDirection: "row", gap: 8, marginTop: 14 },
     profileActionBtn: {
       flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-      paddingVertical: 9, borderRadius: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+      height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.border,
     },
-    profileActionBtnText: { fontSize: 12, fontWeight: "700", color: c.text },
+    profileActionBtnText: { fontSize: 14, fontWeight: "600", color: c.text },
 
     diaryShortcut: {
-      marginTop: 9, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10,
-      paddingVertical: 9, paddingHorizontal: 11, borderRadius: 12,
+      marginTop: 10, minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12,
+      paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14,
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
     },
-    diaryShortcutIcon: {
-      width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center",
-      backgroundColor: c.accent + "18",
-    },
-    diaryShortcutTitle: { fontSize: 12, fontWeight: "800", color: c.text },
-    diaryShortcutMeta: { fontSize: 9.5, color: c.dim, marginTop: 2 },
+    diaryShortcutIcon: { alignItems: "center", justifyContent: "center" },
+    diaryShortcutTitle: { fontSize: 14.5, fontWeight: "700", color: c.text },
+    diaryShortcutMeta: { fontSize: 12, color: c.dim, marginTop: 2 },
 
     tasteCard: {
       marginTop: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       borderRadius: 18, padding: 15,
     },
-    insightHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-    insightIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-    insightEyebrow: { fontSize: 9.5, fontWeight: "900", color: "#8B5CF6", letterSpacing: 0.8 },
-    insightTitle: { fontSize: 14, fontWeight: "800", color: c.text, marginTop: 1 },
-    signalText: { fontSize: 10, color: c.dim, fontWeight: "700" },
-    insightEmpty: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 14 },
-    genreDNAList: { gap: 9, marginTop: 14 },
-    genreDNARow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    genreDNAName: { width: 82, fontSize: 11, fontWeight: "700", color: c.text },
-    genreDNATrack: { flex: 1, height: 6, borderRadius: 999, overflow: "hidden", backgroundColor: c.surface2 },
-    genreDNAFill: { height: "100%", borderRadius: 999, backgroundColor: "#8B5CF6" },
-    genreDNAPercent: { width: 30, textAlign: "right", fontSize: 10, color: c.dim, fontWeight: "700" },
+    insightHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
+    insightTitle: { fontSize: 24, fontFamily: FONTS.marquee, color: c.text, flexShrink: 1 },
+    signalText: { fontSize: 11.5, color: c.dim, fontFamily: FONTS.mono },
+    insightEmpty: { color: c.dim, fontSize: 12.5, lineHeight: 18, marginTop: 14 },
     typeSplitRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border },
-    typeSplitLabel: { fontSize: 10.5, fontWeight: "700", color: c.dim },
-    typeSplitTrack: { flex: 1, height: 7, backgroundColor: "#2563EB", borderRadius: 999, overflow: "hidden" },
+    typeSplitLabel: { fontSize: 11.5, fontFamily: FONTS.mono, color: c.dim },
+    typeSplitTrack: { flex: 1, height: 8, backgroundColor: "#6f9fb0", borderRadius: 999, overflow: "hidden" },
     typeSplitFilm: { height: "100%", backgroundColor: c.accent },
 
     deepenTasteBtn: { marginTop: 13, flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
-    deepenTasteTitle: { color: c.text, fontSize: 11.5, fontWeight: "850" },
-    deepenTasteMeta: { color: c.dim, fontSize: 9.5, marginTop: 2 },
+    deepenTasteTitle: { color: c.text, fontSize: 14, fontWeight: "700" },
+    deepenTasteMeta: { color: c.dim, fontSize: 12, marginTop: 2 },
     retentionRow: { flexDirection: "row", gap: 10, marginTop: 10 },
     retentionCard: {
       flex: 1, minHeight: 128, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
@@ -667,16 +660,16 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 20,
       paddingVertical: 16, paddingHorizontal: 18, overflow: "hidden",
     },
-    statItem: { alignItems: "center" },
-    statDivider: { width: 1, height: 24, backgroundColor: c.border, alignSelf: "center" },
-    statNum: { fontSize: 17, fontWeight: "700", color: c.text, fontVariant: ["tabular-nums"] },
-    statLabel: { fontSize: 10.5, color: c.dim, marginTop: 3, letterSpacing: 0.2 },
+    statItem: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 50 },
+    statDivided: { borderLeftWidth: 1, borderLeftColor: "rgba(255,255,255,0.14)" },
+    statNum: { fontSize: 25, fontFamily: FONTS.marqueeBold, color: "#fbf2df" },
+    statLabel: { fontSize: 11, fontFamily: FONTS.marqueeMedium, color: "rgba(233,216,185,0.75)", letterSpacing: 1.4 },
     favRow: { flexDirection: "row", gap: 10, marginTop: 14 },
     contentTabs: { flexDirection: "row", marginTop: 20, borderBottomWidth: 1, borderBottomColor: c.border },
-    contentTab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" },
+    contentTab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
     contentTabActive: { borderBottomColor: c.accent },
-    contentTabText: { color: c.dim, fontSize: 12.5, fontWeight: "800" },
-    contentTabTextActive: { color: c.accent },
+    contentTabText: { color: c.dim, fontSize: 21, fontFamily: FONTS.marqueeBold },
+    contentTabTextActive: { color: c.text },
     posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
     likeVisibilityBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center", zIndex: 5 },
     emptyText: { color: c.dim, fontSize: 12, marginTop: 14 },

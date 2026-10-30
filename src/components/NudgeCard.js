@@ -42,7 +42,7 @@ export default function NudgeCard({ item, navigation, onOpenPicker, onDismiss })
             ))}
           </View>
         )}
-        <Text style={styles.subtitle}>Zevkiniz ne kadar örtüşüyor bir bak.</Text>
+        <Text style={styles.subtitle}>Ne kadar uyumlu olduğunuza bir bakın.</Text>
       </View>
 
       <TouchableOpacity style={styles.cta} onPress={() => onOpenPicker(item)} activeOpacity={0.85}>

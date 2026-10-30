@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { Check, Plus, UserPlus } from "lucide-react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "../context/ThemeContext";
+import { FONTS } from "../theme/fonts";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import RetryImage from "./RetryImage";
@@ -10,7 +11,70 @@ import StoryComposer from "./StoryComposer";
 import StoryViewer from "./StoryViewer";
 import { avatarOr } from "../utils/avatar";
 
-const RING_GRADIENT = ["#FF3D81", "#8B5CF6", "#6fc4b3"];
+// Şerit bir sinema salonundaki koltuk sırası gibi: story'si olan arkadaş koltuğunda oturuyor ve
+// izlenmemiş story'si varsa yüzüne perdenin ışığı vuruyor (titreyen sıcak bir hale). İzlenmiş
+// olanların ışığı sönük. Koltuklar fiziksel nesne olduğu için iki temada da aynı kadife renginde.
+const VELVET = { back: "#7a2428", seat: "#651d21", arm: "#3a2a22", leg: "#2a2018" };
+
+function Chair() {
+  return (
+    <Svg width={60} height={58} viewBox="0 0 60 58" style={seatStyles.chair}>
+      <Path d="M10 6 Q10 0 16 0 H44 Q50 0 50 6 V40 H10 Z" fill={VELVET.back} />
+      <Path d="M12 6 Q12 2 17 2 H43 Q48 2 48 6 V10 H12 Z" fill="#ffffff" opacity={0.07} />
+      <Rect x={2} y={26} width={8} height={26} rx={3} fill={VELVET.arm} />
+      <Rect x={50} y={26} width={8} height={26} rx={3} fill={VELVET.arm} />
+      <Rect x={8} y={38} width={44} height={14} rx={4} fill={VELVET.seat} />
+      <Rect x={14} y={52} width={4} height={6} fill={VELVET.leg} />
+      <Rect x={42} y={52} width={4} height={6} fill={VELVET.leg} />
+    </Svg>
+  );
+}
+
+// Perdeden yansıyan ışık: düzensiz aralıklarla hafifçe titreyen sıcak bir hale.
+function ScreenGlow({ id, phase = 0 }) {
+  const opacity = useRef(new Animated.Value(0.55)).current;
+  useEffect(() => {
+    let loop = null;
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce || cancelled) return;
+      const step = (toValue, duration) => Animated.timing(opacity, { toValue, duration, useNativeDriver: true });
+      loop = Animated.loop(Animated.sequence([
+        Animated.delay(phase),
+        step(0.32, 240), step(0.62, 170), step(0.42, 520), step(0.7, 280), step(0.5, 640),
+      ]));
+      loop.start();
+    }).catch(() => {});
+    return () => { cancelled = true; loop?.stop(); };
+  }, []);
+  return (
+    <Animated.View pointerEvents="none" style={[seatStyles.glow, { opacity }]}>
+      <Svg width={84} height={84}>
+        <Defs>
+          <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor="#ffe3a3" stopOpacity="0.95" />
+            <Stop offset="1" stopColor="#ffe3a3" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={42} cy={42} r={42} fill={`url(#${id})`} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function Seat({ avatarUri, glowId, glowPhase, lit, label, labelAccent, onPress, accessibilityLabel, badge, styles }) {
+  return (
+    <TouchableOpacity style={seatStyles.seat} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+      <Chair />
+      {lit && <ScreenGlow id={glowId} phase={glowPhase} />}
+      <View style={seatStyles.head}>
+        <RetryImage source={{ uri: avatarUri }} style={[styles.avatar, !lit && styles.avatarDim]} />
+        {badge}
+      </View>
+      <Text style={[styles.label, labelAccent && styles.caption]} numberOfLines={1}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 // Arkadaşların "şu an bunu izliyorum" story'lerini gösteren yatay şerit — StoryComposer
 // (paylaşma) ve StoryViewer'ı (izleme) kendi içinde açıp kapatıyor, ActivityScreen sadece
@@ -80,74 +144,65 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
 
   return (
     <View style={styles.wrap}>
+      <Text style={styles.rowLabel}>{noActiveStories ? "TANIYOR OLABİLECEKLERİN" : "ŞU AN İZLİYOR"}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        <View style={styles.item}>
-          <View style={styles.ringWrap}>
-            <TouchableOpacity onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))} activeOpacity={0.85}>
-              {hasMine ? (
-                <LinearGradient colors={RING_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
-                  <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
-                </LinearGradient>
-              ) : (
-                <View style={styles.ring}>
-                  <RetryImage source={{ uri: avatarOr(myAvatar) }} style={styles.avatar} />
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+        <Seat
+          styles={styles}
+          avatarUri={avatarOr(myAvatar)}
+          glowId="glow-me"
+          lit={hasMine}
+          label="Sen"
+          onPress={() => (hasMine ? openViewerForMine() : setComposerOpen(true))}
+          accessibilityLabel={hasMine ? "Story'ni gör" : "Ne izlediğini paylaş"}
+          badge={(
+            <TouchableOpacity style={styles.addBadge} onPress={() => setComposerOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Story ekle">
               <Plus size={12} color={c.bg} strokeWidth={3} />
             </TouchableOpacity>
-          </View>
-          <Text style={styles.label} numberOfLines={1}>Sen</Text>
-        </View>
+          )}
+        />
 
         {orderedFriends.map((f, i) => (
-          <TouchableOpacity key={f.user.id} style={styles.item} onPress={() => openViewerForFriend(i)} activeOpacity={0.85}>
-            {f.stillUnseen ? (
-              <LinearGradient colors={RING_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ring}>
-                <RetryImage source={{ uri: avatarOr(f.user.avatar_url) }} style={styles.avatar} />
-              </LinearGradient>
-            ) : (
-              <View style={[styles.ring, styles.ringSeen]}>
-                <RetryImage source={{ uri: avatarOr(f.user.avatar_url) }} style={styles.avatar} />
-              </View>
-            )}
-            {f.stillUnseen ? (
-              <Text style={styles.caption} numberOfLines={1}>{f.stories[f.stories.length - 1]?.movie?.title || f.user.name}</Text>
-            ) : (
-              <Text style={styles.label} numberOfLines={1}>{f.user.name}</Text>
-            )}
-          </TouchableOpacity>
+          <Seat
+            key={f.user.id}
+            styles={styles}
+            avatarUri={avatarOr(f.user.avatar_url)}
+            glowId={`glow-${f.user.id}`}
+            glowPhase={(i % 4) * 230}
+            lit={f.stillUnseen}
+            label={f.stillUnseen ? (f.stories[f.stories.length - 1]?.movie?.title || f.user.name) : f.user.name}
+            labelAccent={f.stillUnseen}
+            onPress={() => openViewerForFriend(i)}
+            accessibilityLabel={`${f.user.name}${f.stillUnseen ? ", yeni story" : ""}`}
+          />
         ))}
 
         {noActiveStories && suggestions === null && (
           <View style={styles.suggestLoading}><ActivityIndicator size="small" color={c.dim} /></View>
         )}
 
-        {noActiveStories && suggestions?.map((s) => {
-          const requested = requestedIds.has(s.id);
+        {noActiveStories && suggestions?.map((sg) => {
+          const requested = requestedIds.has(sg.id);
           return (
-            <TouchableOpacity
-              key={s.id}
-              style={styles.item}
-              onPress={() => navigation.navigate("OtherProfile", { userId: s.id })}
-              activeOpacity={0.85}
-            >
-              <View style={styles.ringWrap}>
-                <View style={[styles.ring, styles.ringSeen]}>
-                  <RetryImage source={{ uri: avatarOr(s.avatar_url) }} style={styles.avatar} />
-                </View>
+            <Seat
+              key={sg.id}
+              styles={styles}
+              avatarUri={avatarOr(sg.avatar_url)}
+              lit={false}
+              label={sg.name}
+              onPress={() => navigation.navigate("OtherProfile", { userId: sg.id })}
+              accessibilityLabel={`${sg.name}, profili aç`}
+              badge={(
                 <TouchableOpacity
                   style={[styles.addBadge, requested && styles.addBadgeDone]}
-                  onPress={() => addSuggested(s.id)}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  onPress={() => addSuggested(sg.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   disabled={requested}
+                  accessibilityLabel={requested ? "İstek gönderildi" : "Arkadaş ekle"}
                 >
                   {requested ? <Check size={11} color={c.bg} strokeWidth={3} /> : <UserPlus size={11} color={c.bg} strokeWidth={2.5} />}
                 </TouchableOpacity>
-              </View>
-              <Text style={styles.label} numberOfLines={1}>{s.name}</Text>
-            </TouchableOpacity>
+              )}
+            />
           );
         })}
       </ScrollView>
@@ -171,19 +226,24 @@ export default function StoryBar({ myAvatar, myStories, friends, navigation, onC
   );
 }
 
+const seatStyles = StyleSheet.create({
+  seat: { width: 70, height: 112, alignItems: "center" },
+  chair: { position: "absolute", left: 5, top: 30 },
+  glow: { position: "absolute", top: -14, left: -7 },
+  head: { marginTop: 6, width: 46, height: 46 },
+});
+
 function makeStyles(c) {
   return StyleSheet.create({
-    wrap: { marginBottom: 14 },
-    row: { gap: 14, paddingRight: 6 },
-    item: { width: 62, alignItems: "center" },
-    ringWrap: { width: 60, height: 60 },
-    ring: { width: 60, height: 60, borderRadius: 999, padding: 2.5, alignItems: "center", justifyContent: "center", backgroundColor: c.border },
-    ringSeen: { backgroundColor: c.border },
-    avatar: { width: "100%", height: "100%", borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2.5, borderColor: c.bg },
-    addBadge: { position: "absolute", bottom: -2, right: -2, width: 19, height: 19, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
+    wrap: { marginBottom: 6 },
+    rowLabel: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1, color: c.dim, marginBottom: 6, marginLeft: 2 },
+    row: { gap: 2, paddingRight: 6 },
+    avatar: { width: 46, height: 46, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 2, borderColor: "#1c1a24" },
+    avatarDim: { opacity: 0.82 },
+    addBadge: { position: "absolute", bottom: -2, right: -4, width: 20, height: 20, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg },
     addBadgeDone: { backgroundColor: c.dim },
-    label: { fontSize: 10, color: c.dim, marginTop: 5, maxWidth: 62, textAlign: "center" },
-    caption: { fontSize: 10, color: c.accent, fontWeight: "700", marginTop: 5, maxWidth: 62, textAlign: "center" },
-    suggestLoading: { width: 62, height: 60, alignItems: "center", justifyContent: "center" },
+    label: { position: "absolute", bottom: 0, fontSize: 11, color: c.dim, maxWidth: 68, textAlign: "center" },
+    caption: { color: c.accent, fontWeight: "700" },
+    suggestLoading: { width: 70, height: 100, alignItems: "center", justifyContent: "center" },
   });
 }

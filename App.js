@@ -3,6 +3,12 @@ import { View, AppState, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from "@expo-google-fonts/baloo-2";
+// Paketin kök girişi bütün ağırlıkları pakete katıyor; yalnızca kullandıklarımızı alt yoldan alıyoruz.
+import { BigShoulders_500Medium } from "@expo-google-fonts/big-shoulders/500Medium";
+import { BigShoulders_700Bold } from "@expo-google-fonts/big-shoulders/700Bold";
+import { BigShoulders_800ExtraBold } from "@expo-google-fonts/big-shoulders/800ExtraBold";
+import { DMMono_400Regular } from "@expo-google-fonts/dm-mono/400Regular";
+import { DMMono_500Medium } from "@expo-google-fonts/dm-mono/500Medium";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useAppTheme } from "./src/context/ThemeContext";
@@ -248,7 +254,11 @@ export default function App() {
   // Baloo 2 uygulamayla birlikte yüklenmeye devam ediyor ama cold-start kritik yolunu
   // bloklamıyor. Intro bittiğinde navigasyon açılır; font hazır değilse o ilk karede sistem
   // fontu kullanılır ve hook tamamlandığında normal marka fontuna geçilir.
-  useFonts({ Baloo2_700Bold, Baloo2_800ExtraBold });
+  useFonts({
+    Baloo2_700Bold, Baloo2_800ExtraBold,
+    BigShoulders_500Medium, BigShoulders_700Bold, BigShoulders_800ExtraBold,
+    DMMono_400Regular, DMMono_500Medium,
+  });
 
   return (
     <ErrorBoundary>

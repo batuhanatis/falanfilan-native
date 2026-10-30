@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MapPin, MessageCircle, MoreHorizontal, Send, Sparkles, Star, Ticket } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { FONTS } from "../theme/fonts";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -37,14 +38,16 @@ function activityCopy(item) {
       : "favorisini güncelledi";
   }
   if (item.activityType === "list_created") return `“${item.payload?.list_name || "Yeni liste"}” listesini oluşturdu`;
-  return "zevk profilini güncelledi";
+  return "beğenilerini güncelledi";
 }
 
+// Aktivite türü artık emoji ve degrade rozetle değil, tek renkli kısa bir etiketle anlatılıyor.
+// Renkler iki temada da okunan orta tonlar.
 function activityMood(item) {
-  if (item.activityType === "like") return { emoji: "🍿", label: "BEĞENDİ", colors: ["#FF3D81", "#8B5CF6"] };
-  if (item.activityType === "favorite_set") return { emoji: "💘", label: "FAVORİSİ YAPTI", colors: ["#F97316", "#EF4444"] };
-  if (item.activityType === "list_created") return { emoji: "🎬", label: "YENİ LİSTE", colors: ["#06B6D4", "#2563EB"] };
-  return { emoji: "✨", label: "ZEVKİNİ GÜNCELLEDİ", colors: ["#8B5CF6", "#2563EB"] };
+  if (item.activityType === "like") return { label: "BEĞENDİ", tone: "#c9a44c" };
+  if (item.activityType === "favorite_set") return { label: "FAVORİSİ YAPTI", tone: "#c2604f" };
+  if (item.activityType === "list_created") return { label: "YENİ LİSTE", tone: "#6f9fb0" };
+  return { label: "GÜNCELLEDİ", tone: "#7fa27a" };
 }
 
 function postLabel(type, cardPayload) {
@@ -336,7 +339,6 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   return (
     <View style={[styles.card, state.kind === "activity" && !isHeroMovie && styles.activityCard, compact && styles.cardCompact]}>
-      {mood && !isHeroMovie && <LinearGradient colors={mood.colors} style={styles.activityRail} />}
 
       {!isHeroMovie && (
         <View style={styles.header}>
@@ -346,9 +348,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
       {mood && !isHeroMovie && (
         <View style={styles.activityHeadline}>
-          <LinearGradient colors={mood.colors} style={styles.activityEmoji}><Text style={styles.activityEmojiText}>{mood.emoji}</Text></LinearGradient>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.activityLabel, { color: mood.colors[0] }]}>{mood.label}</Text>
+            <Text style={[styles.activityLabel, { color: mood.tone }]}>{mood.label}</Text>
             <Text style={styles.activityTitle}>{activityCopy(state)}</Text>
           </View>
         </View>
@@ -444,9 +445,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             <LinearGradient colors={["transparent", "rgba(8,6,12,0.94)"]} style={styles.heroShadeBottom} pointerEvents="none" />
             <View style={styles.heroCopy} pointerEvents="none">
               {mood ? (
-                <LinearGradient colors={mood.colors} style={styles.heroTag}><Text style={styles.heroTagText}>{mood.emoji} {mood.label}</Text></LinearGradient>
+                <View style={styles.heroTag}><Text style={[styles.heroTagText, { color: mood.tone }]}>{mood.label}</Text></View>
               ) : isDailyQuestionPost ? (
-                <LinearGradient colors={["#F97316", "#EF4444"]} style={styles.heroTag}><Text style={styles.heroTagText}>🔥 GÜNÜN SORUSU</Text></LinearGradient>
+                <View style={styles.heroTag}><Text style={styles.heroTagText}>GÜNÜN SORUSU</Text></View>
               ) : null}
               <Text style={styles.heroTitle} numberOfLines={2}>{primaryMovie.title}</Text>
               <View style={styles.heroMetaRow}>
@@ -588,7 +589,6 @@ function makeStyles(c) {
     ticketMovie: { color: c.text, fontSize: 9.5, fontWeight: "800", textAlign: "center", marginTop: 5 },
     card: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, borderRadius: 16, padding: 14, marginBottom: 12, overflow: "hidden" },
     activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
-    activityRail: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
     cardCompact: { marginBottom: 10, padding: 12 },
     header: { flexDirection: "row", alignItems: "center", gap: 10 },
     avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2 },
@@ -601,9 +601,7 @@ function makeStyles(c) {
     postMenuButton: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
     body: { color: c.text, fontSize: 14, lineHeight: 20, marginTop: 12 },
     activityHeadline: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
-    activityEmoji: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    activityEmojiText: { fontSize: 18 },
-    activityLabel: { fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
+    activityLabel: { fontSize: 10.5, fontFamily: FONTS.monoMedium, letterSpacing: 0.8 },
     activityTitle: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 2 },
 
     // ---- hero: poster kartı büyütülüp kişi bilgisi + menü doğrudan görselin içinde ----
@@ -630,8 +628,8 @@ function makeStyles(c) {
       backgroundColor: "rgba(10,8,14,0.4)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
     },
     heroCopy: { position: "absolute", left: 15, right: 15, bottom: 13 },
-    heroTag: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, marginBottom: 7 },
-    heroTagText: { color: "#fff", fontSize: 9, fontWeight: "800" },
+    heroTag: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, marginBottom: 7, backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
+    heroTagText: { color: "#efe4cc", fontSize: 10.5, fontFamily: FONTS.monoMedium, letterSpacing: 0.8 },
     heroTitle: { color: "#fff", fontWeight: "900", fontSize: 19, lineHeight: 23 },
     heroMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5 },
     heroMetaText: { color: "rgba(255,255,255,0.82)", fontSize: 11.5, fontWeight: "700" },

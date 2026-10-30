@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal, Animated, Alert, TouchableWithoutFeedback, RefreshControl } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Modal, Animated, Alert, TouchableWithoutFeedback, RefreshControl, ScrollView, Platform, Easing } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { MessageCircle, Heart, ListPlus, Star, Activity, X, Trash2 } from "lucide-react-native";
+import {
+  MessageCircle, Heart, ListPlus, Star, Activity, X, Trash2, RefreshCw, Film, Tv, Camera, BarChart3, CalendarClock, List,
+} from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useUnread } from "../context/UnreadContext";
@@ -18,6 +20,8 @@ import { decodeActivityShare } from "../utils/activityShare";
 import { decodeStoryReply } from "../utils/storyReplyShare";
 import TopBar from "../components/TopBar";
 import ChatListSkeleton from "../components/skeletons/ChatListSkeleton";
+import { timeLabel } from "../utils/chatTimeLabels";
+import { FONTS } from "../theme/fonts";
 
 // Aynı arkadaş art arda birden fazla şeyi beğenirse (ör. bir "beğeni oturumu") bunları tek tek
 // göstermek yerine "X'in Y film beğendi" diye TEK bir satırda topluyoruz. Sadece BİRBİRİNE
@@ -55,17 +59,48 @@ function groupActivity(items) {
 // düz gri metindi. Artık her tür (film/liste/anket/plan), o türün ChatConversationScreen'deki
 // kart tasarımıyla AYNI renk ailesinden küçük bir noktayla işaretleniyor — listeyi tararken ne
 // beklediğin, mesajı açmadan belli oluyor.
+// Tür artık renkli bir nokta yerine küçük bir ikonla gösteriliyor; renkler iki temada da okunan
+// orta tonlardan oluşan tek bir aile.
 function messagePreviewInfo(lastMessage) {
   const shared = decodeMovieShare(lastMessage);
-  if (shared) return { text: shared.type === "Dizi" ? "Dizi Önerisi" : "Film Önerisi", dotColor: shared.type === "Dizi" ? "#0EA5E9" : "#8B5CF6" };
-  if (decodePhotoMessage(lastMessage)) return { text: "📷 Fotoğraf", dotColor: null };
-  if (decodePoll(lastMessage)) return { text: "Mini Anket", dotColor: "#F97316" };
-  if (decodePlan(lastMessage)) return { text: "İzleme Planı", dotColor: "#06B6D4" };
-  if (decodeListShare(lastMessage)) return { text: "Liste Paylaşıldı", dotColor: "#14B8A6" };
-  if (decodeActivityShare(lastMessage)) return { text: "Aktivite Paylaşıldı", dotColor: "#EC4899" };
-  if (decodeStoryReply(lastMessage)) return { text: "💬 Story'ye Yanıt", dotColor: "#F59E0B" };
-  return { text: lastMessage || "Henüz mesaj yok", dotColor: null };
+  if (shared) {
+    const label = shared.type === "Dizi" ? "Dizi Önerisi" : "Film Önerisi";
+    return { text: shared.title ? `${label}: ${shared.title}` : label, Icon: shared.type === "Dizi" ? Tv : Film, color: "#c9a44c" };
+  }
+  if (decodePhotoMessage(lastMessage)) return { text: "Fotoğraf", Icon: Camera, color: "#9a8f80" };
+  if (decodePoll(lastMessage)) return { text: "Mini Anket", Icon: BarChart3, color: "#6f9fb0" };
+  if (decodePlan(lastMessage)) return { text: "İzleme Planı", Icon: CalendarClock, color: "#7fa27a" };
+  if (decodeListShare(lastMessage)) return { text: "Liste paylaşıldı", Icon: List, color: "#b8a27c" };
+  if (decodeActivityShare(lastMessage)) return { text: "Aktivite paylaşıldı", Icon: Activity, color: "#c2604f" };
+  if (decodeStoryReply(lastMessage)) return { text: "Story'ye yanıt", Icon: MessageCircle, color: "#c9a44c" };
+  return { text: lastMessage || "Henüz mesaj yok", Icon: null, color: null };
 }
+
+const WEEKDAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+function lastAtLabel(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (days <= 0) return timeLabel(iso);
+  if (days === 1) return "Dün";
+  if (days < 7) return WEEKDAYS[d.getDay()];
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+const nowLabel = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+// Numaratör: sohbet listesinin tepesinde bir fiş yuvası var. Listeyi aşağı çekince yuvadan saati
+// basılı bir fiş çıkıyor; yenileme bitince fiş koparılıp yana savruluyor. Android'de liste
+// aşağı esnemediği için fiş yenileme başlayınca kendiliğinden iniyor.
+const TICKET_H = 112;
+const TICKET_DROP = Platform.OS === "ios" ? 44 : 100;
+const TICKET_ARM = 56;
 
 function activityText(g) {
   if (g.type === "like") {
@@ -135,15 +170,52 @@ export default function ChatListScreen({ navigation }) {
   // render'da "Cannot access 'loadActivity' before initialization" fırlatıp ekranı çökertiyordu.
   // Aşağı çekince yenileme (pull-to-refresh) — iki sekme de kendi verisini tazeliyor, hangi
   // sekmedeysek onu çekiyoruz.
+  const pull = useRef(new Animated.Value(0)).current;
+  const drop = useRef(new Animated.Value(0)).current;
+  const tear = useRef(new Animated.Value(0)).current;
+  const busyRef = useRef(false);
+  const pulledRef = useRef(0);
+  const [ticketTime, setTicketTime] = useState(nowLabel);
+  const [ticketLabel, setTicketLabel] = useState("Biraz daha çek");
+
   const onPullRefresh = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setTicketTime(nowLabel());
+    setTicketLabel("Yenileniyor…");
     setRefreshing(true);
+    Animated.spring(drop, { toValue: TICKET_DROP, friction: 7, tension: 90, useNativeDriver: false }).start();
     try {
-      if (sub === "chats") await refreshUnread();
-      else await loadActivity();
+      // Fişin okunabilmesi için en az kısa bir an görünür kalsın.
+      await Promise.all([
+        sub === "chats" ? refreshUnread() : loadActivity(),
+        new Promise((resolve) => setTimeout(resolve, 700)),
+      ]);
     } finally {
       setRefreshing(false);
+      Animated.timing(tear, { toValue: 1, duration: 420, easing: Easing.in(Easing.cubic), useNativeDriver: false }).start(() => {
+        drop.setValue(0);
+        tear.setValue(0);
+        setTicketLabel("Biraz daha çek");
+        busyRef.current = false;
+      });
     }
-  }, [sub, refreshUnread, loadActivity]);
+  }, [sub, refreshUnread, loadActivity, drop, tear]);
+
+  const onListScroll = useCallback((e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const pulled = y < 0 ? Math.min(140, -y) : 0;
+    if (pulled === pulledRef.current) return;
+    if (!pulledRef.current && pulled && !busyRef.current) setTicketTime(nowLabel());
+    pulledRef.current = pulled;
+    pull.setValue(pulled);
+    if (!busyRef.current) setTicketLabel(pulled >= TICKET_ARM ? "Bırak, yenilensin" : "Biraz daha çek");
+  }, [pull]);
+
+  const ticketY = Animated.add(pull, drop).interpolate({ inputRange: [0, 140], outputRange: [-TICKET_H, -TICKET_H + 140], extrapolate: "clamp" });
+  const tearX = tear.interpolate({ inputRange: [0, 1], outputRange: [0, 260] });
+  const tearRotate = tear.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "26deg"] });
+  const tearOpacity = tear.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 1, 0] });
 
   useEffect(() => { loadFriends(); }, [loadFriends]);
   useEffect(() => {
@@ -214,10 +286,14 @@ export default function ChatListScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <TopBar />
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
-        <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>Sohbetler</Text>
-        <Text style={{ color: c.dim, fontSize: 10.5, marginTop: 2 }}>Arkadaş aktiviteleri artık Ana Sayfa’daki sosyal akışta.</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.screenTitle}>Sohbetler</Text>
+        <TouchableOpacity style={styles.refreshBtn} onPress={onPullRefresh} accessibilityRole="button" accessibilityLabel="Yenile">
+          <RefreshCw size={17} color={c.text} />
+        </TouchableOpacity>
       </View>
+      <View style={styles.slot}><View style={styles.slotLip} /></View>
+      <View style={{ flex: 1 }}>
 
       {sub === "chats" ? (
         // ÖNEMLİ: Burada "loading" state'i KULLANMIYORUZ — o, ilgisiz bir veri olan arkadaş
@@ -227,50 +303,66 @@ export default function ChatListScreen({ navigation }) {
         // ekranına gerek yok, doğrudan elimizdeki veriyi gösteriyoruz.
         (
           <FlatList
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={{ paddingTop: 6, paddingBottom: 24 }}
             data={chats}
             keyExtractor={(item) => String(item.chat_id)}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={c.accent} colors={[c.accent]} />}
-            renderItem={({ item }) => (
-              <Swipeable renderRightActions={(progress, dragX) => renderChatRightActions(item, progress, dragX)} overshootRight={false}>
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.75}
-                  onPress={() => navigation.navigate("ChatConversation", { chatId: item.chat_id, friendId: item.friend_id, friendName: item.friend_name, friendAvatar: item.friend_avatar })}
-                >
-                  <RetryImage source={{ uri: avatarOr(item.friend_avatar, item.friend_id) }} style={styles.avatar} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.name}>{item.friend_name}</Text>
-                    {(() => {
-                      const preview = messagePreviewInfo(item.last_message);
-                      return (
-                        <View style={styles.lastMessageRow}>
-                          {!!preview.dotColor && <View style={[styles.lastMessageDot, { backgroundColor: preview.dotColor }]} />}
-                          <Text style={[styles.lastMessage, item.unread_count > 0 && { color: c.text, fontWeight: "600" }]} numberOfLines={1}>
-                            {preview.text}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                  </View>
-                  {item.unread_count > 0 && (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadBadgeText}>{item.unread_count > 99 ? "99+" : item.unread_count}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </Swipeable>
+            onScroll={onListScroll}
+            scrollEventThrottle={16}
+            refreshControl={(
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onPullRefresh}
+                tintColor="transparent"
+                colors={[c.accent]}
+                progressBackgroundColor={c.surface}
+              />
             )}
+            renderItem={({ item }) => {
+              const preview = messagePreviewInfo(item.last_message);
+              const unread = item.unread_count > 0;
+              const when = lastAtLabel(item.last_at);
+              return (
+                <Swipeable renderRightActions={(progress, dragX) => renderChatRightActions(item, progress, dragX)} overshootRight={false}>
+                  <TouchableOpacity
+                    style={styles.row}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.navigate("ChatConversation", { chatId: item.chat_id, friendId: item.friend_id, friendName: item.friend_name, friendAvatar: item.friend_avatar })}
+                    accessibilityLabel={`${item.friend_name}, ${preview.text}${when ? `, ${when}` : ""}${unread ? `, ${item.unread_count} okunmamış` : ""}`}
+                  >
+                    <RetryImage source={{ uri: avatarOr(item.friend_avatar, item.friend_id) }} style={styles.avatar} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.name} numberOfLines={1}>{item.friend_name}</Text>
+                      <View style={styles.lastMessageRow}>
+                        {!!preview.Icon && <preview.Icon size={14} color={preview.color} />}
+                        <Text style={[styles.lastMessage, unread && { color: c.text, fontWeight: "600" }]} numberOfLines={1}>
+                          {preview.text}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.rowSide}>
+                      {!!when && <Text style={[styles.time, unread && { color: c.accent }]}>{when}</Text>}
+                      {unread && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>{item.unread_count > 99 ? "99+" : item.unread_count}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
+              );
+            }}
             ListFooterComponent={
               friendsWithoutChat.length > 0 ? (
-                <View>
+                <View style={styles.newChat}>
                   <Text style={styles.sectionLabel}>YENİ SOHBET BAŞLAT</Text>
-                  {friendsWithoutChat.map((f) => (
-                    <TouchableOpacity key={f.id} style={styles.card} activeOpacity={0.75} onPress={() => openWithFriend(f)}>
-                      <RetryImage source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.avatar} />
-                      <Text style={styles.name}>{f.name}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peopleRow}>
+                    {friendsWithoutChat.map((f) => (
+                      <TouchableOpacity key={f.id} style={styles.person} activeOpacity={0.75} onPress={() => openWithFriend(f)} accessibilityLabel={`${f.name} ile sohbet başlat`}>
+                        <RetryImage source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.personAvatar} />
+                        <Text style={styles.personName} numberOfLines={1}>{f.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               ) : null
             }
@@ -326,6 +418,15 @@ export default function ChatListScreen({ navigation }) {
           }
         />
       )}
+        <View pointerEvents="none" style={styles.ticketClip}>
+          <Animated.View style={[styles.ticket, { opacity: tearOpacity, transform: [{ translateY: ticketY }, { translateX: tearX }, { rotate: tearRotate }] }]}>
+            <Text style={styles.ticketSmall}>PELLIX · SOHBET</Text>
+            <Text style={styles.ticketTime}>{ticketTime}</Text>
+            <Text style={styles.ticketLabel}>{ticketLabel}</Text>
+            <View style={styles.ticketPerf} />
+          </Animated.View>
+        </View>
+      </View>
 
       <Modal visible={!!groupModal} animationType="slide" transparent onRequestClose={() => setGroupModal(null)}>
         <TouchableWithoutFeedback onPress={() => setGroupModal(null)}>
@@ -365,23 +466,43 @@ function makeStyles(c) {
     card: {
       flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginTop: 8,
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
-      shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
     },
-    avatar: { width: 46, height: 46, borderRadius: 999, backgroundColor: c.surface2 },
-    name: { fontSize: 13, fontWeight: "700", color: c.text },
-    lastMessageRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
-    lastMessageDot: { width: 6, height: 6, borderRadius: 999 },
-    lastMessage: { fontSize: 12, color: c.dim, flexShrink: 1 },
+    titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 },
+    screenTitle: { color: c.text, fontSize: 36, fontFamily: FONTS.marquee },
+    refreshBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
+    slot: { marginHorizontal: 16, height: 10, borderRadius: 5, backgroundColor: "#0a0908", borderBottomWidth: 1, borderBottomColor: c.border, zIndex: 3 },
+    slotLip: { position: "absolute", top: -4, alignSelf: "center", width: 100, height: 3, borderRadius: 2, backgroundColor: c.accent, opacity: 0.55 },
+    ticketClip: { position: "absolute", top: -5, left: 0, right: 0, height: 150, overflow: "hidden", alignItems: "center" },
+    ticket: {
+      width: 132, height: TICKET_H, backgroundColor: "#efe4cc", borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
+      alignItems: "center", paddingTop: 12,
+      shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 5 }, elevation: 5,
+    },
+    ticketSmall: { fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1, color: "#2a2118", opacity: 0.7 },
+    ticketTime: { fontFamily: FONTS.monoMedium, fontSize: 30, color: "#2a2118", marginTop: 4 },
+    ticketLabel: { fontSize: 11.5, fontWeight: "700", color: "#2a2118", marginTop: 2 },
+    ticketPerf: { position: "absolute", left: 0, right: 0, bottom: 18, borderTopWidth: 2, borderStyle: "dashed", borderColor: "rgba(42,33,24,0.4)" },
+    row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: c.bg },
+    rowSide: { alignItems: "flex-end", gap: 6, minWidth: 34 },
+    time: { fontFamily: FONTS.mono, fontSize: 11, color: c.dim },
+    avatar: { width: 50, height: 50, borderRadius: 999, backgroundColor: c.surface2 },
+    name: { fontSize: 15, fontWeight: "600", color: c.text },
+    lastMessageRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
+    lastMessage: { fontSize: 13, color: c.dim, flexShrink: 1 },
     unreadBadge: {
-      minWidth: 22, height: 22, borderRadius: 999, backgroundColor: c.danger,
+      minWidth: 20, height: 20, borderRadius: 999, backgroundColor: c.danger,
       alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
     },
-    unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
+    unreadBadgeText: { color: "#fff", fontSize: 11, fontFamily: FONTS.monoMedium },
     deleteAction: {
-      backgroundColor: c.danger, justifyContent: "center", alignItems: "center",
-      width: 64, borderRadius: 16, marginTop: 8,
+      backgroundColor: c.danger, justifyContent: "center", alignItems: "center", width: 72,
     },
-    sectionLabel: { fontSize: 11, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginTop: 20, marginBottom: 4 },
+    newChat: { paddingHorizontal: 16, paddingTop: 18 },
+    peopleRow: { gap: 16, paddingTop: 12, paddingRight: 16 },
+    person: { width: 60, alignItems: "center", gap: 6 },
+    personAvatar: { width: 54, height: 54, borderRadius: 999, backgroundColor: c.surface2 },
+    personName: { fontSize: 12, color: c.text, maxWidth: 60 },
+    sectionLabel: { fontSize: 10.5, fontFamily: FONTS.monoMedium, color: c.dim, letterSpacing: 1 },
     emptyBox: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 30 },
     emptyIconWrap: { width: 56, height: 56, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", marginBottom: 12 },
     emptyTitle: { fontSize: 14, fontWeight: "700", color: c.text },

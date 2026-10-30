@@ -19,12 +19,24 @@ const SWIPE_THRESHOLD = 110;
 // kayıyordu. Artık eşik geçilirken hafif bir haptic ("az kaldı") + serbest bırakılıp commit
 // edilince orta şiddette bir haptic ("gitti") var; kart atılırken de sabit hız yerine hafifçe
 // küçülerek (squash) hızlanan bir eğriyle fırlıyor.
-const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRight, style, children }, ref) {
+//
+// rightExitTarget (isteğe bağlı): sağa atılan kartın ekrandan çıkmak yerine uçacağı noktayı
+// ({ x, y }, kartın merkezine göre) döndüren fonksiyon. Keşfet'te beğenilen kart sol üstteki
+// "duvar"a küçülerek uçuyor; vermeyen ekranlar (MatchParty, TasteMate) eskisi gibi çalışır.
+const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRight, rightExitTarget, style, children }, ref) {
   const pan = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(1)).current;
   const crossedRef = useRef(false);
 
   function animateOff(direction) {
+    const target = direction === "right" ? rightExitTarget?.() : null;
+    if (target) {
+      Animated.parallel([
+        Animated.timing(pan, { toValue: target, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
+        Animated.timing(scale, { toValue: 0.08, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
+      ]).start(() => onSwipeRight());
+      return;
+    }
     Animated.parallel([
       Animated.timing(pan, {
         toValue: { x: direction === "right" ? SCREEN_W * 1.5 : -SCREEN_W * 1.5, y: 0 },

@@ -7,6 +7,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useWS } from "../context/WSContext";
 import { api } from "../api/client";
+import { FONTS } from "../theme/fonts";
 
 export default function TopBar({ centerLabel, leftAction = null }) {
   const { c } = useAppTheme();
@@ -106,7 +107,7 @@ function makeStyles(c, insets) {
     barSideRight: { justifyContent: "flex-end" },
     barCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
     logo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 22, color: c.text, letterSpacing: 0.2 },
-    centerLabel: { fontFamily: "Baloo2_800ExtraBold", fontSize: 22, color: c.text, letterSpacing: 0.2, textAlign: "center" },
+    centerLabel: { fontFamily: FONTS.marquee, fontSize: 28, color: c.text, textAlign: "center" },
     actions: { flexDirection: "row", gap: 10 },
     iconBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     badge: { position: "absolute", top: -4, right: -4, minWidth: 15, height: 15, borderRadius: 999, backgroundColor: c.danger, borderWidth: 1.5, borderColor: c.bg, alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },

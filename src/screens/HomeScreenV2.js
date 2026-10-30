@@ -12,17 +12,13 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
-  useWindowDimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   Search,
   Filter,
-  Sparkles,
   Clock,
   X,
   Star,
-  Heart,
   Film,
   Tv,
   Users,
@@ -50,6 +46,9 @@ import { matchesOrigin } from "../utils/origin";
 import IslandModal from "../components/IslandModal";
 import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 import RecommendationWhyModal from "../components/RecommendationWhyModal";
+import SeansBoard from "../components/salon/SeansBoard";
+import TicketCard from "../components/salon/TicketCard";
+import { FONTS } from "../theme/fonts";
 
 function dedupe(items) {
   const byId = new Map();
@@ -88,13 +87,10 @@ function runtimeMinutes(runtime) {
 export default function HomeScreenV2({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
-  const { width: windowWidth } = useWindowDimensions();
   const styles = makeStyles(c);
-  const heroCardWidth = Math.max(280, windowWidth - 32);
 
   const mainListRef = useRef(null);
   const upcomingListRef = useRef(null);
-  const heroListRef = useRef(null);
   const loadedIdsRef = useRef(new Set());
   // Sayfalama durumu ref'te tutuluyor: setState bir sonraki render'a kadar işlemiyor,
   // onEndReached ise o arada defalarca tetiklenebiliyor.
@@ -525,13 +521,11 @@ export default function HomeScreenV2({ navigation }) {
 
   useEffect(() => {
     setActiveHeroIndex(0);
-    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
   }, [typeFilter, genreFilter, shortOnly, platformFilters, yearFilters, describeResults, aiResultsLabel]);
 
   useEffect(() => {
     if (activeHeroIndex < heroSelections.length) return;
     setActiveHeroIndex(0);
-    heroListRef.current?.scrollToOffset?.({ offset: 0, animated: false });
   }, [activeHeroIndex, heroSelections.length]);
 
   const availablePlatformObjs = useMemo(() => {
@@ -844,21 +838,14 @@ export default function HomeScreenV2({ navigation }) {
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("TonightPlanner")}
-          accessibilityRole="button"
+        <TicketCard
+          style={{ marginTop: 14 }}
+          eyebrow="PREMIUM"
+          title="Bu Akşamı Planla"
+          subtitle="Senin platformların, ortak beğenileriniz, tek bir seçim."
           accessibilityLabel="Bu Akşamı Planla, Premium"
-          activeOpacity={0.85}
-          style={{ marginTop: 14, padding: 16, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent, flexDirection: "row", alignItems: "center", gap: 12 }}
-        >
-          <Sparkles size={23} color={c.accent} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: c.accent, fontSize: 9, fontWeight: "800", letterSpacing: 1 }}>PREMIUM</Text>
-            <Text style={{ color: c.text, fontSize: 16, fontWeight: "800", marginTop: 3 }}>Bu Akşamı Planla</Text>
-            <Text style={{ color: c.dim, fontSize: 12, marginTop: 4 }}>Senin platformların, ortak zevkiniz, tek bir seçim.</Text>
-          </View>
-          <ChevronRight size={19} color={c.accent} />
-        </TouchableOpacity>
+          onPress={() => navigation.navigate("TonightPlanner")}
+        />
 
         <AIZone
           navigation={navigation}
@@ -869,8 +856,8 @@ export default function HomeScreenV2({ navigation }) {
 
         {!!describeResults && (
           <View style={styles.aiResultBanner}>
-            <Sparkles size={13} color="#8B5CF6" />
-            <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || "AI önerilerin"}</Text>
+            <Search size={13} color={c.accent} />
+            <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || "Tarif ettiğine göre"}</Text>
             <TouchableOpacity onPress={clearAiResults}><Text style={styles.aiClear}>Temizle</Text></TouchableOpacity>
           </View>
         )}
@@ -878,59 +865,18 @@ export default function HomeScreenV2({ navigation }) {
 
       <View style={styles.heroArea}>
         {heroSelections.length ? (
-          <>
-            <FlatList
-              ref={heroListRef}
-              horizontal
-              data={heroSelections}
-              keyExtractor={(item) => String(item.movie.id)}
-              showsHorizontalScrollIndicator={false}
-              pagingEnabled
-              nestedScrollEnabled
-              decelerationRate="fast"
-              snapToInterval={heroCardWidth}
-              disableIntervalMomentum
-              getItemLayout={(_, index) => ({ length: heroCardWidth, offset: heroCardWidth * index, index })}
-              onMomentumScrollEnd={(event) => {
-                const nextIndex = Math.round(event.nativeEvent.contentOffset.x / heroCardWidth);
-                setActiveHeroIndex(Math.max(0, Math.min(nextIndex, heroSelections.length - 1)));
-              }}
-              renderItem={({ item, index }) => {
-                const movie = item.movie;
-                const reason = item.reasons.find((entry) => entry.personalized)?.short || item.reasons[0]?.short || null;
-                return (
-                  <TonightHero
-                    width={heroCardWidth}
-                    movie={movie}
-                    reason={reason}
-                    liked={liked.has(movie.id)}
-                    onLike={() => like(movie.id)}
-                    onWhy={() => {
-                      setActiveHeroIndex(index);
-                      setShowHeroReasons(true);
-                    }}
-                    onPress={() => navigation.navigate("Detail", { movie })}
-                    c={c}
-                  />
-                );
-              }}
-            />
-            <View style={styles.heroPagerRow}>
-              <Text style={styles.heroPagerCount}>{safeHeroIndex + 1}/{heroSelections.length}</Text>
-              <View style={styles.heroDotsRow}>
-                {heroSelections.map((item, index) => (
-                  <View
-                    key={`hero-dot-${item.movie.id}`}
-                    style={[styles.heroDot, index === safeHeroIndex && styles.heroDotActive]}
-                  />
-                ))}
-              </View>
-              <Text style={styles.heroSwipeHint}>Kaydır</Text>
-            </View>
-          </>
+          <SeansBoard
+            selections={heroSelections}
+            index={safeHeroIndex}
+            onIndexChange={setActiveHeroIndex}
+            isLiked={(id) => liked.has(id)}
+            onLike={(movie) => like(movie.id)}
+            onWhy={() => setShowHeroReasons(true)}
+            onOpen={(movie) => navigation.navigate("Detail", { movie })}
+          />
         ) : (
           <View style={styles.heroEmpty}>
-            <Sparkles size={24} color={c.accent} />
+            <Film size={24} color={c.accent} />
             <Text style={styles.heroEmptyTitle}>Sana uygun yeni seçimler hazırlıyoruz</Text>
             <Text style={styles.heroEmptyText}>Filtreleri temizleyip tekrar deneyebilirsin.</Text>
           </View>
@@ -946,11 +892,10 @@ export default function HomeScreenV2({ navigation }) {
 
         {Number(diaryStats?.tasteCandidatesUnrated || 0) >= 5 && (
           <TouchableOpacity style={styles.ratingNudgeCard} activeOpacity={0.86} onPress={() => navigation.navigate("RateTaste")}>
-            <View style={styles.ratingNudgeIcon}><Star size={17} color="#FFD76A" fill="rgba(255,215,106,0.16)" /></View>
+            <View style={styles.ratingNudgeIcon}><Star size={17} color={c.accent} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.ratingNudgeEyebrow}>ZEVK PROFİLİNİ DERİNLEŞTİR</Text>
               <Text style={styles.ratingNudgeTitle}>İzlediklerini puanlamak ister misin?</Text>
-              <Text style={styles.ratingNudgeText}>{diaryStats.tasteCandidatesUnrated} zevk sinyalinden izlediklerini seç; puan vermek opsiyonel.</Text>
+              <Text style={styles.ratingNudgeText}>{diaryStats.tasteCandidatesUnrated} beğeninden izlediklerini seç; puan vermek isteğe bağlı.</Text>
             </View>
             <ChevronRight size={17} color={c.dim} />
           </TouchableOpacity>
@@ -961,9 +906,9 @@ export default function HomeScreenV2({ navigation }) {
         </View>
 
         <View style={styles.gridSectionHeader}>
-          <View>
-            <Text style={styles.sectionEyebrow}>{describeResults ? "AI SEÇİMLERİN" : "SANA ÖZEL"}</Text>
-            <Text style={styles.gridSectionTitle}>{describeResults ? "İstediğine en yakın sonuçlar" : "Zevkine göre devam et"}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.gridSectionTitle}>{describeResults ? "Tarifine en yakınlar" : "Sana özel"}</Text>
+            <Text style={styles.gridSectionSub}>{describeResults ? "Anlattığına göre sıralandı" : "Beğendiklerine göre"}</Text>
           </View>
           {anyFilterActive && (
             <TouchableOpacity onPress={clearFilters}>
@@ -981,11 +926,9 @@ export default function HomeScreenV2({ navigation }) {
 
       <View style={styles.tabsRow}>
         <TouchableOpacity style={[styles.tabBtn, activeTab === "forYou" && styles.tabBtnActive]} onPress={() => setActiveTab("forYou")}>
-          <Sparkles size={14} color={activeTab === "forYou" ? c.accent : c.dim} />
           <Text style={[styles.tabText, activeTab === "forYou" && styles.tabTextActive]}>Sana Özel</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab === "upcoming" && styles.tabBtnActive]} onPress={() => setActiveTab("upcoming")}>
-          <Clock size={14} color={activeTab === "upcoming" ? c.accent : c.dim} />
           <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>Yakında</Text>
         </TouchableOpacity>
       </View>
@@ -1013,7 +956,7 @@ export default function HomeScreenV2({ navigation }) {
           onRefresh={describeResults ? undefined : handleRefresh}
           ListEmptyComponent={
             <EmptyState
-              icon={Sparkles}
+              icon={Film}
               title="Bu filtrelerle seçim kalmadı"
               text="Filtreleri temizleyip sana özel akışı yeniden açabilirsin."
             />
@@ -1029,7 +972,6 @@ export default function HomeScreenV2({ navigation }) {
           renderItem={renderUpcomingCard}
           ListHeaderComponent={
             <View style={styles.upcomingHeader}>
-              <Text style={styles.sectionEyebrow}>RADARINDA OLSUN</Text>
               <Text style={styles.upcomingTitle}>Yakında gelecekler</Text>
               <Text style={styles.upcomingSub}>İlgini çeken içerikte zili aç; çıktığında Pellix sana haber versin.</Text>
             </View>
@@ -1049,7 +991,7 @@ export default function HomeScreenV2({ navigation }) {
         onClose={() => setShowFilters(false)}
         title="Akışını Daralt"
         icon={Filter}
-        gradientColors={["#7C3AED", "#4F46E5", "#2563EB"]}
+        gradientColors={["#d4a94a", "#a8842f", "#6f5420"]}
         subtitle="Ne izleyeceğini daha hızlı bul"
       >
         <FilterFields
@@ -1093,130 +1035,47 @@ export default function HomeScreenV2({ navigation }) {
   );
 }
 
-function TonightHero({ movie, reason, liked, onLike, onWhy, onPress, width, c }) {
-  const styles = makeStyles(c);
-  const platform = (movie.platforms || [])[0];
-  return (
-    <TouchableOpacity style={[styles.heroCard, width ? { width } : null]} activeOpacity={0.94} onPress={onPress}>
-      {movie.poster ? (
-        <Image source={{ uri: movie.poster }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={10} />
-      ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: c.surface2 }]} />
-      )}
-      <LinearGradient
-        colors={["rgba(8,7,12,0.28)", "rgba(8,7,12,0.72)", "rgba(8,7,12,0.96)"]}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <View style={styles.heroInner}>
-        {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.heroPoster} /> : <View style={[styles.heroPoster, { backgroundColor: c.surface2 }]} />}
-        <View style={styles.heroCopy}>
-          <View style={styles.heroEyebrowRow}>
-            <Sparkles size={11} color="#FFD76A" />
-            <Text style={styles.heroEyebrow}>BU AKŞAM SENİN İÇİN</Text>
-          </View>
-          <Text style={styles.heroTitle} numberOfLines={2}>{movie.title}</Text>
-          <View style={styles.heroMetaRow}>
-            <Star size={11} color="#FFD76A" fill="#FFD76A" />
-            <Text style={styles.heroMeta}>{movie.imdb || "—"}</Text>
-            <Text style={styles.heroMeta}>· {movie.year || ""}</Text>
-            {!!movie.runtime && <Text style={styles.heroMeta}>· {movie.runtime}</Text>}
-          </View>
-          {!!reason && (
-            <View style={styles.reasonPill}>
-              <Text style={styles.reasonPillText} numberOfLines={2}>{reason}</Text>
-            </View>
-          )}
-          {!!platform && (
-            <View style={styles.heroPlatformRow}>
-              {!!platformLogo(platform) && <Image source={{ uri: platformLogo(platform) }} style={styles.heroPlatformLogo} />}
-              <Text style={styles.heroPlatformText}>{platformName(platform)}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.heroActions}>
-        <TouchableOpacity style={styles.heroPrimaryBtn} onPress={(e) => { e.stopPropagation?.(); onWhy?.(); }}>
-          <Text style={styles.heroPrimaryText}>Neden buna bakmalısın?</Text>
-          <ChevronRight size={15} color="#14121a" />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.heroLikeBtn, liked && styles.heroLikeBtnActive]} onPress={(e) => { e.stopPropagation?.(); onLike(); }}>
-          <Heart size={17} color="#fff" fill={liked ? "#fff" : "none"} />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 function QuickChip({ icon: Icon, label, active, onPress, c }) {
   return (
     <TouchableOpacity
       style={[
         quickStyles.chip,
-        { backgroundColor: active ? c.accent : c.surface, borderColor: active ? c.accent : c.border },
+        { backgroundColor: active ? c.accent : "transparent", borderColor: active ? c.accent : c.border },
       ]}
       onPress={onPress}
       activeOpacity={0.82}
     >
-      <Icon size={13} color={active ? c.bg : c.text} />
+      <Icon size={15} color={active ? c.bg : c.text} />
       <Text style={[quickStyles.text, { color: active ? c.bg : c.text }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const quickStyles = StyleSheet.create({
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
-  text: { fontSize: 11.5, fontWeight: "700" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, height: 40 },
+  text: { fontSize: 13, fontWeight: "600" },
 });
 
 function makeStyles(c) {
   return StyleSheet.create({
-    tabsRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, gap: 8, backgroundColor: c.bg },
-    tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 9, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
-    tabBtnActive: { borderColor: c.accent, backgroundColor: c.surface2 },
-    tabText: { color: c.dim, fontSize: 12, fontWeight: "700" },
+    tabsRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 4, gap: 22, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg },
+    tabBtn: { minHeight: 44, justifyContent: "flex-end", paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
+    tabBtnActive: { borderBottomColor: c.accent },
+    tabText: { color: c.dim, fontSize: 21, fontFamily: FONTS.marqueeBold },
     tabTextActive: { color: c.text },
 
     listContent: { paddingHorizontal: 16, paddingBottom: 24 },
     gridRow: { gap: 12 },
-    heroArea: { paddingTop: 10 },
-    heroPagerRow: { minHeight: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingTop: 8 },
-    heroPagerCount: { width: 34, color: c.dim, fontSize: 10, fontWeight: "800" },
-    heroDotsRow: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
-    heroDot: { width: 5, height: 5, borderRadius: 999, backgroundColor: c.border },
-    heroDotActive: { width: 16, backgroundColor: c.accent },
-    heroSwipeHint: { width: 34, color: c.dim, fontSize: 9.5, fontWeight: "700", textAlign: "right" },
-    heroCard: { borderRadius: 24, overflow: "hidden", minHeight: 286, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: c.surface },
-    heroInner: { flexDirection: "row", alignItems: "flex-end", gap: 14, padding: 16, paddingTop: 24, minHeight: 220 },
-    heroPoster: { width: 98, height: 148, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
-    heroCopy: { flex: 1, minWidth: 0 },
-    heroEyebrowRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-    heroEyebrow: { color: "#FFD76A", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.9 },
-    heroTitle: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 27, marginTop: 6 },
-    heroMetaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4, marginTop: 7 },
-    heroMeta: { color: "rgba(255,255,255,0.76)", fontSize: 10.5, fontWeight: "700" },
-    reasonPill: { alignSelf: "flex-start", marginTop: 9, backgroundColor: "rgba(124,58,237,0.24)", borderWidth: 1, borderColor: "rgba(167,139,250,0.28)", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
-    reasonPillText: { color: "#E9DDFF", fontSize: 10.5, lineHeight: 14, fontWeight: "700" },
-    heroPlatformRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 9 },
-    heroPlatformLogo: { width: 17, height: 17, borderRadius: 4, backgroundColor: "#fff" },
-    heroPlatformText: { color: "rgba(255,255,255,0.76)", fontSize: 10.5, fontWeight: "700" },
-    heroActions: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
-    heroPrimaryBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 42, borderRadius: 13, backgroundColor: "#FFD76A" },
-    heroPrimaryText: { color: "#14121a", fontSize: 11.5, fontWeight: "900" },
-    heroLikeBtn: { width: 44, height: 42, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-    heroLikeBtnActive: { backgroundColor: "#5fb3a3", borderColor: "#5fb3a3" },
+    heroArea: { paddingTop: 6 },
     heroEmpty: { borderRadius: 20, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: 24, alignItems: "center" },
     heroEmptyTitle: { color: c.text, fontSize: 15, fontWeight: "800", textAlign: "center", marginTop: 10 },
     heroEmptyText: { color: c.dim, fontSize: 11.5, textAlign: "center", marginTop: 5 },
 
     quickRow: { gap: 8, paddingTop: 12, paddingBottom: 2 },
-    ratingNudgeCard: { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,215,106,0.22)", backgroundColor: "rgba(255,215,106,0.07)", padding: 12 },
-    ratingNudgeIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,215,106,0.10)" },
-    ratingNudgeEyebrow: { color: "#FFD76A", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.65 },
-    ratingNudgeTitle: { color: c.text, fontSize: 12.5, fontWeight: "850", marginTop: 2 },
-    ratingNudgeText: { color: c.dim, fontSize: 10, lineHeight: 14, marginTop: 2 },
+    ratingNudgeCard: { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: 12 },
+    ratingNudgeIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: c.border },
+    ratingNudgeTitle: { color: c.text, fontSize: 14, fontWeight: "700" },
+    ratingNudgeText: { color: c.dim, fontSize: 12, lineHeight: 16, marginTop: 2 },
     sectionEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.9 },
     sectionTitle: { color: c.text, fontSize: 14, fontWeight: "800", marginTop: 3 },
     popularNowSection: { marginTop: 22 },
@@ -1238,17 +1097,18 @@ function makeStyles(c) {
     searchRating: { flexDirection: "row", alignItems: "center", gap: 3 },
     searchRatingText: { color: c.text, fontSize: 10.5, fontWeight: "800" },
     searchEmpty: { color: c.dim, fontSize: 11.5, textAlign: "center", padding: 18 },
-    aiResultBanner: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(124,58,237,0.10)", borderWidth: 1, borderColor: "rgba(124,58,237,0.22)", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },
+    aiResultBanner: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },
     aiResultText: { flex: 1, color: c.text, fontSize: 11.5, fontWeight: "700" },
     aiClear: { color: c.dim, fontSize: 10.5, fontWeight: "700" },
 
-    gridSectionHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10, marginTop: 22, marginBottom: 12 },
-    gridSectionTitle: { color: c.text, fontSize: 17, fontWeight: "900", marginTop: 2 },
+    gridSectionHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10, marginTop: 26, marginBottom: 12 },
+    gridSectionTitle: { color: c.text, fontSize: 26, fontFamily: FONTS.marquee },
+    gridSectionSub: { color: c.dim, fontSize: 12.5, marginTop: 1 },
     clearFiltersText: { color: c.dim, fontSize: 10.5, fontWeight: "700" },
 
     upcomingContent: { paddingHorizontal: 16, paddingBottom: 24 },
     upcomingHeader: { paddingTop: 14, paddingBottom: 14 },
-    upcomingTitle: { color: c.text, fontSize: 22, fontWeight: "900", marginTop: 3 },
+    upcomingTitle: { color: c.text, fontSize: 30, fontFamily: FONTS.marquee },
     upcomingSub: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
 
     shortFilterRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2, padding: 12 },
