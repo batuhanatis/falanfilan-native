@@ -764,7 +764,7 @@ export default function HomeScreenV2({ navigation }) {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <TopBar centerLabel="Ana Sayfa" />
+        <TopBar />
         <HomeSkeleton />
       </View>
     );
@@ -922,7 +922,7 @@ export default function HomeScreenV2({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <TopBar centerLabel="Ana Sayfa" />
+      <TopBar />
 
       <View style={styles.tabsRow}>
         <TouchableOpacity style={[styles.tabBtn, activeTab === "forYou" && styles.tabBtnActive]} onPress={() => setActiveTab("forYou")}>
