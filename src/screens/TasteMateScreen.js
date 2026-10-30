@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Heart, X, Users, PartyPopper } from "lucide-react-native";
+import { ChevronLeft, Heart, X, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
@@ -11,7 +11,8 @@ import { emitLocalEvent } from "../utils/localEvents";
 import { hapticSuccess } from "../utils/haptics";
 import SwipeableCard from "../components/SwipeableCard";
 import RetryImage from "../components/RetryImage";
-import Confetti from "../components/Confetti";
+import KnotHeart from "../components/salon/KnotHeart";
+import { FONTS } from "../theme/fonts";
 
 function matchRingColor(pct, c) {
   if (pct >= 85) return "#FFD700";
@@ -39,6 +40,10 @@ export default function TasteMateScreen({ navigation }) {
   const [index, setIndex] = useState(0);
   const cardRef = useRef(null);
   const [mutualMatch, setMutualMatch] = useState(null);
+  const [myAvatarUrl, setMyAvatarUrl] = useState(null);
+  useEffect(() => {
+    api.me(auth.token).then((me) => setMyAvatarUrl(me.avatarUrl || null)).catch(() => {});
+  }, [auth.token]);
   const prefetched = useRef(usePrefetch().tasteMates).current;
 
   useEffect(() => {
@@ -196,12 +201,12 @@ export default function TasteMateScreen({ navigation }) {
 
       {mutualMatch && (
         <View style={styles.mutualOverlay}>
-          <Confetti />
-          <RetryImage source={{ uri: avatarOr(mutualMatch.with?.avatarUrl, mutualMatch.with?.id) }} style={styles.mutualAvatar} />
-          <View style={styles.mutualBadge}>
-            <PartyPopper size={16} color="#fff" />
-          </View>
-          <Text style={styles.mutualTitle}>Karşılıklı Eşleştiniz! 🎉</Text>
+          {/* Düğüm: iki avatardan çıkan noktalar kalp örüyor. Kişi eşleşmesi, ortada afiş yok. */}
+          <KnotHeart
+            leftAvatar={{ uri: avatarOr(myAvatarUrl, auth.id) }}
+            rightAvatar={{ uri: avatarOr(mutualMatch.with?.avatarUrl, mutualMatch.with?.id) }}
+          />
+          <Text style={styles.mutualTitle}>Karşılıklı eşleştiniz</Text>
           <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name} de seni beğenmiş — artık arkadaşsınız.</Text>
           <Text style={styles.mutualNextHint}>İlk ortak kararınızı hemen verin: birlikte ne izleyeceksiniz?</Text>
           <View style={styles.mutualBtnRow}>
@@ -221,7 +226,6 @@ export default function TasteMateScreen({ navigation }) {
                 });
               }}
             >
-              <PartyPopper size={15} color={c.bg} />
               <Text style={styles.mutualPrimaryBtnText}>Birlikte Seç</Text>
             </TouchableOpacity>
           </View>
@@ -327,14 +331,9 @@ function makeStyles(c) {
     resetLabel: { fontSize: 11, color: c.dim, marginTop: 8, fontWeight: "600" },
     mutualOverlay: {
       ...StyleSheet.absoluteFillObject, zIndex: 50, backgroundColor: "rgba(10,9,14,0.94)",
-      alignItems: "center", justifyContent: "center", padding: 28,
+      alignItems: "center", justifyContent: "center", paddingVertical: 28,
     },
-    mutualAvatar: { width: 88, height: 88, borderRadius: 999, borderWidth: 3, borderColor: c.accent },
-    mutualBadge: {
-      width: 32, height: 32, borderRadius: 999, backgroundColor: c.accent2, alignItems: "center", justifyContent: "center",
-      marginTop: -16, borderWidth: 3, borderColor: "#0a090e",
-    },
-    mutualTitle: { fontSize: 22, fontWeight: "900", color: "#fff", marginTop: 16 },
+    mutualTitle: { fontFamily: FONTS.marquee, fontSize: 36, lineHeight: 38, color: "#f2ede2", marginTop: 4, textAlign: "center" },
     mutualSubtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.75)", marginTop: 8, textAlign: "center", maxWidth: 280 },
     mutualNextHint: { fontSize: 11.5, color: "rgba(255,255,255,0.56)", marginTop: 10, textAlign: "center", maxWidth: 280, lineHeight: 17 },
     mutualBtnRow: { flexDirection: "row", gap: 10, marginTop: 22, width: "100%", maxWidth: 320 },
