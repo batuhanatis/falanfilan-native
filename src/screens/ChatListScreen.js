@@ -22,6 +22,8 @@ import TopBar from "../components/TopBar";
 import ChatListSkeleton from "../components/skeletons/ChatListSkeleton";
 import { timeLabel } from "../utils/chatTimeLabels";
 import { FONTS } from "../theme/fonts";
+import LiveRoomsList from "../components/LiveRoomsList";
+import LiveDot from "../components/salon/LiveDot";
 
 // Aynı arkadaş art arda birden fazla şeyi beğenirse (ör. bir "beğeni oturumu") bunları tek tek
 // göstermek yerine "X'in Y film beğendi" diye TEK bir satırda topluyoruz. Sadece BİRBİRİNE
@@ -121,7 +123,12 @@ export default function ChatListScreen({ navigation }) {
   const { chats, refresh: refreshUnread } = useUnread();
   const styles = makeStyles(c);
 
-  const [sub, setSub] = useState("chats"); // "chats" | "activity"
+  const [sub, setSub] = useState("chats"); // "chats" | "live" | "activity"
+  // "Canlı" sekmesi: açık canlı sohbet odaları. Sekme başlığındaki sayı için ekran her
+  // odaklandığında, sekme açıkken de 15 saniyede bir tazeleniyor.
+  const [liveData, setLiveData] = useState(null);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveRefreshing, setLiveRefreshing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [friends, setFriends] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -217,6 +224,26 @@ export default function ChatListScreen({ navigation }) {
   const tearRotate = tear.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "26deg"] });
   const tearOpacity = tear.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 1, 0] });
 
+  const loadLive = useCallback(() => (
+    api.liveRooms(auth.token).then(setLiveData).catch(() => {}).finally(() => setLiveLoading(false))
+  ), [auth.token]);
+  const refreshLive = useCallback(async () => {
+    setLiveRefreshing(true);
+    await loadLive();
+    setLiveRefreshing(false);
+  }, [loadLive]);
+  useEffect(() => {
+    loadLive();
+    const unsub = navigation.addListener("focus", loadLive);
+    return unsub;
+  }, [navigation, loadLive]);
+  useEffect(() => {
+    if (sub !== "live") return undefined;
+    const id = setInterval(() => { if (navigation.isFocused()) loadLive(); }, 15000);
+    return () => clearInterval(id);
+  }, [sub, navigation, loadLive]);
+  const liveCount = liveData?.live?.length || 0;
+
   useEffect(() => { loadFriends(); }, [loadFriends]);
   useEffect(() => {
     const unsubFocus = navigation.addListener("focus", () => { loadFriends(); refreshUnread(); });
@@ -288,14 +315,54 @@ export default function ChatListScreen({ navigation }) {
       <TopBar />
       <View style={styles.titleRow}>
         <Text style={styles.screenTitle}>Sohbetler</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={onPullRefresh} accessibilityRole="button" accessibilityLabel="Yenile">
+        <TouchableOpacity
+          style={styles.refreshBtn}
+          onPress={sub === "live" ? refreshLive : onPullRefresh}
+          accessibilityRole="button"
+          accessibilityLabel="Yenile"
+        >
           <RefreshCw size={17} color={c.text} />
         </TouchableOpacity>
       </View>
-      <View style={styles.slot}><View style={styles.slotLip} /></View>
+      <View style={styles.tabsRow} accessibilityRole="tablist">
+        <TouchableOpacity
+          style={[styles.tabBtn, sub === "chats" && styles.tabBtnActive]}
+          onPress={() => setSub("chats")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: sub === "chats" }}
+        >
+          <Text style={[styles.tabLabel, sub === "chats" && styles.tabLabelActive]}>Sohbetler</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, sub === "live" && styles.tabBtnActive]}
+          onPress={() => { setSub("live"); loadLive(); }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: sub === "live" }}
+          accessibilityLabel={liveCount ? `Canlı, ${liveCount} açık oda` : "Canlı"}
+        >
+          <View style={styles.tabInner}>
+            <Text style={[styles.tabLabel, sub === "live" && styles.tabLabelActive]}>Canlı</Text>
+            {liveCount > 0 && (
+              <View style={styles.liveCount}>
+                <LiveDot color={c.danger} size={6} />
+                <Text style={styles.liveCountText}>{liveCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+      {sub === "chats" && <View style={styles.slot}><View style={styles.slotLip} /></View>}
       <View style={{ flex: 1 }}>
 
-      {sub === "chats" ? (
+      {sub === "live" ? (
+        <LiveRoomsList
+          data={liveData}
+          loading={liveLoading}
+          refreshing={liveRefreshing}
+          onRefresh={refreshLive}
+          onOpen={(room) => navigation.navigate("LiveRoom", { code: room.code })}
+        />
+      ) : sub === "chats" ? (
         // ÖNEMLİ: Burada "loading" state'i KULLANMIYORUZ — o, ilgisiz bir veri olan arkadaş
         // listesinin (/api/friends) çekimine bağlıydı, sohbetler sekmesinin kendi verisiyle
         // (chats) hiç alakası yoktu. "chats", UnreadContext üzerinden zaten SQLite'tan anında
@@ -461,8 +528,14 @@ export default function ChatListScreen({ navigation }) {
 function makeStyles(c) {
   return StyleSheet.create({
     tabRow: { flexDirection: "row", gap: 6, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
-    tabBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.border },
-    tabText: { fontSize: 12, fontWeight: "700", color: c.text },
+    tabsRow: { flexDirection: "row", marginHorizontal: 16, gap: 22, borderBottomWidth: 1, borderBottomColor: c.border, marginBottom: 8 },
+    tabBtn: { minHeight: 40, justifyContent: "flex-end", paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
+    tabBtnActive: { borderBottomColor: c.accent },
+    tabInner: { flexDirection: "row", alignItems: "center", gap: 7 },
+    tabLabel: { color: c.dim, fontSize: 20, fontFamily: FONTS.marqueeBold },
+    tabLabelActive: { color: c.text },
+    liveCount: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 1 },
+    liveCountText: { color: c.danger, fontSize: 11, fontFamily: FONTS.monoMedium },
     card: {
       flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginTop: 8,
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,

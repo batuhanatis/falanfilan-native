@@ -39,6 +39,7 @@ async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_
     if (data.limitReached) err.limitReached = true;
     err.status = res.status;
     err.code = data.code;
+    err.data = data;
     throw err;
   }
   return data;
@@ -49,7 +50,7 @@ async function request(path, { method = "GET", token, body, timeoutMs = REQUEST_
 // tek-atımlık akışlar api.sendMessage'i clientId vermeden çağırabiliyor. Bu fallback sayesinde
 // backend'in mevcut UNIQUE(client_id) idempotency koruması bu mesaj türlerinde de otomatik
 // devreye girer. Çağıran bir clientId verdiyse ASLA değiştirmiyoruz.
-function generateMessageClientId() {
+export function generateMessageClientId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
@@ -209,6 +210,14 @@ export const api = {
     request(`/api/live-rooms/${encodeURIComponent(code)}/messages/${messageId}`, { method: "DELETE", token }),
   banFromLiveRoom: (token, code, userId) =>
     request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId } }),
+  liveRooms: (token) => request("/api/live-rooms", { token }),
+  // kind: "mute" (minutes boşsa oda boyunca) | "kick" (odadan at).
+  restrictInLiveRoom: (token, code, userId, { kind, minutes } = {}) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId, kind, minutes } }),
+  liftLiveRoomRestriction: (token, code, userId) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/bans/${userId}`, { method: "DELETE", token }),
+  reactToLiveRoomMessage: (token, code, messageId, emoji) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/messages/${messageId}/reactions`, { method: "POST", token, body: { emoji } }),
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),
   markChatRead: (token, chatId) => request(`/api/chats/${chatId}/read`, { method: "POST", token }),
   consumePhoto: (token, messageId) => request(`/api/messages/${messageId}/consume-photo`, { method: "POST", token }),
