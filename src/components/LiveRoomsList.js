@@ -1,8 +1,11 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator } from "react-native";
-import { Radio } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator, Alert, Linking } from "react-native";
+import { Radio, Bell, BellRing } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { FONTS, upperTR } from "../theme/fonts";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api/client";
+import { registerForPushNotifications, getPushPermissionStatus } from "../utils/pushNotifications";
 import LiveDot from "./salon/LiveDot";
 
 // Sohbetler ekranındaki "Canlı" sekmesi: şu an açık canlı sohbet odaları (içerideki kişi
@@ -74,6 +77,7 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
                   {item.live ? "CANLI" : startLabel(room.startsAt)}
                 </Text>
               </View>
+              {!item.live && <RoomReminder key={room.code} code={room.code} refreshKey={data} />}
             </View>
             {item.live && (
               <View style={styles.countBox}>
@@ -104,4 +108,66 @@ function makeStyles(c) {
     emptyTitle: { color: c.text, fontSize: 24, fontFamily: FONTS.marquee, marginTop: 4 },
     emptyText: { color: c.dim, fontSize: 13, lineHeight: 19, textAlign: "center" },
   });
+}
+
+function RoomReminder({ code, refreshKey }) {
+  const { auth } = useAuth();
+  const { c } = useAppTheme();
+  const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.liveRoomReminder(auth.token, code).then(result => {
+      if (active) { setSubscribed(result.subscribed); setFailed(false); }
+    }).catch(() => { if (active) setFailed(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [auth.token, code, refreshKey]);
+
+  async function toggle() {
+    if (busy.current || loading) return;
+    busy.current = true;
+    setLoading(true);
+    try {
+      if (failed) {
+        const result = await api.liveRoomReminder(auth.token, code);
+        setSubscribed(result.subscribed);
+        setFailed(false);
+        return;
+      }
+      if (!subscribed) {
+        await registerForPushNotifications(auth.token);
+        if (await getPushPermissionStatus() !== "granted") {
+          Alert.alert("Bildirim izni gerekli", "Oda açıldığında haber verebilmemiz için bildirimleri aç.", [
+            { text: "Vazgeç", style: "cancel" },
+            { text: "Ayarları aç", onPress: () => Linking.openSettings() },
+          ]);
+          return;
+        }
+      }
+      const result = await api.setLiveRoomReminder(auth.token, code, !subscribed);
+      setSubscribed(result.subscribed);
+    } catch (e) {
+      Alert.alert("Tercih kaydedilemedi", e.message || "Lütfen tekrar dene.");
+    } finally { busy.current = false; setLoading(false); }
+  }
+  const Icon = subscribed ? BellRing : Bell;
+  return (
+    <TouchableOpacity
+      onPress={e => { e.stopPropagation(); toggle(); }}
+      disabled={loading}
+      accessibilityRole="button"
+      accessibilityState={{ selected: subscribed, disabled: loading }}
+      accessibilityLabel={subscribed ? "Oda açılma bildirimini iptal et" : "Oda açılınca haber ver"}
+      style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, marginTop: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: subscribed ? c.accent : c.border, backgroundColor: c.surface2 }}
+    >
+      {loading ? <ActivityIndicator size="small" color={c.accent} /> : <Icon size={15} color={c.accent} />}
+      <Text style={{ color: c.accent, fontSize: 12, fontWeight: "600", flexShrink: 1 }}>
+        {failed ? "Tekrar dene" : subscribed ? "Bildirim açık · İptal et" : "Açılınca haber ver"}
+      </Text>
+    </TouchableOpacity>
+  );
 }
