@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { diaryApi } from "../api/diary";
 import DetailScreen from "./DetailScreen";
 import DiaryEntryModal from "../components/DiaryEntryModal";
+import LiveRoomBanner from "../components/LiveRoomBanner";
 
 // Mevcut DetailScreen'in gesture/poster-panel davranışına dokunmadan Diary aksiyonunu üst katman
 // olarak ekliyoruz. Backend henüz deploy edilmemişse /api/diary çağrısı başarısız olur ve buton
@@ -69,6 +70,9 @@ export default function DetailScreenV2(props) {
           <Text style={styles.diaryPillText}>{entry ? "İzlendi" : "İzledim"}</Text>
         </TouchableOpacity>
       )}
+
+      {/* Bölüm yayınındaki canlı sohbet odasına giriş (admin panelinden açılan odalar). */}
+      {!!movie?.id && <LiveRoomBanner movieId={movie.id} navigation={navigation} />}
 
       <DiaryEntryModal
         visible={modalOpen}

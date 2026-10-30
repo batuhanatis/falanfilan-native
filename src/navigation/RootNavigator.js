@@ -32,6 +32,7 @@ import FriendsListScreen from "../screens/FriendsListScreen";
 import MyWatchlistsScreen from "../screens/MyWatchlistsScreen";
 import ChatConversationScreen from "../screens/ChatConversationScreen";
 import SharedItemScreen from "../screens/SharedItemScreen";
+import LiveRoomScreen from "../screens/LiveRoomScreen";
 import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
@@ -46,7 +47,7 @@ export default function RootNavigator() {
 
   const linking = {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
-    config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token" } },
+    config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token", LiveRoom: "oda/:code" } },
     getStateFromPath: (path, options) => {
       // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
       // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
@@ -58,6 +59,9 @@ export default function RootNavigator() {
       if (blendMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }] };
       const battleMatch = path.match(/^\/?battle\/([^/?]+)/);
       if (battleMatch) return { routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }] };
+      // Canlı sohbet odası linki: open.pellix.app/oda/<kod> ya da pellix://oda/<kod>.
+      const roomMatch = path.match(/^\/?oda\/([^/?]+)/);
+      if (roomMatch) return { routes: [{ name: "MainTabs" }, { name: "LiveRoom", params: { code: decodeURIComponent(roomMatch[1]) } }] };
       const partyMatch = path.match(/^\/?party\/([^/?]+)/);
       if (partyMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyMatch[1]) } }] };
       return defaultGetStateFromPath(path, options);
@@ -72,6 +76,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Detail" component={DetailScreenV2} options={{ presentation: "card" }} />
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="SharedItem" component={SharedItemScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="LiveRoom" component={LiveRoomScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="ProfileChat" component={ChatConversationScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ presentation: "card" }} />

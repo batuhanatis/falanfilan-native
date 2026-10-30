@@ -196,6 +196,19 @@ export const api = {
   storyViewers: (token, storyId) => request(`/api/social/stories/${storyId}/viewers`, { token }),
 
   chats: (token) => request("/api/chats", { token }),
+  // Canlı sohbet odaları (bölüm yayınında açılan geçici odalar; bkz. LiveRoomScreen).
+  liveRoomByMovie: (token, movieId) => request(`/api/live-rooms/by-movie/${movieId}`, { token }),
+  liveRoom: (token, code) => request(`/api/live-rooms/${encodeURIComponent(code)}`, { token }),
+  liveRoomMessages: (token, code, { after, before } = {}) => {
+    const query = after ? `?after=${after}` : before ? `?before=${before}` : "";
+    return request(`/api/live-rooms/${encodeURIComponent(code)}/messages${query}`, { token });
+  },
+  sendLiveRoomMessage: (token, code, body, clientId = generateMessageClientId()) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/messages`, { method: "POST", token, body: { body, clientId } }),
+  deleteLiveRoomMessage: (token, code, messageId) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/messages/${messageId}`, { method: "DELETE", token }),
+  banFromLiveRoom: (token, code, userId) =>
+    request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId } }),
   chatWith: (token, friendId) => request(`/api/chats/with/${friendId}`, { method: "POST", token }),
   markChatRead: (token, chatId) => request(`/api/chats/${chatId}/read`, { method: "POST", token }),
   consumePhoto: (token, messageId) => request(`/api/messages/${messageId}/consume-photo`, { method: "POST", token }),

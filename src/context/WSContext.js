@@ -76,6 +76,9 @@ export function WSProvider({ children }) {
         // kapatıp yeniden denemeyi durduruyoruz ve kullanıcıyı gerçek bir logout ile bilgilendiriyoruz.
         if (msg.type === "auth_ok") {
           reconnectAttempts = 0; // gerçekten başarılı bir oturum — kademeli gecikmeyi sıfırla
+          // Her (yeniden) bağlantıda dinleyicilere haber ver: canlı sohbet odası gibi, sunucu
+          // tarafında soket başına tutulan bir aboneliği olan ekranlar kendini yeniden kaydetsin.
+          listenersRef.current.forEach((fn) => fn({ type: "ws_ready" }));
           return;
         }
         if (msg.type === "auth_error") {
