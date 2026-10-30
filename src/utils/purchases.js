@@ -1,13 +1,17 @@
 import Purchases from "react-native-purchases";
 import { Platform } from "react-native";
 
-// ÖNEMLİ: Şu an sadece iOS (App Store) anahtarımız var — Android/Play Store tarafını
-// kurduğumuzda buraya EXPO_PUBLIC_REVENUECAT_ANDROID_KEY eklenecek. iOS DIŞINDA bir platformda
-// hiç yapılandırma yapmadan devam ediyoruz (çökmesin diye) — o platformda satın alma ekranı
-// "şu an kullanılamıyor" gösterecek.
+// ÖNEMLİ: Android anahtarı eas.json'daki build profillerinin "env" alanında duruyor — ama
+// "eas update" (OTA) build profilinin env'ini OKUMUYOR, sadece --environment ile EAS'taki
+// ortam değişkenlerini alıyor. Android anahtarı orada olmadığı için her OTA paketinde
+// undefined kalıyor, RevenueCat hiç yapılandırılmıyor ve Android'de Premium ekranı
+// "Şu an kullanılamıyor" gösteriyordu. RevenueCat'in "goog_" SDK anahtarı uygulamaya gömülmek
+// için tasarlanmış herkese açık bir anahtar (gizli değil, zaten eas.json'da da açık), bu yüzden
+// env gelmezse buradaki değere düşüyoruz. Anahtar olmayan bir platformda yine yapılandırma
+// yapmadan devam ediyoruz (çökmesin diye) — orada satın alma ekranı "şu an kullanılamıyor" gösterir.
 const REVENUECAT_API_KEYS = {
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
-  android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
+  android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || "goog_onoNWVFZmxVZzlZSlBBWatYEfXn",
 };
 
 let configured = false;

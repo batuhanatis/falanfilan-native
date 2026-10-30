@@ -20,6 +20,14 @@ function matchRingColor(pct, c) {
   return c.border;
 }
 
+function matchSummary(pct) {
+  if (pct >= 90) return "Neredeyse aynı zevk";
+  if (pct >= 80) return "Çok güçlü zevk uyumu";
+  if (pct >= 65) return "Güçlü zevk uyumu";
+  if (pct >= 50) return "Ortak noktanız bol";
+  return "Keşfedilecek ortaklıklar var";
+}
+
 export default function TasteMateScreen({ navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -75,8 +83,6 @@ export default function TasteMateScreen({ navigation }) {
     const swiped = mates[index];
     if (!swiped) return;
 
-    // Günlük hak düşümü + sağa kaydırmada arkadaşlık state'i artık backend'de TEK transaction.
-    // Böylece "hak düştü ama istek gönderilemedi" veya tam tersi yarım durum oluşmuyor.
     try {
       const data = await api.tastemateSwipeV2(auth.token, swiped.id, direction);
       if (direction === "right") {
@@ -93,7 +99,6 @@ export default function TasteMateScreen({ navigation }) {
         setLimitReached(true);
         return;
       }
-      // İşlem transaction olduğu için hata halinde kartı ilerletmiyoruz; kullanıcı tekrar deneyebilir.
       emitLocalEvent({
         type: "toast",
         title: "İşlem tamamlanamadı",
@@ -166,7 +171,7 @@ export default function TasteMateScreen({ navigation }) {
                 <>
                   <MateCardContent mate={current} c={c} styles={styles} navigation={navigation} interactive />
                   <Animated.View style={[styles.stampLike, { opacity: pan.x.interpolate({ inputRange: [20, 110], outputRange: [0, 1], extrapolate: "clamp" }) }]}>
-                    <Text style={styles.stampLikeText}>EKLE</Text>
+                    <Text style={styles.stampLikeText}>TANIŞ</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stampSkip, { opacity: pan.x.interpolate({ inputRange: [-110, -20], outputRange: [1, 0], extrapolate: "clamp" }) }]}>
                     <Text style={styles.stampSkipText}>GEÇ</Text>
@@ -198,6 +203,7 @@ export default function TasteMateScreen({ navigation }) {
           </View>
           <Text style={styles.mutualTitle}>Karşılıklı Eşleştiniz! 🎉</Text>
           <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name} de seni beğenmiş — artık arkadaşsınız.</Text>
+          <Text style={styles.mutualNextHint}>İlk ortak kararınızı hemen verin: birlikte ne izleyeceksiniz?</Text>
           <View style={styles.mutualBtnRow}>
             <TouchableOpacity
               style={styles.mutualSecondaryBtn}
@@ -205,10 +211,23 @@ export default function TasteMateScreen({ navigation }) {
             >
               <Text style={styles.mutualSecondaryBtnText}>Profiline Git</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.mutualPrimaryBtn} onPress={() => setMutualMatch(null)}>
-              <Text style={styles.mutualPrimaryBtnText}>Devam Et</Text>
+            <TouchableOpacity
+              style={styles.mutualPrimaryBtn}
+              onPress={() => {
+                const m = mutualMatch;
+                setMutualMatch(null);
+                navigation.navigate("MatchParty", {
+                  friend: { id: m.with?.id, name: m.with?.name, avatarUrl: m.with?.avatarUrl },
+                });
+              }}
+            >
+              <PartyPopper size={15} color={c.bg} />
+              <Text style={styles.mutualPrimaryBtnText}>Birlikte Seç</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity style={styles.mutualContinueBtn} onPress={() => setMutualMatch(null)}>
+            <Text style={styles.mutualContinueText}>Şimdilik devam et</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -266,6 +285,7 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
         <TouchableOpacity disabled={!interactive} onPress={() => navigation.navigate("OtherProfile", { userId: mate.id })}>
           <Text style={styles.mateName}>{mate.name}</Text>
           {!!mate.username && <Text style={styles.mateUsername}>@{mate.username}</Text>}
+          <Text style={styles.mateInsight}>{matchSummary(mate.matchPercent)}</Text>
         </TouchableOpacity>
         <View style={styles.bottomRow}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -281,8 +301,11 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
               </>
             )}
           </View>
-          <View style={[styles.matchRing, { borderColor: matchRingColor(mate.matchPercent, c) }]}>
-            <Text style={styles.matchRingText}>%{mate.matchPercent}</Text>
+          <View style={styles.matchBlock}>
+            <View style={[styles.matchRing, { borderColor: matchRingColor(mate.matchPercent, c) }]}>
+              <Text style={styles.matchRingText}>%{mate.matchPercent}</Text>
+            </View>
+            <Text style={styles.matchCaption}>uyum</Text>
           </View>
         </View>
       </View>
@@ -313,11 +336,14 @@ function makeStyles(c) {
     },
     mutualTitle: { fontSize: 22, fontWeight: "900", color: "#fff", marginTop: 16 },
     mutualSubtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.75)", marginTop: 8, textAlign: "center", maxWidth: 280 },
-    mutualBtnRow: { flexDirection: "row", gap: 10, marginTop: 26, width: "100%", maxWidth: 320 },
+    mutualNextHint: { fontSize: 11.5, color: "rgba(255,255,255,0.56)", marginTop: 10, textAlign: "center", maxWidth: 280, lineHeight: 17 },
+    mutualBtnRow: { flexDirection: "row", gap: 10, marginTop: 22, width: "100%", maxWidth: 320 },
     mutualSecondaryBtn: { flex: 1, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", borderRadius: 14, paddingVertical: 13, alignItems: "center" },
     mutualSecondaryBtnText: { color: "rgba(255,255,255,0.85)", fontWeight: "700", fontSize: 13 },
-    mutualPrimaryBtn: { flex: 1.2, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13, alignItems: "center" },
+    mutualPrimaryBtn: { flex: 1.2, flexDirection: "row", gap: 6, justifyContent: "center", backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13, alignItems: "center" },
     mutualPrimaryBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    mutualContinueBtn: { paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 },
+    mutualContinueText: { color: "rgba(255,255,255,0.52)", fontSize: 11.5, fontWeight: "700" },
     stage: { flex: 1, paddingHorizontal: 16 },
     card: {
       position: "absolute", top: 0, bottom: 0, left: 16, right: 16,
@@ -325,11 +351,13 @@ function makeStyles(c) {
     },
     cardBehind: { transform: [{ scale: 0.96 }] },
     photoArea: { height: "72%", position: "relative", backgroundColor: c.surface2 },
+    matchBlock: { alignItems: "center", flexShrink: 0 },
     matchRing: {
-      width: 40, height: 40, borderRadius: 999, flexShrink: 0,
+      width: 44, height: 44, borderRadius: 999,
       backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", borderWidth: 2,
     },
-    matchRingText: { color: c.text, fontSize: 10, fontWeight: "800" },
+    matchRingText: { color: c.text, fontSize: 10.5, fontWeight: "900" },
+    matchCaption: { fontSize: 8.5, color: c.dim, fontWeight: "700", marginTop: 2 },
     stampLike: { position: "absolute", top: 20, left: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, transform: [{ rotate: "-12deg" }] },
     stampLikeText: { color: "#fff", fontWeight: "800", fontSize: 16 },
     stampSkip: { position: "absolute", top: 20, right: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, transform: [{ rotate: "12deg" }] },
@@ -337,6 +365,7 @@ function makeStyles(c) {
     infoArea: { flex: 1, padding: 14, justifyContent: "center" },
     mateName: { fontSize: 16, fontWeight: "700", color: c.text },
     mateUsername: { fontSize: 11, color: c.dim, marginTop: 1 },
+    mateInsight: { fontSize: 10.5, color: c.accent, fontWeight: "800", marginTop: 4 },
     bottomRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 },
     commonLabel: { fontSize: 9, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 6 },
     commonPoster: { width: 34, height: 48, borderRadius: 7 },

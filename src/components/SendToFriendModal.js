@@ -88,10 +88,10 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
   // web sayfası olmadığı, gizlilik ayarına bağlı olduğu için) sadece uygulama içi paylaşım var.
   async function handleExternalShare() {
     const movieLink = `https://www.pellix.app/film/${movie.id}`;
-    const storeLink = getStoreLink();
+    const storeLink = getStoreLink("send_to_friend");
     const downloadLine = storeLink
-      ? `Sen de pellix'i indir (${storeLink}), kayıt olurken "${auth.username}" davet kodunu kullan.`
-      : `Sen de pellix'i indir, kayıt olurken "${auth.username}" davet kodunu kullan.`;
+      ? `Sen de Pellix'i indir (${storeLink}), kayıt olurken "${auth.username}" davet kodunu yaz, 7 gün Premium hediye 🎁`
+      : `Sen de Pellix'i indir, kayıt olurken "${auth.username}" davet kodunu yaz, 7 gün Premium hediye 🎁`;
     const message = `${auth.name} pellix'te "${movie.title}"yi önerdi 🎬\n\n${downloadLine}`;
     try {
       await Share.share({ message, url: movieLink });

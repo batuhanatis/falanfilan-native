@@ -71,7 +71,7 @@ export default function CompleteProfileModal({ ticket, email, suggestedName, com
             <User size={15} color={c.dim} />
             <TextInput
               style={styles.input}
-              placeholder="Davet kodu (opsiyonel)"
+              placeholder="Davet kodu (varsa 7 gün Premium hediye)"
               placeholderTextColor={c.dim}
               value={referredByUsername}
               autoCapitalize="none"

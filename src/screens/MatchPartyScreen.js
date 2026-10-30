@@ -85,6 +85,7 @@ export default function MatchPartyScreen({ route, navigation }) {
   const [minImdb, setMinImdb] = useState(6.5);
   const [yearLabels, setYearLabels] = useState(new Set());
   const [platformPrefs, setPlatformPrefs] = useState(new Set());
+  const [originPref, setOriginPref] = useState(null);   // null | "yerli" | "yabanci"
 
   const [queue, setQueue] = useState([]);
   const [cursor, setCursor] = useState(0);
@@ -212,7 +213,7 @@ export default function MatchPartyScreen({ route, navigation }) {
       const years = YEAR_OPTIONS.filter(([label]) => yearLabels.has(label)).map(([, key]) => key);
       const data = await api.createParty(auth.token, {
         to_user_ids: [friend.id],
-        filters: { type: typePref, genre: genrePref || "Hepsi", minImdb, years, platforms: [...platformPrefs] },
+        filters: { type: typePref, genre: genrePref || "Hepsi", minImdb, years, platforms: [...platformPrefs], origin: originPref },
       });
       setSessionId(data.id);
       setStage("waiting");
@@ -303,6 +304,8 @@ export default function MatchPartyScreen({ route, navigation }) {
             onGenreChange={setGenrePref}
             yearSet={yearLabels}
             onToggleYear={toggleYear}
+            originValue={originPref}
+            onOriginChange={setOriginPref}
             platformSet={platformPrefs}
             onTogglePlatform={togglePlatform}
             platforms={commonPlatforms}

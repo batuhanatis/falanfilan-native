@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2 } from "lucide-react-native";
+import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
@@ -9,6 +10,13 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
 import PlayResultShareCard from "../components/PlayResultShareCard";
+
+// DailyPosterPuzzleScreen'deki sonuç anahtarıyla AYNI — bugünün bulmacası çözüldü mü?
+function todaysPuzzleResultKey() {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `pellix_daily_poster_result_v2_${date}`;
+}
 
 const GAME_META = {
   taste_battle: {
@@ -80,6 +88,17 @@ export default function PellixPlayScreen({ navigation, route }) {
 
   const enabledKeys = features ? Object.keys(GAME_META).filter((k) => features[k]) : [];
 
+  // Poster Puzzle ayrı bir ekran (DailyPosterPuzzle) ve eskiden bu listede HİÇ yoktu — oyunlara
+  // Keşfet'teki sabit girişten gelen kişi günün bulmacasını burada bulamıyordu.
+  const [puzzleResult, setPuzzleResult] = useState(undefined);
+  useEffect(() => {
+    const load = () => AsyncStorage.getItem(todaysPuzzleResultKey())
+      .then((v) => setPuzzleResult(v ? JSON.parse(v) : null))
+      .catch(() => setPuzzleResult(null));
+    load();
+    return navigation.addListener("focus", load);
+  }, [navigation]);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -114,6 +133,26 @@ export default function PellixPlayScreen({ navigation, route }) {
             <Text style={styles.hubHeroTitle}>Bugün ne oynayalım?</Text>
             <Text style={styles.hubHeroSub}>Kısa turlar, hızlı kararlar ve arkadaşlarınla paylaşabileceğin sonuçlar.</Text>
           </LinearGradient>
+
+          <Text style={styles.sectionLabel}>GÜNÜN OYUNU</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86} style={styles.gameCardTouch}>
+            <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameCard}>
+              <View style={styles.gameCardGlow} />
+              <View style={styles.gameIcon}><Puzzle size={22} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.gameTitleRow}>
+                  <Text style={styles.gameTitle}>Poster Puzzle</Text>
+                  <View style={styles.gameTag}><Text style={styles.gameTagText}>{puzzleResult ? "✓ BUGÜN ÇÖZÜLDÜ" : "HERKESE AYNI POSTER"}</Text></View>
+                </View>
+                <Text style={styles.gameSub}>
+                  {puzzleResult
+                    ? (puzzleResult.correct ? "Bugünkü posteri bildin. Sonucunu paylaş, arkadaşların kaçta bulacak?" : "Bugün olmadı. Yarın yeni bir poster geliyor.")
+                    : "Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı."}
+                </Text>
+              </View>
+              <View style={styles.gameArrow}><ArrowRight size={18} color="#fff" /></View>
+            </LinearGradient>
+          </TouchableOpacity>
 
           <Text style={styles.sectionLabel}>MİNİ OYUNLAR</Text>
           {enabledKeys.length === 0 ? (

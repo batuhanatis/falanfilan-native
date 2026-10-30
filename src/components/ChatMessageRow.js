@@ -4,7 +4,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Star, Film, ListVideo, BarChart2, Crown, Check, CalendarClock, Clock, AlertCircle,
-  RotateCcw, X, Eye, EyeOff, Reply, Sparkles, MessageCircle,
+  RotateCcw, X, Eye, EyeOff, Reply, Sparkles, MessageCircle, Camera,
 } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
 import { platformLogo } from "../utils/platform";
@@ -75,7 +75,7 @@ function renderLeftActions(dragX, c, styles) {
 function ChatMessageRow({
   id, body, isMine, myId, createdAt, editedAt, deletedForEveryone, status, reactionsKey, showSeenTick,
   replyToId, replySnippet, rowSpacing, isSelected, isHighlighted, selectionMode,
-  friendId, friendAvatar, storyActive, c, styles, actions,
+  friendId, friendAvatar, storyActive, storyPhotoUrl, c, styles, actions,
 }) {
   const isFailed = status === "failed";
   const isSending = status === "sending";
@@ -299,14 +299,19 @@ function ChatMessageRow({
           {storyActive ? (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => (selectionMode ? actions.toggleSelected(id) : actions.navigateDetail(storyMovie))}
+              onPress={() => (selectionMode ? actions.toggleSelected(id) : storyMovie ? actions.navigateDetail(storyMovie) : null)}
               onLongPress={handleLongPress}
             >
-              {storyMovie?.poster ? (
+              {/* Kartta story'nin küçültülmüş hali: fotoğraflı story'de fotoğrafın kendisi (sunucu
+                  story aktifken storyPhotoUrl'yi canlı ekliyor), film afişi DEĞİL. Afiş yalnızca
+                  fotoğrafsız eski film story'lerinde — o story'nin görseli zaten afişti. */}
+              {storyPhotoUrl ? (
+                <Image source={{ uri: storyPhotoUrl }} style={styles.storyReplyThumb} resizeMode="cover" />
+              ) : !storyReplyShared.photo && storyMovie?.poster ? (
                 <Image source={{ uri: storyMovie.poster }} style={styles.activitySharePoster} />
               ) : (
-                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
-                  <Film size={22} color="#fff" />
+                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.storyReplyThumb, { alignItems: "center", justifyContent: "center" }]}>
+                  <Camera size={22} color="#fff" />
                 </LinearGradient>
               )}
             </TouchableOpacity>
@@ -316,15 +321,26 @@ function ChatMessageRow({
             </View>
           )}
           <View style={styles.activityShareInfo}>
-            <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={4}>
-              {storyReplyShared.note}
-            </Text>
             {storyActive ? (
-              !!storyMovie?.title && (
-                <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                  {storyMovie.title}
+              <>
+                <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                  {storyMovie?.title || (storyReplyShared.cinema?.name ? "Sinemada" : "Fotoğraf story'si")}
                 </Text>
-              )
+                {!!storyMovie && (
+                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
+                    {[
+                      storyMovie.type === "tv" ? "Dizi" : "Film",
+                      storyMovie.genre,
+                      storyMovie.imdb > 0 ? `★ ${Number(storyMovie.imdb).toFixed(1)}` : null,
+                    ].filter(Boolean).join(" · ")}
+                  </Text>
+                )}
+                {!!storyReplyShared.cinema?.name && (
+                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
+                    📍 {storyReplyShared.cinema.name}
+                  </Text>
+                )}
+              </>
             ) : (
               <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
                 Bu story artık görüntülenemiyor

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { COMMON_PLATFORMS } from "../theme/theme";
+import { platformKey } from "../utils/platform";
 
 // COMMON_PLATFORMS sadece İSİM taşıyan sabit bir liste — Ana Sayfa'nın gösterdiği filmlerin
 // verisinden türettiği platform nesnelerinin (gerçek logo içeren) aksine. Bu yüzden MatchParty/
@@ -18,8 +19,11 @@ export function useCommonPlatforms() {
     let cancelled = false;
     api.platforms(auth.token).then((data) => {
       if (cancelled) return;
-      const byName = new Map((data.results || []).map((p) => [p.name, p.logo]));
-      setPlatforms(COMMON_PLATFORMS.map((name) => ({ name, logo: byName.get(name) || null })));
+      // Eşleştirme ADA değil, platformKey'e göre: Apple'ın rebrand'inden sonra TMDB'nin
+      // döndürdüğü ad ile bizim sabit listemizdeki ad farklı olabiliyor, birebir arama
+      // logoyu bulamayıp baş harf rozetine düşüyordu.
+      const byKey = new Map((data.results || []).map((p) => [platformKey(p.name), p.logo]));
+      setPlatforms(COMMON_PLATFORMS.map((name) => ({ name, logo: byKey.get(platformKey(name)) || null })));
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [auth.token]);

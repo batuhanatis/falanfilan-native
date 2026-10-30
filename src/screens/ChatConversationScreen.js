@@ -70,7 +70,7 @@ function messageSnippet(msg) {
   const plan = decodePlan(msg.body);
   if (plan) return `📅 ${formatPlanTime(plan.scheduledAt)}`;
   const storyReply = decodeStoryReply(msg.body);
-  if (storyReply) return `💬 ${storyReply.note}`;
+  if (storyReply) return `💬 ${storyReply.movie?.title || storyReply.cinema?.name || "Story"}`;
   return msg.body;
 }
 
@@ -1107,6 +1107,7 @@ export default function ChatConversationScreen({ route, navigation }) {
                 friendId={friendId}
                 friendAvatar={friendAvatar}
                 storyActive={item.storyActive}
+                storyPhotoUrl={item.storyPhotoUrl || null}
                 c={c}
                 styles={styles}
                 actions={rowActions}
@@ -1449,6 +1450,7 @@ function makeStyles(c, insets) {
     activityShareHeaderText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
     activityShareBody: { flexDirection: "row", gap: 11, padding: 11 },
     activitySharePoster: { width: 82, height: 120, borderRadius: 10 },
+    storyReplyThumb: { width: 68, height: 120, borderRadius: 10, backgroundColor: "rgba(120,120,130,0.25)" },
     activityShareInfo: { flex: 1, minWidth: 0 },
     activityShareUserRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     activityShareAvatar: { width: 22, height: 22, borderRadius: 999 },

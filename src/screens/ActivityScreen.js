@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Flame, Heart, PartyPopper, Plus, Sparkles, Users } from "lucide-react-native";
+import { ChevronRight, Flame, PartyPopper, Plus, Puzzle, Sparkles, Trophy, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -15,9 +15,6 @@ import BlendFriendPickerSheet from "../components/BlendFriendPickerSheet";
 import StoryBar from "../components/StoryBar";
 import ActivitySkeleton from "../components/skeletons/ActivitySkeleton";
 
-// ÖNEMLİ DÜZELTME: Havuz eskiden sadece 12 soruydu — gün numarası % 12 ile seçildiği için tam
-// 12 günde bir baştan tekrarlıyordu ("başa sardı" şikayeti buradan geliyordu). 60'a çıkarıldı,
-// aynı gün-bazlı seçim mantığıyla artık ~2 ayda bir tekrar ediyor.
 const DAILY_QUESTIONS = [
   "Herkesin sevdiği ama senin sevmediğin film hangisi?",
   "Sonu seni en çok şaşırtan film veya dizi hangisi?",
@@ -111,10 +108,6 @@ function expandActivityItems(items) {
   });
 }
 
-// Ardışık "activity" öğelerini (not/anket/kart taşımayan, otomatik üretilen beğendi/favorisi
-// yaptı/liste oluşturdu aktiviteleri) tek bir "activity-group" öğesine topluyor —
-// SocialActivityGroup bunları kompakt satırlar halinde tek bir kart içinde gösteriyor. Gerçek
-// içerikli paylaşımlar (post) ve nudge kartları bir grubu böler, kendi ayrı öğeleri olarak kalır.
 function groupActivities(items) {
   const result = [];
   let run = [];
@@ -149,10 +142,20 @@ export default function ActivityScreen({ navigation }) {
   const [blendPickerNudge, setBlendPickerNudge] = useState(null);
   const [stories, setStories] = useState({ myStories: [], friends: [] });
   const [myAvatar, setMyAvatar] = useState(null);
+  // Haftalık görevler ve Pellix Play ana sayfadan buraya taşındı (ana sayfa kalabalık olmasın);
+  // günün sorusu gibi akışın aralarına kart olarak giriyorlar.
+  const [questData, setQuestData] = useState(null);
 
-  // Story şeridi, ana feed'in refresh() akışından BAĞIMSIZ hafif bir yeniden çekme
-  // fonksiyonuna sahip — bir story paylaşıldığında/silindiğinde/izlendiğinde tüm feed'i
-  // yeniden yüklemeye (ve sıralamasını karıştırmaya) gerek yok.
+  const refreshQuests = useCallback(() => {
+    api.quests(auth.token).then(setQuestData).catch(() => {});
+  }, [auth.token]);
+
+  // Görevler, kullanıcı başka ekranlarda bir şey yaptıkça ilerliyor — sekmeye her dönüşte tazele.
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", refreshQuests);
+    return unsub;
+  }, [navigation, refreshQuests]);
+
   const refreshStories = useCallback(async () => {
     try {
       const data = await api.socialStories(auth.token);
@@ -163,12 +166,14 @@ export default function ActivityScreen({ navigation }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const fallbackQuestion = getDailyQuestion();
-    const [feedResult, questionResult, storiesResult, meResult] = await Promise.allSettled([
+    const [feedResult, questionResult, storiesResult, meResult, questsResult] = await Promise.allSettled([
       api.socialFeed(auth.token),
       api.dailyQuestion(localDateKey()),
       api.socialStories(auth.token),
       api.me(auth.token),
+      api.quests(auth.token),
     ]);
+    if (questsResult.status === "fulfilled") setQuestData(questsResult.value);
     if (feedResult.status === "fulfilled") setFeed(groupActivities(expandActivityItems(feedResult.value.results)));
     else setFeed([]);
     setDailyQuestion(
@@ -183,12 +188,6 @@ export default function ActivityScreen({ navigation }) {
     setLoading(false);
   }, [auth.token]);
 
-  // ÖNEMLİ: Eskiden ekran her odaklandığında (başka bir sayfadan geri dönüşte, hatta sekmeler
-  // arası geçişte) feed'i sessizce yeniden çekiyorduk — sıralama (bump/görülme/nudge) her
-  // seferinde değişebildiği için kullanıcı kaldığı yerden değil, karışmış/kaymış bir listeyle
-  // karşılaşıyordu. Artık SADECE ilk girişte (mount), kullanıcı en üstten çekip yenilediğinde
-  // (refresh()) veya oturum kapatılıp açıldığında (bu ekran o zaman zaten yeniden mount olur)
-  // yeniliyoruz — basit bir geri dönüşte liste olduğu gibi kalıyor.
   useEffect(() => { load(); }, [load]);
 
   async function refresh() {
@@ -197,11 +196,6 @@ export default function ActivityScreen({ navigation }) {
     setRefreshing(false);
   }
 
-  // Bir kart ekranda GERÇEKTEN görününce (indirildiği an değil) backend'e bildiriyoruz, ki
-  // sıralama sonraki yüklemede onu hafifçe geriye itebilsin — bkz. social-routes.js'teki
-  // seen_by_viewer/SEEN_PENALTY_MS. Her kart için ayrı istek atmak yerine biriktirip (4sn'de bir,
-  // ekrandan çıkarken de) TOPLU gönderiyoruz; nudge kartları bu takibin dışında çünkü onların
-  // kendi ayrı bastırma mekanizması (nudge_dismissals) zaten var.
   const seenPending = useRef(new Set());
   const seenSent = useRef(new Set());
   const flushSeen = useCallback(() => {
@@ -217,10 +211,7 @@ export default function ActivityScreen({ navigation }) {
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     for (const v of viewableItems) {
       const it = v.item;
-      if (!it || it.kind === "nudge") continue;
-      // Bir grup görününce, backend'in "görüldü" cezasını (bkz. social-routes.js SEEN_PENALTY_MS)
-      // grubun sentetik anahtarına değil, İÇİNDEKİ HER aktivitenin gerçek anahtarına uygulaması
-      // gerekiyor — yoksa kompakt satırlar hiç "görülmüş" sayılmaz, akışta hep en üstte kalırlar.
+      if (!it || ["nudge", "daily-question", "feature-shortcuts", "play-card", "quests-card"].includes(it.kind)) continue;
       if (it.kind === "activity-group") {
         it.items.forEach((sub) => { if (sub.feedKey) seenPending.current.add(sub.feedKey); });
       } else {
@@ -255,15 +246,77 @@ export default function ActivityScreen({ navigation }) {
     setFeed((items) => items.filter((item) => Number(item.post?.id) !== Number(event.postId)));
   }
 
-  // Sunucu, bir nudge'ı akışa dahil ettiği anda kendi tarafında zaten kısa süreliğine
-  // bastırıyor (bkz. backend nudge_dismissals) — burada sadece bu ekrandan anında kaldırmak
-  // için yerel state'i güncelliyoruz, ayrı bir ağ isteği gerekmiyor.
   function dismissNudge(nudgeId) {
     setFeed((items) => items.filter((item) => item.id !== nudgeId));
   }
 
-  const header = (
-    <View>
+  // Sosyal ekran artık feature promosyonlarıyla başlamıyor. Önce story'ler ve gerçek arkadaş
+  // içeriği geliyor; günlük soru 2. içerikten sonra, MatchParty/TasteMate kısayolları biraz daha
+  // aşağıda feed'in doğal parçaları olarak görünüyor.
+  const feedData = useMemo(() => {
+    if (!feed.length) return [];
+    const result = [...feed];
+    result.splice(Math.min(2, result.length), 0, { kind: "daily-question", id: "daily-question", feedKey: "daily-question" });
+    // Pellix Play ve haftalık görevler daha aşağıda, arkadaş içeriğinin arasına serpiştirilmiş.
+    // Akış kısaysa sona ekleniyorlar ki hiç görünmemezlik olmasın.
+    result.splice(Math.min(6, result.length), 0, { kind: "play-card", id: "play-card", feedKey: "play-card" });
+    result.splice(Math.min(11, result.length), 0, { kind: "quests-card", id: "quests-card", feedKey: "quests-card" });
+    return result;
+  }, [feed, dailyQuestion]);
+
+  function renderPlayCard() {
+    return (
+      <View style={styles.playCard}>
+        <TouchableOpacity style={styles.playMain} onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86}>
+          <View style={styles.playIcon}><Puzzle size={18} color="#8B5CF6" /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.playEyebrow}>PELLIX PLAY · GÜNÜN OYUNU</Text>
+            <Text style={styles.playTitle}>Poster Puzzle</Text>
+            <Text style={styles.playSub}>1 dakikalık günlük tahmin</Text>
+          </View>
+          <ChevronRight size={16} color={c.dim} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.playMore} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.8}>
+          <Text style={styles.playMoreText}>Tüm oyunlar →</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderQuestsCard() {
+    const quests = questData?.quests || [];
+    const done = quests.filter((q) => q.completed).length;
+    const percent = quests.length ? Math.round((done / quests.length) * 100) : 0;
+    return (
+      <TouchableOpacity style={styles.questsCard} onPress={() => navigation.navigate("WeeklyQuests")} activeOpacity={0.86}>
+        <View style={styles.questsIcon}><Trophy size={18} color={c.accent} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.questsEyebrow}>HAFTALIK GÖREVLER</Text>
+          <Text style={styles.questsTitle}>{quests.length ? `${done}/${quests.length} tamamlandı` : "Görevlerini gör"}</Text>
+          {quests.length > 0 && (
+            <View style={styles.questsTrack}><View style={[styles.questsFill, { width: `${percent}%` }]} /></View>
+          )}
+          <Text style={styles.questsCta}>Görevlerine göz at →</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderDailyQuestionCard() {
+    return (
+      <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
+        <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>
+          <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>
+          <Text style={styles.dailyCta}>Yazı veya film/diziyle cevapla →</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderFeatureShortcuts() {
+    return (
       <View style={styles.topActions}>
         <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("GroupParty")} activeOpacity={0.88}>
           <LinearGradient colors={["#FF3D81", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.topActionCard}>
@@ -274,43 +327,35 @@ export default function ActivityScreen({ navigation }) {
         <TouchableOpacity style={styles.topActionTouch} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.88}>
           <LinearGradient colors={["#8B5CF6", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.topActionCard}>
             <View style={styles.topActionIcon}><Users size={18} color="#fff" /></View>
-            <View><Text style={styles.topActionEyebrow}>KEŞFET</Text><Text style={styles.topActionTitle}>TasteMatch</Text></View>
+            <View><Text style={styles.topActionEyebrow}>KEŞFET</Text><Text style={styles.topActionTitle}>TasteMate</Text></View>
             <Sparkles size={12} color="#FFE66D" style={styles.topActionSparkle} />
           </LinearGradient>
         </TouchableOpacity>
       </View>
+    );
+  }
 
-      <StoryBar
-        myAvatar={myAvatar}
-        myStories={stories.myStories}
-        friends={stories.friends}
-        navigation={navigation}
-        onChanged={refreshStories}
-      />
-
-      <TouchableOpacity style={styles.dailyCard} onPress={() => openComposer("thought", dailyQuestion)} activeOpacity={0.86}>
-        <View style={styles.dailyIcon}><Flame size={18} color="#F97316" /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.dailyEyebrow}>GÜNÜN SORUSU</Text>
-          <Text style={styles.dailyQuestion}>{dailyQuestion}</Text>
-          <Text style={styles.dailyCta}>Yazı veya film/diziyle cevapla →</Text>
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.feedTitleRow}>
-        <View>
-          <Text style={styles.feedEyebrow}>SOSYAL AKIŞ</Text>
-          <Text style={styles.feedTitle}>Arkadaşların ne konuşuyor?</Text>
-        </View>
-        <Heart size={18} color={c.accent2} />
+  const header = (
+    <View>
+      <View style={styles.storySection}>
+        <StoryBar
+          myAvatar={myAvatar}
+          myStories={stories.myStories}
+          friends={stories.friends}
+          navigation={navigation}
+          onChanged={refreshStories}
+        />
       </View>
+
+      {renderFeatureShortcuts()}
+
     </View>
   );
 
   return (
     <View style={styles.root}>
       <TopBar
-        centerLabel="Aktivite"
+        centerLabel="Sosyal"
         leftAction={{
           icon: <Plus size={20} color={c.text} />,
           onPress: () => openComposer("thought"),
@@ -324,34 +369,45 @@ export default function ActivityScreen({ navigation }) {
       ) : (
         <FlatList
           ref={listRef}
-          data={feed}
+          data={feedData}
           keyExtractor={(item) => item.feedKey || String(item.id)}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} />}
           ListHeaderComponent={header}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          renderItem={({ item }) =>
-            item.kind === "nudge" ? (
-              <NudgeCard
-                item={item}
-                navigation={navigation}
-                onOpenPicker={setBlendPickerNudge}
-                onDismiss={() => dismissNudge(item.id)}
-              />
-            ) : item.kind === "activity-group" ? (
-              <SocialActivityGroup items={item.items} navigation={navigation} />
-            ) : (
-              <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />
-            )
-          }
+          renderItem={({ item }) => {
+            if (item.kind === "daily-question") return renderDailyQuestionCard();
+            if (item.kind === "play-card") return renderPlayCard();
+            if (item.kind === "quests-card") return renderQuestsCard();
+            if (item.kind === "feature-shortcuts") return renderFeatureShortcuts();
+            if (item.kind === "nudge") {
+              return (
+                <NudgeCard
+                  item={item}
+                  navigation={navigation}
+                  onOpenPicker={setBlendPickerNudge}
+                  onDismiss={() => dismissNudge(item.id)}
+                />
+              );
+            }
+            if (item.kind === "activity-group") {
+              return <SocialActivityGroup items={item.items} navigation={navigation} />;
+            }
+            return <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />;
+          }}
           ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
-              <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
-                <Text style={styles.emptyBtnText}>İlk paylaşımı yap</Text>
-              </TouchableOpacity>
+            <View>
+              {renderDailyQuestionCard()}
+              {renderPlayCard()}
+              {renderQuestsCard()}
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
+                <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
+                  <Text style={styles.emptyBtnText}>İlk paylaşımı yap</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           }
         />
@@ -382,6 +438,7 @@ function makeStyles(c) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     content: { paddingHorizontal: 14, paddingBottom: 28 },
+    storySection: { marginTop: 12 },
     popularSection: { marginTop: 14, marginBottom: 14 },
     sectionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 10 },
     feedEyebrow: { color: c.accent, fontWeight: "900", fontSize: 9.5, letterSpacing: 0.8 },
@@ -392,19 +449,34 @@ function makeStyles(c) {
     popularPoster: { width: 92, height: 136, borderRadius: 12, backgroundColor: c.surface2 },
     popularTitle: { color: c.text, fontSize: 10.5, fontWeight: "700", marginTop: 5 },
     popularSkeleton: { height: 140, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border },
-    topActions: { flexDirection: "row", gap: 9, marginBottom: 12 },
+    topActions: { flexDirection: "row", gap: 9, marginTop: 10, marginBottom: 10 },
     topActionTouch: { flex: 1, borderRadius: 16, shadowColor: "#8B5CF6", shadowOpacity: 0.2, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
     topActionCard: { height: 68, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9, overflow: "hidden" },
     topActionIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" },
-    topActionEyebrow: { color: "rgba(255,255,255,0.7)", fontSize: 7.5, fontWeight: "900", letterSpacing: 0.9 },
+    topActionEyebrow: { color: "rgba(255,255,255,0.7)", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.8 },
     topActionTitle: { color: "#fff", fontSize: 13, fontWeight: "900", marginTop: 2 },
     topActionSparkle: { position: "absolute", top: 8, right: 9 },
-    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: c.surface, borderWidth: 1, borderColor: "#F97316", borderRadius: 18, padding: 13, marginBottom: 12 },
-    dailyIcon: { width: 38, height: 38, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    dailyEyebrow: { color: "#F97316", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.7 },
-    dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "850", lineHeight: 18, marginTop: 3 },
-    dailyCta: { color: c.accent, fontSize: 10.5, fontWeight: "800", marginTop: 7 },
-    feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20, marginBottom: 10 },
+    dailyCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(249,115,22,0.055)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.28)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
+    dailyIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(249,115,22,0.10)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(249,115,22,0.24)", alignItems: "center", justifyContent: "center" },
+    dailyEyebrow: { color: "#F97316", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+    dailyQuestion: { color: c.text, fontSize: 13, fontWeight: "800", lineHeight: 18, marginTop: 3 },
+    dailyCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
+    playCard: { backgroundColor: "rgba(139,92,246,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.32)", borderRadius: 16, marginTop: 7, marginBottom: 14, overflow: "hidden" },
+    playMain: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, paddingBottom: 8 },
+    playIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(139,92,246,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(139,92,246,0.3)", alignItems: "center", justifyContent: "center" },
+    playEyebrow: { color: "#8B5CF6", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+    playTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
+    playSub: { color: c.dim, fontSize: 11, marginTop: 2 },
+    playMore: { paddingHorizontal: 13, paddingBottom: 12, paddingLeft: 60 },
+    playMoreText: { color: c.accent, fontSize: 11, fontWeight: "800" },
+    questsCard: { flexDirection: "row", gap: 11, alignItems: "flex-start", backgroundColor: "rgba(201,164,76,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.32)", borderRadius: 16, padding: 13, marginTop: 7, marginBottom: 14 },
+    questsIcon: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(201,164,76,0.12)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(201,164,76,0.3)", alignItems: "center", justifyContent: "center" },
+    questsEyebrow: { color: c.accent, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+    questsTitle: { color: c.text, fontSize: 13, fontWeight: "800", marginTop: 3 },
+    questsTrack: { height: 4, borderRadius: 999, backgroundColor: c.surface2, marginTop: 7, overflow: "hidden" },
+    questsFill: { height: 4, borderRadius: 999, backgroundColor: c.accent },
+    questsCta: { color: c.accent, fontSize: 11, fontWeight: "800", marginTop: 7 },
+    feedTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 10 },
     feedTitle: { color: c.text, fontWeight: "900", fontSize: 17, marginTop: 2 },
     emptyCard: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 20, alignItems: "center", marginBottom: 20 },
     emptyTitle: { color: c.text, fontWeight: "900", fontSize: 15 },

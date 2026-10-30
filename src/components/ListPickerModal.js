@@ -21,7 +21,7 @@ export default function ListPickerModal({ movie, onClose }) {
   const [loading, setLoading] = useState(true);
   const [newListName, setNewListName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [addingId, setAddingId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     api.watchlists(auth.token, movie.id)
@@ -30,22 +30,30 @@ export default function ListPickerModal({ movie, onClose }) {
       .finally(() => setLoading(false));
   }, []);
 
-  async function addToList(list) {
-    if (addingId) return;
-    // ÖNEMLİ: Zaten o listede olan bir filme tekrar "ekle" demeye gerek yok — backend bunu
-    // zaten sessizce göz ardı ediyordu (ON CONFLICT DO NOTHING) ama kullanıcıya bunu net
-    // gösterelim, gereksiz bir istek de atmayalım.
+  // Satır artık bir AÇ/KAPA: tikli (zaten ekli) bir listeye dokunmak onu listeden ÇIKARIYOR —
+  // eskiden sadece "zaten ekli" uyarısı veriyordu, yani eklemeyi geri almanın tek yolu listenin
+  // kendi detay ekranına gitmekti. Ekleme popup'ı kapatıyor (asıl niyet karşılandı), çıkarma ise
+  // açık bırakıyor: çıkarmak genelde bir düzeltme, kullanıcı hemen başka bir listeye ekleyebilsin.
+  async function toggleList(list) {
+    if (busyId) return;
+    setBusyId(list.id);
     if (list.alreadyAdded) {
-      emitLocalEvent({ type: "toast", title: "Zaten ekli", message: `${movie.title}, "${list.name}" listesinde zaten var` });
+      try {
+        await api.removeFromWatchlist(auth.token, list.id, movie.id);
+        setLists((prev) => prev.map((l) => (
+          l.id === list.id ? { ...l, alreadyAdded: false, count: Math.max(0, Number(l.count) - 1) } : l
+        )));
+        emitLocalEvent({ type: "toast", title: "Listeden çıkarıldı", message: `${movie.title}, "${list.name}" listesinden çıkarıldı` });
+      } catch {}
+      setBusyId(null);
       return;
     }
-    setAddingId(list.id);
     try {
       await api.addToWatchlist(auth.token, list.id, movie.id);
       emitLocalEvent({ type: "toast", title: "✅ Listeye eklendi", message: `${movie.title}, "${list.name}" listesine eklendi` });
       onClose();
     } catch {
-      setAddingId(null); // başarısız olursa tekrar denenebilsin, popup açık kalsın
+      setBusyId(null); // başarısız olursa tekrar denenebilsin, popup açık kalsın
     }
   }
 
@@ -79,9 +87,9 @@ export default function ListPickerModal({ movie, onClose }) {
                 <Text style={styles.emptyText}>Henüz bir listen yok — aşağıdan ilkini oluşturabilirsin.</Text>
               ) : (
                 lists.map((l) => (
-                  <TouchableOpacity key={l.id} style={styles.row} onPress={() => addToList(l)} disabled={!!addingId}>
+                  <TouchableOpacity key={l.id} style={styles.row} onPress={() => toggleList(l)} disabled={!!busyId}>
                     <Text style={styles.rowText}>{l.name}</Text>
-                    {addingId === l.id ? <ActivityIndicator size="small" color={c.accent} />
+                    {busyId === l.id ? <ActivityIndicator size="small" color={c.accent} />
                       : l.alreadyAdded ? (
                         <View style={styles.checkBadge}>
                           <Check size={12} color={c.bg} strokeWidth={3} />
