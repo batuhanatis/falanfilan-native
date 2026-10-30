@@ -15,7 +15,8 @@ import { emitLocalEvent } from "../../utils/localEvents";
 // ekranın üst yarısındaysa seçenekler aşağı, alt yarısındaysa yukarı; kenara yakınsa içeri açılır.
 
 const OPTION = 56;
-const RADIUS = 104;
+const CELL_WIDTH = 104;
+const CELL_HEIGHT = 112;
 
 export default function ShareFan({ options, style, children, accessibilityLabel = "Paylaş", disabled, hitSlop }) {
   const { c } = useAppTheme();
@@ -30,19 +31,24 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
   const list = (options || []).filter(Boolean).slice(0, 5);
 
   function targets(a) {
-    const dy = a.cy < H * 0.45 ? 1 : -1;
-    const dx = a.cx > W * 0.7 ? -1 : a.cx < W * 0.3 ? 1 : 0;
-    const center = Math.atan2(dy, dx);
-    const span = Math.min(Math.PI * 0.85, (Math.PI / 4.2) * (list.length - 1));
-    return list.map((_, i) => {
-      const t = list.length === 1 ? 0 : i / (list.length - 1) - 0.5;
-      const ang = center + t * span;
-      let x = a.cx + Math.cos(ang) * RADIUS;
-      let y = a.cy + Math.sin(ang) * RADIUS;
-      x = Math.min(W - 40, Math.max(40, x));
-      y = Math.min(H - insets.bottom - 50, Math.max(insets.top + 34, y));
-      return { x, y };
-    });
+    // Her ikon ve etikete ayrı hücre ayır. Tek tek kenara sıkıştırılan yay
+    // noktaları özellikle sağ üstte üst üste geliyordu.
+    const columns = Math.min(3, list.length, Math.max(1, Math.floor((W - 32) / CELL_WIDTH)));
+    const rows = Math.ceil(list.length / columns);
+    const cellWidth = Math.min(CELL_WIDTH, (W - 32) / columns);
+    const panelWidth = columns * cellWidth;
+    const panelHeight = rows * CELL_HEIGHT;
+    const left = Math.max(16, Math.min(W - 16 - panelWidth, a.cx - panelWidth / 2));
+    const minTop = insets.top + 12;
+    const maxBottom = H - insets.bottom - 12;
+    const below = a.cy + 48;
+    const above = a.cy - 48 - panelHeight;
+    const preferred = below + panelHeight <= maxBottom ? below : above;
+    const top = Math.max(minTop, Math.min(maxBottom - panelHeight, preferred));
+    return list.map((_, i) => ({
+      x: left + (i % columns + 0.5) * cellWidth,
+      y: top + Math.floor(i / columns) * CELL_HEIGHT + OPTION / 2,
+    }));
   }
 
   function open() {
@@ -137,7 +143,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
                   >
                     {opt.Icon && <opt.Icon size={22} color={picked === i ? "#1a140b" : c.text} />}
                   </Pressable>
-                  <Text style={styles.optLabel} numberOfLines={1}>{opt.label}</Text>
+                  <Text style={styles.optLabel} numberOfLines={2} maxFontSizeMultiplier={1.3}>{opt.label}</Text>
                 </Animated.View>
               );
             })}
@@ -203,6 +209,6 @@ const styles = StyleSheet.create({
     width: OPTION, height: OPTION, borderRadius: OPTION / 2, borderWidth: 1, alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  optLabel: { marginTop: 6, color: "#f2ede2", fontSize: 12, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
+  optLabel: { width: 88, minHeight: 36, textAlign: "center", lineHeight: 18, marginTop: 6, color: "#f2ede2", fontSize: 12, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   hub: { position: "absolute", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
 });
