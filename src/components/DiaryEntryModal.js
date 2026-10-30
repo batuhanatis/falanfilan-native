@@ -21,6 +21,7 @@ import { hapticSuccess } from "../utils/haptics";
 import RatingShareCard from "./RatingShareCard";
 import RatingStars, { RATING_LABELS } from "./RatingStars";
 import ShareCardModal from "./ShareCardModal";
+import ShareFan, { shareOptions } from "./salon/ShareFan";
 
 export default function DiaryEntryModal({ visible, movie, entry, onClose, onSaved, onRemoved, onOpenDiary }) {
   const { c } = useAppTheme();
@@ -90,6 +91,11 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
     }
     setSaving(false);
   }
+
+  const ratingShareUrl = `https://www.pellix.app/film/${movie?.id}?utm_source=app_share&utm_medium=share&utm_campaign=diary_rating`;
+  const ratingShareMessage = shareDraft
+    ? `"${movie?.title || "Bu yapım"}" için puanım: ${shareDraft.rating}/10 ⭐ ${RATING_LABELS[shareDraft.rating] || ""}\nSen kaç verirsin? 👉 ${ratingShareUrl}`
+    : "";
 
   async function shareRating() {
     if (!shareDraft || sharing || !movie?.id) return;
@@ -170,17 +176,26 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
               {/* Uygulama dışına (Instagram Story, WhatsApp…): kartın görseli ya da filmin web
                   sayfasına giden linkli metin. Link, paylaşımdan gelenleri Trafik Kaynakları'nda
                   ayrı görebilmek için kampanya etiketli. */}
-              <TouchableOpacity style={styles.outsideBtn} onPress={() => setOutsideShareOpen(true)} disabled={sharing} activeOpacity={0.86}>
+              <ShareFan
+                style={styles.outsideBtn}
+                disabled={sharing}
+                accessibilityLabel="Uygulama dışında paylaş"
+                options={shareOptions({
+                  message: ratingShareMessage,
+                  url: ratingShareUrl,
+                  card: () => setOutsideShareOpen(true),
+                })}
+              >
                 <Share2 size={15} color={c.text} />
                 <Text style={styles.outsideBtnText}>Instagram / WhatsApp’ta Paylaş</Text>
-              </TouchableOpacity>
+              </ShareFan>
               <TouchableOpacity style={styles.skipBtn} onPress={onClose} disabled={sharing}>
                 <Text style={styles.skipText}>Şimdilik değil</Text>
               </TouchableOpacity>
               {outsideShareOpen && (
                 <ShareCardModal
                   onClose={() => setOutsideShareOpen(false)}
-                  shareMessage={`"${movie?.title || "Bu yapım"}" için puanım: ${shareDraft.rating}/10 ⭐ ${RATING_LABELS[shareDraft.rating] || ""}\nSen kaç verirsin? 👉 https://www.pellix.app/film/${movie?.id}?utm_source=app_share&utm_medium=share&utm_campaign=diary_rating`}
+                  shareMessage={ratingShareMessage}
                 >
                   <RatingShareCard movie={movie} rating={shareDraft.rating} note={shareDraft.note} />
                 </ShareCardModal>

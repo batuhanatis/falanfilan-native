@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Share, Alert, Animated, AccessibilityInfo,
+  KeyboardAvoidingView, Platform, Alert, Animated, AccessibilityInfo,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Send, Share2 } from "lucide-react-native";
@@ -14,6 +14,8 @@ import { timeLabel } from "../utils/chatTimeLabels";
 import { hapticLight, hapticSelection } from "../utils/haptics";
 import { FONTS, upperTR } from "../theme/fonts";
 import RetryImage from "../components/RetryImage";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+import SendToFriendModal from "../components/SendToFriendModal";
 
 // Canlı sohbet odası: bir bölüm yayındayken herkesin aynı odada konuştuğu, admin panelinden açılıp
 // kapatılan geçici sohbet. Mesajlar REST ile gidiyor, canlı akış /ws üzerinden: ekran açılınca
@@ -75,6 +77,7 @@ export default function LiveRoomScreen({ route, navigation }) {
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const [hasOlder, setHasOlder] = useState(true);
 
   const roomIdRef = useRef(null);
@@ -189,11 +192,12 @@ export default function LiveRoomScreen({ route, navigation }) {
     }
   }
 
-  function share() {
-    if (!room) return;
-    hapticSelection();
-    Share.share({ message: `${roomLabel(room)} canlı sohbet odası: ${room.link}` }).catch(() => {});
-  }
+  // Paylaş düğmesi Yelpaze: Arkadaşına (uygulama içi sohbete link), WhatsApp, Kopyala, Diğer.
+  const shareFanOptions = room ? shareOptions({
+    message: `${roomLabel(room)} canlı sohbet odası: ${room.link}`,
+    url: room.link,
+    sendToFriend: () => setSendOpen(true),
+  }) : [];
 
   function openActions(message) {
     const own = Number(message.user.id) === Number(auth.id);
@@ -312,9 +316,9 @@ export default function LiveRoomScreen({ route, navigation }) {
             </View>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={share} accessibilityLabel="Odanın linkini paylaş">
+        <ShareFan style={styles.iconBtn} options={shareFanOptions} accessibilityLabel="Odanın linkini paylaş">
           <Share2 size={18} color={c.text} />
-        </TouchableOpacity>
+        </ShareFan>
       </View>
 
       <FlatList
@@ -377,6 +381,17 @@ export default function LiveRoomScreen({ route, navigation }) {
           </Text>
         )}
       </View>
+      {sendOpen && room && (
+        <SendToFriendModal
+          text={{
+            title: room.title,
+            meta: room.episodeLabel ? `${room.episodeLabel} · canlı sohbet odası` : "Canlı sohbet odası",
+            poster: room.poster,
+            body: `${roomLabel(room)} canlı sohbet odasına gel: ${room.link}`,
+          }}
+          onClose={() => setSendOpen(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

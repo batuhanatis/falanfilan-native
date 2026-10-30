@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Copy, Share2, Users, PartyPopper, Gift, Check, ArrowRight } from "lucide-react-native";
@@ -11,6 +11,7 @@ import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import { getStoreLink } from "../utils/appLinks";
 import ScreenHeader from "../components/ScreenHeader";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 
 export default function InviteFriendScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -35,12 +36,6 @@ export default function InviteFriendScreen({ navigation }) {
     await Clipboard.setStringAsync(auth.username);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
-  }
-
-  async function shareInvite() {
-    try {
-      await Share.share({ message: inviteMessage });
-    } catch {}
   }
 
   if (loading) {
@@ -109,10 +104,14 @@ export default function InviteFriendScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.shareBtn} onPress={shareInvite} activeOpacity={0.88}>
+        <ShareFan
+          style={styles.shareBtn}
+          accessibilityLabel="Davet linkini paylaş"
+          options={shareOptions({ message: inviteMessage, url: storeLink || undefined, copyText: inviteMessage })}
+        >
           <Share2 size={17} color={c.bg} />
           <Text style={styles.shareBtnText}>Davet Linkini Paylaş</Text>
-        </TouchableOpacity>
+        </ShareFan>
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>

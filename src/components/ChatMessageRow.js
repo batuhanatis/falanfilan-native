@@ -17,6 +17,23 @@ import { decodePoll, decodePlan, formatPlanTime } from "../utils/richMessage";
 import { decodeStoryReply } from "../utils/storyReplyShare";
 import RetryImage from "./RetryImage";
 
+// Düz metni bağlantı ve metin parçalarına ayırıyor (cümle sonundaki nokta, virgül linke dahil değil).
+function splitLinks(body) {
+  const text = String(body ?? "");
+  const re = /https?:\/\/[^\s]+/g;
+  const parts = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    const url = m[0].replace(/[.,;:!?)]+$/, "");
+    if (m.index > last) parts.push({ text: text.slice(last, m.index) });
+    parts.push({ text: url, url });
+    last = m.index + url.length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+}
+
 // CH2 — bir mesaja reaksiyon eklendiğinde/değiştiğinde rozet artık sabit belirmiyor, küçük bir
 // sıçramayla (spring) beliriyor. "key" prop'u (renderReactionBadge'de emoji setine bağlı)
 // değişince React bunu SIFIRDAN kurar, bu yüzden animasyon her değişiklikte baştan oynar.
@@ -476,7 +493,21 @@ function ChatMessageRow({
           />
         )}
         {renderReplyPreviewBlock()}
-        <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>{body}</Text>
+        <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
+          {splitLinks(body).map((part, i) => (part.url
+            ? (
+              <Text
+                key={i}
+                style={{ textDecorationLine: "underline" }}
+                onPress={selectionMode ? undefined : () => actions.openLink?.(part.url)}
+                onLongPress={isSending || isFailed ? undefined : handleLongPress}
+                accessibilityRole="link"
+              >
+                {part.text}
+              </Text>
+            )
+            : part.text))}
+        </Text>
         <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 5, marginTop: 2 }}>
           {!!editedAt && (
             <Text style={[styles.editedTag, isMine ? { color: "rgba(20,18,10,0.6)" } : { color: c.dim }]}>düzenlendi</Text>

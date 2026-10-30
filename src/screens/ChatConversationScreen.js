@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator, Alert, Animated, TouchableWithoutFeedback, Keyboard } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator, Alert, Animated, TouchableWithoutFeedback, Keyboard, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
@@ -37,6 +37,7 @@ import Confetti from "../components/Confetti";
 import ChatMessageRow from "../components/ChatMessageRow";
 import ReportUserModal from "../components/ReportUserModal";
 import { dayLabel, timeLabel } from "../utils/chatTimeLabels";
+import { hapticLight } from "../utils/haptics";
 
 const QUICK_REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🙏"];
 
@@ -899,6 +900,12 @@ export default function ChatConversationScreen({ route, navigation }) {
     },
     openViewer: (uri, downloadable) => latestRef.current.setViewerImage({ uri, downloadable }),
     scrollToMessage: (id) => latestRef.current.scrollToMessage(id),
+    // Düz metindeki bağlantılar: canlı oda linki uygulamanın içinde odayı açıyor, gerisi tarayıcıda.
+    openLink: (url) => {
+      const room = /^https?:\/\/open\.pellix\.app\/oda\/([A-Za-z0-9_-]+)/.exec(url);
+      if (room) latestRef.current.navigation.navigate("LiveRoom", { code: room[1] });
+      else Linking.openURL(url).catch(() => {});
+    },
     startReply: (id) => {
       const item = latestRef.current.messages.find((m) => m.id === id);
       if (item) latestRef.current.startReply(item);

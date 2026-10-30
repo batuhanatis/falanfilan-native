@@ -10,6 +10,7 @@ import { verdictFor } from "../utils/blendVerdict";
 import { hapticSuccess } from "../utils/haptics";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import BlendShareCard from "../components/BlendShareCard";
 
 export default function BlendScreen({ route, navigation }) {
@@ -54,6 +55,11 @@ export default function BlendScreen({ route, navigation }) {
     return () => anim.removeListener(id);
   }, [data?.matchPercent]);
 
+  const blendShareMessage = `${auth.name?.split(" ")[0]} ile ${friendName?.split(" ")[0]} arasında %${data?.matchPercent} beğeni uyumu`;
+  const blendShareUrl = auth.username && data?.friend?.username
+    ? `https://open.pellix.app/blend/${auth.username}/${data.friend.username}`
+    : "https://www.pellix.app";
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={styles.header}>
@@ -85,11 +91,19 @@ export default function BlendScreen({ route, navigation }) {
                 {/* BL2 — paylaşım kartındaki eğlenceli yorum metni artık canlı ekranda da var,
                     "paylaş"a basmadan da bu kişilik payoff'unu görüyorsun. */}
                 <Text style={styles.heroVerdict}>{verdictFor(data.matchPercent)}</Text>
-                <Text style={styles.heroSubtitle}>zevk uyumu</Text>
-                <TouchableOpacity style={styles.shareTriggerBtn} onPress={() => setShowShareCard(true)}>
+                <Text style={styles.heroSubtitle}>beğeni uyumu</Text>
+                <ShareFan
+                  style={styles.shareTriggerBtn}
+                  accessibilityLabel="Sonucu paylaş"
+                  options={shareOptions({
+                    message: blendShareMessage,
+                    url: blendShareUrl,
+                    card: () => setShowShareCard(true),
+                  })}
+                >
                   <Share2 size={13} color="#fff" />
                   <Text style={styles.shareTriggerText}>Sonucu Paylaş</Text>
-                </TouchableOpacity>
+                </ShareFan>
               </>
             ) : (
               <Text style={styles.heroSubtitle}>Uyumu görmek için ikiniz de biraz daha film/dizi beğenin.</Text>
@@ -123,7 +137,7 @@ export default function BlendScreen({ route, navigation }) {
               <Sparkles size={15} color={c.accent} />
               <Text style={styles.sectionTitle}>Birlikte İzleyebilecekleriniz</Text>
             </View>
-            <Text style={styles.recSubtitle}>İkinizin zevkine göre harmanlanmış, henüz beğenmediğiniz öneriler.</Text>
+            <Text style={styles.recSubtitle}>İkinizin beğendiklerinden harmanlanmış, henüz beğenmediğiniz öneriler.</Text>
             {data?.recommendations?.length > 0 ? (
               <FlatList
                 data={data.recommendations}
@@ -163,8 +177,8 @@ export default function BlendScreen({ route, navigation }) {
         return (
           <ShareCardModal
             onClose={() => setShowShareCard(false)}
-            shareMessage={`${auth.name?.split(" ")[0]} ile ${friendName?.split(" ")[0]} arasında %${data.matchPercent} zevk uyumu 🎬`}
-            shareUrl={auth.username && data.friend?.username ? `https://open.pellix.app/blend/${auth.username}/${data.friend.username}` : undefined}
+            shareMessage={blendShareMessage}
+            shareUrl={blendShareUrl}
             previewHeight={620}
             socialCard={{
               kind: "blend",

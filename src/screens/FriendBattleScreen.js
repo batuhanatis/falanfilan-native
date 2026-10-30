@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Swords, Users, Trophy, Clock3, ChevronRight, Share2, RotateCcw, AlertCircle } from "lucide-react-native";
@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { friendBattleApi } from "../api/friendBattle";
 import ScreenHeader from "../components/ScreenHeader";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import RetryImage from "../components/RetryImage";
 import { avatarOr } from "../utils/avatar";
 import { hapticSuccess, hapticLight } from "../utils/haptics";
@@ -164,7 +165,7 @@ export default function FriendBattleScreen({ navigation, route }) {
           <View style={styles.heroIcon}><Swords size={25} color="#fff" /></View>
           <Text style={styles.heroEyebrow}>ASENKRON MEYDAN OKUMA</Text>
           <Text style={styles.heroTitle}>Aynı 8 seçimi yapın.</Text>
-          <Text style={styles.heroSub}>Aynı anda online olmanız gerekmiyor. İkiniz de tamamlayınca zevk senkronunuz ortaya çıkıyor.</Text>
+          <Text style={styles.heroSub}>Aynı anda online olmanız gerekmiyor. İkiniz de tamamlayınca beğeni uyumunuz ortaya çıkıyor.</Text>
         </LinearGradient>
 
         {!!actionError && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{actionError}</Text></View>}
@@ -241,23 +242,25 @@ function Waiting({ battle, styles, onBack }) {
 
 function BattleResult({ battle, styles, onAgain }) {
   const result = battle.result;
-  const message = result.percent >= 80 ? "Aynı rafın insanısınız 🔥" : result.percent >= 60 ? "Zevkiniz oldukça yakın ✨" : result.percent >= 40 ? "Bazı filmlerde buluşuyorsunuz 🎬" : "Film gecesi pazarlığı zor geçecek 😄";
-  async function share() {
-    try { await Share.share({ message: `${battle.opponent?.name || "Arkadaşımla"} Friend Battle sonucumuz: %${result.percent} zevk senkronu 🎮 Pellix` }); } catch {}
-  }
+  const message = result.percent >= 80 ? "Aynı rafın insanısınız 🔥" : result.percent >= 60 ? "Beğenileriniz oldukça yakın" : result.percent >= 40 ? "Bazı filmlerde buluşuyorsunuz 🎬" : "Film gecesi pazarlığı zor geçecek 😄";
+  const shareFanOptions = shareOptions({
+    message: `${battle.opponent?.name || "Arkadaşımla"} Friend Battle sonucumuz: %${result.percent} beğeni uyumu. Pellix: https://www.pellix.app`,
+    url: "https://www.pellix.app",
+    copy: false,
+  });
   return (
     <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} style={styles.resultHero}>
         <Trophy size={30} color="#fff" />
         <Text style={styles.resultPercent}>%{result.percent}</Text>
-        <Text style={styles.resultTitle}>Zevk senkronu</Text>
+        <Text style={styles.resultTitle}>Beğeni uyumu</Text>
         <Text style={styles.resultSub}>{message}</Text>
       </LinearGradient>
       <View style={styles.resultStats}>
         <View style={styles.stat}><Text style={styles.statValue}>{result.agreements}</Text><Text style={styles.statLabel}>AYNI SEÇİM</Text></View>
         <View style={styles.stat}><Text style={styles.statValue}>{result.total}</Text><Text style={styles.statLabel}>TOPLAM</Text></View>
       </View>
-      <TouchableOpacity style={styles.shareBtn} onPress={share}><Share2 size={16} color="#fff" /><Text style={styles.shareText}>Sonucu Paylaş</Text></TouchableOpacity>
+      <ShareFan style={styles.shareBtn} options={shareFanOptions} accessibilityLabel="Sonucu paylaş"><Share2 size={16} color="#fff" /><Text style={styles.shareText}>Sonucu Paylaş</Text></ShareFan>
       <TouchableOpacity style={styles.secondaryBtn} onPress={onAgain}><RotateCcw size={15} color="#fff" /><Text style={styles.secondaryBtnText}>Başka Battle Başlat</Text></TouchableOpacity>
     </ScrollView>
   );

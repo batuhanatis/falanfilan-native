@@ -18,7 +18,9 @@ import { appendPrefetchedMessage } from "../utils/chatMessagesPrefetch";
 // prop'larından SADECE biri verilir. İki ayrı, neredeyse birebir aynı dosya oluşturmak yerine
 // tek bir yerde tutmak, gelecekte yapılacak değişikliklerin (ör. tasarım güncellemesi) iki
 // dosyada da tekrarlanması gerekmesin diye.
-export default function SendToFriendModal({ movie, list, activity, onClose, onSent }) {
+// "text" ise kart olmayan düz bir bağlantı paylaşımı (ör. canlı oda): { title, meta, poster, body }.
+// Arkadaşa body düz metin mesajı olarak gidiyor.
+export default function SendToFriendModal({ movie, list, activity, text, onClose, onSent }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -51,7 +53,9 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
     setSending(true);
     try {
       const { chat_id } = await api.chatWith(auth.token, selectedFriend.id);
-      const body = activity
+      const body = text
+        ? text.body
+        : activity
         ? encodeActivityShare(activity)
         : list
         ? encodeListShare({ id: list.id, name: list.name, count: list.count, previewPoster: list.previewPoster, ownerName: auth.name })
@@ -110,7 +114,17 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
           </View>
 
           <View style={styles.moviePreview}>
-            {activity ? (
+            {text ? (
+              <>
+                {text.poster
+                  ? <Image source={{ uri: text.poster }} style={styles.moviePoster} />
+                  : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.movieTitle} numberOfLines={1}>{text.title}</Text>
+                  {!!text.meta && <Text style={styles.movieMeta} numberOfLines={1}>{text.meta}</Text>}
+                </View>
+              </>
+            ) : activity ? (
               <>
                 {(activity.post?.movie || activity.movies?.[0])?.poster
                   ? <Image source={{ uri: (activity.post?.movie || activity.movies?.[0]).poster }} style={styles.moviePoster} />
@@ -240,7 +254,7 @@ export default function SendToFriendModal({ movie, list, activity, onClose, onSe
 
           {/* Dış paylaşım (WhatsApp vb.) sadece FİLM paylaşımında var — listeler gizlilik
               ayarına bağlı olduğu ve henüz bir web sayfası olmadığı için sadece uygulama içi. */}
-          {!list && !activity && (
+          {!list && !activity && !text && (
             <>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />

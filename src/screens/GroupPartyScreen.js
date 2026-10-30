@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Share, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap, Link2, Share2, ArrowRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -14,6 +14,7 @@ import ChipRow from "../components/ChipRow";
 import FilterFields from "../components/FilterFields";
 import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
 import ScreenHeader from "../components/ScreenHeader";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 
 const MIN_IMDB_OPTIONS = [6.0, 6.5, 7.0, 7.5, 8.0];
 
@@ -77,28 +78,30 @@ export default function GroupPartyScreen({ navigation }) {
     }
   }
 
-  async function createPartyLink() {
-    if (sharingLink) return;
+  // Party linki ilk paylaşımda oluşuyor; Yelpaze'de seçilen seçenek önce bunu bekliyor.
+  // Paylaşım bitince kullanıcıyı zorla lobiye taşımıyoruz, lobiye geçiş ayrı CTA.
+  async function ensurePartyLink() {
+    if (createdLinkSession) return createdLinkSession;
     setSharingLink(true);
     try {
-      let data = createdLinkSession;
-      if (!data) {
-        data = await partyLinkApi.create(auth.token, currentFilters(), 6);
-        setCreatedLinkSession(data);
-      }
+      const data = await partyLinkApi.create(auth.token, currentFilters(), 6);
+      setCreatedLinkSession(data);
       setLinkAvailable(true);
-      await Share.share({
-        title: "Pellix MatchParty",
-        message: `Benimle MatchParty yap 🎬\n${data.url}`,
-        url: data.url,
-      });
-      // Share sheet kapatılınca kullanıcıyı zorla lobiye taşımıyoruz. Özellikle Android'de
-      // Share API iptal/paylaşım ayrımını güvenilir vermediği için lobiye geçiş ayrı CTA.
+      return data;
     } catch (e) {
       if (e.unavailable || e.status === 404) setLinkAvailable(false);
+      return null;
+    } finally {
+      setSharingLink(false);
     }
-    setSharingLink(false);
   }
+
+  const partyShareOptions = shareOptions({
+    prepare: async () => {
+      const data = await ensurePartyLink();
+      return data ? { message: `Benimle MatchParty yap: ${data.url}`, url: data.url } : null;
+    },
+  });
 
   const filteredFriends = friendQuery.trim()
     ? friends.filter((f) => {
@@ -125,7 +128,7 @@ export default function GroupPartyScreen({ navigation }) {
 
         {linkAvailable !== false && (
           <>
-            <TouchableOpacity style={styles.linkInviteCard} onPress={createPartyLink} disabled={sharingLink} activeOpacity={0.86}>
+            <ShareFan style={styles.linkInviteCard} options={partyShareOptions} disabled={sharingLink} accessibilityLabel="Party linkini paylaş">
               <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
               <View style={{ flex: 1 }}>
                 <View style={styles.linkTitleRow}>
@@ -139,7 +142,7 @@ export default function GroupPartyScreen({ navigation }) {
                 </Text>
               </View>
               {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
-            </TouchableOpacity>
+            </ShareFan>
 
             {!!createdLinkSession?.sessionId && (
               <TouchableOpacity

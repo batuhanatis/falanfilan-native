@@ -14,6 +14,7 @@ import SocialSharedCard from "./SocialSharedCard";
 import RatingStars from "./RatingStars";
 import { reportSocialContent } from "../utils/socialReporting";
 import SendToFriendModal from "./SendToFriendModal";
+import ShareFan, { shareOptions } from "./salon/ShareFan";
 
 function relativeTime(value) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -534,9 +535,20 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             <MessageCircle size={17} color={c.dim} />
             <Text style={styles.actionText}>{commentCount || 0}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.action, styles.actionShare]} onPress={() => setSendOpen(true)}>
+          {/* Filmli paylaşımda Yelpaze dışarıya filmin sayfasını da veriyor; filmsizde doğrudan arkadaşına. */}
+          <ShareFan
+            style={[styles.action, styles.actionShare]}
+            accessibilityLabel="Paylaş"
+            options={primaryMovie?.id
+              ? shareOptions({
+                message: `${user.name || "Bir arkadaşım"} Pellix'te "${primaryMovie.title}" paylaştı: https://www.pellix.app/film/${primaryMovie.id}`,
+                url: `https://www.pellix.app/film/${primaryMovie.id}`,
+                sendToFriend: () => setSendOpen(true),
+              })
+              : [{ key: "friend", label: "Arkadaşına", onPress: () => setSendOpen(true) }]}
+          >
             <Send size={17} color={c.dim} />
-          </TouchableOpacity>
+          </ShareFan>
         </View>
       )}
 

@@ -9,6 +9,8 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import { hapticLight, hapticSuccess } from "../utils/haptics";
 import SendToFriendModal from "../components/SendToFriendModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+import { getStoreLink } from "../utils/appLinks";
 import EmptyState from "../components/EmptyState";
 import WatchlistCover from "../components/WatchlistCover";
 import CoverPicker from "../components/CoverPicker";
@@ -195,6 +197,19 @@ export default function WatchlistDetailScreen({ route, navigation }) {
   const previewPoster = items[0]?.poster || null;
   const coverForShare = { id: watchlistId, name: listInfo.name, coverEmoji: listInfo.coverEmoji, coverColor: listInfo.coverColor };
 
+  // Listelerin web sayfası yok; dışarıya listenin ilk başlıkları metin olarak gidiyor.
+  const listShareOptions = shareOptions({
+    message: [
+      `Pellix'teki "${listInfo.name}" listem:`,
+      ...items.slice(0, 10).map((m, i) => `${i + 1}. ${m.title}`),
+      items.length > 10 ? `ve ${items.length - 10} içerik daha` : null,
+      "",
+      `Listenin tamamı Pellix'te: ${getStoreLink("watchlist_share")}`,
+    ].filter((line) => line != null).join("\n"),
+    copy: false,
+    sendToFriend: () => { setShowPublicPrompt(false); setShowShare(true); },
+  });
+
   const ListHeader = (
     <View>
       {listInfo.isOwner && (
@@ -214,9 +229,9 @@ export default function WatchlistDetailScreen({ route, navigation }) {
       {showPublicPrompt && (
         <View style={styles.publicPromptRow}>
           <Text style={styles.publicPromptText}>Artık herkese açık — şimdi paylaşmak ister misin?</Text>
-          <TouchableOpacity onPress={() => { setShowPublicPrompt(false); setShowShare(true); }}>
+          <ShareFan options={listShareOptions} accessibilityLabel="Listeyi paylaş" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.publicPromptCta}>Paylaş</Text>
-          </TouchableOpacity>
+          </ShareFan>
           <TouchableOpacity onPress={() => setShowPublicPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <X size={14} color={c.dim} />
           </TouchableOpacity>
@@ -385,9 +400,13 @@ export default function WatchlistDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
         {listInfo.isOwner && (
-          <TouchableOpacity onPress={() => setShowShare(true)} style={styles.shareBtn}>
+          <ShareFan
+            style={styles.shareBtn}
+            accessibilityLabel="Listeyi paylaş"
+            options={listShareOptions}
+          >
             <Share2 size={17} color={c.text} />
-          </TouchableOpacity>
+          </ShareFan>
         )}
       </View>
 

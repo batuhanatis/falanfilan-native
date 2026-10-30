@@ -12,6 +12,8 @@ import { hapticLight, hapticSuccess } from "../utils/haptics";
 import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+import { getStoreLink } from "../utils/appLinks";
 import SocialPostComposer from "../components/SocialPostComposer";
 import TrailerPlayerModal from "../components/TrailerPlayerModal";
 import SocialProofRow from "../components/SocialProofRow";
@@ -351,7 +353,7 @@ export default function DetailScreen({ route, navigation }) {
               <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                 <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
               </Animated.View>
-              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Zevkime göre</Text>
+              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Bana göre</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
               <X size={16} color={disliked ? "#fff" : c.text} />
@@ -360,9 +362,18 @@ export default function DetailScreen({ route, navigation }) {
             <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
               <Bookmark size={16} color={c.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionSquare} onPress={() => setSendOpen(true)}>
+            <ShareFan
+              style={styles.actionSquare}
+              accessibilityLabel="Paylaş"
+              options={shareOptions({
+                message: `${auth.name} Pellix'te "${movie.title}" önerdi: https://www.pellix.app/film/${movie.id}\n\nSen de Pellix'i indir (${getStoreLink("send_to_friend")}), kayıt olurken "${auth.username}" davet kodunu yaz, 7 gün Premium hediye.`,
+                url: `https://www.pellix.app/film/${movie.id}`,
+                sendToFriend: () => setSendOpen(true),
+                feed: () => setPostComposerOpen(true),
+              })}
+            >
               <Send size={16} color={c.text} />
-            </TouchableOpacity>
+            </ShareFan>
           </View>
 
           <TouchableOpacity style={styles.tastePostBtn} onPress={() => setPostComposerOpen(true)} activeOpacity={0.85}>

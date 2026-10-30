@@ -16,6 +16,7 @@ import { avatarOr } from "../utils/avatar";
 import { hexToRgba } from "../utils/color";
 import { backgroundBlurAndDim } from "../utils/profileBackground";
 import ShareCardModal from "../components/ShareCardModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import ProfileShareCard from "../components/ProfileShareCard";
 import RetryImage from "../components/RetryImage";
 import EditProfileModal from "../components/EditProfileModal";
@@ -318,10 +319,18 @@ export default function ProfileScreen({ navigation, route }) {
             <Pencil size={13} color={c.text} />
             <Text style={styles.profileActionBtnText}>Profili Düzenle</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowShareCard(true)}>
+          <ShareFan
+            style={styles.profileActionBtn}
+            accessibilityLabel="Profili paylaş"
+            options={shareOptions({
+              message: `${profile.name} Pellix'te profilini paylaştı`,
+              url: profile.username ? `https://open.pellix.app/u/${profile.username}` : "https://www.pellix.app",
+              card: () => setShowShareCard(true),
+            })}
+          >
             <Share2 size={13} color={c.text} />
             <Text style={styles.profileActionBtnText}>Profili Paylaş</Text>
-          </TouchableOpacity>
+          </ShareFan>
         </View>
 
         <TouchableOpacity

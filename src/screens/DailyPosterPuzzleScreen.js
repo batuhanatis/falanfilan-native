@@ -10,6 +10,7 @@ import { api } from "../api/client";
 import { hapticLight, hapticSuccess } from "../utils/haptics";
 import ScreenHeader from "../components/ScreenHeader";
 import ShareCardModal from "../components/ShareCardModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import PosterPuzzleShareCard from "../components/PosterPuzzleShareCard";
 
 const MAX_WRONG = 3;
@@ -278,10 +279,14 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
               <Text style={styles.squares}>{resultSquares(result)}</Text>
               <Text style={styles.resultLabel}>{result.correct ? "Bugünün bulmacası tamamlandı" : "Yarın yeni bir poster gelecek"}</Text>
 
-              <TouchableOpacity style={styles.shareBtn} onPress={shareResult} activeOpacity={0.86}>
+              <ShareFan
+                style={styles.shareBtn}
+                accessibilityLabel="Sonucumu paylaş"
+                options={shareOptions({ message: shareText(puzzle, result), url: PUZZLE_SHARE_URL, copy: false, card: shareResult })}
+              >
                 <Share2 size={16} color={c.bg} />
                 <Text style={styles.shareBtnText}>Sonucumu Paylaş</Text>
-              </TouchableOpacity>
+              </ShareFan>
               <TouchableOpacity style={styles.playMoreBtn} onPress={() => navigation.replace("PellixPlay")} activeOpacity={0.84}>
                 <Gamepad2 size={15} color={c.text} />
                 <Text style={styles.playMoreText}>Diğer Pellix Play Oyunları</Text>

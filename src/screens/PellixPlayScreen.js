@@ -9,6 +9,9 @@ import { playApi } from "../api/play";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+
+const PLAY_URL = "https://www.pellix.app";
 import PlayResultShareCard from "../components/PlayResultShareCard";
 
 // DailyPosterPuzzleScreen'deki sonuç anahtarıyla AYNI — bugünün bulmacası çözüldü mü?
@@ -247,10 +250,14 @@ function TasteBattle({ token, styles, c, onDisabled }) {
             </View>
           )}
 
-          <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#7C3AED" }]} onPress={() => setShowShare(true)}>
+          <ShareFan
+            style={[styles.shareResultBtn, { backgroundColor: "#7C3AED" }]}
+            accessibilityLabel="Sonucu paylaş"
+            options={shareOptions({ message: `Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+          >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
-          </TouchableOpacity>
+            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+          </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
             <RotateCcw size={16} color={c.text} />
             <Text style={styles.ghostBtnText}>Tekrar Oyna</Text>
@@ -260,7 +267,7 @@ function TasteBattle({ token, styles, c, onDisabled }) {
         {showShare && (
           <ShareCardModal
             onClose={() => setShowShare(false)}
-            shareMessage={`Taste Battle sonucum: ${result.topGenre || "Karışık Zevk"}. Seninki ne? 🎮`}
+            shareMessage={`Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`}
           >
             <PlayResultShareCard
               mode="taste"
@@ -409,10 +416,14 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
             <Text style={styles.doneText}>Bu skoru paylaş; bakalım arkadaşın itiraz edecek mi.</Text>
           </View>
 
-          <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#EC4899" }]} onPress={() => setShowShare(true)}>
+          <ShareFan
+            style={[styles.shareResultBtn, { backgroundColor: "#EC4899" }]}
+            accessibilityLabel="Sonucu paylaş"
+            options={shareOptions({ message: `${data.friend.name}'i ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+          >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
-          </TouchableOpacity>
+            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+          </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={loadFriends}>
             <Users size={16} color={c.text} />
             <Text style={styles.ghostBtnText}>Başka Arkadaş Seç</Text>
@@ -606,10 +617,14 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
         <Text style={[styles.doneTitle, { marginTop: 18 }]}>Tur tamamlandı</Text>
         <Text style={styles.doneText}>{isDaily ? "Bugünün challenge'ını tamamladın." : "Bu turdaki sinema hafızanı test ettin."}</Text>
         {stats?.promptVariants ? <Text style={{ color: c.dim, fontSize: 11, marginTop: 4 }}>{stats.promptVariants}+ soru varyasyonu içinden oynadın.</Text> : null}
-        <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]} onPress={() => setShowShare(true)}>
+        <ShareFan
+          style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]}
+          accessibilityLabel="Sonucu paylaş"
+          options={shareOptions({ message: `Sahneyi Hatırla, Karakteri Bul'da ${score}/${questions.length} yaptım 🎬 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+        >
           <Share2 size={17} color="#fff" />
-          <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
-        </TouchableOpacity>
+          <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+        </ShareFan>
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#7C3AED" }]} onPress={() => startRound(round?.mode || "classic")}>
           <RotateCcw size={16} color="#fff" /><Text style={[styles.retryText, { color: "#fff" }]}>Tekrar Oyna</Text>
         </TouchableOpacity>
@@ -842,10 +857,14 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
             <Text style={[styles.doneText, { fontStyle: "italic" }]}>"{character.quote}"</Text>
           </View>
 
-          <TouchableOpacity style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]} onPress={() => setShowShare(true)}>
+          <ShareFan
+            style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]}
+            accessibilityLabel="Sonucu paylaş"
+            options={shareOptions({ message: `Hangi Karaktersin testinde ${character.name} çıktım (%${result.matchPercent} uyum) 🎭 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+          >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonuç Kartını Paylaş</Text>
-          </TouchableOpacity>
+            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+          </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
             <RotateCcw size={16} color={c.text} />
             <Text style={styles.ghostBtnText}>Tekrar Oyna</Text>

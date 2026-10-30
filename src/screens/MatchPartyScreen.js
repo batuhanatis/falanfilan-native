@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check, Trophy } from "lucide-react-native";
+import { ChevronLeft, Heart, X, Star, Sparkles, BookmarkPlus, Check, Trophy, Share2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -19,6 +19,7 @@ import FilterFields from "../components/FilterFields";
 import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
 import SwipeableCard from "../components/SwipeableCard";
 import ShareCardModal from "../components/ShareCardModal";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import MatchShareCard from "../components/MatchShareCard";
 import MatchCelebration from "../components/MatchCelebration";
 
@@ -483,10 +484,19 @@ export default function MatchPartyScreen({ route, navigation }) {
                   />
                 </View>
               </View>
-              <TouchableOpacity style={styles.shareResultBtn} onPress={() => setShowShareCard(true)}>
-                <Sparkles size={13} color="#fff" />
+              <ShareFan
+                style={styles.shareResultBtn}
+                accessibilityLabel="Eşleşmeyi paylaş"
+                options={shareOptions({
+                  message: `${displayName} ile Pellix'te ${matches.length} ortak içerikte eşleştik. Sen de arkadaşınla dene: https://www.pellix.app`,
+                  url: "https://www.pellix.app",
+                  copy: false,
+                  card: () => setShowShareCard(true),
+                })}
+              >
+                <Share2 size={13} color="#fff" />
                 <Text style={styles.shareResultBtnText}>Eşleşmeyi Paylaş</Text>
-              </TouchableOpacity>
+              </ShareFan>
               <TouchableOpacity
                 style={[styles.watchlistBtn, watchlistCreated && { opacity: 0.6 }]}
                 onPress={createWatchlistFromMatches}
