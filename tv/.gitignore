@@ -1,5 +1,6 @@
-node_modules/
-android/
-ios/
-.expo/
-dist/
+# Yalnızca kök klasörler: modules/*/android gibi yerel modül kodları commitlenmeli.
+/node_modules/
+/android/
+/ios/
+/.expo/
+/dist/
