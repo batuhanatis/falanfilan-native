@@ -5,7 +5,7 @@ import { C } from "../theme";
 // Kumandayla odaklanınca altın dolgu alan düğme. primary: odak dışında da altın kenarlı.
 // nextFocusUp/Right/Down/Left (Android): odağın bu düğmeden nereye gideceğini sabitlemek için
 // (ör. panodaki fragman oynatıcısına kaçmasın).
-function FocusButton({ label, onPress, onFocus, primary, hasTVPreferredFocus, style, disabled, nextFocusUp, nextFocusRight, nextFocusDown, nextFocusLeft }, ref) {
+function FocusButton({ label, onPress, onFocus, primary, compact, hasTVPreferredFocus, style, disabled, nextFocusUp, nextFocusRight, nextFocusDown, nextFocusLeft }, ref) {
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -23,13 +23,14 @@ function FocusButton({ label, onPress, onFocus, primary, hasTVPreferredFocus, st
       {...(nextFocusLeft ? { nextFocusLeft } : null)}
       style={[
         styles.btn,
+        compact && styles.compact,
         primary && styles.primary,
         focused && styles.focused,
         disabled && { opacity: 0.4 },
         style,
       ]}
     >
-      <Text style={[styles.label, focused && { color: C.onAccent }]}>{label}</Text>
+      <Text style={[styles.label, compact && styles.compactLabel, focused && { color: C.onAccent }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
@@ -41,6 +42,8 @@ const styles = StyleSheet.create({
     minHeight: 44, paddingHorizontal: 22, borderRadius: 999, borderWidth: 2, borderColor: C.border,
     backgroundColor: C.surface, alignItems: "center", justifyContent: "center",
   },
+  compact: { minHeight: 40, paddingHorizontal: 15 },
+  compactLabel: { fontSize: 14.5 },
   primary: { borderColor: C.accent },
   focused: { backgroundColor: C.accent, borderColor: C.accent, transform: [{ scale: 1.06 }] },
   label: { color: C.text, fontSize: 16, fontWeight: "700" },

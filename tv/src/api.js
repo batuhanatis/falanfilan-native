@@ -27,7 +27,12 @@ export const api = {
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
   // Telefondaki "Bu akşam senin için" panosunun günlük seçkisi (telefon yazıyor).
   homeHero: (token) => request("/api/me/home-hero", { token }),
-  // Panonun ekranında oynayan fragman: { trailer: { key, name, ... } | null } (YouTube).
+  // TV ana ekranının kişisel satırları: { rows: [{ key, title, items }] }.
+  tvRows: (token) => request("/api/tv/rows", { token }),
+  search: (token, q, type) => request(`/api/search?q=${encodeURIComponent(q)}&type=${type}`, { token }),
+  // Tek içeriğin tam hali (satır öğeleri hafif geliyor; detayda watchLinks için).
+  movie: (token, id) => request(`/api/movies/${id}`, { token }),
+  // Panoda oynayan fragman ve yatay görsel: { trailer: { key, ... } | null, backdrop } (YouTube).
   trailer: (token, id) => request(`/api/movies/${id}/trailer`, { token }),
 };
 

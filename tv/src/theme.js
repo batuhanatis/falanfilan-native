@@ -25,3 +25,16 @@ export const upperTR = (s) => String(s || "").replace(/i/g, "İ").replace(/ı/g,
 
 export const SAFE_X = 48;
 export const SAFE_Y = 27;
+
+// Seans panosu (Salon): fiziksel bir nesne, iki temada da koyu.
+export const BOARD = { bg: "#0d0b0a", border: "#3a332b", plate: "#26221d", seam: "#070606", ink: "#f2ede2", gold: "#d4a94a", dim: "#a39684" };
+
+// TMDB görsel boyutu (ör. w342 → w185): TV'de görselleri gösterildiği boyutta indirmek için.
+export const tmdbSize = (url, size) => (url ? String(url).replace(/\/t\/p\/(w\d+|original)\//, `/t/p/${size}/`) : url);
+
+// Ana ekran ölçüleri (960x540 mantıksal TV ekranı).
+export const TOPBAR_H = 64;
+export const HERO_H = 288;
+export const HERO_W = 960 - SAFE_X * 2;
+export const HERO_MEDIA_W = Math.round((HERO_H * 16) / 9); // fragman 16:9, kırpılmadan
+export const PREVIEW_H = 190;

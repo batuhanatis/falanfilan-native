@@ -70,3 +70,15 @@ export function watchAndDescribe(link) {
   if (r.reason === "unknown_app") return { text: `${label.name} uygulamasını bu TV'de henüz açamıyoruz.`, tone: "error" };
   return { text: r.message || "Açılamadı.", tone: "error" };
 }
+
+// Fragmanı TV'nin YouTube uygulamasında tam ekran açar (yerel oynatıcı, akıcı). YouTube yoksa
+// tarayıcıya düşmüyoruz (TV-WB); durum yazısı dönüyor.
+export function openTrailerInYouTube(videoKey) {
+  try {
+    const r = openUrl(`https://www.youtube.com/watch?v=${encodeURIComponent(videoKey)}`, PLATFORM_PACKAGES.YouTube || [], {});
+    if (r) return { text: "Fragman YouTube'da açılıyor…", tone: "info" };
+    return { text: "Bu TV'de YouTube uygulaması yok.", tone: "error" };
+  } catch (e) {
+    return { text: e?.message || "Fragman açılamadı.", tone: "error" };
+  }
+}

@@ -1,8 +1,24 @@
 {
   "PLATFORM_PACKAGES": {
-    "Netflix": ["com.netflix.ninja", "com.netflix.mediaclient"],
-    "Disney Plus": ["com.disney.disneyplus"],
-    "HBO Max": ["com.wbd.stream", "com.hbo.hbonow"],
-    "Amazon Prime Video": ["com.amazon.amazonvideo.livingroom", "com.amazon.avod.thirdpartyclient"]
+    "Netflix": [
+      "com.netflix.ninja",
+      "com.netflix.mediaclient"
+    ],
+    "Disney Plus": [
+      "com.disney.disneyplus"
+    ],
+    "HBO Max": [
+      "com.wbd.stream",
+      "com.hbo.hbonow"
+    ],
+    "Amazon Prime Video": [
+      "com.amazon.amazonvideo.livingroom",
+      "com.amazon.avod.thirdpartyclient"
+    ],
+    "YouTube": [
+      "com.google.android.youtube.tv",
+      "com.google.android.youtube.googletv",
+      "com.google.android.youtube"
+    ]
   }
 }
