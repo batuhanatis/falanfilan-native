@@ -41,7 +41,7 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
           <Text style={styles.summaryText}>
             {personalizedCount > 0
               ? translateUI("Pellix bu seçim için {0} kişisel sinyal buldu.", {0: personalizedCount})
-              : translateUI("Zevk profilin henüz gelişiyor; bu yüzden yalnızca doğrulayabildiğimiz sinyalleri gösteriyoruz.")}
+              : translateUI("Profilin henüz şekilleniyor; bu yüzden yalnızca doğrulayabildiğimiz sinyalleri gösteriyoruz.")}
           </Text>
         </View>
       </View>

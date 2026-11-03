@@ -191,7 +191,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
         personalized: true,
         title: translateUI("Daha önce sevdiğin yapımlarla ortak tarafı var"),
         detail: translateUI("{0} ile {1} tarafında kesişiyor.", {0: (examples.map((x) => `“${x}”`).join(getLanguage() === "en" ? " and " : " ve ")),1: (sharedGenres.map(g => translateUI(g)).join(" / "))}),
-        short: translateUI("{0} ile benzer zevk sinyali", {0: (examples[0])}),
+        short: translateUI("{0} ile ortak noktası var", {0: (examples[0])}),
       });
     }
   }
@@ -222,7 +222,7 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
         personalized: true,
         title: translateUI("Sevdiğin içeriklerin süresine yakın"),
         detail: translateUI("Beğendiğin yapımların tipik süresi yaklaşık {0} dakika; bu içerik {1} dakika.", {0: (typical),1: (targetRuntime)}),
-        short: translateUI("Süre zevkine yakın · {0} dk", {0: (targetRuntime)}),
+        short: translateUI("Sevdiğin sürelere yakın · {0} dk", {0: (targetRuntime)}),
       });
     }
   }
@@ -236,11 +236,11 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
   if (targetDecade != null && topDecade && topDecade[0] === targetDecade && topDecade[1] >= 2) {
     addReason(reasons, {
       score: 68,
-      source: translateUI("DÖNEM ZEVKİN"),
+      source: translateUI("DÖNEM TERCİHİN"),
       personalized: true,
       title: translateUI("Sık beğendiğin dönemden"),
       detail: translateUI("Beğeni geçmişinde {0}'lar öne çıkıyor; bu yapım da {1} tarihli.", {0: (targetDecade),1: (movie.year || targetDecade)}),
-      short: translateUI("{0}'lar zevkine uyuyor", {0: (targetDecade)}),
+      short: translateUI("Sevdiğin dönemden · {0}'lar", {0: (targetDecade)}),
     });
   }
 
@@ -279,9 +279,9 @@ export function recommendationReasons(movie, likedMovies = [], context = {}) {
       score: 10,
       source: translateUI("PELLIX SEÇİMİ"),
       personalized: false,
-      title: translateUI("Zevk profilin henüz gelişiyor"),
+      title: translateUI("Profilin henüz şekilleniyor"),
       detail: translateUI("{0} türündeki bu içerik akışında öne çıktı. Birkaç beğeni daha verdikçe nedenler daha kişisel hale gelecek.", {0: (targetGenres.slice(0, 2).map(g => translateUI(g)).join(" / "))}),
-      short: translateUI("{0} · zevk profilin geliştikçe daha kişisel olacak", {0: (translateUI(targetGenres[0]))}),
+      short: translateUI("{0} · beğendikçe öneriler kişiselleşecek", {0: (translateUI(targetGenres[0]))}),
     });
   }
 
