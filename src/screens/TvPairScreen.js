@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useMemo, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,7 +35,7 @@ export default function TvPairScreen({ route, navigation }) {
       setDone(true);
     } catch (e) {
       hapticWarning();
-      setError(e.message || "Onaylanamadı, tekrar dene.");
+      setError(translateUI(e.message || "Onaylanamadı, tekrar dene."));
     } finally {
       setBusy(false);
     }
@@ -42,17 +43,17 @@ export default function TvPairScreen({ route, navigation }) {
 
   return (
     <View style={[styles.root, { paddingTop: Math.max(insets.top, 12) + 4, paddingBottom: Math.max(insets.bottom, 16) }]}>
-      <TouchableOpacity style={styles.back} onPress={leave} accessibilityRole="button" accessibilityLabel="Geri">
+      <TouchableOpacity style={styles.back} onPress={leave} accessibilityRole="button" accessibilityLabel={translateUI("Geri")}>
         <ChevronLeft size={22} color={c.text} />
       </TouchableOpacity>
 
       <View style={styles.body}>
         <View style={styles.icon}>{done ? <Check size={30} color={c.accent} /> : <Tv size={30} color={c.accent} />}</View>
-        <Text style={styles.title}>{done ? "TV'de açıldı" : "TV'ye bağlan"}</Text>
+        <Text style={styles.title}>{done ? translateUI("TV'de açıldı") : translateUI("TV'ye bağlan")}</Text>
         <Text style={styles.text}>
           {done
-            ? "Önerilerin artık TV'de. Seçtiğin içerik, izleyeceğin uygulamada açılır."
-            : "Bu TV'de Pellix hesabınla oturum açılacak. Aşağıdaki kod TV ekranındakiyle aynı mı?"}
+            ? translateUI("Önerilerin artık TV'de. Seçtiğin içerik, izleyeceğin uygulamada açılır.")
+            : translateUI("Bu TV'de Pellix hesabınla oturum açılacak. Aşağıdaki kod TV ekranındakiyle aynı mı?")}
         </Text>
 
         {!done && (
@@ -60,12 +61,12 @@ export default function TvPairScreen({ route, navigation }) {
             style={styles.code}
             value={code.length > 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code}
             onChangeText={(v) => { setCode(normalize(v)); setError(null); }}
-            placeholder="KOD"
+            placeholder={translateUI("KOD")}
             placeholderTextColor={c.dim}
             autoCapitalize="characters"
             autoCorrect={false}
             maxLength={7}
-            accessibilityLabel="TV kodu"
+            accessibilityLabel={translateUI("TV kodu")}
           />
         )}
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
@@ -73,7 +74,7 @@ export default function TvPairScreen({ route, navigation }) {
 
       {done ? (
         <TouchableOpacity style={styles.primary} onPress={leave} accessibilityRole="button">
-          <Text style={styles.primaryText}>Tamam</Text>
+          <Text style={styles.primaryText}>{translateUI("Tamam")}</Text>
         </TouchableOpacity>
       ) : (
         <>
@@ -83,10 +84,10 @@ export default function TvPairScreen({ route, navigation }) {
             disabled={code.length !== 6 || busy}
             accessibilityRole="button"
           >
-            {busy ? <ActivityIndicator color="#1a140b" /> : <Text style={styles.primaryText}>Onayla</Text>}
+            {busy ? <ActivityIndicator color="#1a140b" /> : <Text style={styles.primaryText}>{translateUI("Onayla")}</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondary} onPress={leave} accessibilityRole="button">
-            <Text style={styles.secondaryText}>Vazgeç</Text>
+            <Text style={styles.secondaryText}>{translateUI("Vazgeç")}</Text>
           </TouchableOpacity>
         </>
       )}

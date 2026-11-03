@@ -1651,5 +1651,15 @@
   "{0} türündeki bu içerik akışında öne çıktı. Birkaç beğeni daha verdikçe nedenler daha kişisel hale gelecek.": "This {0} title stood out in your feed. Like a few more titles for more personal explanations.",
   "{0} · zevk profilin geliştikçe daha kişisel olacak": "{0} · gets more personal as your taste profile grows",
   "Önceki seçim": "Previous pick",
-  "Seçim {0} / {1}": "Pick {0} of {1}"
+  "Seçim {0} / {1}": "Pick {0} of {1}",
+  "TV'de açıldı": "Open on your TV",
+  "TV'ye bağlan": "Connect to TV",
+  "Önerilerin artık TV'de. Seçtiğin içerik, izleyeceğin uygulamada açılır.": "Your recommendations are on your TV now. Whatever you pick opens in the app you'll watch it on.",
+  "Bu TV'de Pellix hesabınla oturum açılacak. Aşağıdaki kod TV ekranındakiyle aynı mı?": "This TV will sign in with your Pellix account. Does the code below match the one on your TV?",
+  "KOD": "CODE",
+  "TV kodu": "TV code",
+  "Onayla": "Confirm",
+  "Onaylanamadı, tekrar dene.": "Couldn't confirm, try again.",
+  "Kod 6 karakter olmalı.": "The code must be 6 characters.",
+  "Bu kod geçersiz ya da süresi doldu. TV'deki yeni kodu dene.": "This code is invalid or expired. Try the new code on your TV."
 }
