@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, StyleSheet, BackHandler, AppState } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { C, FONTS, SAFE_X, SAFE_Y, upperTR } from "../theme";
-import { platformLabel, openOnPlatform } from "../platforms";
+import { platformLabel, openOnPlatform, canOpenPlatform } from "../platforms";
 import FocusButton from "../components/FocusButton";
 
 // İçerik detayı: kararı verdiren yer. "…'te izle" platform uygulamasını doğrudan içerikte açıyor;
@@ -21,9 +21,13 @@ export default function DetailScreen({ movie, onBack }) {
     return () => sub.remove();
   }, []);
 
-  const links = Array.isArray(movie.watchLinks) && movie.watchLinks.length
+  const all = Array.isArray(movie.watchLinks) && movie.watchLinks.length
     ? movie.watchLinks
     : (movie.platforms || []).map((p) => ({ platform: p.name, url: null }));
+  // TV'de açamadığımız uygulamalar (paket adı bilinmiyor, link yok) düğme değil, bilgi satırı.
+  const links = all.filter(canOpenPlatform);
+  const otherNames = all.filter((l) => !canOpenPlatform(l)).map((l) => platformLabel(l.platform).name);
+  const others = otherNames.map((n) => n.toUpperCase());
 
   function watch(link) {
     const label = platformLabel(link.platform);
@@ -52,7 +56,8 @@ export default function DetailScreen({ movie, onBack }) {
           {!!movie.overview && <Text style={styles.overview} numberOfLines={5}>{movie.overview}</Text>}
 
           <Text style={styles.section}>NEREDE İZLENİR</Text>
-          {links.length ? (
+          {links.length || others.length ? (
+            <View>
             <View style={styles.buttons}>
               {links.map((l, i) => {
                 const label = platformLabel(l.platform);
@@ -67,6 +72,11 @@ export default function DetailScreen({ movie, onBack }) {
                   />
                 );
               })}
+            </View>
+            {!!others.length && (links.length
+              ? <Text style={styles.others}>AYRICA  ·  {others.join("  ·  ")}</Text>
+              : <Text style={styles.none}>{otherNames.join(", ")} uygulamasından izleyebilirsin; o uygulamayı TV'nden açman yeterli.</Text>)}
+            {!links.length && <FocusButton label="Geri dön" onPress={onBack} hasTVPreferredFocus style={{ marginTop: 14, alignSelf: "flex-start" }} />}
             </View>
           ) : (
             <View style={{ alignItems: "flex-start" }}>
@@ -95,5 +105,6 @@ const styles = StyleSheet.create({
   section: { fontFamily: FONTS.monoMedium, color: C.dim, fontSize: 12, letterSpacing: 2, marginTop: 24, marginBottom: 10 },
   buttons: { flexDirection: "row", flexWrap: "wrap" },
   none: { color: C.dim, fontSize: 16 },
+  others: { fontFamily: FONTS.monoMedium, color: C.dim, fontSize: 13, letterSpacing: 1.5, marginTop: 4 },
   status: { color: C.dim, fontSize: 15, marginTop: 6, maxWidth: 620 },
 });

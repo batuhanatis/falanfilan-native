@@ -15,6 +15,11 @@ export function platformLabel(platform) {
   return LABELS[platform] || { name: platform, watch: `${platform} uygulamasında izle`, open: `${platform} uygulamasını aç` };
 }
 
+// TV'de bu platformu açabiliyor muyuz: içerik linki ya da bilinen bir uygulama paketi gerekli.
+export function canOpenPlatform(link) {
+  return !!(link?.url || (PLATFORM_PACKAGES[link?.platform] || []).length);
+}
+
 // Netflix, TV uygulamasına dışarıdan gelen içerik linkinde bu ekstrayı bekliyor.
 const EXTRAS = { "Netflix": { source: "30" } };
 

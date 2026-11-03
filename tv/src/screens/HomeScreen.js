@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Image, ScrollView, FlatList, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../api";
@@ -28,6 +28,10 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hero, setHero] = useState(null);
+  // Kumandayla satır değişince liste satır başına oturuyor (yarım kesik satır kalmasın).
+  const scrollRef = useRef(null);
+  const rowY = useRef({});
+  const currentRow = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,7 +68,15 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   useEffect(() => { load(); }, [load]);
 
   const onFocusMovie = useCallback((m) => setHero(m), []);
-  const platforms = (hero?.platforms || []).map((p) => platformLabel(p.name).name).join("  ·  ");
+  // Satır içinde ilerlerken de yeniden hizalıyoruz: sistemin odak kaydırması yarım kalmış bir
+  // kaydırmayı kesebiliyor.
+  const onFocusRow = useCallback((rowIndex) => {
+    currentRow.current = rowIndex;
+    // Odak değişince sistemin kendi kaydırması da çalışıyor; bizimki ondan sonra gelsin diye bir kare bekliyoruz.
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: rowY.current[rowIndex] || 0, animated: true }));
+  }, []);
+  // Marka adları düz büyük harf (NETFLIX, PRIME VIDEO), Türkçe İ değil.
+  const platforms = (hero?.platforms || []).map((p) => platformLabel(p.name).name.toUpperCase()).join("  ·  ");
   const heroMeta = hero ? [hero.type, hero.year, hero.imdb ? `IMDb ${hero.imdb}` : null].filter(Boolean).join("  ·  ") : "";
 
   return (
@@ -73,9 +85,9 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
       <View style={styles.hero}>
         {!!hero?.poster && (
           <View style={styles.heroArt}>
-            <Image source={{ uri: hero.poster }} style={StyleSheet.absoluteFill} blurRadius={14} />
-            <LinearGradient colors={[C.bg, "rgba(20,18,26,0.55)", "rgba(20,18,26,0.2)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-            <LinearGradient colors={["rgba(20,18,26,0)", C.bg]} start={{ x: 0, y: 0.5 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+            <Image source={{ uri: hero.poster }} style={[StyleSheet.absoluteFill, { opacity: 0.7 }]} blurRadius={6} resizeMode="cover" />
+            <LinearGradient colors={[C.bg, "rgba(20,18,26,0.6)", "rgba(20,18,26,0)"]} locations={[0, 0.35, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["rgba(20,18,26,0)", C.bg]} locations={[0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
           </View>
         )}
         <View style={styles.topBar}>
@@ -90,7 +102,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
             <Text style={styles.heroMeta}>{upperTR(heroMeta)}</Text>
             <Text style={styles.heroTitle} numberOfLines={1}>{hero.title}</Text>
             {!!hero.overview && <Text style={styles.heroOverview} numberOfLines={3}>{hero.overview}</Text>}
-            {!!platforms && <Text style={styles.heroPlatforms}>{upperTR(platforms)}</Text>}
+            {!!platforms && <Text style={styles.heroPlatforms}>{platforms}</Text>}
           </View>
         )}
       </View>
@@ -103,9 +115,9 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
           <FocusButton label="Tekrar dene" onPress={load} primary hasTVPreferredFocus style={{ marginTop: 12 }} />
         </View>
       ) : (
-        <ScrollView style={styles.rows} contentContainerStyle={{ paddingBottom: SAFE_Y * 2 }} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={styles.rows} contentContainerStyle={{ paddingBottom: 300 }} showsVerticalScrollIndicator={false}>
           {rows.map((row, rowIndex) => (
-            <View key={row.key} style={styles.row}>
+            <View key={row.key} style={styles.row} onLayout={(e) => { rowY.current[rowIndex] = e.nativeEvent.layout.y; }}>
               <Text style={styles.rowTitle}>{row.title}</Text>
               <FlatList
                 horizontal
@@ -116,7 +128,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
                 renderItem={({ item, index }) => (
                   <Poster
                     movie={item}
-                    onFocusMovie={onFocusMovie}
+                    onFocusMovie={(m) => { onFocusMovie(m); onFocusRow(rowIndex); }}
                     onOpen={(m) => onOpen(m, row.key)}
                     hasTVPreferredFocus={preferred
                       ? (preferred.row === row.key && preferred.id === item.id)
