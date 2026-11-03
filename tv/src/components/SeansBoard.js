@@ -9,8 +9,8 @@ import { primaryWatchLink, watchButtonLabel } from "../platforms";
 // src/components/salon/SeansBoard.js). Gar/sinema seans panosu: başlık harf kutucuklarına
 // yazılıyor, sıradaki seçime geçince her kutu birkaç rastgele harften geçip yenisine dönüyor.
 // Sağda panoya gömülü bir "ekran" afişi gösteriyor; içerikte 3 saniye kumandaya dokunulmazsa
-// ekranın alt kenarındaki çizgi doluyor ve fragman panonun TAMAMINDA başlıyor. Fragman oynarken
-// herhangi bir tuş onu kesip panoyu geri getiriyor. İçerik telefondakiyle aynı günlük seçki
+// ekranın alt kenarındaki çizgi doluyor ve fragman panonun TAMAMINDA başlıyor: pano videoya göre
+// 16:9'a uzuyor (kırpma yok). Fragman oynarken herhangi bir tuş onu kesip panoyu geri getiriyor. İçerik telefondakiyle aynı günlük seçki
 // (API /api/me/home-hero). Pano fiziksel bir nesne, hep koyu.
 
 const CHARS = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ0123456789";
@@ -181,7 +181,11 @@ export default function SeansBoard({
   const catcherRef = useRef(null);
   const lastFocused = useRef("primary");
   const content = useRef(new Animated.Value(1)).current;
-  const hint = useRef(new Animated.Value(0)).current;
+  // Pano yüksekliği: normalde içeriğin kendi yüksekliği, fragman oynarken genişliğin 16:9'u.
+  const [boardW, setBoardW] = useState(0);
+  const [innerH, setInnerH] = useState(0);
+  const height = useRef(new Animated.Value(0)).current;
+  const heightReady = useRef(false);
   const prevPhase = useRef(phase);
   const count = selections.length;
   const safeIndex = Math.min(index, Math.max(0, count - 1));
@@ -204,26 +208,28 @@ export default function SeansBoard({
     if (c !== catcherTag) setCatcherTag(c);
   });
 
-  // Fragman oynamaya başlayınca pano içeriği kalkıyor (fragman tüm alanda), bitince/kesilince
-  // geri geliyor. Kısa bir süre "bir tuşa basınca durur" ipucu görünüyor.
+  // Fragman oynamaya başlayınca pano içeriği kalkıyor ve pano 16:9'a uzuyor (video kırpılmadan
+  // tamamen görünsün); bitince/kesilince içerik geri geliyor, pano eski boyuna dönüyor.
+  const videoH = boardW ? Math.round((boardW - 2) * 9 / 16) + 2 : 0; // 1 px kenarlık iki yanda
+  useEffect(() => {
+    if (!innerH) return;
+    const target = phase === "playing" && videoH ? videoH : innerH;
+    Animated.timing(height, {
+      toValue: target, duration: reduceMotion ? 0 : phase === "playing" ? 450 : 300,
+      easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  }, [phase, innerH, videoH, height, reduceMotion]);
+
   useEffect(() => {
     const playing = phase === "playing";
     Animated.timing(content, { toValue: playing ? 0 : 1, duration: reduceMotion ? 0 : playing ? 500 : 250, useNativeDriver: true }).start();
-    if (playing) {
-      hint.setValue(0);
-      Animated.sequence([
-        Animated.timing(hint, { toValue: 1, duration: 400, delay: 300, useNativeDriver: true }),
-        Animated.delay(3500),
-        Animated.timing(hint, { toValue: 0, duration: 600, useNativeDriver: true }),
-      ]).start();
-    }
     // Fragman bitince/kesilince odak, yakalayıcıdan en son odaklanan düğmeye geri dönüyor.
     if (prevPhase.current === "playing" && !playing) {
       const refs = { primary: primaryRef, detail: detailRef, next: nextRef };
       requestAnimationFrame(() => focusView((refs[lastFocused.current] || primaryRef).current || primaryRef.current));
     }
     prevPhase.current = phase;
-  }, [phase, content, hint, reduceMotion]);
+  }, [phase, content, reduceMotion]);
 
   // Pano yüksekliği seçkideki en uzun başlığa göre sabit: seçim değişince düzen zıplamasın.
   const titleHeight = useMemo(
@@ -239,9 +245,20 @@ export default function SeansBoard({
   const press = (fn) => () => { onInteract?.(); fn(); };
 
   return (
-    <View style={styles.board}>
+    <Animated.View
+      style={[styles.board, innerH ? { height } : null]}
+      onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w !== boardW) setBoardW(w); }}
+    >
       {showPlayer && <TrailerPlayer videoKey={trailer.key} onPlaying={onTrailerPlaying} onEnded={onTrailerEnded} onError={onTrailerError} />}
-      <Animated.View style={[styles.boardInner, { opacity: content }]}>
+      <Animated.View
+        style={[styles.boardInner, { opacity: content }]}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          // İlk ölçümde yüksekliği hemen ver (bir kare bile 0 yükseklikte kalmasın).
+          if (!heightReady.current) { height.setValue(h); heightReady.current = true; }
+          if (h !== innerH) setInnerH(h);
+        }}
+      >
       <View style={styles.boardTop}>
         <Text style={styles.boardLabel}>BU AKŞAM SENİN İÇİN</Text>
         <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}/{String(count).padStart(2, "0")}</Text>
@@ -255,9 +272,7 @@ export default function SeansBoard({
           {!!movie.overview && <Text style={styles.overview} numberOfLines={3}>{movie.overview}</Text>}
           {status
             ? <Text style={[styles.reason, status.tone === "error" && { color: "#e58a93" }]} numberOfLines={1}>{status.text}</Text>
-            : phase === "playing"
-              ? <Text style={styles.reason} numberOfLines={1}>▶  FRAGMAN OYNUYOR  ·  GERİ TUŞU DURDURUR</Text>
-              : !!item.reason && <Text style={styles.reason} numberOfLines={1}>{item.reason}</Text>}
+            : !!item.reason && <Text style={styles.reason} numberOfLines={1}>{item.reason}</Text>}
         </View>
         <Screen movie={movie} trailer={trailer} phase={phase} />
       </View>
@@ -291,12 +306,6 @@ export default function SeansBoard({
       </View>
       </Animated.View>
 
-      {playing && (
-        <Animated.View pointerEvents="none" style={[styles.hint, { opacity: hint }]}>
-          <Text style={styles.hintTitle} numberOfLines={1}>{movie.title}</Text>
-          <Text style={styles.hintText}>FRAGMAN  ·  BİR TUŞA BASINCA DURUR</Text>
-        </Animated.View>
-      )}
       {/* Fragman oynarken odak bu görünmez katmanda: ilk tuş hiçbir düğmeyi tetiklemeden ya da
           odağı kaydırmadan yalnızca fragmanı kesiyor (yön tuşları kendine dönüyor). */}
       {playing && (
@@ -310,16 +319,13 @@ export default function SeansBoard({
           {...(catcherTag ? { nextFocusUp: catcherTag, nextFocusDown: catcherTag, nextFocusLeft: catcherTag, nextFocusRight: catcherTag } : null)}
         />
       )}
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   board: { backgroundColor: "#000", borderRadius: 22, borderWidth: 1, borderColor: BOARD.border, overflow: "hidden" },
   boardInner: { backgroundColor: BOARD.bg, paddingHorizontal: 26, paddingTop: 18, paddingBottom: 20 },
-  hint: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 26, paddingTop: 28, paddingBottom: 20, backgroundColor: "rgba(0,0,0,0.45)" },
-  hintTitle: { fontFamily: FONTS.marquee, fontSize: 30, color: BOARD.ink },
-  hintText: { fontFamily: FONTS.monoMedium, fontSize: 11, color: BOARD.gold, letterSpacing: 1.4, marginTop: 4 },
   boardTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   boardLabel: { fontFamily: FONTS.monoMedium, fontSize: 12, color: BOARD.gold, letterSpacing: 1.6 },
   body: { flexDirection: "row", gap: 28 },

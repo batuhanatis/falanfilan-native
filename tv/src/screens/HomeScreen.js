@@ -239,6 +239,17 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   }, [scrollTo]);
 
   // İzle'ye basınca fragman susuyor ve o seçimde bir daha kendiliğinden başlamıyor.
+  // Fragman oynarken pano 16:9'a uzuyor; sayfayı panonun tamamı ekrana sığacak kadar kaydırıyoruz
+  // (üst kenarı güvenli alanın başına). Fragman bitince başa dönülüyor.
+  const boardY = useRef(0);
+  const topBarIn = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (phase === "playing") scrollTo(boardY.current - SAFE_Y);
+    else if (zone === "board") scrollTo(0);
+    // Kayınca yarım kalan üst çubuk (logo, Çıkış) fragman boyunca gizli.
+    Animated.timing(topBarIn, { toValue: phase === "playing" ? 0 : 1, duration: 300, useNativeDriver: true }).start();
+  }, [phase, zone, scrollTo, topBarIn]);
+
   const onWatch = useCallback((movie, link) => { setPhase("done"); setBoardStatus(watchAndDescribe(link)); }, []);
 
   // Marka adları düz büyük harf (NETFLIX, PRIME VIDEO), Türkçe İ değil.
@@ -248,7 +259,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const boardPreferred = preferred ? preferred.row === "board" : true;
 
   const topBar = (
-    <View style={styles.topBar}>
+    <Animated.View style={[styles.topBar, { opacity: topBarIn }]}>
       <Text style={styles.logo}>pellix</Text>
       <View style={styles.topRight}>
         {!!auth.user?.name && <Text style={styles.user}>{upperTR(auth.user.name)}</Text>}
@@ -261,7 +272,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
           style={styles.signOut}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 
   return (
@@ -287,7 +298,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
             )}
             {topBar}
             {!!picks.length && (
-              <View style={styles.boardWrap}>
+              <View style={styles.boardWrap} onLayout={(e) => { boardY.current = e.nativeEvent.layout.y; }}>
                 <SeansBoard
                   selections={picks}
                   index={pickIndex}
