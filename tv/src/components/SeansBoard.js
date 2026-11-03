@@ -1,0 +1,205 @@
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, Image, Animated, StyleSheet, AccessibilityInfo } from "react-native";
+import { FONTS, upperTR } from "../theme";
+import FocusButton from "./FocusButton";
+import { primaryWatchLink, watchButtonLabel } from "../platforms";
+
+// Telefondaki "Bu akşam senin için" panosunun TV hali (bkz. falanfilan-native
+// src/components/salon/SeansBoard.js). Gar/sinema seans panosu: başlık harf kutucuklarına
+// yazılıyor, sıradaki seçime geçince her kutu birkaç rastgele harften geçip yenisine dönüyor.
+// İçerik telefondakiyle aynı günlük seçki (API /api/me/home-hero). Pano fiziksel bir nesne,
+// hep koyu.
+
+const CHARS = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ0123456789";
+// Başlık sığana kadar sırayla denenen pano boyutları (sütun × satır), telefonla aynı.
+const LAYOUTS = [[11, 2], [14, 2], [14, 3], [18, 3]];
+const GAP = 4;
+const TITLE_W = 520;
+const BOARD = { bg: "#0d0b0a", border: "#3a332b", top: "#2e2924", bottom: "#26221d", seam: "#070606", ink: "#f2ede2", gold: "#d4a94a", dim: "#a39684" };
+
+function splitLines(words, cols) {
+  const lines = [""];
+  for (const w of words) {
+    const cur = lines[lines.length - 1];
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length <= cols) lines[lines.length - 1] = next;
+    else if (w.length <= cols) lines.push(w);
+    else {
+      let rest = cur ? `${cur} ${w}` : w;
+      lines[lines.length - 1] = rest.slice(0, cols);
+      rest = rest.slice(cols);
+      while (rest.length) { lines.push(rest.slice(0, cols)); rest = rest.slice(cols); }
+    }
+  }
+  return lines;
+}
+
+function boardLayout(title) {
+  const words = title.split(/\s+/).filter(Boolean);
+  for (const [cols, rows] of LAYOUTS) {
+    const lines = splitLines(words, cols);
+    if (lines.length <= rows) return { cols, rows, lines };
+  }
+  const [cols, rows] = LAYOUTS[LAYOUTS.length - 1];
+  const lines = splitLines(words, cols).slice(0, rows);
+  lines[rows - 1] = `${lines[rows - 1].slice(0, cols - 1)}…`;
+  return { cols, rows, lines };
+}
+
+const cellSize = (cols) => {
+  const w = (TITLE_W - GAP * (cols - 1)) / cols;
+  return { w, h: w / 0.66, font: w * 0.8 };
+};
+const gridHeight = ({ cols, rows }) => rows * cellSize(cols).h + GAP * (rows - 1);
+
+// Yerli içerikte Türkçe büyük harf (i → İ), yabancıda düz büyük harf.
+const boardTitle = (movie) => (String(movie?.originalLanguage || "").toLowerCase() === "tr"
+  ? upperTR(movie?.title)
+  : String(movie?.title || "").toUpperCase());
+
+const FlapCell = memo(function FlapCell({ char, delay, steps, size, reduceMotion, cycle }) {
+  const [shown, setShown] = useState(char);
+  const flip = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (reduceMotion) { setShown(char); flip.setValue(1); return undefined; }
+    const timers = [];
+    let k = 0;
+    const tick = () => {
+      k += 1;
+      const next = k >= steps ? char : CHARS[Math.floor(Math.random() * CHARS.length)];
+      setShown(next);
+      flip.setValue(0.12);
+      Animated.timing(flip, { toValue: 1, duration: 70, useNativeDriver: true }).start();
+      if (k < steps) timers.push(setTimeout(tick, 55));
+    };
+    timers.push(setTimeout(tick, delay));
+    return () => { timers.forEach(clearTimeout); flip.stopAnimation(); };
+  }, [char, cycle, reduceMotion]);
+
+  return (
+    <View style={[styles.cell, { width: size.w, height: size.h }]}>
+      <View style={[styles.cellHalf, { height: size.h / 2, backgroundColor: BOARD.top }]} />
+      <View style={[styles.cellHalf, { top: size.h / 2, height: size.h / 2, backgroundColor: BOARD.bottom }]} />
+      <Animated.Text allowFontScaling={false} style={[styles.cellText, { fontSize: size.font, lineHeight: size.h, transform: [{ scaleY: flip }] }]}>
+        {shown === " " ? "" : shown}
+      </Animated.Text>
+      <View style={[styles.seam, { top: size.h / 2 - 0.5 }]} />
+    </View>
+  );
+});
+
+function FlapGrid({ text, reduceMotion, cycle }) {
+  const { cols, rows, lines } = useMemo(() => boardLayout(text), [text]);
+  const size = cellSize(cols);
+  return (
+    <View style={{ gap: GAP, width: TITLE_W }} accessible accessibilityLabel={text}>
+      {Array.from({ length: rows }, (_, r) => (
+        <View key={`${cols}-${r}`} style={{ flexDirection: "row", gap: GAP }}>
+          {Array.from({ length: cols }, (__, col) => (
+            <FlapCell
+              key={`${cols}-${r}-${col}`}
+              char={(lines[r] || "")[col] || " "}
+              delay={col * 26 + r * 70}
+              steps={Math.floor(3 + col * 0.45 + ((col * 7 + r * 3) % 3))}
+              size={size}
+              reduceMotion={reduceMotion}
+              cycle={cycle}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function metaLine(movie) {
+  const genre = String(movie.genre || "").split(/[,/·|]/)[0]?.trim();
+  return [genre, movie.type, movie.runtime, movie.year, movie.imdb ? `IMDb ${movie.imdb}` : null]
+    .filter(Boolean).map((part) => upperTR(part)).join("  ·  ");
+}
+
+// selections: [{ movie, reason }]. onWatch(movie, link) platformu açar; onOpen(movie) detaya gider.
+// onFocusBoard: odak panoya gelince (liste en üste kaysın). status: izle düğmesinin sonucu.
+export default function SeansBoard({ selections, index, onIndexChange, onOpen, onWatch, onFocusBoard, onInteract, status, preferredFocus }) {
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const count = selections.length;
+  const safeIndex = Math.min(index, Math.max(0, count - 1));
+  const item = selections[safeIndex];
+  const movie = item?.movie;
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { if (mounted) setReduceMotion(v); }).catch(() => setReduceMotion(false));
+    return () => { mounted = false; };
+  }, []);
+
+  // Pano yüksekliği seçkideki en uzun başlığa göre sabit: seçim değişince düzen zıplamasın.
+  const titleHeight = useMemo(
+    () => Math.ceil(Math.max(...selections.map((s) => gridHeight(boardLayout(boardTitle(s.movie)))))),
+    [selections],
+  );
+
+  if (!movie) return null;
+  const link = primaryWatchLink(movie);
+  const focus = () => onFocusBoard?.();
+  const press = (fn) => () => { onInteract?.(); fn(); };
+
+  return (
+    <View style={styles.board}>
+      <View style={styles.boardTop}>
+        <Text style={styles.boardLabel}>BU AKŞAM SENİN İÇİN</Text>
+        <Text style={styles.boardLabel}>{String(safeIndex + 1).padStart(2, "0")}/{String(count).padStart(2, "0")}</Text>
+      </View>
+      <View style={styles.body}>
+        <View style={styles.left}>
+          <View style={{ height: titleHeight, justifyContent: "center" }}>
+            <FlapGrid text={boardTitle(movie)} reduceMotion={reduceMotion} cycle={safeIndex} />
+          </View>
+          <Text style={styles.meta} numberOfLines={1}>{metaLine(movie)}</Text>
+          {status
+            ? <Text style={[styles.reason, status.tone === "error" && { color: "#e58a93" }]} numberOfLines={2}>{status.text}</Text>
+            : !!item.reason && <Text style={styles.reason} numberOfLines={2}>{item.reason}</Text>}
+          {/* Düğmeler sabit anahtarlı: pano kendi kendine sıradakine geçince odaktaki düğme
+              yeniden kurulmasın (TV'de odak kaybolurdu), yalnızca yazısı değişsin. */}
+          <View style={styles.actions}>
+            <FocusButton
+              key="primary"
+              label={link ? `▶  ${watchButtonLabel(link)}` : "Detayı aç"}
+              primary
+              hasTVPreferredFocus={preferredFocus}
+              onFocus={focus}
+              onPress={press(() => (link ? onWatch(movie, link) : onOpen(movie)))}
+              style={styles.btn}
+            />
+            {!!link && <FocusButton key="detail" label="Detay" onFocus={focus} onPress={press(() => onOpen(movie))} style={styles.btn} />}
+            {count > 1 && <FocusButton key="next" label="Sıradaki  ›" onFocus={focus} onPress={press(() => onIndexChange((safeIndex + 1) % count))} style={styles.btn} />}
+          </View>
+        </View>
+        {movie.poster
+          ? <Image source={{ uri: movie.poster }} style={styles.poster} />
+          : <View style={[styles.poster, { backgroundColor: BOARD.top }]} />}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  board: {
+    backgroundColor: BOARD.bg, borderRadius: 22, borderWidth: 1, borderColor: BOARD.border,
+    paddingHorizontal: 26, paddingTop: 20, paddingBottom: 22,
+  },
+  boardTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  boardLabel: { fontFamily: FONTS.monoMedium, fontSize: 12, color: BOARD.gold, letterSpacing: 1.6 },
+  body: { flexDirection: "row", gap: 32 },
+  left: { flex: 1, minWidth: 0 },
+  cell: { borderRadius: 4, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  cellHalf: { position: "absolute", left: 0, right: 0, top: 0 },
+  cellText: { fontFamily: FONTS.marqueeBold, color: BOARD.ink, textAlign: "center", includeFontPadding: false },
+  seam: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: BOARD.seam },
+  meta: { fontFamily: FONTS.mono, fontSize: 13, color: BOARD.dim, letterSpacing: 0.6, marginTop: 14 },
+  reason: { color: BOARD.dim, fontSize: 16, lineHeight: 22, marginTop: 6 },
+  actions: { flexDirection: "row", marginTop: 16 },
+  btn: { marginRight: 12 },
+  poster: { width: 160, height: 240, borderRadius: 10 },
+});

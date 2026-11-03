@@ -25,6 +25,8 @@ export const api = {
   // Telefondaki ana ekranla aynı öneri uçları (bkz. falanfilan-native HomeScreenV2).
   movies: (token, type, page) => request(`/api/movies?type=${type}&page=${page}`, { token }),
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
+  // Telefondaki "Bu akşam senin için" panosunun günlük seçkisi (telefon yazıyor).
+  homeHero: (token) => request("/api/me/home-hero", { token }),
 };
 
 export async function loadAuth() {

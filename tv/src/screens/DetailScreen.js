@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, StyleSheet, BackHandler, AppState } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { C, FONTS, SAFE_X, SAFE_Y, upperTR } from "../theme";
-import { platformLabel, openOnPlatform, canOpenPlatform } from "../platforms";
+import { platformLabel, canOpenPlatform, watchLinksOf, watchButtonLabel, watchAndDescribe } from "../platforms";
 import FocusButton from "../components/FocusButton";
 
 // İçerik detayı: kararı verdiren yer. "…'te izle" platform uygulamasını doğrudan içerikte açıyor;
@@ -21,23 +21,13 @@ export default function DetailScreen({ movie, onBack }) {
     return () => sub.remove();
   }, []);
 
-  const all = Array.isArray(movie.watchLinks) && movie.watchLinks.length
-    ? movie.watchLinks
-    : (movie.platforms || []).map((p) => ({ platform: p.name, url: null }));
+  const all = watchLinksOf(movie);
   // TV'de açamadığımız uygulamalar (paket adı bilinmiyor, link yok) düğme değil, bilgi satırı.
   const links = all.filter(canOpenPlatform);
   const otherNames = all.filter((l) => !canOpenPlatform(l)).map((l) => platformLabel(l.platform).name);
   const others = otherNames.map((n) => n.toUpperCase());
 
-  function watch(link) {
-    const label = platformLabel(link.platform);
-    const r = openOnPlatform(link);
-    if (r.ok && r.how === "deep") setStatus({ text: `${label.name} açılıyor…`, tone: "info" });
-    else if (r.ok) setStatus({ text: `Bu içeriğin ${label.name} linki henüz yok; ${label.name} açıldı, adını aratabilirsin.`, tone: "info" });
-    else if (r.reason === "not_installed") setStatus({ text: `${label.name} bu TV'de yüklü değil.`, tone: "error" });
-    else if (r.reason === "unknown_app") setStatus({ text: `${label.name} uygulamasını bu TV'de henüz açamıyoruz.`, tone: "error" });
-    else setStatus({ text: r.message || "Açılamadı.", tone: "error" });
-  }
+  const watch = (link) => setStatus(watchAndDescribe(link));
 
   const meta = [movie.type, movie.year, movie.imdb ? `IMDb ${movie.imdb}` : null].filter(Boolean).join("  ·  ");
 
@@ -60,11 +50,10 @@ export default function DetailScreen({ movie, onBack }) {
             <View>
             <View style={styles.buttons}>
               {links.map((l, i) => {
-                const label = platformLabel(l.platform);
                 return (
                   <FocusButton
                     key={l.platform}
-                    label={l.url ? label.watch : label.open}
+                    label={watchButtonLabel(l)}
                     primary={i === 0}
                     hasTVPreferredFocus={i === 0}
                     onPress={() => watch(l)}

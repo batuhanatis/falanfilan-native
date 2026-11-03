@@ -41,3 +41,32 @@ export function openOnPlatform(link) {
     return { ok: false, reason: "error", message: e?.message };
   }
 }
+
+// İçeriğin platform listesi: API'nin watchLinks'i, yoksa yalnızca platform adları (link yok).
+export function watchLinksOf(movie) {
+  return Array.isArray(movie?.watchLinks) && movie.watchLinks.length
+    ? movie.watchLinks
+    : (movie?.platforms || []).map((p) => ({ platform: p.name, url: null }));
+}
+
+// Panodaki tek "izle" düğmesi için: TV'de açabildiğimiz ilk platform (yoksa null).
+export function primaryWatchLink(movie) {
+  return watchLinksOf(movie).find(canOpenPlatform) || null;
+}
+
+// Düğme metni: içerik linki varsa "Netflix'te izle", yoksa "Netflix'i aç".
+export function watchButtonLabel(link) {
+  const label = platformLabel(link.platform);
+  return link.url ? label.watch : label.open;
+}
+
+// Platformu açar ve ekranda gösterilecek durumu döner: { text, tone: "info" | "error" }.
+export function watchAndDescribe(link) {
+  const label = platformLabel(link.platform);
+  const r = openOnPlatform(link);
+  if (r.ok && r.how === "deep") return { text: `${label.name} açılıyor…`, tone: "info" };
+  if (r.ok) return { text: `Bu içeriğin ${label.name} linki henüz yok; ${label.name} açıldı, adını aratabilirsin.`, tone: "info" };
+  if (r.reason === "not_installed") return { text: `${label.name} bu TV'de yüklü değil.`, tone: "error" };
+  if (r.reason === "unknown_app") return { text: `${label.name} uygulamasını bu TV'de henüz açamıyoruz.`, tone: "error" };
+  return { text: r.message || "Açılamadı.", tone: "error" };
+}

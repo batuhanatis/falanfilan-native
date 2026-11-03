@@ -3,12 +3,12 @@ import { Pressable, Text, StyleSheet } from "react-native";
 import { C } from "../theme";
 
 // Kumandayla odaklanınca altın dolgu alan düğme. primary: odak dışında da altın kenarlı.
-export default function FocusButton({ label, onPress, primary, hasTVPreferredFocus, style, disabled }) {
+export default function FocusButton({ label, onPress, onFocus, primary, hasTVPreferredFocus, style, disabled }) {
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
       onPress={onPress}
-      onFocus={() => setFocused(true)}
+      onFocus={() => { setFocused(true); onFocus?.(); }}
       onBlur={() => setFocused(false)}
       hasTVPreferredFocus={hasTVPreferredFocus}
       disabled={disabled}

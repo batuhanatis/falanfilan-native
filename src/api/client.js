@@ -215,6 +215,8 @@ export const api = {
   liveRooms: (token) => request("/api/live-rooms", { token }),
   // TV eşleştirme: TV ekranındaki kodu onaylayınca o TV hesapla açılıyor (bkz. TvPairScreen).
   approveTvPair: (token, code) => request("/api/tv/pair/approve", { method: "POST", token, body: { code } }),
+  // Ana ekranın günlük "Bu akşam senin için" seçkisi; TV aynısını gösteriyor. items: [{ id, reason }]
+  saveHomeHero: (token, dayKey, items) => request("/api/me/home-hero", { method: "PUT", token, body: { dayKey, items } }),
   // kind: "mute" (minutes boşsa oda boyunca) | "kick" (odadan at).
   restrictInLiveRoom: (token, code, userId, { kind, minutes } = {}) =>
     request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId, kind, minutes } }),

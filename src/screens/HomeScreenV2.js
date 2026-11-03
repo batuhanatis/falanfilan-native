@@ -505,6 +505,26 @@ export default function HomeScreenV2({ navigation }) {
     return { movie, reasons, score: 1000 - index, sourceIndex: index };
   }), [dailyHeroMovies, tasteLikedMovies, recommendationContext]);
 
+  // Pellix TV aynı seçkiyi ana ekranının en üstünde gösteriyor (API: /api/me/home-hero). Katalog
+  // rastgele sırayla geldiği için TV kendi hesaplasa başka içerikler çıkardı; günün 10'lusu
+  // değişince sunucuya yazıyoruz. Yalnızca filtresiz bağlamda: filtreliyken gerekçeler o filtreye göre.
+  const syncedHeroRef = useRef("");
+  useEffect(() => {
+    if (!isDefaultHeroContext || !dailyHeroHydrated || !dailyHeroSelections.length) return undefined;
+    const items = dailyHeroSelections.map(({ movie, reasons }) => ({
+      id: movie.id,
+      reason: reasons.find((reason) => reason.personalized)?.short || reasons[0]?.short || null,
+    }));
+    const signature = heroDayKey + JSON.stringify(items);
+    if (signature === syncedHeroRef.current) return undefined;
+    const timer = setTimeout(() => {
+      api.saveHomeHero(auth.token, heroDayKey, items)
+        .then(() => { syncedHeroRef.current = signature; })
+        .catch(() => {});
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isDefaultHeroContext, dailyHeroHydrated, dailyHeroSelections, heroDayKey, auth.token]);
+
   const heroSelections = isDefaultHeroContext && dailyHeroHydrated && dailyHeroSelections.length
     ? dailyHeroSelections
     : candidateHeroSelections.slice(0, 10);
