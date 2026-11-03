@@ -210,6 +210,8 @@ export const api = {
     request(`/api/live-rooms/${encodeURIComponent(code)}/messages/${messageId}`, { method: "DELETE", token }),
   banFromLiveRoom: (token, code, userId) =>
     request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId } }),
+  liveRoomReminder: (token, code) => request(`/api/live-rooms/${encodeURIComponent(code)}/reminder`, { token }),
+  setLiveRoomReminder: (token, code, subscribed) => request(`/api/live-rooms/${encodeURIComponent(code)}/reminder`, { token, method: "POST", body: { subscribed } }),
   liveRooms: (token) => request("/api/live-rooms", { token }),
   // TV eşleştirme: TV ekranındaki kodu onaylayınca o TV hesapla açılıyor (bkz. TvPairScreen).
   approveTvPair: (token, code) => request("/api/tv/pair/approve", { method: "POST", token, body: { code } }),

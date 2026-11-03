@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -109,10 +110,10 @@ export default function TrailerPlayerModal({ trailer, onClose }) {
       <View style={[styles.root, { paddingBottom: insets.bottom }]}>
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <View style={styles.heading}>
-            <Text style={styles.title} numberOfLines={1}>{trailer.name || "Fragman"}</Text>
-            <Text style={styles.subtitle}>Uygulama içinde oynatılıyor</Text>
+            <Text style={styles.title} numberOfLines={1}>{trailer.name || translateUI("Fragman")}</Text>
+            <Text style={styles.subtitle}>{translateUI("Uygulama içinde oynatılıyor")}</Text>
           </View>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel="Fragmanı kapat">
+          <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={translateUI("Fragmanı kapat")}>
             <X size={24} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -148,10 +149,10 @@ export default function TrailerPlayerModal({ trailer, onClose }) {
 
           {!!error && (
             <View style={styles.error}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{translateUI(error)}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={retry} activeOpacity={0.8}>
                 <RotateCcw size={15} color="#050505" />
-                <Text style={styles.retryText}>Tekrar dene</Text>
+                <Text style={styles.retryText}>{translateUI("Tekrar dene")}</Text>
               </TouchableOpacity>
             </View>
           )}

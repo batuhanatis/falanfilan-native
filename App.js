@@ -1,3 +1,5 @@
+import { LanguageProvider } from "./src/i18n/LanguageContext";
+import { t as translateUI } from "./src/i18n/core";
 import React, { useEffect, useState } from "react";
 import { View, AppState, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -226,10 +228,10 @@ function Gate() {
           {introDone && auth?.onboardingCompleted && auth?.tutorialSeen && !auth?.tasteSurveySeen && (
             <View style={StyleSheet.absoluteFillObject}>
               <TasteSurveyStep
-                title="Zevkini biraz daha tanıyalım"
-                subtitle="Bu birkaç soru, önerilerini ve arkadaşlarınla uyumunu çok daha isabetli hale getiriyor."
-                skipLabel="Atla"
-                continueLabel="Tamamla"
+                title={translateUI("Zevkini biraz daha tanıyalım")}
+                subtitle={translateUI("Bu birkaç soru, önerilerini ve arkadaşlarınla uyumunu çok daha isabetli hale getiriyor.")}
+                skipLabel={translateUI("Atla")}
+                continueLabel={translateUI("Tamamla")}
                 onSkip={markTasteSurveySeen}
                 onContinue={markTasteSurveySeen}
               />
@@ -269,7 +271,7 @@ export default function App() {
               <WSProvider>
                 <UnreadProvider>
                   <PrefetchProvider>
-                    <Gate />
+                    <LanguageProvider><Gate /></LanguageProvider>
                   </PrefetchProvider>
                 </UnreadProvider>
               </WSProvider>

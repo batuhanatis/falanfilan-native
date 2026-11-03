@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,29 +35,29 @@ export default function PosterPuzzleShareCard({ date, number = null, correct, wr
       <Eye size={100} color="rgba(167,139,250,0.07)" style={styles.eyeMark} />
 
       <View style={styles.brandRow}>
-        <Text style={styles.logo}>pellix</Text>
+        <Text style={styles.logo}>{translateUI("pellix")}</Text>
         <View style={styles.dailyBadge}>
-          <Text style={styles.dailyBadgeText}>GÜNÜN OYUNU</Text>
+          <Text style={styles.dailyBadgeText}>{translateUI("GÜNÜN OYUNU")}</Text>
         </View>
       </View>
 
       <View style={styles.iconBubble}>
         {correct ? <Trophy size={26} color="#FFD76A" /> : <Eye size={26} color="#C4B5FD" />}
       </View>
-      <Text style={styles.eyebrow}>POSTER PUZZLE{number ? ` #${number}` : ""} · {dayLabel(date)}</Text>
+      <Text style={styles.eyebrow}>{translateUI("POSTER PUZZLE")}{number ? ` #${number}` : ""}{translateUI(" · ")}{translateUI(dayLabel(date))}</Text>
       <Text style={styles.title}>{resultText}</Text>
 
       <View style={styles.resultPanel}>
-        <Text style={styles.squares}>{squares || (correct ? "🟩⬛⬛" : "🟥🟥🟥")}</Text>
-        <Text style={styles.attemptLabel}>{attemptsLabel(correct, wrongCount)}</Text>
+        <Text style={styles.squares}>{squares || (correct ? translateUI("🟩⬛⬛") : translateUI("🟥🟥🟥"))}</Text>
+        <Text style={styles.attemptLabel}>{translateUI(attemptsLabel(correct, wrongCount))}</Text>
       </View>
 
-      <Text style={styles.challenge}>Cevabı göstermiyorum. Sen kaçta bulacaksın?</Text>
+      <Text style={styles.challenge}>{translateUI("Cevabı göstermiyorum. Sen kaçta bulacaksın?")}</Text>
 
       <View style={styles.footerRow}>
-        <Text style={styles.footer}>pellix.app</Text>
-        <Text style={styles.footerDot}>•</Text>
-        <Text style={styles.footer}>Her gün yeni poster</Text>
+        <Text style={styles.footer}>{translateUI("pellix.app")}</Text>
+        <Text style={styles.footerDot}>{translateUI("•")}</Text>
+        <Text style={styles.footer}>{translateUI("Her gün yeni poster")}</Text>
       </View>
     </LinearGradient>
   );

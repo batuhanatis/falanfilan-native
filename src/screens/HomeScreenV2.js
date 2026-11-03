@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -141,6 +142,7 @@ export default function HomeScreenV2({ navigation }) {
   const [pickerMovie, setPickerMovie] = useState(null);
   const [showHeroReasons, setShowHeroReasons] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [heroSliding, setHeroSliding] = useState(false);
   const [heroDayKey, setHeroDayKey] = useState(() => localDayKey());
   const [dailyHeroMovies, setDailyHeroMovies] = useState([]);
   const [dailyHeroHydrated, setDailyHeroHydrated] = useState(false);
@@ -764,7 +766,7 @@ export default function HomeScreenV2({ navigation }) {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <TopBar centerLabel="Ana Sayfa" />
+        <TopBar />
         <HomeSkeleton />
       </View>
     );
@@ -778,7 +780,7 @@ export default function HomeScreenV2({ navigation }) {
             <Search size={16} color={searchFocused ? c.accent : c.dim} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Film, dizi, oyuncu veya yönetmen ara"
+              placeholder={translateUI("Film, dizi, oyuncu veya yönetmen ara")}
               placeholderTextColor={c.dim}
               value={query}
               onChangeText={setQuery}
@@ -802,7 +804,7 @@ export default function HomeScreenV2({ navigation }) {
             {searchLoading ? (
               <ActivityIndicator color={c.accent} style={{ paddingVertical: 18 }} />
             ) : searchResults.length === 0 ? (
-              <Text style={styles.searchEmpty}>“{query}” için sonuç bulunamadı.</Text>
+              <Text style={styles.searchEmpty}>{translateUI("“")}{query}{translateUI("” için sonuç bulunamadı.")}</Text>
             ) : (
               searchResults.map((item, index) => {
                 const person = item.kind === "person";
@@ -841,9 +843,9 @@ export default function HomeScreenV2({ navigation }) {
         <TicketCard
           style={{ marginTop: 14 }}
           eyebrow="PREMIUM"
-          title="Bu Akşamı Planla"
-          subtitle="Senin platformların, ortak beğenileriniz, tek bir seçim."
-          accessibilityLabel="Bu Akşamı Planla, Premium"
+          title={translateUI("Bu Akşamı Planla")}
+          subtitle={translateUI("Senin platformların, ortak beğenileriniz, tek bir seçim.")}
+          accessibilityLabel={translateUI("Bu Akşamı Planla, Premium")}
           onPress={() => navigation.navigate("TonightPlanner")}
         />
 
@@ -857,8 +859,8 @@ export default function HomeScreenV2({ navigation }) {
         {!!describeResults && (
           <View style={styles.aiResultBanner}>
             <Search size={13} color={c.accent} />
-            <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || "Tarif ettiğine göre"}</Text>
-            <TouchableOpacity onPress={clearAiResults}><Text style={styles.aiClear}>Temizle</Text></TouchableOpacity>
+            <Text style={styles.aiResultText} numberOfLines={1}>{aiResultsLabel || translateUI("Tarif ettiğine göre")}</Text>
+            <TouchableOpacity onPress={clearAiResults}><Text style={styles.aiClear}>{translateUI("Temizle")}</Text></TouchableOpacity>
           </View>
         )}
       </View>
@@ -869,6 +871,8 @@ export default function HomeScreenV2({ navigation }) {
             selections={heroSelections}
             index={safeHeroIndex}
             onIndexChange={setActiveHeroIndex}
+            paused={showHeroReasons}
+            onSlidingChange={setHeroSliding}
             isLiked={(id) => liked.has(id)}
             onLike={(movie) => like(movie.id)}
             onWhy={() => setShowHeroReasons(true)}
@@ -877,25 +881,25 @@ export default function HomeScreenV2({ navigation }) {
         ) : (
           <View style={styles.heroEmpty}>
             <Film size={24} color={c.accent} />
-            <Text style={styles.heroEmptyTitle}>Sana uygun yeni seçimler hazırlıyoruz</Text>
-            <Text style={styles.heroEmptyText}>Filtreleri temizleyip tekrar deneyebilirsin.</Text>
+            <Text style={styles.heroEmptyTitle}>{translateUI("Sana uygun yeni seçimler hazırlıyoruz")}</Text>
+            <Text style={styles.heroEmptyText}>{translateUI("Filtreleri temizleyip tekrar deneyebilirsin.")}</Text>
           </View>
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
-          <QuickChip icon={Timer} label="Kısa bir şey" active={shortOnly} onPress={() => setShortOnly((v) => !v)} c={c} />
-          <QuickChip icon={Film} label="Film" active={typeFilter === "Film"} onPress={() => setTypeFilter((v) => v === "Film" ? "Hepsi" : "Film")} c={c} />
-          <QuickChip icon={Tv} label="Dizi" active={typeFilter === "Dizi"} onPress={() => setTypeFilter((v) => v === "Dizi" ? "Hepsi" : "Dizi")} c={c} />
-          <QuickChip icon={Users} label="Arkadaşlarla" onPress={() => navigation.navigate("GroupParty")} c={c} />
-          <QuickChip icon={Shuffle} label="Sürpriz" onPress={surpriseMe} c={c} />
+          <QuickChip icon={Timer} label={translateUI("Kısa bir şey")} active={shortOnly} onPress={() => setShortOnly((v) => !v)} c={c} />
+          <QuickChip icon={Film} label={translateUI("Film")} active={typeFilter === "Film"} onPress={() => setTypeFilter((v) => v === "Film" ? "Hepsi" : "Film")} c={c} />
+          <QuickChip icon={Tv} label={translateUI("Dizi")} active={typeFilter === "Dizi"} onPress={() => setTypeFilter((v) => v === "Dizi" ? "Hepsi" : "Dizi")} c={c} />
+          <QuickChip icon={Users} label={translateUI("Arkadaşlarla")} onPress={() => navigation.navigate("GroupParty")} c={c} />
+          <QuickChip icon={Shuffle} label={translateUI("Sürpriz")} onPress={surpriseMe} c={c} />
         </ScrollView>
 
         {Number(diaryStats?.tasteCandidatesUnrated || 0) >= 5 && (
           <TouchableOpacity style={styles.ratingNudgeCard} activeOpacity={0.86} onPress={() => navigation.navigate("RateTaste")}>
             <View style={styles.ratingNudgeIcon}><Star size={17} color={c.accent} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.ratingNudgeTitle}>İzlediklerini puanlamak ister misin?</Text>
-              <Text style={styles.ratingNudgeText}>{diaryStats.tasteCandidatesUnrated} beğeninden izlediklerini seç; puan vermek isteğe bağlı.</Text>
+              <Text style={styles.ratingNudgeTitle}>{translateUI("İzlediklerini puanlamak ister misin?")}</Text>
+              <Text style={styles.ratingNudgeText}>{diaryStats.tasteCandidatesUnrated}{translateUI(" beğeninden izlediklerini seç; puan vermek isteğe bağlı.")}</Text>
             </View>
             <ChevronRight size={17} color={c.dim} />
           </TouchableOpacity>
@@ -907,12 +911,12 @@ export default function HomeScreenV2({ navigation }) {
 
         <View style={styles.gridSectionHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.gridSectionTitle}>{describeResults ? "Tarifine en yakınlar" : "Sana özel"}</Text>
-            <Text style={styles.gridSectionSub}>{describeResults ? "Anlattığına göre sıralandı" : "Beğendiklerine göre"}</Text>
+            <Text style={styles.gridSectionTitle}>{describeResults ? translateUI("Tarifine en yakınlar") : translateUI("Sana özel")}</Text>
+            <Text style={styles.gridSectionSub}>{describeResults ? translateUI("Anlattığına göre sıralandı") : translateUI("Beğendiklerine göre")}</Text>
           </View>
           {anyFilterActive && (
             <TouchableOpacity onPress={clearFilters}>
-              <Text style={styles.clearFiltersText}>Filtreleri temizle</Text>
+              <Text style={styles.clearFiltersText}>{translateUI("Filtreleri temizle")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -922,14 +926,14 @@ export default function HomeScreenV2({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <TopBar centerLabel="Ana Sayfa" />
+      <TopBar />
 
       <View style={styles.tabsRow}>
         <TouchableOpacity style={[styles.tabBtn, activeTab === "forYou" && styles.tabBtnActive]} onPress={() => setActiveTab("forYou")}>
-          <Text style={[styles.tabText, activeTab === "forYou" && styles.tabTextActive]}>Sana Özel</Text>
+          <Text style={[styles.tabText, activeTab === "forYou" && styles.tabTextActive]}>{translateUI("Sana Özel")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab === "upcoming" && styles.tabBtnActive]} onPress={() => setActiveTab("upcoming")}>
-          <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>Yakında</Text>
+          <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>{translateUI("Yakında")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -938,6 +942,7 @@ export default function HomeScreenV2({ navigation }) {
           ref={mainListRef}
           data={paddedGridList}
           key="home-for-you-v2"
+          scrollEnabled={!heroSliding}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
@@ -957,8 +962,8 @@ export default function HomeScreenV2({ navigation }) {
           ListEmptyComponent={
             <EmptyState
               icon={Film}
-              title="Bu filtrelerle seçim kalmadı"
-              text="Filtreleri temizleyip sana özel akışı yeniden açabilirsin."
+              title={translateUI("Bu filtrelerle seçim kalmadı")}
+              text={translateUI("Filtreleri temizleyip sana özel akışı yeniden açabilirsin.")}
             />
           }
         />
@@ -972,15 +977,15 @@ export default function HomeScreenV2({ navigation }) {
           renderItem={renderUpcomingCard}
           ListHeaderComponent={
             <View style={styles.upcomingHeader}>
-              <Text style={styles.upcomingTitle}>Yakında gelecekler</Text>
-              <Text style={styles.upcomingSub}>İlgini çeken içerikte zili aç; çıktığında Pellix sana haber versin.</Text>
+              <Text style={styles.upcomingTitle}>{translateUI("Yakında gelecekler")}</Text>
+              <Text style={styles.upcomingSub}>{translateUI("İlgini çeken içerikte zili aç; çıktığında Pellix sana haber versin.")}</Text>
             </View>
           }
           ListEmptyComponent={
             <EmptyState
               icon={Clock}
-              title="Yakında çıkacak bir şey görünmüyor"
-              text="Yeni duyurular geldiğinde burada görünecek."
+              title={translateUI("Yakında çıkacak bir şey görünmüyor")}
+              text={translateUI("Yeni duyurular geldiğinde burada görünecek.")}
             />
           }
         />
@@ -989,10 +994,10 @@ export default function HomeScreenV2({ navigation }) {
       <IslandModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
-        title="Akışını Daralt"
+        title={translateUI("Akışını Daralt")}
         icon={Filter}
         gradientColors={["#d4a94a", "#a8842f", "#6f5420"]}
-        subtitle="Ne izleyeceğini daha hızlı bul"
+        subtitle={translateUI("Ne izleyeceğini daha hızlı bul")}
       >
         <FilterFields
           typeValue={typeFilter}
@@ -1013,8 +1018,8 @@ export default function HomeScreenV2({ navigation }) {
         <TouchableOpacity style={[styles.shortFilterRow, shortOnly && styles.shortFilterRowActive]} onPress={() => setShortOnly((v) => !v)}>
           <Timer size={16} color={shortOnly ? c.bg : c.text} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.shortFilterTitle, shortOnly && { color: c.bg }]}>Kısa bir şey göster</Text>
-            <Text style={[styles.shortFilterSub, shortOnly && { color: "rgba(20,18,26,0.72)" }]}>105 dakika ve altındaki içerikler</Text>
+            <Text style={[styles.shortFilterTitle, shortOnly && { color: c.bg }]}>{translateUI("Kısa bir şey göster")}</Text>
+            <Text style={[styles.shortFilterSub, shortOnly && { color: "rgba(20,18,26,0.72)" }]}>{translateUI("105 dakika ve altındaki içerikler")}</Text>
           </View>
         </TouchableOpacity>
       </IslandModal>
@@ -1046,7 +1051,7 @@ function QuickChip({ icon: Icon, label, active, onPress, c }) {
       activeOpacity={0.82}
     >
       <Icon size={15} color={active ? c.bg : c.text} />
-      <Text style={[quickStyles.text, { color: active ? c.bg : c.text }]}>{label}</Text>
+      <Text style={[quickStyles.text, { color: active ? c.bg : c.text }]}>{translateUI(label)}</Text>
     </TouchableOpacity>
   );
 }

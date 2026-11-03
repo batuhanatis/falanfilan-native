@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,7 +36,7 @@ export default function BadgeCelebrationOverlay({ badge, onClose, onViewBadges }
         <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <X size={16} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
-        <Text style={styles.eyebrow}>YENİ ROZET</Text>
+        <Text style={styles.eyebrow}>{translateUI("YENİ ROZET")}</Text>
         <Animated.View style={[styles.iconRing, { transform: [{ rotate: spin }] }]}>
           <Text style={styles.icon}>{badge.icon}</Text>
         </Animated.View>
@@ -43,7 +44,7 @@ export default function BadgeCelebrationOverlay({ badge, onClose, onViewBadges }
         <Text style={styles.desc}>{badge.desc}</Text>
         <TouchableOpacity style={styles.viewBtn} onPress={onViewBadges} activeOpacity={0.85}>
           <LinearGradient colors={["#F59E0B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.viewBtnGradient}>
-            <Text style={styles.viewBtnText}>Rozetlerimi Gör</Text>
+            <Text style={styles.viewBtnText}>{translateUI("Rozetlerimi Gör")}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

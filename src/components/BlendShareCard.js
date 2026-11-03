@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,12 +40,12 @@ export default function BlendShareCard({
 
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.logo}>pellix</Text>
-          <Text style={styles.cardType}>TASTE BLEND</Text>
+          <Text style={styles.logo}>{translateUI("pellix")}</Text>
+          <Text style={styles.cardType}>{translateUI("TASTE BLEND")}</Text>
         </View>
         <View style={styles.liveBadge}>
           <HeartHandshake size={11} color="#C4B5FD" />
-          <Text style={styles.liveBadgeText}>İKİ ZEVK · TEK SKOR</Text>
+          <Text style={styles.liveBadgeText}>{translateUI("İKİ ZEVK · TEK SKOR")}</Text>
         </View>
       </View>
 
@@ -53,17 +54,17 @@ export default function BlendShareCard({
         <View style={styles.avatarHaloRight} />
         <RetryImage source={{ uri: avatarOr(myAvatar, myId) }} style={[styles.avatar, styles.avatarLeft]} />
         <View style={styles.linkBadge}>
-          <Text style={styles.linkBadgeText}>×</Text>
+          <Text style={styles.linkBadgeText}>{translateUI("×")}</Text>
         </View>
         <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={[styles.avatar, styles.avatarRight]} />
       </View>
 
-      <Text style={styles.names} numberOfLines={1}>{firstName(myName)} × {firstName(friendName)}</Text>
-      <Text style={styles.subline}>Pellix zevklerinizin kesişimini ölçtü</Text>
+      <Text style={styles.names} numberOfLines={1}>{firstName(myName)}{translateUI(" × ")}{firstName(friendName)}</Text>
+      <Text style={styles.subline}>{translateUI("Pellix zevklerinizin kesişimini ölçtü")}</Text>
 
       <View style={styles.scoreBlock}>
-        <Text style={styles.percent}>%{percent}</Text>
-        <Text style={styles.percentLabel}>ZEVK UYUMU</Text>
+        <Text style={styles.percent}>{translateUI("%")}{percent}</Text>
+        <Text style={styles.percentLabel}>{translateUI("ZEVK UYUMU")}</Text>
         <View style={styles.scoreTrack}>
           <LinearGradient
             colors={["#38BDF8", "#8B5CF6", "#F472B6"]}
@@ -82,17 +83,17 @@ export default function BlendShareCard({
       <View style={styles.signalRow}>
         <View style={styles.signalCard}>
           <Text style={styles.signalValue}>{Number(commonCount || 0)}</Text>
-          <Text style={styles.signalLabel}>ORTAK FAVORİ</Text>
+          <Text style={styles.signalLabel}>{translateUI("ORTAK FAVORİ")}</Text>
         </View>
         <View style={styles.signalCard}>
-          <Text style={styles.signalValue} numberOfLines={1}>{topGenre || "Karışık"}</Text>
-          <Text style={styles.signalLabel}>ORTAK DAMAR</Text>
+          <Text style={styles.signalValue} numberOfLines={1}>{topGenre || translateUI("Karışık")}</Text>
+          <Text style={styles.signalLabel}>{translateUI("ORTAK DAMAR")}</Text>
         </View>
       </View>
 
       {visiblePosters.length > 0 && (
         <View style={styles.posterSection}>
-          <Text style={styles.posterEyebrow}>ORTAK EVRENİNİZDEN</Text>
+          <Text style={styles.posterEyebrow}>{translateUI("ORTAK EVRENİNİZDEN")}</Text>
           <View style={styles.postersRow}>
             {visiblePosters.map((poster, index) => (
               <RetryImage key={`${poster}-${index}`} source={{ uri: poster }} style={styles.poster} />
@@ -102,8 +103,8 @@ export default function BlendShareCard({
       )}
 
       <View style={styles.footerRow}>
-        <Text style={styles.footer}>pellix.app</Text>
-        <Text style={styles.footerAccent}>Sen kiminle aynı frekanstasın?</Text>
+        <Text style={styles.footer}>{translateUI("pellix.app")}</Text>
+        <Text style={styles.footerAccent}>{translateUI("Sen kiminle aynı frekanstasın?")}</Text>
       </View>
     </LinearGradient>
   );

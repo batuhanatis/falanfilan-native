@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -52,52 +53,52 @@ export default function InviteFriendScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Arkadaşını Davet Et"
-        subtitle={invited > 0 ? `${completed}/${invited} davet tamamlandı` : "Birlikte keşfedin"}
+        title={translateUI("Arkadaşını Davet Et")}
+        subtitle={invited > 0 ? translateUI("{0}/{1} davet tamamlandı", {0: completed,1: invited}) : translateUI("Birlikte keşfedin")}
         onBack={() => navigation.goBack()}
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <View style={styles.heroIconWrap}><PartyPopper size={25} color="#fff" /></View>
-          <Text style={styles.heroEyebrow}>PELLIX'İ BİRLİKTE KULLANIN</Text>
-          <Text style={styles.heroTitle}>Arkadaşını getir, ikiniz de 7 gün Premium kazanın</Text>
-          <Text style={styles.heroSubtitle}>Arkadaşın kodunla katılıp ilk 10 içeriği değerlendirince Premium ikinize de otomatik tanımlanır.</Text>
+          <Text style={styles.heroEyebrow}>{translateUI("PELLIX'İ BİRLİKTE KULLANIN")}</Text>
+          <Text style={styles.heroTitle}>{translateUI("Arkadaşını getir, ikiniz de 7 gün Premium kazanın")}</Text>
+          <Text style={styles.heroSubtitle}>{translateUI("Arkadaşın kodunla katılıp ilk 10 içeriği değerlendirince Premium ikinize de otomatik tanımlanır.")}</Text>
           <View style={styles.rewardPillRow}>
             <View style={styles.rewardPill}>
-              <Text style={styles.rewardPillEmoji}>🎁</Text>
-              <Text style={styles.rewardPillText}>Sana 7 gün Premium</Text>
+              <Text style={styles.rewardPillEmoji}>{translateUI("🎁")}</Text>
+              <Text style={styles.rewardPillText}>{translateUI("Sana 7 gün Premium")}</Text>
             </View>
             <View style={styles.rewardPill}>
-              <Text style={styles.rewardPillEmoji}>🎉</Text>
-              <Text style={styles.rewardPillText}>Ona 7 gün Premium</Text>
+              <Text style={styles.rewardPillEmoji}>{translateUI("🎉")}</Text>
+              <Text style={styles.rewardPillText}>{translateUI("Ona 7 gün Premium")}</Text>
             </View>
           </View>
         </LinearGradient>
 
         <View style={styles.stepsCard}>
-          <Text style={styles.stepsTitle}>3 adımda tamamla</Text>
+          <Text style={styles.stepsTitle}>{translateUI("3 adımda tamamla")}</Text>
           {[
             ["Davet kodunu paylaş", "Arkadaşın Pellix'e kayıt olurken senin kodunu yazsın."],
             ["Arkadaşın Pellix'i denesin", "İlk 10 içeriği beğensin ya da geçsin (ya da birlikte bir MatchParty'de eşleşin)."],
             ["Premium ikinize de gelsin", "7 gün Premium otomatik tanımlanır, bildirimle haber veririz."],
           ].map(([title, text], i) => (
-            <View key={title} style={styles.stepRow}>
+            <View key={translateUI(title)} style={styles.stepRow}>
               <View style={styles.stepNumWrap}><Text style={styles.stepNum}>{i + 1}</Text></View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.stepTitle}>{title}</Text>
-                <Text style={styles.stepText}>{text}</Text>
+                <Text style={styles.stepTitle}>{translateUI(title)}</Text>
+                <Text style={styles.stepText}>{translateUI(text)}</Text>
               </View>
               <ArrowRight size={13} color={c.dim} />
             </View>
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>DAVET KODUN</Text>
+        <Text style={styles.sectionLabel}>{translateUI("DAVET KODUN")}</Text>
         <TouchableOpacity style={styles.codeCard} onPress={copyCode} activeOpacity={0.82}>
           <View>
             <Text style={styles.codeText}>{auth.username}</Text>
-            <Text style={styles.codeTapHint}>{copied ? "Panoya kopyalandı ✓" : "Kopyalamak için dokun"}</Text>
+            <Text style={styles.codeTapHint}>{copied ? translateUI("Panoya kopyalandı ✓") : translateUI("Kopyalamak için dokun")}</Text>
           </View>
           <View style={[styles.copyBtn, copied && styles.copyBtnDone]}>
             {copied ? <Check size={16} color={c.bg} /> : <Copy size={16} color={c.text} />}
@@ -106,29 +107,29 @@ export default function InviteFriendScreen({ navigation }) {
 
         <ShareFan
           style={styles.shareBtn}
-          accessibilityLabel="Davet linkini paylaş"
+          accessibilityLabel={translateUI("Davet linkini paylaş")}
           options={shareOptions({ message: inviteMessage, url: storeLink || undefined, copyText: inviteMessage })}
         >
           <Share2 size={17} color={c.bg} />
-          <Text style={styles.shareBtnText}>Davet Linkini Paylaş</Text>
+          <Text style={styles.shareBtnText}>{translateUI("Davet Linkini Paylaş")}</Text>
         </ShareFan>
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Users size={16} color={c.dim} />
             <Text style={styles.statValue}>{invited}</Text>
-            <Text style={styles.statLabel}>Davet Edilen</Text>
+            <Text style={styles.statLabel}>{translateUI("Davet Edilen")}</Text>
           </View>
           <View style={styles.statBox}>
             <Gift size={16} color={c.accent} />
             <Text style={[styles.statValue, { color: c.accent }]}>{completed}</Text>
-            <Text style={styles.statLabel}>Tamamlanan</Text>
+            <Text style={styles.statLabel}>{translateUI("Tamamlanan")}</Text>
           </View>
         </View>
 
         {referrals?.results?.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>DAVETLERİN</Text>
+            <Text style={styles.sectionLabel}>{translateUI("DAVETLERİN")}</Text>
             <View style={styles.list}>
               {referrals.results.map((r, i) => (
                 <View key={i} style={styles.listRow}>
@@ -136,7 +137,7 @@ export default function InviteFriendScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listName}>{r.name}</Text>
                     <Text style={styles.listMeta}>
-                      {r.completed ? "Tamamlandı, Premium tanımlandı 🎉" : "Arkadaşının ilk 10 değerlendirmesi bekleniyor"}
+                      {r.completed ? translateUI("Tamamlandı, Premium tanımlandı 🎉") : translateUI("Arkadaşının ilk 10 değerlendirmesi bekleniyor")}
                     </Text>
                   </View>
                   <View style={[styles.statusDot, r.completed && styles.statusDotDone]}>

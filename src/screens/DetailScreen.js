@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions, Animated, PanResponder, Keyboard, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -293,7 +294,7 @@ export default function DetailScreen({ route, navigation }) {
             {showDragHint && (
               <Animated.View style={[styles.dragHint, { transform: [{ translateY: handleBounce }] }]} pointerEvents="none">
                 <ChevronUp size={12} color={c.accent} />
-                <Text style={styles.dragHintText}>Detaylar için yukarı çek</Text>
+                <Text style={styles.dragHintText}>{translateUI("Detaylar için yukarı çek")}</Text>
               </Animated.View>
             )}
             <View style={styles.peek}>
@@ -301,7 +302,7 @@ export default function DetailScreen({ route, navigation }) {
               <View style={styles.ratingRow}>
                 <Star size={15} color={c.accent} fill={c.accent} />
                 <Text style={styles.ratingNum}>{movie.imdb}</Text>
-                <Text style={styles.metaText}>· {movie.year} · {movie.genre}</Text>
+                <Text style={styles.metaText}>{translateUI("· ")}{movie.year}{translateUI(" · ")}{translateUI(movie.genre)}</Text>
               </View>
             </View>
           </View>
@@ -315,7 +316,7 @@ export default function DetailScreen({ route, navigation }) {
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               {movie.type === "Film" ? <Film size={13} color={c.dim} /> : <Tv size={13} color={c.dim} />}
-              <Text style={styles.metaText}>{movie.type}</Text>
+              <Text style={styles.metaText}>{translateUI(movie.type)}</Text>
             </View>
             {!!movie.runtime && (
               <View style={styles.metaItem}>
@@ -323,7 +324,7 @@ export default function DetailScreen({ route, navigation }) {
                 <Text style={styles.metaText}>{movie.runtime}</Text>
               </View>
             )}
-            <Text style={styles.metaText}>{Number(movie.votes || 0).toLocaleString("tr-TR")} oy · IMDB</Text>
+            <Text style={styles.metaText}>{Number(movie.votes || 0).toLocaleString(getLocale())}{translateUI(" oy · IMDB")}</Text>
           </View>
 
           {!!movie.overview && <Text style={styles.overview}>{movie.overview}</Text>}
@@ -340,7 +341,7 @@ export default function DetailScreen({ route, navigation }) {
                 );
               })
             ) : (
-              <Text style={styles.metaText}>Şu an TR'de bir platformda yayında değil.</Text>
+              <Text style={styles.metaText}>{translateUI("Şu an TR'de bir platformda yayında değil.")}</Text>
             )}
           </View>
 
@@ -353,18 +354,18 @@ export default function DetailScreen({ route, navigation }) {
               <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                 <Heart size={16} color={liked ? "#fff" : c.text} fill={liked ? "#fff" : "none"} />
               </Animated.View>
-              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>Bana göre</Text>
+              <Text style={[styles.actionMainText, liked && { color: "#fff" }]}>{translateUI("Bana göre")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.actionMain, disliked && { backgroundColor: c.danger, borderColor: c.danger }]} onPress={dislike}>
               <X size={16} color={disliked ? "#fff" : c.text} />
-              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>Bana göre değil</Text>
+              <Text style={[styles.actionMainText, disliked && { color: "#fff" }]}>{translateUI("Bana göre değil")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionSquare} onPress={() => setShowListPicker(true)}>
               <Bookmark size={16} color={c.text} />
             </TouchableOpacity>
             <ShareFan
               style={styles.actionSquare}
-              accessibilityLabel="Paylaş"
+              accessibilityLabel={translateUI("Paylaş")}
               options={shareOptions({
                 message: `${auth.name} Pellix'te "${movie.title}" önerdi: https://www.pellix.app/film/${movie.id}\n\nSen de Pellix'i indir (${getStoreLink("send_to_friend")}), kayıt olurken "${auth.username}" davet kodunu yaz, 7 gün Premium hediye.`,
                 url: `https://www.pellix.app/film/${movie.id}`,
@@ -379,8 +380,8 @@ export default function DetailScreen({ route, navigation }) {
           <TouchableOpacity style={styles.tastePostBtn} onPress={() => setPostComposerOpen(true)} activeOpacity={0.85}>
             <Share2 size={15} color={c.accent} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.tastePostTitle}>Taste Post olarak paylaş</Text>
-              <Text style={styles.tastePostSub}>Bu içerik hakkında fikrini sosyal akışında paylaş.</Text>
+              <Text style={styles.tastePostTitle}>{translateUI("Taste Post olarak paylaş")}</Text>
+              <Text style={styles.tastePostSub}>{translateUI("Bu içerik hakkında fikrini sosyal akışında paylaş.")}</Text>
             </View>
           </TouchableOpacity>
 
@@ -394,14 +395,14 @@ export default function DetailScreen({ route, navigation }) {
                 >
                   <Star size={15} color="#14121a" fill="#14121a" />
                   <Text style={[styles.favBtnText, { color: "#14121a" }]}>
-                    {movie.type === "Film" ? "Favori Filmin — kaldırmak için dokun" : "Favori Dizin — kaldırmak için dokun"}
+                    {movie.type === "Film" ? translateUI("Favori Filmin — kaldırmak için dokun") : translateUI("Favori Dizin — kaldırmak için dokun")}
                   </Text>
                 </LinearGradient>
               ) : (
                 <View style={styles.favBtn}>
                   <Star size={15} color={c.text} fill="none" />
                   <Text style={styles.favBtnText}>
-                    {movie.type === "Film" ? "Favori Filmin Yap" : "Favori Dizin Yap"}
+                    {movie.type === "Film" ? translateUI("Favori Filmin Yap") : translateUI("Favori Dizin Yap")}
                   </Text>
                 </View>
               )}
@@ -411,7 +412,7 @@ export default function DetailScreen({ route, navigation }) {
           {favToast && (
             <Animated.View style={[styles.favToast, { opacity: favToastOpacity }]}>
               <Star size={12} color="#14121a" fill="#14121a" />
-              <Text style={styles.favToastText}>Favorin oldu!</Text>
+              <Text style={styles.favToastText}>{translateUI("Favorin oldu!")}</Text>
             </Animated.View>
           )}
 
@@ -421,7 +422,7 @@ export default function DetailScreen({ route, navigation }) {
 
           {extra.trailers?.length > 0 && (
             <View style={{ marginTop: 18 }}>
-              <Text style={styles.castSectionLabel}>FRAGMANLAR</Text>
+              <Text style={styles.castSectionLabel}>{translateUI("FRAGMANLAR")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, marginTop: 8 }}>
                 {extra.trailers.map((trailer) => (
                   <TouchableOpacity key={trailer.key} style={styles.trailerCard} activeOpacity={0.86} onPress={() => openTrailer(trailer)}>
@@ -432,7 +433,7 @@ export default function DetailScreen({ route, navigation }) {
                     </View>
                     <View style={styles.trailerCopy}>
                       <Text style={styles.trailerTitle} numberOfLines={2}>{trailer.name}</Text>
-                      <Text style={styles.trailerMeta}>{trailer.language === "tr" ? "Türkçe" : "Orijinal"} · {trailer.type === "Teaser" ? "Tanıtım" : "Fragman"}</Text>
+                      <Text style={styles.trailerMeta}>{trailer.language === "tr" ? translateUI("Türkçe") : translateUI("Orijinal")}{translateUI(" · ")}{trailer.type === "Teaser" ? translateUI("Tanıtım") : translateUI("Fragman")}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -444,7 +445,7 @@ export default function DetailScreen({ route, navigation }) {
             <View style={{ marginTop: 18 }}>
               {extra.director && (
                 <>
-                  <Text style={styles.castSectionLabel}>YÖNETMEN</Text>
+                  <Text style={styles.castSectionLabel}>{translateUI("YÖNETMEN")}</Text>
                   <TouchableOpacity
                     style={styles.directorCard}
                     activeOpacity={extra.director.id ? 0.7 : 1}
@@ -459,13 +460,13 @@ export default function DetailScreen({ route, navigation }) {
                       ? <Image source={{ uri: extra.director.photo }} style={styles.castPhoto} />
                       : <View style={[styles.castPhoto, { backgroundColor: c.surface2 }]} />}
                     <Text style={styles.castName} numberOfLines={2}>{extra.director.name}</Text>
-                    <Text style={styles.castCharacter}>Yönetmen</Text>
+                    <Text style={styles.castCharacter}>{translateUI("Yönetmen")}</Text>
                   </TouchableOpacity>
                 </>
               )}
               {extra.cast.length > 0 && (
                 <>
-                  <Text style={[styles.castSectionLabel, { marginTop: 10 }]}>OYUNCULAR</Text>
+                  <Text style={[styles.castSectionLabel, { marginTop: 10 }]}>{translateUI("OYUNCULAR")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, marginTop: 8 }}>
                     {extra.cast.map((p, i) => (
                       <TouchableOpacity
@@ -487,7 +488,7 @@ export default function DetailScreen({ route, navigation }) {
 
           {extra.similar.length > 0 && (
             <View style={{ marginTop: 18 }}>
-              <Text style={styles.castSectionLabel}>BUNA BENZER İÇERİKLER</Text>
+              <Text style={styles.castSectionLabel}>{translateUI("BUNA BENZER İÇERİKLER")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 8 }}>
                 {extra.similar.map((m) => (
                   <TouchableOpacity key={m.id} style={{ width: 90 }} onPress={() => navigation.replace("Detail", { movie: m })}>
@@ -500,11 +501,11 @@ export default function DetailScreen({ route, navigation }) {
           )}
 
           <View style={{ marginTop: 22 }}>
-            <Text style={styles.commentsTitle}>Yorumlar</Text>
+            <Text style={styles.commentsTitle}>{translateUI("Yorumlar")}</Text>
             {commentsLoading ? (
               <CommentsSkeleton />
             ) : comments.length === 0 ? (
-              <Text style={styles.noCommentsText}>Henüz yorum yok, ilk yorumu sen yaz.</Text>
+              <Text style={styles.noCommentsText}>{translateUI("Henüz yorum yok, ilk yorumu sen yaz.")}</Text>
             ) : comments.map((cm) => (
               <View key={cm.id} style={styles.commentRow}>
                 <TouchableOpacity
@@ -524,7 +525,7 @@ export default function DetailScreen({ route, navigation }) {
             <View style={styles.commentInputRow}>
               <TextInput
                 style={styles.commentInput}
-                placeholder="Yorum ekle"
+                placeholder={translateUI("Yorum ekle")}
                 placeholderTextColor={c.dim}
                 value={comment}
                 onChangeText={setComment}

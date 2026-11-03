@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, TouchableWithoutFeedback } from "react-native";
 import { X, Mail, User } from "lucide-react-native";
@@ -40,10 +41,10 @@ export default function CompleteProfileModal({ ticket, email, suggestedName, com
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <View style={styles.header}>
-            <Text style={styles.title}>Hesabını Tamamla</Text>
+            <Text style={styles.title}>{translateUI("Hesabını Tamamla")}</Text>
             <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
           </View>
-          <Text style={styles.subtitle}>Neredeyse bitti — birkaç bilgi daha.</Text>
+          <Text style={styles.subtitle}>{translateUI("Neredeyse bitti — birkaç bilgi daha.")}</Text>
 
           {!!email && (
             <View style={styles.emailBox}>
@@ -54,13 +55,13 @@ export default function CompleteProfileModal({ ticket, email, suggestedName, com
 
           <View style={styles.inputRow}>
             <User size={15} color={c.dim} />
-            <TextInput style={styles.input} placeholder="İsim" placeholderTextColor={c.dim} value={name} onChangeText={setName} />
+            <TextInput style={styles.input} placeholder={translateUI("İsim")} placeholderTextColor={c.dim} value={name} onChangeText={setName} />
           </View>
           <View style={styles.inputRow}>
             <User size={15} color={c.dim} />
             <TextInput
               style={styles.input}
-              placeholder="Kullanıcı adı"
+              placeholder={translateUI("Kullanıcı adı")}
               placeholderTextColor={c.dim}
               value={username}
               autoCapitalize="none"
@@ -71,7 +72,7 @@ export default function CompleteProfileModal({ ticket, email, suggestedName, com
             <User size={15} color={c.dim} />
             <TextInput
               style={styles.input}
-              placeholder="Davet kodu (varsa 7 gün Premium hediye)"
+              placeholder={translateUI("Davet kodu (varsa 7 gün Premium hediye)")}
               placeholderTextColor={c.dim}
               value={referredByUsername}
               autoCapitalize="none"
@@ -81,19 +82,18 @@ export default function CompleteProfileModal({ ticket, email, suggestedName, com
 
           <TouchableOpacity style={styles.consentRow} onPress={() => setTermsAccepted((v) => !v)} activeOpacity={0.7}>
             <View style={[styles.checkbox, termsAccepted && { backgroundColor: c.accent, borderColor: c.accent }]}>
-              {termsAccepted && <Text style={{ color: c.bg, fontSize: 11, fontWeight: "800" }}>✓</Text>}
+              {termsAccepted && <Text style={{ color: c.bg, fontSize: 11, fontWeight: "800" }}>{translateUI("✓")}</Text>}
             </View>
             <Text style={styles.consentText}>
-              <Text onPress={() => Linking.openURL(`${API_BASE}/privacy`)} style={styles.consentLink}>Gizlilik Politikası</Text>
-              {" "}ve{" "}
-              <Text onPress={() => Linking.openURL(`${API_BASE}/terms`)} style={styles.consentLink}>Kullanım Şartları</Text>
-              {"'"}nı okudum, kabul ediyorum.
-            </Text>
+              <Text onPress={() => Linking.openURL(`${API_BASE}/privacy`)} style={styles.consentLink}>{translateUI("Gizlilik Politikası")}</Text>
+              {" "}{translateUI("ve")}{" "}
+              <Text onPress={() => Linking.openURL(`${API_BASE}/terms`)} style={styles.consentLink}>{translateUI("Kullanım Şartları")}</Text>
+              {translateUI("'")}{translateUI("nı okudum, kabul ediyorum. ")}</Text>
           </TouchableOpacity>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
           <TouchableOpacity style={styles.button} onPress={submit} disabled={loading}>
-            {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>Hesabı Oluştur</Text>}
+            {loading ? <ActivityIndicator color={c.bg} /> : <Text style={styles.buttonText}>{translateUI("Hesabı Oluştur")}</Text>}
           </TouchableOpacity>
         </DismissableSheet>
           </TouchableWithoutFeedback>

@@ -1,8 +1,13 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator } from "react-native";
-import { Radio } from "lucide-react-native";
+import { Alert } from "../i18n/native";
+import { t as translateUI, getLocale } from "../i18n/core";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, RefreshControl, ActivityIndicator,  Linking } from "react-native";
+import { Radio, Bell, BellRing } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { FONTS, upperTR } from "../theme/fonts";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../api/client";
+import { registerForPushNotifications, getPushPermissionStatus } from "../utils/pushNotifications";
 import LiveDot from "./salon/LiveDot";
 
 // Sohbetler ekranındaki "Canlı" sekmesi: şu an açık canlı sohbet odaları (içerideki kişi
@@ -12,11 +17,11 @@ function startLabel(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const now = new Date();
-  const time = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const time = d.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
   const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
   if (dayDiff <= 0) return `BUGÜN ${time}`;
   if (dayDiff === 1) return `YARIN ${time}`;
-  return `${upperTR(d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }))} ${time}`;
+  return `${upperTR(d.toLocaleDateString(getLocale(), { day: "numeric", month: "long" }))} ${time}`;
 }
 
 export default function LiveRoomsList({ data, loading, refreshing, onRefresh, onOpen }) {
@@ -41,16 +46,16 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
       keyExtractor={(item) => item.key}
       contentContainerStyle={{ paddingBottom: 24 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent} colors={[c.accent]} />}
-      ListHeaderComponent={live.length ? <Text style={styles.sectionLabel}>ŞU AN AÇIK</Text> : null}
+      ListHeaderComponent={live.length ? <Text style={styles.sectionLabel}>{translateUI("ŞU AN AÇIK")}</Text> : null}
       ListEmptyComponent={(
         <View style={styles.empty}>
           <Radio size={26} color={c.dim} />
-          <Text style={styles.emptyTitle}>Şu an açık oda yok</Text>
-          <Text style={styles.emptyText}>Bölümler yayınlanırken burada canlı sohbet odaları açılıyor. Açılınca herkesle aynı anda konuşabilirsin.</Text>
+          <Text style={styles.emptyTitle}>{translateUI("Şu an açık oda yok")}</Text>
+          <Text style={styles.emptyText}>{translateUI("Bölümler yayınlanırken burada canlı sohbet odaları açılıyor. Açılınca herkesle aynı anda konuşabilirsin.")}</Text>
         </View>
       )}
       renderItem={({ item }) => {
-        if (item.label) return <Text style={[styles.sectionLabel, { marginTop: live.length ? 22 : 8 }]}>YAKINDA</Text>;
+        if (item.label) return <Text style={[styles.sectionLabel, { marginTop: live.length ? 22 : 8 }]}>{translateUI("YAKINDA")}</Text>;
         const { room } = item;
         return (
           <TouchableOpacity
@@ -59,8 +64,8 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
             onPress={() => onOpen(room)}
             accessibilityRole="button"
             accessibilityLabel={item.live
-              ? `${room.title}${room.episodeLabel ? `, ${room.episodeLabel}` : ""}, canlı, içeride ${room.participants} kişi`
-              : `${room.title}${room.episodeLabel ? `, ${room.episodeLabel}` : ""}, ${startLabel(room.startsAt)} açılacak`}
+              ? translateUI("{0}{1}, canlı, içeride {2} kişi", {0: room.title,1: room.episodeLabel ? `, ${room.episodeLabel}` : "",2: room.participants})
+              : translateUI("{0}{1}, {2} açılacak", {0: room.title,1: room.episodeLabel ? `, ${room.episodeLabel}` : "",2: startLabel(room.startsAt)})}
           >
             {room.poster
               ? <Image source={{ uri: room.poster }} style={styles.poster} />
@@ -71,14 +76,15 @@ export default function LiveRoomsList({ data, loading, refreshing, onRefresh, on
               <View style={styles.metaRow}>
                 {item.live && <LiveDot color={c.danger} />}
                 <Text style={[styles.meta, item.live && { color: c.danger }]} numberOfLines={1}>
-                  {item.live ? "CANLI" : startLabel(room.startsAt)}
+                  {item.live ? translateUI("CANLI") : translateUI(startLabel(room.startsAt))}
                 </Text>
               </View>
+              {!item.live && <RoomReminder key={room.code} code={room.code} refreshKey={data} />}
             </View>
             {item.live && (
               <View style={styles.countBox}>
                 <Text style={styles.count}>{room.participants}</Text>
-                <Text style={styles.countLabel}>KİŞİ</Text>
+                <Text style={styles.countLabel}>{translateUI("KİŞİ")}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -104,4 +110,66 @@ function makeStyles(c) {
     emptyTitle: { color: c.text, fontSize: 24, fontFamily: FONTS.marquee, marginTop: 4 },
     emptyText: { color: c.dim, fontSize: 13, lineHeight: 19, textAlign: "center" },
   });
+}
+
+function RoomReminder({ code, refreshKey }) {
+  const { auth } = useAuth();
+  const { c } = useAppTheme();
+  const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.liveRoomReminder(auth.token, code).then(result => {
+      if (active) { setSubscribed(result.subscribed); setFailed(false); }
+    }).catch(() => { if (active) setFailed(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [auth.token, code, refreshKey]);
+
+  async function toggle() {
+    if (busy.current || loading) return;
+    busy.current = true;
+    setLoading(true);
+    try {
+      if (failed) {
+        const result = await api.liveRoomReminder(auth.token, code);
+        setSubscribed(result.subscribed);
+        setFailed(false);
+        return;
+      }
+      if (!subscribed) {
+        await registerForPushNotifications(auth.token);
+        if (await getPushPermissionStatus() !== "granted") {
+          Alert.alert("Bildirim izni gerekli", "Oda açıldığında haber verebilmemiz için bildirimleri aç.", [
+            { text: "Vazgeç", style: "cancel" },
+            { text: "Ayarları aç", onPress: () => Linking.openSettings() },
+          ]);
+          return;
+        }
+      }
+      const result = await api.setLiveRoomReminder(auth.token, code, !subscribed);
+      setSubscribed(result.subscribed);
+    } catch (e) {
+      Alert.alert("Tercih kaydedilemedi", e.message || "Lütfen tekrar dene.");
+    } finally { busy.current = false; setLoading(false); }
+  }
+  const Icon = subscribed ? BellRing : Bell;
+  return (
+    <TouchableOpacity
+      onPress={e => { e.stopPropagation(); toggle(); }}
+      disabled={loading}
+      accessibilityRole="button"
+      accessibilityState={{ selected: subscribed, disabled: loading }}
+      accessibilityLabel={subscribed ? translateUI("Oda açılma bildirimini iptal et") : translateUI("Oda açılınca haber ver")}
+      style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, marginTop: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: subscribed ? c.accent : c.border, backgroundColor: c.surface2 }}
+    >
+      {loading ? <ActivityIndicator size="small" color={c.accent} /> : <Icon size={15} color={c.accent} />}
+      <Text style={{ color: c.accent, fontSize: 12, fontWeight: "600", flexShrink: 1 }}>
+        {failed ? translateUI("Tekrar dene") : subscribed ? translateUI("Bildirim açık · İptal et") : translateUI("Açılınca haber ver")}
+      </Text>
+    </TouchableOpacity>
+  );
 }

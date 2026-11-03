@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Alert } from "react-native";
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown, Mail, UserMinus } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -131,8 +133,8 @@ export default function OtherProfileScreen({ route, navigation }) {
   if (resolveError) {
     return (
       <View style={[styles.center, { flex: 1, padding: 20 }]}>
-        <Text style={{ color: c.text, fontSize: 15, fontWeight: "700", textAlign: "center" }}>Kullanıcı bulunamadı</Text>
-        <Text style={{ color: c.dim, fontSize: 12.5, textAlign: "center", marginTop: 6 }}>Bu bağlantı artık geçerli olmayabilir.</Text>
+        <Text style={{ color: c.text, fontSize: 15, fontWeight: "700", textAlign: "center" }}>{translateUI("Kullanıcı bulunamadı")}</Text>
+        <Text style={{ color: c.dim, fontSize: 12.5, textAlign: "center", marginTop: 6 }}>{translateUI("Bu bağlantı artık geçerli olmayabilir.")}</Text>
       </View>
     );
   }
@@ -168,7 +170,7 @@ export default function OtherProfileScreen({ route, navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{profile.name}</Text>
         {profile.relationship === "friends" && (
-          <TouchableOpacity onPress={startChat} style={styles.headerActionBtn} accessibilityRole="button" accessibilityLabel="Mesaj gönder">
+          <TouchableOpacity onPress={startChat} style={styles.headerActionBtn} accessibilityRole="button" accessibilityLabel={translateUI("Mesaj gönder")}>
             <Mail size={17} color={c.text} />
           </TouchableOpacity>
         )}
@@ -180,9 +182,9 @@ export default function OtherProfileScreen({ route, navigation }) {
       {profile.isBlocked && (
         <View style={styles.blockedBanner}>
           <Ban size={13} color={c.danger} />
-          <Text style={styles.blockedBannerText}>Bu kullanıcıyı engelledin</Text>
+          <Text style={styles.blockedBannerText}>{translateUI("Bu kullanıcıyı engelledin")}</Text>
           <TouchableOpacity onPress={unblock} disabled={busy}>
-            <Text style={styles.unblockLink}>Engeli Kaldır</Text>
+            <Text style={styles.unblockLink}>{translateUI("Engeli Kaldır")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -215,19 +217,19 @@ export default function OtherProfileScreen({ route, navigation }) {
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{profile.friendCount}</Text>
-                <Text style={styles.statLabel}>Arkadaş</Text>
+                <Text style={styles.statLabel}>{translateUI("Arkadaş")}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{profile.likeCount}</Text>
-                <Text style={styles.statLabel}>Beğeni</Text>
+                <Text style={styles.statLabel}>{translateUI("Beğeni")}</Text>
               </View>
               {profile.matchPercent != null && (
                 <>
                   <View style={styles.statDivider} />
                   <View style={styles.statBox}>
-                    <Text style={[styles.statNum, { color: c.accent }]}>%{profile.matchPercent}</Text>
-                    <Text style={styles.statLabel}>Uyum</Text>
+                    <Text style={[styles.statNum, { color: c.accent }]}>{translateUI("%")}{profile.matchPercent}</Text>
+                    <Text style={styles.statLabel}>{translateUI("Uyum")}</Text>
                   </View>
                 </>
               )}
@@ -235,30 +237,30 @@ export default function OtherProfileScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.name}>{profile.name}</Text>
-          {!!profile.username && <Text style={styles.username}>@{profile.username}</Text>}
-          <Text style={styles.bio}>{profile.bio || "Bu kullanıcı henüz bir biyografi eklemedi."}</Text>
+          {!!profile.username && <Text style={styles.username}>{translateUI("@")}{profile.username}</Text>}
+          <Text style={styles.bio}>{profile.bio || translateUI("Bu kullanıcı henüz bir biyografi eklemedi.")}</Text>
 
           {(profile.favoriteMovie || profile.favoriteShow) && (
             <View style={styles.favRow}>
-              {profile.favoriteMovie && <FavCard label="FAVORİ FİLM" movie={profile.favoriteMovie} c={c} navigation={navigation} />}
-              {profile.favoriteShow && <FavCard label="FAVORİ DİZİ" movie={profile.favoriteShow} c={c} navigation={navigation} />}
+              {profile.favoriteMovie && <FavCard label={translateUI("FAVORİ FİLM")} movie={profile.favoriteMovie} c={c} navigation={navigation} />}
+              {profile.favoriteShow && <FavCard label={translateUI("FAVORİ DİZİ")} movie={profile.favoriteShow} c={c} navigation={navigation} />}
             </View>
           )}
 
           {profile.relationship !== "friends" && <View style={styles.actionsRow}>
             {profile.relationship === "pending_sent" && (
               <View style={[styles.primaryBtn, { backgroundColor: c.surface2 }]}>
-                <Text style={[styles.primaryBtnText, { color: c.dim }]}>İstek Gönderildi</Text>
+                <Text style={[styles.primaryBtnText, { color: c.dim }]}>{translateUI("İstek Gönderildi")}</Text>
               </View>
             )}
             {profile.relationship === "pending_received" && (
               <TouchableOpacity style={styles.primaryBtn} onPress={acceptRequest} disabled={busy}>
-                <Text style={styles.primaryBtnText}>İsteği Kabul Et</Text>
+                <Text style={styles.primaryBtnText}>{translateUI("İsteği Kabul Et")}</Text>
               </TouchableOpacity>
             )}
             {profile.relationship === "none" && (
               <TouchableOpacity style={styles.primaryBtn} onPress={sendRequest} disabled={busy}>
-                <Text style={styles.primaryBtnText}>Arkadaş Ekle</Text>
+                <Text style={styles.primaryBtnText}>{translateUI("Arkadaş Ekle")}</Text>
               </TouchableOpacity>
             )}
           </View>}
@@ -275,8 +277,8 @@ export default function OtherProfileScreen({ route, navigation }) {
                   <View style={styles.funIconWrap}>
                     <Sparkles size={20} color="#fff" />
                   </View>
-                  <Text style={styles.funTitle}>Blend</Text>
-                  <Text style={styles.funSubtitle}>Ortak zevkinizi keşfet</Text>
+                  <Text style={styles.funTitle}>{translateUI("Blend")}</Text>
+                  <Text style={styles.funSubtitle}>{translateUI("Ortak zevkinizi keşfet")}</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -290,8 +292,8 @@ export default function OtherProfileScreen({ route, navigation }) {
                   <View style={styles.funIconWrap}>
                     <PartyPopper size={20} color="#fff" />
                   </View>
-                  <Text style={styles.funTitle}>MatchParty</Text>
-                  <Text style={styles.funSubtitle}>Birlikte kaydırın, eşleşin</Text>
+                  <Text style={styles.funTitle}>{translateUI("MatchParty")}</Text>
+                  <Text style={styles.funSubtitle}>{translateUI("Birlikte kaydırın, eşleşin")}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -299,10 +301,10 @@ export default function OtherProfileScreen({ route, navigation }) {
 
           <View style={styles.contentTabs}>
             <TouchableOpacity style={[styles.contentTab, contentTab === "posts" && styles.contentTabActive]} onPress={() => setContentTab("posts")}>
-              <Text style={[styles.contentTabText, contentTab === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
+              <Text style={[styles.contentTabText, contentTab === "posts" && styles.contentTabTextActive]}>{translateUI("Paylaşımlar")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.contentTab, contentTab === "likes" && styles.contentTabActive]} onPress={() => setContentTab("likes")}>
-              <Text style={[styles.contentTabText, contentTab === "likes" && styles.contentTabTextActive]}>Beğeniler</Text>
+              <Text style={[styles.contentTabText, contentTab === "likes" && styles.contentTabTextActive]}>{translateUI("Beğeniler")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -316,8 +318,8 @@ export default function OtherProfileScreen({ route, navigation }) {
                 <View style={styles.emptyPostsIcon}>
                   <Sparkles size={24} color={c.dim} />
                 </View>
-                <Text style={styles.emptyPostsTitle}>Henüz paylaşım yok</Text>
-                <Text style={styles.emptyPostsText}>Bu kullanıcı daha hiçbir şey paylaşmadı.</Text>
+                <Text style={styles.emptyPostsTitle}>{translateUI("Henüz paylaşım yok")}</Text>
+                <Text style={styles.emptyPostsText}>{translateUI("Bu kullanıcı daha hiçbir şey paylaşmadı.")}</Text>
               </View>
             )
           ) : profile.canSeeLikes ? (
@@ -334,13 +336,13 @@ export default function OtherProfileScreen({ route, navigation }) {
                 />
                 {profile.likeCount > profile.likedMovies.length && (
                   <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate("AllLikes", { userId, title: `${profile.name} — Beğeniler` })}>
-                    <Text style={styles.seeAllBtnText}>Tümünü Gör ({profile.likeCount})</Text>
+                    <Text style={styles.seeAllBtnText}>{translateUI("Tümünü Gör (")}{profile.likeCount}{translateUI(")")}</Text>
                   </TouchableOpacity>
                 )}
               </>
-            ) : <Text style={styles.emptyText}>Henüz bir beğeni yok.</Text>
+            ) : <Text style={styles.emptyText}>{translateUI("Henüz bir beğeni yok.")}</Text>
           ) : (
-            <View style={styles.lockedBox}><Lock size={20} color={c.dim} /><Text style={styles.emptyText}>Bu kullanıcının beğenileri gizli.</Text></View>
+            <View style={styles.lockedBox}><Lock size={20} color={c.dim} /><Text style={styles.emptyText}>{translateUI("Bu kullanıcının beğenileri gizli.")}</Text></View>
           )}
         </View>
       </ScrollView>
@@ -352,22 +354,22 @@ export default function OtherProfileScreen({ route, navigation }) {
             {profile.relationship === "friends" && (
               <TouchableOpacity style={styles.menuRow} onPress={confirmUnfriend} disabled={busy}>
                 <View style={styles.menuIconWrap}><UserMinus size={16} color={c.danger} /></View>
-                <Text style={[styles.menuText, { color: c.danger }]}>Arkadaşlıktan Çık</Text>
+                <Text style={[styles.menuText, { color: c.danger }]}>{translateUI("Arkadaşlıktan Çık")}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.menuRow} onPress={() => { setShowMenu(false); setShowReport(true); }}>
               <View style={styles.menuIconWrap}><Flag size={16} color={c.text} /></View>
-              <Text style={styles.menuText}>Şikayet Et</Text>
+              <Text style={styles.menuText}>{translateUI("Şikayet Et")}</Text>
             </TouchableOpacity>
             {profile.isBlocked ? (
               <TouchableOpacity style={styles.menuRow} onPress={unblock}>
                 <View style={styles.menuIconWrap}><ShieldOff size={16} color={c.text} /></View>
-                <Text style={styles.menuText}>Engeli Kaldır</Text>
+                <Text style={styles.menuText}>{translateUI("Engeli Kaldır")}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.menuRow} onPress={confirmBlock}>
                 <View style={styles.menuIconWrap}><Ban size={16} color={c.danger} /></View>
-                <Text style={[styles.menuText, { color: c.danger }]}>Engelle</Text>
+                <Text style={[styles.menuText, { color: c.danger }]}>{translateUI("Engelle")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -396,7 +398,7 @@ function FavCard({ label, movie, c, navigation }) {
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
           <Star size={9} color={c.accent} fill={c.accent} />
-          <Text style={{ fontSize: 8, fontWeight: "800", color: c.accent }}>{label}</Text>
+          <Text style={{ fontSize: 8, fontWeight: "800", color: c.accent }}>{translateUI(label)}</Text>
         </View>
         <Text style={{ fontSize: 11, fontWeight: "700", color: c.text, marginTop: 2 }} numberOfLines={1}>{movie.title}</Text>
       </View>

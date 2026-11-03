@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { Search, Sparkles, Users, X } from "lucide-react-native";
@@ -53,7 +54,7 @@ export default function BlendFriendPickerSheet({ movie, highlightFriends = [], n
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} handleOnly>
               <View style={styles.header}>
-                <Text style={styles.headerTitle}>Kiminle Blend yapmak istersin?</Text>
+                <Text style={styles.headerTitle}>{translateUI("Kiminle Blend yapmak istersin?")}</Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color={c.text} /></TouchableOpacity>
               </View>
 
@@ -61,7 +62,7 @@ export default function BlendFriendPickerSheet({ movie, highlightFriends = [], n
                 {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.moviePoster} /> : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.movieTitle} numberOfLines={1}>{movie.title}</Text>
-                  <Text style={styles.movieMeta}>{highlightFriends.length > 0 ? `${highlightFriends.length} arkadaşın beğendi` : `${movie.year} · ${movie.type}`}</Text>
+                  <Text style={styles.movieMeta}>{highlightFriends.length > 0 ? translateUI("{0} arkadaşın beğendi", {0: highlightFriends.length}) : `${movie.year} · ${movie.type}`}</Text>
                 </View>
               </View>
 
@@ -70,7 +71,7 @@ export default function BlendFriendPickerSheet({ movie, highlightFriends = [], n
                   <Search size={15} color={c.dim} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Arkadaşlarında ara"
+                    placeholder={translateUI("Arkadaşlarında ara")}
                     placeholderTextColor={c.dim}
                     value={query}
                     onChangeText={setQuery}
@@ -83,7 +84,7 @@ export default function BlendFriendPickerSheet({ movie, highlightFriends = [], n
               ) : friends.length === 0 ? (
                 <View style={styles.emptyBox}>
                   <Users size={26} color={c.dim} style={{ opacity: 0.6, marginBottom: 8 }} />
-                  <Text style={styles.empty}>Henüz arkadaşın yok.</Text>
+                  <Text style={styles.empty}>{translateUI("Henüz arkadaşın yok.")}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -107,7 +108,7 @@ export default function BlendFriendPickerSheet({ movie, highlightFriends = [], n
                       </TouchableOpacity>
                     );
                   }}
-                  ListEmptyComponent={<Text style={styles.empty}>Aramanla eşleşen arkadaş bulunamadı.</Text>}
+                  ListEmptyComponent={<Text style={styles.empty}>{translateUI("Aramanla eşleşen arkadaş bulunamadı.")}</Text>}
                 />
               )}
             </DismissableSheet>

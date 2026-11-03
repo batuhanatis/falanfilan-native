@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,33 +28,31 @@ export default function NotificationPrimerModal({ onEnable, onDismiss }) {
         <LinearGradient colors={["#6366F1", "#8B5CF6", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconRing}>
           <Bell size={30} color="#fff" />
         </LinearGradient>
-        <Text style={styles.title}>Hiçbir şeyi kaçırma</Text>
-        <Text style={styles.subtitle}>
-          Bildirimleri açarsan, önemli anları anında haber veririz:
-        </Text>
+        <Text style={styles.title}>{translateUI("Hiçbir şeyi kaçırma")}</Text>
+        <Text style={styles.subtitle}>{translateUI(" Bildirimleri açarsan, önemli anları anında haber veririz: ")}</Text>
 
         <View style={styles.reasonList}>
           <View style={styles.reasonRow}>
             <View style={styles.reasonIconWrap}><MessageCircle size={15} color="#8B5CF6" /></View>
-            <Text style={styles.reasonText}>Bir arkadaşın sana mesaj attığında</Text>
+            <Text style={styles.reasonText}>{translateUI("Bir arkadaşın sana mesaj attığında")}</Text>
           </View>
           <View style={styles.reasonRow}>
             <View style={styles.reasonIconWrap}><Sparkles size={15} color="#DB2777" /></View>
-            <Text style={styles.reasonText}>Zevkiniz eşleştiğinde ya da MatchParty'de kazandığında</Text>
+            <Text style={styles.reasonText}>{translateUI("Zevkiniz eşleştiğinde ya da MatchParty'de kazandığında")}</Text>
           </View>
           <View style={styles.reasonRow}>
             <View style={styles.reasonIconWrap}><Clock size={15} color="#6366F1" /></View>
-            <Text style={styles.reasonText}>Beklediğin film/dizi çıktığında</Text>
+            <Text style={styles.reasonText}>{translateUI("Beklediğin film/dizi çıktığında")}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.enableBtn} onPress={onEnable} activeOpacity={0.85}>
           <LinearGradient colors={["#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.enableBtnGradient}>
-            <Text style={styles.enableBtnText}>Bildirimleri Aç</Text>
+            <Text style={styles.enableBtnText}>{translateUI("Bildirimleri Aç")}</Text>
           </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss}>
-          <Text style={styles.dismissText}>Şimdi Değil</Text>
+          <Text style={styles.dismissText}>{translateUI("Şimdi Değil")}</Text>
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>

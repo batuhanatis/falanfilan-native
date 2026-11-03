@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,7 +12,7 @@ import EmptyState from "../components/EmptyState";
 function formatDate(value) {
   if (!value) return "";
   try {
-    return new Date(value).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+    return new Date(value).toLocaleDateString(getLocale(), { day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "";
   }
@@ -100,8 +101,8 @@ export default function DiaryScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Pellix Diary"
-        subtitle={stats?.total ? `${stats.total} izleme kaydı` : "İzlediklerin burada birikir"}
+        title={translateUI("Pellix Diary")}
+        subtitle={stats?.total ? translateUI("{0} izleme kaydı", {0: stats.total}) : translateUI("İzlediklerin burada birikir")}
         onBack={() => navigation.goBack()}
       />
 
@@ -110,8 +111,8 @@ export default function DiaryScreen({ navigation }) {
       ) : !available ? (
         <View style={styles.center}>
           <BookOpen size={34} color={c.dim} style={{ opacity: 0.55 }} />
-          <Text style={styles.unavailableTitle}>Diary henüz hazır değil</Text>
-          <Text style={styles.unavailableText}>Sunucu güncellemesi tamamlandığında bu alan otomatik açılacak.</Text>
+          <Text style={styles.unavailableTitle}>{translateUI("Diary henüz hazır değil")}</Text>
+          <Text style={styles.unavailableText}>{translateUI("Sunucu güncellemesi tamamlandığında bu alan otomatik açılacak.")}</Text>
         </View>
       ) : (
         <FlatList
@@ -127,29 +128,29 @@ export default function DiaryScreen({ navigation }) {
               <View style={styles.heroCard}>
                 <View style={styles.heroIcon}><BookOpen size={21} color={c.accent} /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.heroEyebrow}>İZLEME HAFIZAN</Text>
-                  <Text style={styles.heroTitle}>Ne izlediğini Pellix hatırlasın</Text>
-                  <Text style={styles.heroText}>Puanlarını ve kısa notlarını tut; zamanla kendi izleme geçmişin ve recap'lerin oluşsun.</Text>
+                  <Text style={styles.heroEyebrow}>{translateUI("İZLEME HAFIZAN")}</Text>
+                  <Text style={styles.heroTitle}>{translateUI("Ne izlediğini Pellix hatırlasın")}</Text>
+                  <Text style={styles.heroText}>{translateUI("Puanlarını ve kısa notlarını tut; zamanla kendi izleme geçmişin ve recap'lerin oluşsun.")}</Text>
                 </View>
               </View>
 
               <View style={styles.statsRow}>
-                <Stat value={stats?.total ?? 0} label="TOPLAM" styles={styles} />
-                <Stat value={stats?.thisYear ?? 0} label="BU YIL" styles={styles} />
-                <Stat value={stats?.avgRating != null ? stats.avgRating : "—"} label="ORT. PUAN" styles={styles} />
+                <Stat value={stats?.total ?? 0} label={translateUI("TOPLAM")} styles={styles} />
+                <Stat value={stats?.thisYear ?? 0} label={translateUI("BU YIL")} styles={styles} />
+                <Stat value={stats?.avgRating != null ? stats.avgRating : "—"} label={translateUI("ORT. PUAN")} styles={styles} />
               </View>
 
               {!!stats?.topGenres?.length && (
                 <View style={styles.genreRow}>
                   {stats.topGenres.slice(0, 3).map((item) => (
                     <View key={item.genre} style={styles.genrePill}>
-                      <Text style={styles.genrePillText}>{item.genre} · {item.count}</Text>
+                      <Text style={styles.genrePillText}>{translateUI(item.genre)}{translateUI(" · ")}{item.count}</Text>
                     </View>
                   ))}
                 </View>
               )}
 
-              {entries.length > 0 && <Text style={styles.sectionLabel}>SON İZLEDİKLERİN</Text>}
+              {entries.length > 0 && <Text style={styles.sectionLabel}>{translateUI("SON İZLEDİKLERİN")}</Text>}
             </View>
           }
           renderItem={({ item }) => {
@@ -162,15 +163,15 @@ export default function DiaryScreen({ navigation }) {
                   <View style={styles.entryMetaRow}>
                     <CalendarDays size={11} color={c.dim} />
                     <Text style={styles.entryMeta}>{formatDate(item.watchedAt)}</Text>
-                    {!!movie?.type && <><Text style={styles.entryMeta}>·</Text><Film size={10} color={c.dim} /><Text style={styles.entryMeta}>{movie.type}</Text></>}
+                    {!!movie?.type && <><Text style={styles.entryMeta}>{translateUI("·")}</Text><Film size={10} color={c.dim} /><Text style={styles.entryMeta}>{translateUI(movie.type)}</Text></>}
                   </View>
                   {item.rating != null && (
                     <View style={styles.ratingRow}>
                       <Star size={12} color={c.accent} fill={c.accent} />
-                      <Text style={styles.ratingText}>{item.rating}/10</Text>
+                      <Text style={styles.ratingText}>{item.rating}{translateUI("/10")}</Text>
                     </View>
                   )}
-                  {!!item.note && <Text style={styles.note} numberOfLines={2}>“{item.note}”</Text>}
+                  {!!item.note && <Text style={styles.note} numberOfLines={2}>{translateUI("“")}{item.note}{translateUI("”")}</Text>}
                 </View>
                 <ChevronRight size={17} color={c.dim} />
               </TouchableOpacity>
@@ -179,8 +180,8 @@ export default function DiaryScreen({ navigation }) {
           ListEmptyComponent={
             <EmptyState
               icon={BookOpen}
-              title="Günlüğün henüz boş"
-              text="Bir film veya dizi detayında ‘İzledim’ butonuna dokunarak ilk kaydını oluştur."
+              title={translateUI("Günlüğün henüz boş")}
+              text={translateUI("Bir film veya dizi detayında ‘İzledim’ butonuna dokunarak ilk kaydını oluştur.")}
             />
           }
           ListFooterComponent={loadingMore ? <ActivityIndicator color={c.accent} style={{ marginVertical: 18 }} /> : null}
@@ -194,7 +195,7 @@ function Stat({ value, label, styles }) {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel}>{translateUI(label)}</Text>
     </View>
   );
 }

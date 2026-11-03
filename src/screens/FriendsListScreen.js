@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,11 +30,11 @@ export default function FriendsListScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Arkadaşlarım"
-        subtitle={friends.length > 0 ? `${friends.length} arkadaş` : undefined}
+        title={translateUI("Arkadaşlarım")}
+        subtitle={friends.length > 0 ? translateUI("{0} arkadaş", {0: friends.length}) : undefined}
         onBack={() => navigation.goBack()}
         right={
-          <TouchableOpacity style={styles.addFriendBtn} onPress={() => navigation.navigate("FriendSearch")} activeOpacity={0.78} accessibilityLabel="Arkadaş bul">
+          <TouchableOpacity style={styles.addFriendBtn} onPress={() => navigation.navigate("FriendSearch")} activeOpacity={0.78} accessibilityLabel={translateUI("Arkadaş bul")}>
             <UserPlus size={16} color={c.accent} />
           </TouchableOpacity>
         }
@@ -45,7 +46,7 @@ export default function FriendsListScreen({ navigation }) {
             <Search size={16} color={c.dim} />
             <TextInput
               style={styles.searchInput}
-              placeholder="İsim veya kullanıcı adı ara"
+              placeholder={translateUI("İsim veya kullanıcı adı ara")}
               placeholderTextColor={c.dim}
               value={query}
               onChangeText={setQuery}
@@ -68,12 +69,12 @@ export default function FriendsListScreen({ navigation }) {
             <View>
               <EmptyState
                 icon={Users}
-                title="Henüz arkadaşın yok"
-                text="Arkadaşlarını buldukça Blend, MatchParty ve sosyal akış çok daha eğlenceli hale gelir."
+                title={translateUI("Henüz arkadaşın yok")}
+                text={translateUI("Arkadaşlarını buldukça Blend, MatchParty ve sosyal akış çok daha eğlenceli hale gelir.")}
               />
               <TouchableOpacity style={styles.findFriendsCta} onPress={() => navigation.navigate("FriendSearch")} activeOpacity={0.86}>
                 <UserPlus size={16} color={c.bg} />
-                <Text style={styles.findFriendsCtaText}>Arkadaş Bul</Text>
+                <Text style={styles.findFriendsCtaText}>{translateUI("Arkadaş Bul")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -82,14 +83,14 @@ export default function FriendsListScreen({ navigation }) {
                 <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.leaderboardLinkGradient}>
                   <Sparkles size={14} color="#fff" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.leaderboardLinkText}>Zevk Uyumu Sıralaması</Text>
-                    <Text style={styles.leaderboardLinkSub}>En çok kiminle aynı şeyleri seçiyorsun?</Text>
+                    <Text style={styles.leaderboardLinkText}>{translateUI("Zevk Uyumu Sıralaması")}</Text>
+                    <Text style={styles.leaderboardLinkSub}>{translateUI("En çok kiminle aynı şeyleri seçiyorsun?")}</Text>
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
 
               {filteredFriends.length === 0 ? (
-                <Text style={styles.emptySearchText}>"{query}" ile eşleşen arkadaş bulunamadı.</Text>
+                <Text style={styles.emptySearchText}>{translateUI("\"")}{query}{translateUI("\" ile eşleşen arkadaş bulunamadı.")}</Text>
               ) : (
                 filteredFriends.map((f) => (
                   <View key={f.id} style={styles.row}>
@@ -101,13 +102,13 @@ export default function FriendsListScreen({ navigation }) {
                       <RetryImage source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.avatar} />
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.name} numberOfLines={1}>{f.name}</Text>
-                        {!!f.username && <Text style={styles.username} numberOfLines={1}>@{f.username}</Text>}
+                        {!!f.username && <Text style={styles.username} numberOfLines={1}>{translateUI("@")}{f.username}</Text>}
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => navigation.navigate("Blend", { friendId: f.id, friendName: f.name, friendAvatar: f.avatar_url })}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      accessibilityLabel={`${f.name} ile Blend oluştur`}
+                      accessibilityLabel={translateUI("{0} ile Blend oluştur", {0: f.name})}
                     >
                       <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniActionBtn}>
                         <Sparkles size={14} color="#fff" />
@@ -116,7 +117,7 @@ export default function FriendsListScreen({ navigation }) {
                     <TouchableOpacity
                       onPress={() => navigation.navigate("MatchParty", { friend: { id: f.id, name: f.name, avatarUrl: f.avatar_url } })}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      accessibilityLabel={`${f.name} ile MatchParty başlat`}
+                      accessibilityLabel={translateUI("{0} ile MatchParty başlat", {0: f.name})}
                     >
                       <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniActionBtn}>
                         <Film size={14} color="#fff" />

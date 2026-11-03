@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Appearance } from "react-native";
 import { api } from "../api/client";
@@ -35,10 +36,10 @@ export default class ErrorBoundary extends React.Component {
       const styles = makeStyles(c);
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Bir şeyler ters gitti</Text>
-          <Text style={styles.subtitle}>Sorun otomatik olarak bize bildirildi. Uygulamayı yeniden başlatmayı dener misin?</Text>
+          <Text style={styles.title}>{translateUI("Bir şeyler ters gitti")}</Text>
+          <Text style={styles.subtitle}>{translateUI("Sorun otomatik olarak bize bildirildi. Uygulamayı yeniden başlatmayı dener misin?")}</Text>
           <TouchableOpacity style={styles.btn} onPress={() => this.setState({ hasError: false })}>
-            <Text style={styles.btnText}>Tekrar Dene</Text>
+            <Text style={styles.btnText}>{translateUI("Tekrar Dene")}</Text>
           </TouchableOpacity>
         </View>
       );

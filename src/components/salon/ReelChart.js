@@ -1,3 +1,4 @@
+import { t as translateUI } from "../../i18n/core";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Animated, Easing, StyleSheet, AccessibilityInfo } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -93,12 +94,12 @@ export default function ReelChart({ genres }) {
             onPress={() => toggle(i)}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`${seg.name}, yüzde ${seg.percent}`}
+            accessibilityLabel={translateUI("{0}, yüzde {1}", {0: seg.name,1: seg.percent})}
             accessibilityState={{ selected: selected === i }}
           >
             <View style={[styles.swatch, { backgroundColor: seg.color }]} />
             <Text style={[styles.legendName, { color: c.text }]} numberOfLines={1}>{seg.name}</Text>
-            <Text style={[styles.legendPercent, { color: c.dim }]}>%{seg.percent}</Text>
+            <Text style={[styles.legendPercent, { color: c.dim }]}>{translateUI("%")}{seg.percent}</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StackActions } from "@react-navigation/native";
@@ -28,13 +29,13 @@ export default function MainTabs() {
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen}
-        options={{ title: "Ana Sayfa", tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
+        options={{ title: translateUI("Ana Sayfa"), tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
       {/* Ana sekmeler kullanıcı niyetini doğrudan anlatıyor. Sosyal akış artık "Aktivite" gibi
           sistem/geçmiş çağrışımı yapan bir isim yerine "Sosyal" olarak konumlanıyor. */}
       <Tab.Screen name="Discover" component={DiscoverScreen}
-        options={{ title: "Keşfet", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
+        options={{ title: translateUI("Keşfet"), tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
       <Tab.Screen name="Activity" component={ActivityScreen}
-        options={{ title: "Sosyal", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
+        options={{ title: translateUI("Sosyal"), tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
       <Tab.Screen
         name="Chat"
         component={ChatStack}
@@ -50,13 +51,13 @@ export default function MainTabs() {
           },
         })}
         options={{
-          title: "Sohbet",
+          title: translateUI("Sohbet"),
           tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
           tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
           tabBarBadgeStyle: { backgroundColor: c.danger },
         }} />
       <Tab.Screen name="Profile" component={ProfileScreen}
-        options={{ title: "Profil", tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
+        options={{ title: translateUI("Profil"), tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
     </Tab.Navigator>
   );
 }

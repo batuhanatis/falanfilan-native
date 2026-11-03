@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from "react-native";
 import { PartyPopper, MessageCircle, CheckCircle2 } from "lucide-react-native";
@@ -68,7 +69,7 @@ export default function GlobalPopups() {
       } else if (msg.type === "badge_unlocked") {
         setBadgeCelebration(msg.badge);
       } else if (msg.type === "quest_completed") {
-        setCelebration({ kind: "quest", title: "Görev tamamlandı! ✅", desc: msg.quest.title });
+        setCelebration({ kind: "quest", title: translateUI("Görev tamamlandı! ✅"), desc: msg.quest.title });
       } else if (msg.type === "watch_plan_due") {
         setBanner({ senderName: "İzleme Zamanı! 📅", preview: msg.note || "Planınızın zamanı geldi", chatId: msg.chat_id, tappable: true });
       }
@@ -151,14 +152,14 @@ export default function GlobalPopups() {
         <Animated.View style={[styles.inviteCard, { transform: [{ translateY: inviteAnim }] }]}>
           <View style={styles.inviteRow}>
             <View style={styles.inviteIcon}><PartyPopper size={16} color="#fff" /></View>
-            <Text style={styles.inviteText} numberOfLines={2}>{invite.fromName} seni MatchParty'e davet etti</Text>
+            <Text style={styles.inviteText} numberOfLines={2}>{invite.fromName}{translateUI(" seni MatchParty'e davet etti")}</Text>
           </View>
           <View style={styles.inviteActions}>
             <TouchableOpacity style={styles.declineBtn} onPress={() => respond(false)} disabled={responding}>
-              <Text style={styles.declineText}>Reddet</Text>
+              <Text style={styles.declineText}>{translateUI("Reddet")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.acceptBtn} onPress={() => respond(true)} disabled={responding}>
-              <Text style={styles.acceptText}>Kabul Et</Text>
+              <Text style={styles.acceptText}>{translateUI("Kabul Et")}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

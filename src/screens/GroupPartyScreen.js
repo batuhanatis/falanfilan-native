@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Check, Users, History, ChevronDown, ChevronUp, Search, X, SlidersHorizontal, Zap, Link2, Share2, ArrowRight } from "lucide-react-native";
@@ -116,7 +117,7 @@ export default function GroupPartyScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      <ScreenHeader title="MatchParty" subtitle="Birlikte seçin" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("MatchParty")} subtitle={translateUI("Birlikte seçin")} onBack={() => navigation.goBack()} />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -124,21 +125,21 @@ export default function GroupPartyScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text style={styles.subtitle}>Arkadaşlarını seç. İstersen hemen başlat, istersen tek linkle WhatsApp'tan davet et.</Text>
+        <Text style={styles.subtitle}>{translateUI("Arkadaşlarını seç. İstersen hemen başlat, istersen tek linkle WhatsApp'tan davet et.")}</Text>
 
         {linkAvailable !== false && (
           <>
-            <ShareFan style={styles.linkInviteCard} options={partyShareOptions} disabled={sharingLink} accessibilityLabel="Party linkini paylaş">
+            <ShareFan style={styles.linkInviteCard} options={partyShareOptions} disabled={sharingLink} accessibilityLabel={translateUI("Party linkini paylaş")}>
               <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
               <View style={{ flex: 1 }}>
                 <View style={styles.linkTitleRow}>
-                  <Text style={styles.linkTitle}>{createdLinkSession ? "Party Link Hazır" : "Party Link Oluştur"}</Text>
-                  {!createdLinkSession && <View style={styles.newBadge}><Text style={styles.newBadgeText}>YENİ</Text></View>}
+                  <Text style={styles.linkTitle}>{createdLinkSession ? translateUI("Party Link Hazır") : translateUI("Party Link Oluştur")}</Text>
+                  {!createdLinkSession && <View style={styles.newBadge}><Text style={styles.newBadgeText}>{translateUI("YENİ")}</Text></View>}
                 </View>
                 <Text style={styles.linkSub}>
                   {createdLinkSession
-                    ? "Tekrar paylaşmak için dokun. Lobiye ne zaman geçeceğine sen karar ver."
-                    : "Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir."}
+                    ? translateUI("Tekrar paylaşmak için dokun. Lobiye ne zaman geçeceğine sen karar ver.")
+                    : translateUI("Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir.")}
                 </Text>
               </View>
               {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
@@ -150,7 +151,7 @@ export default function GroupPartyScreen({ navigation }) {
                 onPress={() => navigation.replace("MatchParty", { sessionId: createdLinkSession.sessionId })}
                 activeOpacity={0.86}
               >
-                <Text style={styles.linkLobbyText}>Party Lobisine Git</Text>
+                <Text style={styles.linkLobbyText}>{translateUI("Party Lobisine Git")}</Text>
                 <ArrowRight size={15} color={c.bg} />
               </TouchableOpacity>
             )}
@@ -162,7 +163,7 @@ export default function GroupPartyScreen({ navigation }) {
             {friends.filter((f) => selected.has(f.id)).map((f) => (
               <RetryImage key={f.id} source={{ uri: avatarOr(f.avatar_url, f.id) }} style={styles.squadAvatar} />
             ))}
-            <Text style={styles.squadCount}>{selected.size} kişi seçildi</Text>
+            <Text style={styles.squadCount}>{selected.size}{translateUI(" kişi seçildi")}</Text>
           </View>
         )}
 
@@ -170,18 +171,18 @@ export default function GroupPartyScreen({ navigation }) {
           <>
             <TouchableOpacity style={styles.recentToggle} onPress={() => setShowRecent((v) => !v)}>
               <History size={14} color={c.accent} />
-              <Text style={styles.recentToggleText}>Geçmiş Eşleşmeler</Text>
+              <Text style={styles.recentToggleText}>{translateUI("Geçmiş Eşleşmeler")}</Text>
               {showRecent ? <ChevronUp size={14} color={c.dim} /> : <ChevronDown size={14} color={c.dim} />}
             </TouchableOpacity>
             {showRecent && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentRow} keyboardShouldPersistTaps="handled">
                 {recentMatches.map((session) => (
                   <View key={session.sessionId} style={styles.recentCard}>
-                    <Text style={styles.recentWith} numberOfLines={1}>{session.others.map((o) => o.name).join(", ") || "Grup"}</Text>
+                    <Text style={styles.recentWith} numberOfLines={1}>{session.others.map((o) => o.name).join(", ") || translateUI("Grup")}</Text>
                     <View style={styles.recentPosters}>
                       {session.matches.slice(0, 3).map((m, i) => m.poster ? <Image key={i} source={{ uri: m.poster }} style={styles.recentPoster} /> : <View key={i} style={[styles.recentPoster, { backgroundColor: c.surface2 }]} />)}
                     </View>
-                    <Text style={styles.recentCount}>{session.matches.length} eşleşme</Text>
+                    <Text style={styles.recentCount}>{session.matches.length}{translateUI(" eşleşme")}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -194,7 +195,7 @@ export default function GroupPartyScreen({ navigation }) {
             <Search size={16} color={c.dim} />
             <TextInput
               style={styles.searchInput}
-              placeholder="İsim veya kullanıcı adı ara"
+              placeholder={translateUI("İsim veya kullanıcı adı ara")}
               placeholderTextColor={c.dim}
               value={friendQuery}
               onChangeText={setFriendQuery}
@@ -207,9 +208,9 @@ export default function GroupPartyScreen({ navigation }) {
         {loading ? (
           <ActivityIndicator color={c.accent} style={{ marginVertical: 24 }} />
         ) : friends.length === 0 ? (
-          <View style={styles.emptyBox}><Users size={26} color={c.dim} style={{ marginBottom: 8, opacity: 0.6 }} /><Text style={styles.emptyText}>Henüz arkadaşın yok. İstersen yukarıdaki Party Link ile hemen davet paylaşabilirsin.</Text></View>
+          <View style={styles.emptyBox}><Users size={26} color={c.dim} style={{ marginBottom: 8, opacity: 0.6 }} /><Text style={styles.emptyText}>{translateUI("Henüz arkadaşın yok. İstersen yukarıdaki Party Link ile hemen davet paylaşabilirsin.")}</Text></View>
         ) : filteredFriends.length === 0 ? (
-          <View style={styles.emptyBox}><Text style={styles.emptyText}>"{friendQuery}" ile eşleşen arkadaş bulunamadı.</Text></View>
+          <View style={styles.emptyBox}><Text style={styles.emptyText}>{translateUI("\"")}{friendQuery}{translateUI("\" ile eşleşen arkadaş bulunamadı.")}</Text></View>
         ) : (
           <View style={styles.friendGrid}>
             {filteredFriends.map((item) => {
@@ -229,21 +230,21 @@ export default function GroupPartyScreen({ navigation }) {
 
         <TouchableOpacity style={styles.filterToggle} onPress={() => setShowAdvancedFilters((v) => !v)} activeOpacity={0.85}>
           <View style={styles.filterIconWrap}><SlidersHorizontal size={16} color={c.accent} /></View>
-          <View style={{ flex: 1 }}><Text style={styles.filterTitle}>Filtrelerle Özelleştir</Text><Text style={styles.filterSubtitle}>Tür, yıl, platform ve IMDb puanı seç</Text></View>
+          <View style={{ flex: 1 }}><Text style={styles.filterTitle}>{translateUI("Filtrelerle Özelleştir")}</Text><Text style={styles.filterSubtitle}>{translateUI("Tür, yıl, platform ve IMDb puanı seç")}</Text></View>
           {showAdvancedFilters ? <ChevronUp size={16} color={c.dim} /> : <ChevronDown size={16} color={c.dim} />}
         </TouchableOpacity>
 
         {showAdvancedFilters && (
           <View style={styles.advancedWrap}>
             <FilterFields typeValue={typePref} onTypeChange={setTypePref} genreValue={genrePref} onGenreChange={setGenrePref} yearSet={yearLabels} onToggleYear={toggleYear} platformSet={platformPrefs} onTogglePlatform={togglePlatform} platforms={commonPlatforms} onShuffleGenre={shuffleGenre} />
-            <Text style={styles.label}>MİNİMUM IMDB PUANI: {minImdb.toFixed(1)}</Text>
+            <Text style={styles.label}>{translateUI("MİNİMUM IMDB PUANI: ")}{minImdb.toFixed(1)}</Text>
             <ChipRow items={MIN_IMDB_OPTIONS.map(String)} active={String(minImdb)} onSelect={(v) => setMinImdb(parseFloat(v))} />
           </View>
         )}
 
         {selected.size > 0 && (
           <TouchableOpacity style={styles.goBtn} onPress={createGroupParty} disabled={creating} activeOpacity={0.88}>
-            {creating ? <ActivityIndicator size="small" color={c.bg} /> : <>{!showAdvancedFilters && <Zap size={17} color={c.bg} fill={c.bg} />}<Text style={styles.goBtnText}>{showAdvancedFilters ? `${selected.size} Kişiyle Party Oluştur` : `${selected.size} Kişiyle Hızlı Party Başlat`}</Text></>}
+            {creating ? <ActivityIndicator size="small" color={c.bg} /> : <>{!showAdvancedFilters && <Zap size={17} color={c.bg} fill={c.bg} />}<Text style={styles.goBtnText}>{showAdvancedFilters ? translateUI("{0} Kişiyle Party Oluştur", {0: selected.size}) : translateUI("{0} Kişiyle Hızlı Party Başlat", {0: selected.size})}</Text></>}
           </TouchableOpacity>
         )}
       </ScrollView>

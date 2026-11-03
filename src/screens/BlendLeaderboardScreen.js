@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,7 +33,7 @@ export default function BlendLeaderboardScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Zevk Uyumu Sıralaması</Text>
+        <Text style={styles.headerTitle}>{translateUI("Zevk Uyumu Sıralaması")}</Text>
       </View>
 
       {loading ? (
@@ -42,8 +43,8 @@ export default function BlendLeaderboardScreen({ navigation }) {
           {!results || results.length === 0 ? (
             <EmptyState
               icon={Users}
-              title="Henüz bir sıralama yok"
-              text="Arkadaşlarınla ve sen yeterince film/dizi beğendikçe burada bir sıralama oluşacak."
+              title={translateUI("Henüz bir sıralama yok")}
+              text={translateUI("Arkadaşlarınla ve sen yeterince film/dizi beğendikçe burada bir sıralama oluşacak.")}
             />
           ) : (
             results.map((r, i) => (
@@ -66,7 +67,7 @@ export default function BlendLeaderboardScreen({ navigation }) {
                   <Text style={styles.verdict} numberOfLines={1}>{verdictFor(r.matchPercent)}</Text>
                 </View>
                 <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pctPill}>
-                  <Text style={styles.pctText}>%{r.matchPercent}</Text>
+                  <Text style={styles.pctText}>{translateUI("%")}{r.matchPercent}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             ))

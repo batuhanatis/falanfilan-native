@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { X } from "lucide-react-native";
@@ -30,7 +31,7 @@ export default function NudgeCard({ item, navigation, onOpenPicker, onDismiss })
       </TouchableOpacity>
 
       <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
+        <Text style={styles.title} numberOfLines={2}>{translateUI(title)}</Text>
         {friends.length > 0 && (
           <View style={styles.avatarsRow}>
             {friends.map((f, idx) => (
@@ -42,11 +43,11 @@ export default function NudgeCard({ item, navigation, onOpenPicker, onDismiss })
             ))}
           </View>
         )}
-        <Text style={styles.subtitle}>Ne kadar uyumlu olduğunuza bir bakın.</Text>
+        <Text style={styles.subtitle}>{translateUI("Ne kadar uyumlu olduğunuza bir bakın.")}</Text>
       </View>
 
       <TouchableOpacity style={styles.cta} onPress={() => onOpenPicker(item)} activeOpacity={0.85}>
-        <Text style={styles.ctaText}>Blend Yap</Text>
+        <Text style={styles.ctaText}>{translateUI("Blend Yap")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

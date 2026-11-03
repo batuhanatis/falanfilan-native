@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated, Easing, AccessibilityInfo } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -39,20 +40,20 @@ export default function MatchCelebration({ movie, matchNumber, myAvatar, myId, p
         style={[styles.textBlock, { opacity: textIn, transform: [{ translateY: textIn.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}
         accessibilityLiveRegion="polite"
       >
-        <Text style={styles.eyebrow}>{isMilestone ? `${matchNumber}. EŞLEŞME` : "EŞLEŞME"}</Text>
-        <Text style={styles.bigTitle}>{isMilestone ? `${matchNumber} kez anlaştınız` : "Eşleştiniz"}</Text>
+        <Text style={styles.eyebrow}>{isMilestone ? translateUI("{0}. EŞLEŞME", {0: matchNumber}) : translateUI("EŞLEŞME")}</Text>
+        <Text style={styles.bigTitle}>{isMilestone ? translateUI("{0} kez anlaştınız", {0: matchNumber}) : translateUI("Eşleştiniz")}</Text>
         <Text style={styles.subtitle} numberOfLines={2}>
-          {movie?.title ? `${partnerName} ile ikiniz de "${movie.title}" dediniz` : `Sen ve ${partnerName} aynı fikirdesiniz`}
+          {movie?.title ? translateUI("{0} ile ikiniz de \"{1}\" dediniz", {0: partnerName,1: movie.title}) : translateUI("Sen ve {0} aynı fikirdesiniz", {0: partnerName})}
         </Text>
         {!!meta && <Text style={styles.meta} numberOfLines={1}>{upperTR(meta)}</Text>}
       </Animated.View>
 
       <View style={styles.btnRow}>
         <TouchableOpacity style={styles.endBtn} onPress={onEndSession} accessibilityRole="button">
-          <Text style={styles.endBtnText}>Oturumu Bitir</Text>
+          <Text style={styles.endBtnText}>{translateUI("Oturumu Bitir")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.continueBtn} onPress={onContinue} accessibilityRole="button">
-          <Text style={styles.continueBtnText}>Devam Et</Text>
+          <Text style={styles.continueBtnText}>{translateUI("Devam Et")}</Text>
         </TouchableOpacity>
       </View>
     </View>

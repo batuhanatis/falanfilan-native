@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -65,12 +66,12 @@ export default function PlayResultShareCard({
       <Sparkles size={16} color="rgba(255,255,255,0.20)" style={styles.sparkleTwo} />
       <Film size={84} color="rgba(255,255,255,0.07)" style={styles.filmMark} />
 
-      <Text style={styles.logo}>pellix play</Text>
+      <Text style={styles.logo}>{translateUI("pellix play")}</Text>
 
       <View style={styles.iconBubble}>
         <Icon size={26} color="#fff" />
       </View>
-      <Text style={styles.eyebrow}>{isFriend ? "ARKADAŞINI TANIYOR MUSUN?" : isQuote ? "SAHNEYİ HATIRLA" : isCharacter ? "HANGİ KARAKTERSİN?" : "TASTE BATTLE"}</Text>
+      <Text style={styles.eyebrow}>{isFriend ? translateUI("ARKADAŞINI TANIYOR MUSUN?") : isQuote ? translateUI("SAHNEYİ HATIRLA") : isCharacter ? translateUI("HANGİ KARAKTERSİN?") : translateUI("TASTE BATTLE")}</Text>
 
       {isCharacter ? (
         <>
@@ -84,45 +85,45 @@ export default function PlayResultShareCard({
           )}
           <Text style={styles.resultTitle}>{character?.name}</Text>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, fontWeight: "800", marginTop: 3 }}>{character?.title}</Text>
-          <View style={styles.chip}><Sparkles size={12} color="#fff" /><Text style={styles.chipText}>%{matchPercent} UYUM</Text></View>
+          <View style={styles.chip}><Sparkles size={12} color="#fff" /><Text style={styles.chipText}>{translateUI("%")}{matchPercent}{translateUI(" UYUM")}</Text></View>
           <Text style={styles.verdict}>{character?.blurb}</Text>
         </>
       ) : isFriend ? (
         <>
           <RetryImage source={{ uri: avatarOr(friend?.avatarUrl, friend?.id) }} style={styles.avatar} />
-          <Text style={styles.friendName}>{friend?.name || "Arkadaşım"}</Text>
+          <Text style={styles.friendName}>{friend?.name || translateUI("Arkadaşım")}</Text>
           <View style={styles.bigNumberWrap}>
-            <Text style={styles.bigNumber}>%{percent}</Text>
-            <Text style={styles.bigLabel}>TANIMA SKORU</Text>
+            <Text style={styles.bigNumber}>{translateUI("%")}{percent}</Text>
+            <Text style={styles.bigLabel}>{translateUI("TANIMA SKORU")}</Text>
           </View>
           <Text style={styles.verdict}>{friendVerdict(percent)}</Text>
-          <View style={styles.chip}><Trophy size={12} color="#fff" /><Text style={styles.chipText}>{score}/{total} DOĞRU</Text></View>
+          <View style={styles.chip}><Trophy size={12} color="#fff" /><Text style={styles.chipText}>{score}{translateUI("/")}{total}{translateUI(" DOĞRU")}</Text></View>
         </>
       ) : isQuote ? (
         <>
           <View style={styles.bigNumberWrap}>
-            <Text style={styles.bigNumber}>{score}/{total}</Text>
-            <Text style={styles.bigLabel}>{isDaily ? "GÜNÜN CHALLENGE'I" : "DOĞRU CEVAP"}</Text>
+            <Text style={styles.bigNumber}>{score}{translateUI("/")}{total}</Text>
+            <Text style={styles.bigLabel}>{isDaily ? translateUI("GÜNÜN CHALLENGE'I") : translateUI("DOĞRU CEVAP")}</Text>
           </View>
           <Text style={styles.verdict}>{quoteVerdict(percent)}</Text>
         </>
       ) : (
         <>
-          <Text style={styles.resultTitle}>{topGenre || "Karışık Zevk"}</Text>
+          <Text style={styles.resultTitle}>{topGenre || translateUI("Karışık Zevk")}</Text>
           <Text style={styles.verdict}>{tasteVerdict(topGenre)}</Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statValue}>{selectionCount}</Text>
-              <Text style={styles.statLabel}>SEÇİM</Text>
+              <Text style={styles.statLabel}>{translateUI("SEÇİM")}</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>%{moviePercent}</Text>
-              <Text style={styles.statLabel}>FİLM</Text>
+              <Text style={styles.statValue}>{translateUI("%")}{moviePercent}</Text>
+              <Text style={styles.statLabel}>{translateUI("FİLM")}</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>%{Math.max(0, 100 - moviePercent)}</Text>
-              <Text style={styles.statLabel}>DİZİ</Text>
+              <Text style={styles.statValue}>{translateUI("%")}{Math.max(0, 100 - moviePercent)}</Text>
+              <Text style={styles.statLabel}>{translateUI("DİZİ")}</Text>
             </View>
           </View>
 
@@ -136,7 +137,7 @@ export default function PlayResultShareCard({
         </>
       )}
 
-      <Text style={styles.footer}>Seninki ne? · pellix.app</Text>
+      <Text style={styles.footer}>{translateUI("Seninki ne? · pellix.app")}</Text>
     </LinearGradient>
   );
 }

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useRef, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Shuffle, Check } from "lucide-react-native";
@@ -47,8 +48,8 @@ function GenreChip({ genre, active, onPress, c, styles }) {
           { transform: [{ scale }] },
         ]}
       >
-        <Text style={styles.genreEmoji}>{GENRE_EMOJI[genre] || "🎬"}</Text>
-        <Text style={[styles.genreChipText, { color: active ? "#fff" : c.text }]}>{genre}</Text>
+        <Text style={styles.genreEmoji}>{GENRE_EMOJI[genre] || translateUI("🎬")}</Text>
+        <Text style={[styles.genreChipText, { color: active ? "#fff" : c.text }]}>{translateUI(genre)}</Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -94,10 +95,10 @@ export default function FilterFields({
   return (
     <View>
       <View style={styles.labelRow}>
-        <Text style={styles.sectionLabel}>🎬 TÜR</Text>
+        <Text style={styles.sectionLabel}>{translateUI("🎬 TÜR")}</Text>
         {anyActive && onClear && (
           <TouchableOpacity onPress={onClear} activeOpacity={0.85} style={styles.clearPill}>
-            <Text style={styles.clearPillText}>Temizle</Text>
+            <Text style={styles.clearPillText}>{translateUI("Temizle")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -105,29 +106,29 @@ export default function FilterFields({
         <Animated.View style={[styles.segIndicator, { left: indicatorLeft }]} />
         {TYPE_OPTIONS.map((opt) => (
           <TouchableOpacity
-            key={opt}
+            key={translateUI(opt)}
             style={styles.segBtn}
             onPress={() => { hapticLight(); onTypeChange(opt); }}
           >
-            <Text style={[styles.segText, normalizedType === opt && styles.segTextActive]}>{opt}</Text>
+            <Text style={[styles.segText, normalizedType === opt && styles.segTextActive]}>{translateUI(opt)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.labelRow}>
-        <Text style={styles.sectionLabel}>🎨 KATEGORİ</Text>
+        <Text style={styles.sectionLabel}>{translateUI("🎨 KATEGORİ")}</Text>
         {!!onShuffleGenre && (
           <TouchableOpacity onPress={shuffle} activeOpacity={0.85} style={styles.shuffleBtn}>
             <Shuffle size={12} color="#fff" />
-            <Text style={styles.shuffleBtnText}>Sürpriz Seç</Text>
+            <Text style={styles.shuffleBtnText}>{translateUI("Sürpriz Seç")}</Text>
           </TouchableOpacity>
         )}
       </View>
       <View style={styles.wrapGrid}>
         {GENRE_FILTERS.map((genre) => (
           <GenreChip
-            key={genre}
-            genre={genre}
+            key={translateUI(genre)}
+            genre={translateUI(genre)}
             active={genreValue === genre}
             onPress={(g) => onGenreChange(g === genreValue ? null : g)}
             c={c}
@@ -138,7 +139,7 @@ export default function FilterFields({
 
       {!!onOriginChange && (
         <>
-          <Text style={styles.sectionLabel}>🌍 YAPIM</Text>
+          <Text style={styles.sectionLabel}>{translateUI("🌍 YAPIM")}</Text>
           <View style={styles.wrapGrid}>
             {ORIGIN_OPTIONS.map(({ key, label }) => {
               const active = (originValue || null) === key;
@@ -149,7 +150,7 @@ export default function FilterFields({
                   style={[styles.yearChip, active && { backgroundColor: c.accent, borderColor: c.accent }]}
                   onPress={() => { hapticLight(); onOriginChange(key); }}
                 >
-                  <Text style={[styles.yearChipText, active && { color: c.bg, fontWeight: "800" }]}>{label}</Text>
+                  <Text style={[styles.yearChipText, active && { color: c.bg, fontWeight: "800" }]}>{translateUI(label)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -157,7 +158,7 @@ export default function FilterFields({
         </>
       )}
 
-      <Text style={styles.sectionLabel}>📅 YAPIM YILI</Text>
+      <Text style={styles.sectionLabel}>{translateUI("📅 YAPIM YILI")}</Text>
       <View style={styles.wrapGrid}>
         {YEAR_OPTIONS.map(([label]) => {
           const active = yearSet.has(label);
@@ -168,7 +169,7 @@ export default function FilterFields({
               style={[styles.yearChip, active && { backgroundColor: c.accent, borderColor: c.accent }]}
               onPress={() => { hapticLight(); onToggleYear(label); }}
             >
-              <Text style={[styles.yearChipText, active && { color: c.bg, fontWeight: "800" }]}>{label}</Text>
+              <Text style={[styles.yearChipText, active && { color: c.bg, fontWeight: "800" }]}>{translateUI(label)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -176,7 +177,7 @@ export default function FilterFields({
 
       {platforms.length > 0 && (
         <>
-          <Text style={styles.sectionLabel}>📺 PLATFORM</Text>
+          <Text style={styles.sectionLabel}>{translateUI("📺 PLATFORM")}</Text>
           <View style={styles.wrapGrid}>
             {platforms.map((p, i) => {
               const name = platformName(p);

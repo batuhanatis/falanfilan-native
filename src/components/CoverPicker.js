@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -11,7 +12,7 @@ export default function CoverPicker({ emoji, color, onChangeEmoji, onChangeColor
   const styles = makeStyles(c);
   return (
     <View>
-      <Text style={styles.label}>KAPAK (opsiyonel)</Text>
+      <Text style={styles.label}>{translateUI("KAPAK (opsiyonel)")}</Text>
       <View style={styles.row}>
         {COVER_EMOJI_OPTIONS.map((e) => (
           <TouchableOpacity

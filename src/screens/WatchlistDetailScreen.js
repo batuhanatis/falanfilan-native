@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Switch, Alert, TextInput } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Switch,  TextInput } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, X, Share2, Lock, Globe, Wand2, Pencil, Check, ListChecks, Dices, Search, UserPlus, LogOut } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -216,9 +218,9 @@ export default function WatchlistDetailScreen({ route, navigation }) {
         <View style={styles.privacyRow}>
           {listInfo.isPublic ? <Globe size={15} color={c.accent} /> : <Lock size={15} color={c.dim} />}
           <View style={{ flex: 1 }}>
-            <Text style={styles.privacyTitle}>{listInfo.isPublic ? "Herkese Açık" : "Gizli"}</Text>
+            <Text style={styles.privacyTitle}>{listInfo.isPublic ? translateUI("Herkese Açık") : translateUI("Gizli")}</Text>
             <Text style={styles.privacySubtitle}>
-              {listInfo.isPublic ? "Bu listeyi profilinden görebilen ve paylaştığın herkes açabilir." : "Sadece sen görebilirsin."}
+              {listInfo.isPublic ? translateUI("Bu listeyi profilinden görebilen ve paylaştığın herkes açabilir.") : translateUI("Sadece sen görebilirsin.")}
             </Text>
           </View>
           <Switch value={listInfo.isPublic} onValueChange={togglePublic} trackColor={{ true: c.accent }} />
@@ -228,9 +230,9 @@ export default function WatchlistDetailScreen({ route, navigation }) {
       {/* WL4 — herkese açık yapınca sessizce bırakmak yerine paylaşmayı öneriyoruz. */}
       {showPublicPrompt && (
         <View style={styles.publicPromptRow}>
-          <Text style={styles.publicPromptText}>Artık herkese açık — şimdi paylaşmak ister misin?</Text>
-          <ShareFan options={listShareOptions} accessibilityLabel="Listeyi paylaş" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.publicPromptCta}>Paylaş</Text>
+          <Text style={styles.publicPromptText}>{translateUI("Artık herkese açık — şimdi paylaşmak ister misin?")}</Text>
+          <ShareFan options={listShareOptions} accessibilityLabel={translateUI("Listeyi paylaş")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.publicPromptCta}>{translateUI("Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity onPress={() => setShowPublicPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <X size={14} color={c.dim} />
@@ -242,7 +244,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
           bir ortak düzenleyici kendi avatarına basıp listeden ayrılabiliyor. */}
       {(listInfo.isOwner || listInfo.collaborators.length > 0) && (
         <View style={styles.collabRow}>
-          <Text style={styles.collabLabel}>ORTAK DÜZENLEYİCİLER</Text>
+          <Text style={styles.collabLabel}>{translateUI("ORTAK DÜZENLEYİCİLER")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", paddingLeft: 8 }}>
             {listInfo.collaborators.map((u) => (
               <TouchableOpacity
@@ -274,7 +276,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
             {aiLoading ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Wand2 size={19} color="#fff" />
-                <Text style={styles.aiBtnText}>Buna Benzer Öner</Text>
+                <Text style={styles.aiBtnText}>{translateUI("Buna Benzer Öner")}</Text>
               </>
             )}
           </LinearGradient>
@@ -292,10 +294,10 @@ export default function WatchlistDetailScreen({ route, navigation }) {
       {aiResults !== null && (
         <View style={styles.aiResultsBox}>
           {aiResults.length === 0 ? (
-            <Text style={styles.emptyText}>Bu listeye gerçekten benzer bir şey bulamadım.</Text>
+            <Text style={styles.emptyText}>{translateUI("Bu listeye gerçekten benzer bir şey bulamadım.")}</Text>
           ) : (
             <>
-              <Text style={styles.aiResultsTitle}>Bu listeye benzer</Text>
+              <Text style={styles.aiResultsTitle}>{translateUI("Bu listeye benzer")}</Text>
               <FlatList
                 data={aiResults}
                 horizontal
@@ -321,7 +323,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
             <Search size={14} color={c.dim} />
             <TextInput
               style={styles.addSearchInput}
-              placeholder="Film veya dizi ara"
+              placeholder={translateUI("Film veya dizi ara")}
               placeholderTextColor={c.dim}
               value={addQuery}
               onChangeText={setAddQuery}
@@ -341,24 +343,24 @@ export default function WatchlistDetailScreen({ route, navigation }) {
                   <TouchableOpacity key={m.id} style={styles.addSearchRow} onPress={() => !added && addSearchResult(m)} disabled={added}>
                     {m.poster ? <Image source={{ uri: m.poster }} style={styles.addSearchPoster} /> : <View style={[styles.addSearchPoster, { backgroundColor: c.surface2 }]} />}
                     <Text style={styles.addSearchTitle} numberOfLines={1}>{m.title}</Text>
-                    {added ? <Check size={16} color={c.accent2} /> : <Text style={styles.addSearchAdd}>Ekle</Text>}
+                    {added ? <Check size={16} color={c.accent2} /> : <Text style={styles.addSearchAdd}>{translateUI("Ekle")}</Text>}
                   </TouchableOpacity>
                 );
               })}
             </View>
           ) : addQuery.trim() ? (
-            <Text style={styles.emptyText}>"{addQuery}" için sonuç bulunamadı</Text>
+            <Text style={styles.emptyText}>{translateUI("\"")}{addQuery}{translateUI("\" için sonuç bulunamadı")}</Text>
           ) : null}
         </View>
       )}
 
       {items.length > 0 && (
         <View style={styles.sectionLabelRow}>
-          <Text style={styles.sectionLabel}>Listedekiler</Text>
+          <Text style={styles.sectionLabel}>{translateUI("Listedekiler")}</Text>
           {canEdit && (
             <TouchableOpacity onPress={() => setSelectMode((v) => !v)} style={styles.selectModeBtn}>
               <ListChecks size={13} color={selectMode ? c.accent : c.dim} />
-              <Text style={[styles.selectModeText, selectMode && { color: c.accent }]}>{selectMode ? "Bitti" : "Seç"}</Text>
+              <Text style={[styles.selectModeText, selectMode && { color: c.accent }]}>{selectMode ? translateUI("Bitti") : translateUI("Seç")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -386,7 +388,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
             <Text style={styles.headerTitle} numberOfLines={1}>{listInfo.name}</Text>
           )}
           {!listInfo.isOwner && !!listInfo.owner && (
-            <Text style={styles.headerSubtitle} numberOfLines={1}>{listInfo.owner.name} tarafından paylaşıldı</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>{listInfo.owner.name}{translateUI(" tarafından paylaşıldı")}</Text>
           )}
         </View>
         {canEdit && (
@@ -402,7 +404,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
         {listInfo.isOwner && (
           <ShareFan
             style={styles.shareBtn}
-            accessibilityLabel="Listeyi paylaş"
+            accessibilityLabel={translateUI("Listeyi paylaş")}
             options={listShareOptions}
           >
             <Share2 size={17} color={c.text} />
@@ -444,8 +446,8 @@ export default function WatchlistDetailScreen({ route, navigation }) {
           ListEmptyComponent={
             <EmptyState
               icon={ListChecks}
-              title="Bu liste henüz boş"
-              text="İlk içeriği ekleyerek doldurmaya başla."
+              title={translateUI("Bu liste henüz boş")}
+              text={translateUI("İlk içeriği ekleyerek doldurmaya başla.")}
               ctaLabel={canEdit ? "İçerik Ekle" : undefined}
               onPress={canEdit ? () => setShowAddSearch(true) : undefined}
               compact
@@ -475,15 +477,15 @@ export default function WatchlistDetailScreen({ route, navigation }) {
           <View style={[styles.collabPickerSheet, { paddingBottom: 16 + insets.bottom }]}>
             <View style={styles.collabPickerHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.collabPickerTitle}>Ortak düzenleyici ekle</Text>
-                <Text style={styles.collabPickerSubtitle}>Arkadaşlarından birini seç</Text>
+                <Text style={styles.collabPickerTitle}>{translateUI("Ortak düzenleyici ekle")}</Text>
+                <Text style={styles.collabPickerSubtitle}>{translateUI("Arkadaşlarından birini seç")}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowCollabPicker(false)} style={styles.collabPickerClose}>
                 <X size={18} color={c.text} />
               </TouchableOpacity>
             </View>
             {availableCollabFriends.length === 0 ? (
-              <Text style={styles.emptyText}>Ekleyebileceğin bir arkadaşın yok.</Text>
+              <Text style={styles.emptyText}>{translateUI("Ekleyebileceğin bir arkadaşın yok.")}</Text>
             ) : (
               <FlatList
                 data={availableCollabFriends}
@@ -508,7 +510,7 @@ export default function WatchlistDetailScreen({ route, navigation }) {
                     {collabBusyId === f.id ? (
                       <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 5 }} />
                     ) : (
-                      <Text style={styles.collabPickerAdd}>Ekle</Text>
+                      <Text style={styles.collabPickerAdd}>{translateUI("Ekle")}</Text>
                     )}
                   </TouchableOpacity>
                 )}

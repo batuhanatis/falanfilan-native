@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -59,7 +60,7 @@ export default function SharedItemScreen({ navigation, route }) {
         <TouchableOpacity onPress={goToActivity} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{kind === "activity" ? "Aktivite" : "Paylaşım"}</Text>
+        <Text style={styles.headerTitle}>{kind === "activity" ? translateUI("Aktivite") : translateUI("Paylaşım")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -69,8 +70,8 @@ export default function SharedItemScreen({ navigation, route }) {
         <View style={styles.center}>
           <EmptyState
             icon={Frown}
-            title="Bu içerik artık mevcut değil"
-            text="Silinmiş olabilir ya da artık görüntüleme iznin yok."
+            title={translateUI("Bu içerik artık mevcut değil")}
+            text={translateUI("Silinmiş olabilir ya da artık görüntüleme iznin yok.")}
             ctaLabel="Aktiviteye Dön"
             onPress={goToActivity}
           />

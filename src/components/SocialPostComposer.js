@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -141,7 +142,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
       return (
         <TouchableOpacity style={[styles.selectedCard, styles.selectedEmpty]} onPress={() => setSelecting(slot)}>
           <Search size={16} color={c.dim} />
-          <Text style={styles.selectedEmptyText}>{slot === "a" ? "1. içeriği seç" : "2. içeriği seç"}</Text>
+          <Text style={styles.selectedEmptyText}>{slot === "a" ? translateUI("1. içeriği seç") : translateUI("2. içeriği seç")}</Text>
         </TouchableOpacity>
       );
     }
@@ -159,7 +160,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
         {item.poster ? <Image source={{ uri: item.poster }} style={styles.selectedPoster} /> : <View style={[styles.selectedPoster, { backgroundColor: c.surface2 }]} />}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.selectedTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.selectedMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
+          <Text style={styles.selectedMeta}>{item.type || translateUI("İçerik")} {item.year ? `· ${item.year}` : ""}</Text>
         </View>
         <Check size={16} color={c.accent} />
       </TouchableOpacity>
@@ -183,8 +184,8 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
           >
             <View style={styles.header}>
               <View>
-                <Text style={styles.title}>Taste Post</Text>
-                <Text style={styles.subtitle}>Zevkini paylaş, sohbeti başlat.</Text>
+                <Text style={styles.title}>{translateUI("Taste Post")}</Text>
+                <Text style={styles.subtitle}>{translateUI("Zevkini paylaş, sohbeti başlat.")}</Text>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
             </View>
@@ -195,22 +196,22 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                   {id === "recommend" ? <Sparkles size={12} color={mode === id ? c.bg : c.dim} />
                     : id === "poll" ? <Swords size={12} color={mode === id ? c.bg : c.dim} />
                     : null}
-                  <Text style={[styles.modeText, mode === id && styles.modeTextActive]}>{label}</Text>
+                  <Text style={[styles.modeText, mode === id && styles.modeTextActive]}>{translateUI(label)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {!!initialContext && (
               <View style={styles.contextCard}>
-                <Text style={styles.contextEyebrow}>🔥 GÜNÜN SORUSU</Text>
+                <Text style={styles.contextEyebrow}>{translateUI("🔥 GÜNÜN SORUSU")}</Text>
                 <Text style={styles.contextText}>{initialContext}</Text>
-                {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? "Cevap olarak bir film veya dizi seç." : "Cevabını iki içeriği kapıştırarak ver."}</Text>}
+                {mode !== "thought" && <Text style={styles.contextHint}>{mode === "recommend" ? translateUI("Cevap olarak bir film veya dizi seç.") : translateUI("Cevabını iki içeriği kapıştırarak ver.")}</Text>}
               </View>
             )}
 
             <TextInput
               style={styles.bodyInput}
-              placeholder={mode === "poll" ? "Kısa bir not ekle (isteğe bağlı)…" : mode === "recommend" ? (initialContext ? "Neden bu içerik? (isteğe bağlı)…" : "Neden öneriyorsun? (isteğe bağlı)…") : initialContext ? "Cevabını yaz…" : "Aklında ne var?"}
+              placeholder={mode === "poll" ? translateUI("Kısa bir not ekle (isteğe bağlı)…") : mode === "recommend" ? (initialContext ? translateUI("Neden bu içerik? (isteğe bağlı)…") : translateUI("Neden öneriyorsun? (isteğe bağlı)…")) : initialContext ? translateUI("Cevabını yaz…") : translateUI("Aklında ne var?")}
               placeholderTextColor={c.dim}
               value={body}
               onChangeText={setBody}
@@ -222,7 +223,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
             {mode === "poll" && (
               <View style={styles.pollSelectedRow}>
                 <View style={{ flex: 1 }}>{selectedCard(pollA, "a")}</View>
-                <Text style={styles.vs}>VS</Text>
+                <Text style={styles.vs}>{translateUI("VS")}</Text>
                 <View style={{ flex: 1 }}>{selectedCard(pollB, "b")}</View>
               </View>
             )}
@@ -234,7 +235,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                   <TextInput
                     ref={searchInputRef}
                     style={styles.searchInput}
-                    placeholder={mode === "poll" ? `${selecting === "a" ? "1." : "2."} içeriği ara…` : "Film veya dizi ara…"}
+                    placeholder={mode === "poll" ? translateUI("{0} içeriği ara…", {0: selecting === "a" ? "1." : "2."}) : translateUI("Film veya dizi ara…")}
                     placeholderTextColor={c.dim}
                     value={query}
                     onChangeText={setQuery}
@@ -250,7 +251,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
                         {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
                         <View style={{ flex: 1 }}>
                           <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                          <Text style={styles.resultMeta}>{item.type || "İçerik"} {item.year ? `· ${item.year}` : ""}</Text>
+                          <Text style={styles.resultMeta}>{item.type || translateUI("İçerik")} {item.year ? `· ${item.year}` : ""}</Text>
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -259,11 +260,11 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
               </View>
             )}
 
-            {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
 
             <TouchableOpacity style={[styles.submit, (!canSend || sending) && { opacity: 0.45 }]} onPress={submit} disabled={!canSend || sending}>
               {sending ? <ActivityIndicator size="small" color={c.bg} /> : <Send size={15} color={c.bg} />}
-              <Text style={styles.submitText}>Paylaş</Text>
+              <Text style={styles.submitText}>{translateUI("Paylaş")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

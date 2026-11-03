@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useScrollToTop } from "@react-navigation/native";
@@ -271,13 +272,13 @@ export default function ActivityScreen({ navigation }) {
       <View style={styles.tileRow}>
         <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86}>
           <Puzzle size={20} color={c.accent} />
-          <Text style={styles.tileTitle}>Poster Puzzle</Text>
-          <Text style={styles.tileSub}>Günün oyunu, 1 dakikalık tahmin</Text>
+          <Text style={styles.tileTitle}>{translateUI("Poster Puzzle")}</Text>
+          <Text style={styles.tileSub}>{translateUI("Günün oyunu, 1 dakikalık tahmin")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("PellixPlay")} activeOpacity={0.86}>
           <ChevronRight size={20} color={c.accent} />
-          <Text style={styles.tileTitle}>Tüm oyunlar</Text>
-          <Text style={styles.tileSub}>Pellix Play</Text>
+          <Text style={styles.tileTitle}>{translateUI("Tüm oyunlar")}</Text>
+          <Text style={styles.tileSub}>{translateUI("Pellix Play")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -291,11 +292,11 @@ export default function ActivityScreen({ navigation }) {
       <TouchableOpacity style={styles.questsCard} onPress={() => navigation.navigate("WeeklyQuests")} activeOpacity={0.86}>
         <Trophy size={20} color={c.accent} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.tileTitle}>{quests.length ? `${done}/${quests.length} görev` : "Haftalık görevler"}</Text>
+          <Text style={styles.tileTitle}>{quests.length ? translateUI("{0}/{1} görev", {0: done,1: quests.length}) : translateUI("Haftalık görevler")}</Text>
           {quests.length > 0 && (
             <View style={styles.questsTrack}><View style={[styles.questsFill, { width: `${percent}%` }]} /></View>
           )}
-          <Text style={styles.tileSub}>Bu haftanın görevlerine bak</Text>
+          <Text style={styles.tileSub}>{translateUI("Bu haftanın görevlerine bak")}</Text>
         </View>
         <ChevronRight size={16} color={c.dim} />
       </TouchableOpacity>
@@ -317,12 +318,12 @@ export default function ActivityScreen({ navigation }) {
         </Animated.View>
         <View style={styles.slateBody}>
           <View style={styles.slateMeta}>
-            <Text style={styles.slateMetaText}>GÜNÜN SORUSU</Text>
-            <Text style={styles.slateMetaText}>SAHNE {new Date().getDate()} · ÇEKİM 1</Text>
+            <Text style={styles.slateMetaText}>{translateUI("GÜNÜN SORUSU")}</Text>
+            <Text style={styles.slateMetaText}>{translateUI("SAHNE ")}{new Date().getDate()}{translateUI(" · ÇEKİM 1")}</Text>
           </View>
           <Text style={styles.slateQuestion}>{dailyQuestion}</Text>
           <TouchableOpacity style={styles.slateBtn} onPress={answerDailyQuestion} activeOpacity={0.85} accessibilityRole="button">
-            <Text style={styles.slateBtnText}>Yazıyla ya da bir filmle cevapla</Text>
+            <Text style={styles.slateBtnText}>{translateUI("Yazıyla ya da bir filmle cevapla")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -334,13 +335,13 @@ export default function ActivityScreen({ navigation }) {
       <View style={styles.tileRow}>
         <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("GroupParty")} activeOpacity={0.86}>
           <Users size={20} color={c.accent} />
-          <Text style={styles.tileTitle}>MatchParty</Text>
-          <Text style={styles.tileSub}>Arkadaşınla aynı filmleri kaydırın, ortak olanı bulun</Text>
+          <Text style={styles.tileTitle}>{translateUI("MatchParty")}</Text>
+          <Text style={styles.tileSub}>{translateUI("Arkadaşınla aynı filmleri kaydırın, ortak olanı bulun")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate("TasteMate")} activeOpacity={0.86}>
           <Compass size={20} color={c.accent} />
-          <Text style={styles.tileTitle}>TasteMate</Text>
-          <Text style={styles.tileSub}>Senin gibi izleyen insanları bul</Text>
+          <Text style={styles.tileTitle}>{translateUI("TasteMate")}</Text>
+          <Text style={styles.tileSub}>{translateUI("Senin gibi izleyen insanları bul")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -370,7 +371,7 @@ export default function ActivityScreen({ navigation }) {
         leftAction={{
           icon: <Plus size={20} color={c.text} />,
           onPress: () => openComposer("thought"),
-          accessibilityLabel: "Paylaşım oluştur",
+          accessibilityLabel: translateUI("Paylaşım oluştur"),
         }}
       />
       {loading && feed.length === 0 ? (
@@ -413,10 +414,10 @@ export default function ActivityScreen({ navigation }) {
               {renderPlayCard()}
               {renderQuestsCard()}
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>Akışın henüz sakin</Text>
-                <Text style={styles.emptyText}>Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.</Text>
+                <Text style={styles.emptyTitle}>{translateUI("Akışın henüz sakin")}</Text>
+                <Text style={styles.emptyText}>{translateUI("Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.")}</Text>
                 <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
-                  <Text style={styles.emptyBtnText}>İlk paylaşımı yap</Text>
+                  <Text style={styles.emptyBtnText}>{translateUI("İlk paylaşımı yap")}</Text>
                 </TouchableOpacity>
               </View>
             </View>

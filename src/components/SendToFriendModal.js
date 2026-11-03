@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useMemo } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image, TextInput, Share, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from "react-native";
 import { X, Search, Check, Users, Send, Share2, ListVideo } from "lucide-react-native";
@@ -109,7 +110,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
           <TouchableWithoutFeedback onPress={() => {}}>
             <View style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Arkadaşına Gönder</Text>
+            <Text style={styles.headerTitle}>{translateUI("Arkadaşına Gönder")}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={18} color={c.text} /></TouchableOpacity>
           </View>
 
@@ -130,9 +131,9 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
                   ? <Image source={{ uri: (activity.post?.movie || activity.movies?.[0]).poster }} style={styles.moviePoster} />
                   : <View style={[styles.moviePoster, { backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }]}><Send size={18} color={c.dim} /></View>}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.movieTitle} numberOfLines={1}>{activity.user?.name || "Aktivite paylaşımı"}</Text>
+                  <Text style={styles.movieTitle} numberOfLines={1}>{activity.user?.name || translateUI("Aktivite paylaşımı")}</Text>
                   <Text style={styles.movieMeta} numberOfLines={2}>
-                    {activity.post?.body || (activity.activityType === "favorite_set" ? "Favorisini güncelledi" : activity.activityType === "like" ? "Bir içeriği beğendi" : "Bir paylaşım yaptı")}
+                    {activity.post?.body || (activity.activityType === "favorite_set" ? translateUI("Favorisini güncelledi") : activity.activityType === "like" ? translateUI("Bir içeriği beğendi") : translateUI("Bir paylaşım yaptı"))}
                   </Text>
                 </View>
               </>
@@ -143,7 +144,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
                   : <View style={[styles.moviePoster, { backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" }]}><ListVideo size={18} color={c.dim} /></View>}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.movieTitle} numberOfLines={1}>{list.name}</Text>
-                  <Text style={styles.movieMeta}>{list.count} içerik</Text>
+                  <Text style={styles.movieMeta}>{list.count}{translateUI(" içerik")}</Text>
                 </View>
               </>
             ) : (
@@ -151,7 +152,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
                 {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.moviePoster} /> : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.movieTitle} numberOfLines={1}>{movie.title}</Text>
-                  <Text style={styles.movieMeta}>{movie.year} · {movie.type}</Text>
+                  <Text style={styles.movieMeta}>{movie.year}{translateUI(" · ")}{translateUI(movie.type)}</Text>
                 </View>
               </>
             )}
@@ -159,7 +160,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
 
           <TextInput
             style={styles.noteInput}
-            placeholder="Bir mesaj ekle (isteğe bağlı)…"
+            placeholder={translateUI("Bir mesaj ekle (isteğe bağlı)…")}
             placeholderTextColor={c.dim}
             value={note}
             onChangeText={setNote}
@@ -172,7 +173,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
               <Search size={15} color={c.dim} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Arkadaşlarında ara"
+                placeholder={translateUI("Arkadaşlarında ara")}
                 placeholderTextColor={c.dim}
                 value={query}
                 onChangeText={setQuery}
@@ -185,8 +186,8 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
           ) : friends.length === 0 ? (
             <View style={styles.emptyBox}>
               <Users size={26} color={c.dim} style={{ opacity: 0.6, marginBottom: 8 }} />
-              <Text style={styles.empty}>Henüz arkadaşın yok.</Text>
-              <Text style={styles.emptySubtitle}>Üstteki arkadaş ekleme butonuyla birini bulup ekleyebilirsin.</Text>
+              <Text style={styles.empty}>{translateUI("Henüz arkadaşın yok.")}</Text>
+              <Text style={styles.emptySubtitle}>{translateUI("Üstteki arkadaş ekleme butonuyla birini bulup ekleyebilirsin.")}</Text>
             </View>
           ) : (
             <>
@@ -223,7 +224,7 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
                     </TouchableOpacity>
                   );
                 }}
-                ListEmptyComponent={<Text style={styles.empty}>Aramanla eşleşen arkadaş bulunamadı.</Text>}
+                ListEmptyComponent={<Text style={styles.empty}>{translateUI("Aramanla eşleşen arkadaş bulunamadı.")}</Text>}
               />
 
               {/* Seçim yapılınca çıkan gönder butonu — arkadaşı seçmek göndermez, önce
@@ -239,12 +240,12 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
                   ) : sent ? (
                     <>
                       <Check size={16} color={c.bg} strokeWidth={3} />
-                      <Text style={styles.sendBtnText}>Gönderildi</Text>
+                      <Text style={styles.sendBtnText}>{translateUI("Gönderildi")}</Text>
                     </>
                   ) : (
                     <>
                       <Send size={15} color={c.bg} />
-                      <Text style={styles.sendBtnText}>{selectedFriend?.name} 'e Gönder</Text>
+                      <Text style={styles.sendBtnText}>{selectedFriend?.name}{translateUI(" 'e Gönder")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -258,12 +259,12 @@ export default function SendToFriendModal({ movie, list, activity, text, onClose
             <>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ya da</Text>
+                <Text style={styles.dividerText}>{translateUI("ya da")}</Text>
                 <View style={styles.dividerLine} />
               </View>
               <TouchableOpacity style={styles.externalShareBtn} onPress={handleExternalShare}>
                 <Share2 size={15} color={c.text} />
-                <Text style={styles.externalShareBtnText}>Diğer Uygulamalarla Paylaş (WhatsApp vb.)</Text>
+                <Text style={styles.externalShareBtnText}>{translateUI("Diğer Uygulamalarla Paylaş (WhatsApp vb.)")}</Text>
               </TouchableOpacity>
             </>
           )}

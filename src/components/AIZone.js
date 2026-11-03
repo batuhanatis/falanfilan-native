@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, LayoutAnimation, Platform, UIManager } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -58,15 +59,15 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
                 </Animated.View>
               </View>
               <View>
-                <Text style={styles.aiEyebrow}>PELLIX AI</Text>
-                <Text style={styles.aiZoneTitle}>Yapay Zeka Köşesi</Text>
+                <Text style={styles.aiEyebrow}>{translateUI("PELLIX AI")}</Text>
+                <Text style={styles.aiZoneTitle}>{translateUI("Yapay Zeka Köşesi")}</Text>
               </View>
             </View>
             <View style={styles.chevronWrap}>
               <ChevronDown size={17} color="#fff" style={{ transform: [{ rotate: aiOpen ? "180deg" : "0deg" }] }} />
             </View>
           </View>
-          <Text style={styles.aiZoneSubtitle}>Ne izleyeceğini birkaç saniyede daralt</Text>
+          <Text style={styles.aiZoneSubtitle}>{translateUI("Ne izleyeceğini birkaç saniyede daralt")}</Text>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -75,8 +76,8 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
           <TouchableOpacity style={styles.aiRow} onPress={() => navigation.navigate("TonightPlanner")} activeOpacity={0.78} accessibilityRole="button">
             <View style={[styles.aiRowIcon, { backgroundColor: c.surface2 }]}><Moon size={18} color={c.accent} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Bu Akşamı Planla · Premium</Text>
-              <Text style={styles.aiRowSubtitle}>Platformlarına ve ortak zevkinize göre akşamın seçimi</Text>
+              <Text style={styles.aiRowTitle}>{translateUI("Bu Akşamı Planla · Premium")}</Text>
+              <Text style={styles.aiRowSubtitle}>{translateUI("Platformlarına ve ortak zevkinize göre akşamın seçimi")}</Text>
             </View>
             <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
@@ -85,8 +86,8 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
               <MessageSquareText size={16} color="#8B5CF6" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Anlat, Bulalım</Text>
-              <Text style={styles.aiRowSubtitle}>Modunu ve ne istediğini kendi cümlelerinle anlat</Text>
+              <Text style={styles.aiRowTitle}>{translateUI("Anlat, Bulalım")}</Text>
+              <Text style={styles.aiRowSubtitle}>{translateUI("Modunu ve ne istediğini kendi cümlelerinle anlat")}</Text>
             </View>
             <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
@@ -96,8 +97,8 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
               <Wand2 size={16} color="#6366F1" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Zevkime Göre Öner</Text>
-              <Text style={styles.aiRowSubtitle}>Beğenilerini okuyup sana özel bir seçim yapar</Text>
+              <Text style={styles.aiRowTitle}>{translateUI("Zevkime Göre Öner")}</Text>
+              <Text style={styles.aiRowSubtitle}>{translateUI("Beğenilerini okuyup sana özel bir seçim yapar")}</Text>
             </View>
             <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>
@@ -107,8 +108,8 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
               <ImageIcon size={16} color="#3B82F6" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>Fotoğraftan Bul</Text>
-              <Text style={styles.aiRowSubtitle}>Bir sahne yükle, hangi film veya diziden olduğunu bul</Text>
+              <Text style={styles.aiRowTitle}>{translateUI("Fotoğraftan Bul")}</Text>
+              <Text style={styles.aiRowSubtitle}>{translateUI("Bir sahne yükle, hangi film veya diziden olduğunu bul")}</Text>
             </View>
             <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>

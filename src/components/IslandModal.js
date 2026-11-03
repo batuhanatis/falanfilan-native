@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,13 +27,13 @@ export default function IslandModal({ visible, onClose, title, icon: Icon, gradi
               <View style={styles.headerRow}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                   {!!Icon && <Icon size={18} color="#fff" />}
-                  <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+                  <Text style={styles.headerTitle} numberOfLines={1}>{translateUI(title)}</Text>
                 </View>
                 <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <X size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
-              {!!subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+              {!!subtitle && <Text style={styles.headerSubtitle}>{translateUI(subtitle)}</Text>}
             </LinearGradient>
 
             <ScrollView

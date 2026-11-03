@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useRef, useEffect } from "react";
 import { View, Text, Image, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -49,9 +50,9 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
   const friendName = stats?.friendName || null;
 
   let likeLine = null;
-  if (friendName && likeCount > 1) likeLine = `${friendName} ve ${(likeCount - 1).toLocaleString("tr-TR")} kişi beğendi`;
+  if (friendName && likeCount > 1) likeLine = `${friendName} ve ${(likeCount - 1).toLocaleString(getLocale())} kişi beğendi`;
   else if (friendName) likeLine = `${friendName} beğendi`;
-  else if (likeCount > 0) likeLine = `${likeCount.toLocaleString("tr-TR")} kişi beğendi`;
+  else if (likeCount > 0) likeLine = `${likeCount.toLocaleString(getLocale())} kişi beğendi`;
 
   // Ana Sayfa'daki kişiselleştirilmiş 2 sütunlu ızgara için — tüm aksiyon çubuğu/yorum/platform
   // satırları yerine sadece poster + başlık + tek bir "beğen" butonu. Diğer aksiyonlar (beğenme,
@@ -78,7 +79,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
           {!!reason && (
             <View style={styles.compactReasonBadge}>
               <Sparkles size={9} color={c.accent2} />
-              <Text style={styles.compactReasonText} numberOfLines={1}>{reason}</Text>
+              <Text style={styles.compactReasonText} numberOfLines={1}>{translateUI(reason)}</Text>
             </View>
           )}
           {/* CM2 — ızgarada artık sadece beğen değil, hızlı bir "istemiyorum" sinyali de var;
@@ -101,7 +102,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
           </TouchableOpacity>
         </View>
         <Text style={styles.compactTitle} numberOfLines={1}>{movie.title}</Text>
-        <Text style={styles.compactMeta} numberOfLines={1}>{movie.year} · {movie.type}</Text>
+        <Text style={styles.compactMeta} numberOfLines={1}>{movie.year}{translateUI(" · ")}{translateUI(movie.type)}</Text>
         {/* ÖNEMLİ: Hangi platformda yayında olduğu — bilgi amaçlı (bir AKSİYON değil), bu yüzden
             "sadece beğen butonu yeterli" kuralı bunu kapsamıyor. Detay sayfasına gitmeden burada
             görünmesi gerekiyordu, geri eklendi. */}
@@ -119,7 +120,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
             })}
           </View>
         ) : (
-          <Text style={styles.compactNoPlatform} numberOfLines={1}>Platformda yok</Text>
+          <Text style={styles.compactNoPlatform} numberOfLines={1}>{translateUI("Platformda yok")}</Text>
         )}
       </TouchableOpacity>
     );
@@ -146,7 +147,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
         {!!reason && (
           <View style={styles.reasonBadge}>
             <Sparkles size={10} color={c.accent2} />
-            <Text style={styles.reasonText} numberOfLines={1}>{reason}</Text>
+            <Text style={styles.reasonText} numberOfLines={1}>{translateUI(reason)}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -174,7 +175,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
       </View>
       {showNotify && (
         <Text style={styles.notifyHint}>
-          {notifySubscribed ? "Çıkınca bildirim alacaksın 🔔" : "Çıkış tarihini kaçırma, bildirim al"}
+          {notifySubscribed ? translateUI("Çıkınca bildirim alacaksın 🔔") : translateUI("Çıkış tarihini kaçırma, bildirim al")}
         </Text>
       )}
 
@@ -187,12 +188,12 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
 
       <Text style={styles.caption} numberOfLines={2}>
         <Text style={styles.captionTitle}>{movie.title}</Text>
-        <Text style={styles.captionMeta}>  ·  {movie.year} · {movie.type}</Text>
+        <Text style={styles.captionMeta}>{translateUI(" · ")}{movie.year}{translateUI(" · ")}{translateUI(movie.type)}</Text>
       </Text>
 
       {commentCount > 0 && (
         <TouchableOpacity onPress={() => setShowComments(true)}>
-          <Text style={styles.viewComments}>{commentCount} yorumun tümünü gör</Text>
+          <Text style={styles.viewComments}>{commentCount}{translateUI(" yorumun tümünü gör")}</Text>
         </TouchableOpacity>
       )}
 
@@ -211,7 +212,7 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
           })}
         </View>
       ) : (
-        <Text style={styles.noPlatformText}>Şu an Türkiye'de bir platformda yayında değil</Text>
+        <Text style={styles.noPlatformText}>{translateUI("Şu an Türkiye'de bir platformda yayında değil")}</Text>
       )}
 
       {showComments && (

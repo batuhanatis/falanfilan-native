@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {  ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MapPin, MessageCircle, MoreHorizontal, Send, Sparkles, Star, Ticket } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FONTS } from "../theme/fonts";
@@ -25,7 +27,7 @@ function relativeTime(value) {
   if (hour < 24) return `${hour} sa`;
   const day = Math.floor(hour / 24);
   if (day < 7) return `${day} gün`;
-  return new Date(value).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  return new Date(value).toLocaleDateString(getLocale(), { day: "numeric", month: "short" });
 }
 
 function activityCopy(item) {
@@ -45,10 +47,10 @@ function activityCopy(item) {
 // Aktivite türü artık emoji ve degrade rozetle değil, tek renkli kısa bir etiketle anlatılıyor.
 // Renkler iki temada da okunan orta tonlar.
 function activityMood(item) {
-  if (item.activityType === "like") return { label: "BEĞENDİ", tone: "#c9a44c" };
-  if (item.activityType === "favorite_set") return { label: "FAVORİSİ YAPTI", tone: "#c2604f" };
-  if (item.activityType === "list_created") return { label: "YENİ LİSTE", tone: "#6f9fb0" };
-  return { label: "GÜNCELLEDİ", tone: "#7fa27a" };
+  if (item.activityType === "like") return { label: translateUI("BEĞENDİ"), tone: "#c9a44c" };
+  if (item.activityType === "favorite_set") return { label: translateUI("FAVORİSİ YAPTI"), tone: "#c2604f" };
+  if (item.activityType === "list_created") return { label: translateUI("YENİ LİSTE"), tone: "#6f9fb0" };
+  return { label: translateUI("GÜNCELLEDİ"), tone: "#7fa27a" };
 }
 
 function postLabel(type, cardPayload) {
@@ -92,7 +94,7 @@ function ReactionButton({ myReaction, counts, onReact, c, styles }) {
         delayLongPress={380}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.reactionIcon}>{emoji || "✦"}</Text>
+        <Text style={styles.reactionIcon}>{emoji || translateUI("✦")}</Text>
         {total > 0 && <Text style={[styles.actionText, myReaction && { color: c.accent }]}>{total}</Text>}
       </Pressable>
       {pickerOpen && (
@@ -124,7 +126,7 @@ function CommentPreview({ comment, count, onPress, styles }) {
         <Text style={styles.commentPreviewName}>{comment.name} </Text>
         {comment.body}
       </Text>
-      {count > 1 && <Text style={styles.commentPreviewMore}>{count} yorumun tümünü gör</Text>}
+      {count > 1 && <Text style={styles.commentPreviewMore}>{count}{translateUI(" yorumun tümünü gör")}</Text>}
     </TouchableOpacity>
   );
 }
@@ -313,7 +315,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.nameRow}>
               <Text style={hero ? styles.heroName : styles.name}>{user.name}</Text>
-              {!!user.username && <Text style={hero ? styles.heroUsername : styles.username}>@{user.username}</Text>}
+              {!!user.username && <Text style={hero ? styles.heroUsername : styles.username}>{translateUI("@")}{user.username}</Text>}
             </View>
             <Text style={hero ? styles.heroMeta : styles.meta}>
               {state.kind === "post" ? `${postLabel(post?.type, post?.cardPayload)} · ` : ""}{relativeTime(state.created_at)}
@@ -321,14 +323,14 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           </View>
         </TouchableOpacity>
         {post?.type === "recommend" && !hero && (
-          <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>ÖNERİ</Text></View>
+          <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>{translateUI("ÖNERİ")}</Text></View>
         )}
         <TouchableOpacity
           style={hero ? styles.heroMenuBtn : styles.postMenuButton}
           onPress={isOwnPost ? requestDeletePost : requestReportContent}
           disabled={deleting}
           accessibilityRole="button"
-          accessibilityLabel="Paylaşım seçenekleri"
+          accessibilityLabel={translateUI("Paylaşım seçenekleri")}
         >
           {deleting
             ? <ActivityIndicator size="small" color={hero ? "#fff" : c.dim} />
@@ -350,7 +352,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
       {mood && !isHeroMovie && (
         <View style={styles.activityHeadline}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.activityLabel, { color: mood.tone }]}>{mood.label}</Text>
+            <Text style={[styles.activityLabel, { color: mood.tone }]}>{translateUI(mood.label)}</Text>
             <Text style={styles.activityTitle}>{activityCopy(state)}</Text>
           </View>
         </View>
@@ -368,7 +370,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             <View style={styles.ticketMain}>
               <View style={styles.ticketEyebrowRow}>
                 <Ticket size={11} color={c.accent} />
-                <Text style={styles.ticketEyebrow}>SİNEMADA</Text>
+                <Text style={styles.ticketEyebrow}>{translateUI("SİNEMADA")}</Text>
               </View>
               <Text style={styles.ticketCinema} numberOfLines={2}>{post.checkin.name}</Text>
               {!!post.checkin.place && (
@@ -393,7 +395,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
       ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
         <>
           <View style={styles.pollHeading}>
-            <Text style={styles.pollEyebrow}>BİRİNİ SEÇ</Text>
+            <Text style={styles.pollEyebrow}>{translateUI("BİRİNİ SEÇ")}</Text>
             {!!body && <Text style={styles.pollQuestion}>{body}</Text>}
           </View>
           <View style={styles.pollVsRow}>
@@ -409,9 +411,9 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
                     <LinearGradient colors={["transparent", "rgba(8,6,12,0.95)"]} style={styles.pollVsShade} />
                   </TouchableOpacity>
                   <View style={styles.pollVsCopy} pointerEvents="box-none">
-                    {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}%</Text>}
+                    {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}{translateUI("%")}</Text>}
                     <Text style={styles.pollVsTitle} numberOfLines={2}>{movie.title}</Text>
-                    {!!post.myVote && <Text style={styles.pollVsVotes}>{count} oy</Text>}
+                    {!!post.myVote && <Text style={styles.pollVsVotes}>{count}{translateUI(" oy")}</Text>}
                     {!!post.myVote && !!(post.pollVoters?.[movie.id]?.length) && (
                       <View style={styles.pollVoters}>
                         {post.pollVoters[movie.id].slice(0, 4).map((voter, i) => (
@@ -423,19 +425,19 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
                         ))}
                         {post.pollVoters[movie.id].length > 4 && (
                           <View style={[styles.pollVoterAvatar, styles.pollVoterMore, { marginLeft: -8 }]}>
-                            <Text style={styles.pollVoterMoreText}>+{post.pollVoters[movie.id].length - 4}</Text>
+                            <Text style={styles.pollVoterMoreText}>{translateUI("+")}{post.pollVoters[movie.id].length - 4}</Text>
                           </View>
                         )}
                       </View>
                     )}
                     <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>
-                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? "✓ Seçtin" : "Seç"}</Text>
+                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? translateUI("✓ Seçtin") : translateUI("Seç")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               );
             })}
-            <View style={styles.pollVsDivider}><Text style={styles.pollVsDividerText}>VS</Text></View>
+            <View style={styles.pollVsDivider}><Text style={styles.pollVsDividerText}>{translateUI("VS")}</Text></View>
           </View>
         </>
       ) : isHeroMovie ? (
@@ -446,15 +448,15 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             <LinearGradient colors={["transparent", "rgba(8,6,12,0.94)"]} style={styles.heroShadeBottom} pointerEvents="none" />
             <View style={styles.heroCopy} pointerEvents="none">
               {mood ? (
-                <View style={styles.heroTag}><Text style={[styles.heroTagText, { color: mood.tone }]}>{mood.label}</Text></View>
+                <View style={styles.heroTag}><Text style={[styles.heroTagText, { color: mood.tone }]}>{translateUI(mood.label)}</Text></View>
               ) : isDailyQuestionPost ? (
-                <View style={styles.heroTag}><Text style={styles.heroTagText}>GÜNÜN SORUSU</Text></View>
+                <View style={styles.heroTag}><Text style={styles.heroTagText}>{translateUI("GÜNÜN SORUSU")}</Text></View>
               ) : null}
               <Text style={styles.heroTitle} numberOfLines={2}>{primaryMovie.title}</Text>
               <View style={styles.heroMetaRow}>
                 {!!primaryMovie.imdb && <><Star size={12} color="#FFD166" fill="#FFD166" /><Text style={styles.heroMetaText}>{primaryMovie.imdb}</Text></>}
-                {!!primaryMovie.year && <Text style={styles.heroMetaText}>· {primaryMovie.year}</Text>}
-                {!!primaryMovie.type && <Text style={styles.heroMetaText}>· {primaryMovie.type}</Text>}
+                {!!primaryMovie.year && <Text style={styles.heroMetaText}>{translateUI("· ")}{primaryMovie.year}</Text>}
+                {!!primaryMovie.type && <Text style={styles.heroMetaText}>{translateUI("· ")}{translateUI(primaryMovie.type)}</Text>}
               </View>
             </View>
           </TouchableOpacity>
@@ -481,8 +483,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         <View style={styles.ratingEngagement}>
           <View style={styles.ratingEngagementTop}>
             <View>
-              <Text style={styles.ratingPrompt}>Sen kaç verirsin?</Text>
-              <Text style={styles.ratingHint}>Puanın aynı anda Diary’ne kaydolur.</Text>
+              <Text style={styles.ratingPrompt}>{translateUI("Sen kaç verirsin?")}</Text>
+              <Text style={styles.ratingHint}>{translateUI("Puanın aynı anda Diary’ne kaydolur.")}</Text>
             </View>
             <TouchableOpacity
               style={[styles.watchedMini, !!viewerDiaryEntry && styles.watchedMiniDone]}
@@ -491,7 +493,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             >
               {ratingSaving && !viewerDiaryEntry ? <ActivityIndicator size="small" color={c.accent} /> : (
                 <Text style={[styles.watchedMiniText, !!viewerDiaryEntry && styles.watchedMiniTextDone]}>
-                  {viewerDiaryEntry ? "✓ İzledin" : "Ben de izledim"}
+                  {viewerDiaryEntry ? translateUI("✓ İzledin") : translateUI("Ben de izledim")}
                 </Text>
               )}
             </TouchableOpacity>
@@ -506,22 +508,22 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
       {isOpinionPost && !!reactionTargetId && (
         <View style={styles.opinionPrompt}>
-          <Text style={styles.opinionQuestion}>Katılıyor musun?</Text>
+          <Text style={styles.opinionQuestion}>{translateUI("Katılıyor musun?")}</Text>
           <View style={styles.opinionChoices}>
             <TouchableOpacity
               style={[styles.opinionChoice, myReaction === "agree" && styles.opinionChoiceActive]}
               onPress={() => react("agree")}
             >
-              <Text style={styles.opinionChoiceEmoji}>🤝</Text>
-              <Text style={[styles.opinionChoiceText, myReaction === "agree" && styles.opinionChoiceTextActive]}>Katılıyorum</Text>
+              <Text style={styles.opinionChoiceEmoji}>{translateUI("🤝")}</Text>
+              <Text style={[styles.opinionChoiceText, myReaction === "agree" && styles.opinionChoiceTextActive]}>{translateUI("Katılıyorum")}</Text>
               {Number(reactionCounts?.agree || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.agree}</Text>}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.opinionChoice, myReaction === "nope" && styles.opinionChoiceActive]}
               onPress={() => react("nope")}
             >
-              <Text style={styles.opinionChoiceEmoji}>👎</Text>
-              <Text style={[styles.opinionChoiceText, myReaction === "nope" && styles.opinionChoiceTextActive]}>Katılmıyorum</Text>
+              <Text style={styles.opinionChoiceEmoji}>{translateUI("👎")}</Text>
+              <Text style={[styles.opinionChoiceText, myReaction === "nope" && styles.opinionChoiceTextActive]}>{translateUI("Katılmıyorum")}</Text>
               {Number(reactionCounts?.nope || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.nope}</Text>}
             </TouchableOpacity>
           </View>
@@ -538,14 +540,14 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           {/* Filmli paylaşımda Yelpaze dışarıya filmin sayfasını da veriyor; filmsizde doğrudan arkadaşına. */}
           <ShareFan
             style={[styles.action, styles.actionShare]}
-            accessibilityLabel="Paylaş"
+            accessibilityLabel={translateUI("Paylaş")}
             options={primaryMovie?.id
               ? shareOptions({
                 message: `${user.name || "Bir arkadaşım"} Pellix'te "${primaryMovie.title}" paylaştı: https://www.pellix.app/film/${primaryMovie.id}`,
                 url: `https://www.pellix.app/film/${primaryMovie.id}`,
                 sendToFriend: () => setSendOpen(true),
               })
-              : [{ key: "friend", label: "Arkadaşına", onPress: () => setSendOpen(true) }]}
+              : [{ key: "friend", label: translateUI("Arkadaşına"), onPress: () => setSendOpen(true) }]}
           >
             <Send size={17} color={c.dim} />
           </ShareFan>

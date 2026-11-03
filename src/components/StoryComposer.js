@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Camera, CheckCircle2, Film, ImagePlus, Search, Send, X } from "lucide-react-native";
@@ -148,16 +149,16 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
           <View style={styles.sheet}>
             <View style={styles.postedWrap}>
               <View style={styles.postedIcon}><CheckCircle2 size={40} color={c.accent} /></View>
-              <Text style={styles.postedTitle}>Paylaşıldı!</Text>
-              <Text style={styles.postedSubtitle}>Story'n 24 saat boyunca arkadaşlarında görünecek.</Text>
+              <Text style={styles.postedTitle}>{translateUI("Paylaşıldı!")}</Text>
+              <Text style={styles.postedSubtitle}>{translateUI("Story'n 24 saat boyunca arkadaşlarında görünecek.")}</Text>
             </View>
           </View>
         ) : (
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Story paylaş</Text>
-              <Text style={styles.subtitle}>Bir fotoğraf paylaş, 24 saat sonra kaybolur.</Text>
+              <Text style={styles.title}>{translateUI("Story paylaş")}</Text>
+              <Text style={styles.subtitle}>{translateUI("Bir fotoğraf paylaş, 24 saat sonra kaybolur.")}</Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
           </View>
@@ -165,7 +166,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
           {sending && (
             <View style={styles.sendingOverlay} pointerEvents="auto">
               <ActivityIndicator size="large" color={c.accent} />
-              <Text style={styles.sendingText}>Fotoğraf yükleniyor…</Text>
+              <Text style={styles.sendingText}>{translateUI("Fotoğraf yükleniyor…")}</Text>
             </View>
           )}
 
@@ -178,7 +179,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
             {photo ? (
               <View style={styles.photoPreviewWrap}>
                 <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
-                <TouchableOpacity style={styles.photoRemove} onPress={() => setPhoto(null)} accessibilityLabel="Fotoğrafı kaldır">
+                <TouchableOpacity style={styles.photoRemove} onPress={() => setPhoto(null)} accessibilityLabel={translateUI("Fotoğrafı kaldır")}>
                   <X size={15} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -186,27 +187,27 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(true)} activeOpacity={0.85}>
                   <Camera size={24} color={c.accent} />
-                  <Text style={styles.photoAddText}>Kamerayla çek</Text>
+                  <Text style={styles.photoAddText}>{translateUI("Kamerayla çek")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.photoAdd} onPress={() => pickPhoto(false)} activeOpacity={0.85}>
                   <ImagePlus size={24} color={c.accent} />
-                  <Text style={styles.photoAddText}>Galeriden seç</Text>
+                  <Text style={styles.photoAddText}>{translateUI("Galeriden seç")}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            <Text style={styles.sectionLabel}>Sinemadayım (isteğe bağlı)</Text>
+            <Text style={styles.sectionLabel}>{translateUI("Sinemadayım (isteğe bağlı)")}</Text>
             <CinemaPicker value={cinema} onChange={setCinema} />
 
-            <Text style={styles.sectionLabel}>Ne izliyorsun? (isteğe bağlı)</Text>
+            <Text style={styles.sectionLabel}>{translateUI("Ne izliyorsun? (isteğe bağlı)")}</Text>
             {movie ? (
               <View style={styles.movieSelected}>
                 {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.moviePoster} /> : <View style={[styles.moviePoster, { backgroundColor: c.surface2 }]} />}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.movieTitle} numberOfLines={2}>{movie.title}</Text>
-                  <Text style={styles.movieMeta}>{movie.type || "İçerik"}{movie.year ? ` · ${movie.year}` : ""}</Text>
+                  <Text style={styles.movieMeta}>{movie.type || translateUI("İçerik")}{movie.year ? ` · ${movie.year}` : ""}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setMovie(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Filmi kaldır">
+                <TouchableOpacity onPress={() => setMovie(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={translateUI("Filmi kaldır")}>
                   <X size={16} color={c.dim} />
                 </TouchableOpacity>
               </View>
@@ -216,7 +217,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
                   <Search size={15} color={c.dim} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Film veya dizi ara…"
+                    placeholder={translateUI("Film veya dizi ara…")}
                     placeholderTextColor={c.dim}
                     value={query}
                     onChangeText={setQuery}
@@ -231,7 +232,7 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
                         {item.poster ? <Image source={{ uri: item.poster }} style={styles.resultPoster} /> : <View style={[styles.resultPoster, { backgroundColor: c.surface2 }]} />}
                         <View style={{ flex: 1 }}>
                           <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                          <Text style={styles.resultMeta}>{item.type || "İçerik"}{item.year ? ` · ${item.year}` : ""}</Text>
+                          <Text style={styles.resultMeta}>{item.type || translateUI("İçerik")}{item.year ? ` · ${item.year}` : ""}</Text>
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -242,24 +243,24 @@ export default function StoryComposer({ visible, onClose, onCreated }) {
             {!!movie && (
               <View style={styles.movieHint}>
                 <Film size={11} color={c.dim} />
-                <Text style={styles.movieHintText}>Afiş story'de görünmez; arkadaşların altta detayına gidebilir.</Text>
+                <Text style={styles.movieHintText}>{translateUI("Afiş story'de görünmez; arkadaşların altta detayına gidebilir.")}</Text>
               </View>
             )}
 
             <TextInput
               style={styles.noteInput}
-              placeholder="Kısa bir not ekle (isteğe bağlı)…"
+              placeholder={translateUI("Kısa bir not ekle (isteğe bağlı)…")}
               placeholderTextColor={c.dim}
               value={note}
               onChangeText={setNote}
               maxLength={140}
             />
 
-            {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!error && <Text style={styles.error}>{translateUI(error)}</Text>}
 
             <TouchableOpacity style={[styles.submit, (!photo || sending) && { opacity: 0.45 }]} onPress={submit} disabled={!photo || sending}>
               {sending ? <ActivityIndicator size="small" color={c.bg} /> : <Send size={15} color={c.bg} />}
-              <Text style={styles.submitText}>{photo ? "Story olarak paylaş" : "Önce bir fotoğraf ekle"}</Text>
+              <Text style={styles.submitText}>{photo ? translateUI("Story olarak paylaş") : translateUI("Önce bir fotoğraf ekle")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

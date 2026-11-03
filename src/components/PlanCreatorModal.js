@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useMemo, useEffect } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { X, CalendarClock } from "lucide-react-native";
@@ -14,7 +15,7 @@ function buildDayOptions() {
     let label;
     if (i === 0) label = "Bugün";
     else if (i === 1) label = "Yarın";
-    else label = d.toLocaleDateString("tr-TR", { weekday: "short" });
+    else label = d.toLocaleDateString(getLocale(), { weekday: "short" });
     days.push({ date: d, label });
   }
   return days;
@@ -57,12 +58,12 @@ export default function PlanCreatorModal({ visible, onClose, onSubmit }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
               <View style={styles.header}>
-                <Text style={styles.title}>İzleme Planı Öner</Text>
+                <Text style={styles.title}>{translateUI("İzleme Planı Öner")}</Text>
                 <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
               </View>
-              <Text style={styles.subtitle}>Arkadaşın kabul edince, tam zamanı geldiğinde ikinize de hatırlatma göndeririz.</Text>
+              <Text style={styles.subtitle}>{translateUI("Arkadaşın kabul edince, tam zamanı geldiğinde ikinize de hatırlatma göndeririz.")}</Text>
 
-              <Text style={styles.label}>GÜN</Text>
+              <Text style={styles.label}>{translateUI("GÜN")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 {dayOptions.map((d, i) => (
                   <TouchableOpacity
@@ -70,12 +71,12 @@ export default function PlanCreatorModal({ visible, onClose, onSubmit }) {
                     style={[styles.pill, dayIndex === i && styles.pillActive]}
                     onPress={() => setDayIndex(i)}
                   >
-                    <Text style={[styles.pillText, dayIndex === i && styles.pillTextActive]}>{d.label}</Text>
+                    <Text style={[styles.pillText, dayIndex === i && styles.pillTextActive]}>{translateUI(d.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <Text style={styles.label}>SAAT</Text>
+              <Text style={styles.label}>{translateUI("SAAT")}</Text>
               <View style={styles.timeGrid}>
                 {TIME_OPTIONS.map((t) => (
                   <TouchableOpacity
@@ -88,20 +89,20 @@ export default function PlanCreatorModal({ visible, onClose, onSubmit }) {
                 ))}
               </View>
 
-              <Text style={styles.label}>NOT (opsiyonel)</Text>
+              <Text style={styles.label}>{translateUI("NOT (opsiyonel)")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="ör. Sende mi buluşalım?"
+                placeholder={translateUI("ör. Sende mi buluşalım?")}
                 placeholderTextColor={c.dim}
                 value={note}
                 onChangeText={setNote}
               />
 
-              {isPast && <Text style={styles.errorText}>Geçmiş bir zaman seçemezsin.</Text>}
+              {isPast && <Text style={styles.errorText}>{translateUI("Geçmiş bir zaman seçemezsin.")}</Text>}
 
               <TouchableOpacity style={[styles.submitBtn, isPast && { opacity: 0.4 }]} onPress={handleSubmit} disabled={isPast}>
                 <CalendarClock size={16} color={c.bg} />
-                <Text style={styles.submitBtnText}>Planı Gönder</Text>
+                <Text style={styles.submitBtnText}>{translateUI("Planı Gönder")}</Text>
               </TouchableOpacity>
             </DismissableSheet>
           </TouchableWithoutFeedback>

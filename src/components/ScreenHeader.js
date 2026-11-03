@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
@@ -21,7 +22,7 @@ export default function ScreenHeader({ title, onBack, right = null, subtitle = n
             onPress={onBack}
             activeOpacity={0.78}
             accessibilityRole="button"
-            accessibilityLabel="Geri dön"
+            accessibilityLabel={translateUI("Geri dön")}
           >
             <ChevronLeft size={20} color={c.text} />
           </TouchableOpacity>
@@ -29,8 +30,8 @@ export default function ScreenHeader({ title, onBack, right = null, subtitle = n
       </View>
 
       <View style={styles.center} pointerEvents="none">
-        <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+        <Text style={styles.title} numberOfLines={1}>{translateUI(title)}</Text>
+        {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{translateUI(subtitle)}</Text>}
       </View>
 
       <View style={[styles.side, styles.right]}>{right}</View>

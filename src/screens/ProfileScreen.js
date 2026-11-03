@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -267,15 +269,15 @@ export default function ProfileScreen({ navigation, route }) {
           <Spotlight />
 
           <View style={styles.osTopRow}>
-            <TouchableOpacity style={styles.osIconBtn} onPress={() => pickPhoto("cover")} accessibilityRole="button" accessibilityLabel="Afiş zeminini değiştir">
+            <TouchableOpacity style={styles.osIconBtn} onPress={() => pickPhoto("cover")} accessibilityRole="button" accessibilityLabel={translateUI("Afiş zeminini değiştir")}>
               {uploadingCover ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={16} color="#fbf2df" />}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.osIconBtn} onPress={() => navigation.navigate("Settings")} accessibilityRole="button" accessibilityLabel="Ayarlar">
+            <TouchableOpacity style={styles.osIconBtn} onPress={() => navigation.navigate("Settings")} accessibilityRole="button" accessibilityLabel={translateUI("Ayarlar")}>
               <Settings size={16} color="#fbf2df" />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={() => pickPhoto("avatar")} activeOpacity={0.85} style={styles.osAvatarWrap} accessibilityRole="button" accessibilityLabel="Profil fotoğrafını değiştir">
+          <TouchableOpacity onPress={() => pickPhoto("avatar")} activeOpacity={0.85} style={styles.osAvatarWrap} accessibilityRole="button" accessibilityLabel={translateUI("Profil fotoğrafını değiştir")}>
             <RetryImage
               source={{ uri: avatarOr(profile.avatarUrl, auth.id) }}
               style={[styles.avatar, premiumStatus?.isPremium && styles.avatarPremiumRing]}
@@ -287,27 +289,27 @@ export default function ProfileScreen({ navigation, route }) {
 
           <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{upperTR(profile.name)}</Text>
           {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
-          <Text style={styles.bio}>{profile.bio || "Henüz bir biyografi eklemedin."}</Text>
+          <Text style={styles.bio}>{profile.bio || translateUI("Henüz bir biyografi eklemedin.")}</Text>
 
           <View style={styles.billing}>
-            <Text style={styles.billingLine} numberOfLines={1}>PELLIX SUNAR · BİR {upperTR(profile.name)} PROFİLİ</Text>
+            <Text style={styles.billingLine} numberOfLines={1}>{translateUI("PELLIX SUNAR · BİR ")}{upperTR(profile.name)}{translateUI(" PROFİLİ")}</Text>
             <View style={styles.statsRow}>
-              <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")} accessibilityLabel={`${likeCount} beğeni`}>
+              <TouchableOpacity style={styles.statItem} onPress={() => setSub("likes")} accessibilityLabel={translateUI("{0} beğeni", {0: likeCount})}>
                 <Text style={styles.statNum}>{likeCount}</Text>
-                <Text style={styles.statLabel}>BEĞENİ</Text>
+                <Text style={styles.statLabel}>{translateUI("BEĞENİ")}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("FriendsList")} accessibilityLabel={`${friends.length} arkadaş`}>
+              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("FriendsList")} accessibilityLabel={translateUI("{0} arkadaş", {0: friends.length})}>
                 <Text style={styles.statNum}>{friends.length}</Text>
-                <Text style={styles.statLabel}>ARKADAŞ</Text>
+                <Text style={styles.statLabel}>{translateUI("ARKADAŞ")}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("MyWatchlists")} accessibilityLabel={`${watchlists.length} liste`}>
+              <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("MyWatchlists")} accessibilityLabel={translateUI("{0} liste", {0: watchlists.length})}>
                 <Text style={styles.statNum}>{watchlists.length}</Text>
-                <Text style={styles.statLabel}>LİSTE</Text>
+                <Text style={styles.statLabel}>{translateUI("LİSTE")}</Text>
               </TouchableOpacity>
               {questStreak > 0 && (
-                <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("WeeklyQuests")} accessibilityLabel={`${questStreak} hafta seri`}>
+                <TouchableOpacity style={[styles.statItem, styles.statDivided]} onPress={() => navigation.navigate("WeeklyQuests")} accessibilityLabel={translateUI("{0} hafta seri", {0: questStreak})}>
                   <Text style={styles.statNum}>{questStreak}</Text>
-                  <Text style={styles.statLabel}>HAFTA SERİ</Text>
+                  <Text style={styles.statLabel}>{translateUI("HAFTA SERİ")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -317,11 +319,11 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.profileActionsRow}>
           <TouchableOpacity style={styles.profileActionBtn} onPress={() => setShowEditProfile(true)}>
             <Pencil size={13} color={c.text} />
-            <Text style={styles.profileActionBtnText}>Profili Düzenle</Text>
+            <Text style={styles.profileActionBtnText}>{translateUI("Profili Düzenle")}</Text>
           </TouchableOpacity>
           <ShareFan
             style={styles.profileActionBtn}
-            accessibilityLabel="Profili paylaş"
+            accessibilityLabel={translateUI("Profili paylaş")}
             options={shareOptions({
               message: `${profile.name} Pellix'te profilini paylaştı`,
               url: profile.username ? `https://open.pellix.app/u/${profile.username}` : "https://www.pellix.app",
@@ -329,7 +331,7 @@ export default function ProfileScreen({ navigation, route }) {
             })}
           >
             <Share2 size={13} color={c.text} />
-            <Text style={styles.profileActionBtnText}>Profili Paylaş</Text>
+            <Text style={styles.profileActionBtnText}>{translateUI("Profili Paylaş")}</Text>
           </ShareFan>
         </View>
 
@@ -338,17 +340,17 @@ export default function ProfileScreen({ navigation, route }) {
           onPress={() => navigation.navigate("Diary")}
           activeOpacity={0.82}
           accessibilityRole="button"
-          accessibilityLabel="İzleme Günlüğüm"
+          accessibilityLabel={translateUI("İzleme Günlüğüm")}
         >
           <View style={styles.diaryShortcutIcon}>
             <BookOpen size={15} color={c.accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.diaryShortcutTitle}>İzleme Günlüğüm</Text>
+            <Text style={styles.diaryShortcutTitle}>{translateUI("İzleme Günlüğüm")}</Text>
             <Text style={styles.diaryShortcutMeta} numberOfLines={1}>
               {diaryStats?.total
-                ? `${diaryStats.total} izledim${diaryStats?.ratedTotal ? ` · ${diaryStats.ratedTotal} puan` : ""}`
-                : "İzlediklerini, puanlarını ve notlarını gör"}
+                ? translateUI("{0} izledim{1}", {0: diaryStats.total,1: diaryStats?.ratedTotal ? ` · ${diaryStats.ratedTotal} puan` : ""})
+                : translateUI("İzlediklerini, puanlarını ve notlarını gör")}
             </Text>
           </View>
           <ChevronRight size={15} color={c.dim} />
@@ -359,29 +361,29 @@ export default function ProfileScreen({ navigation, route }) {
             içerik ve Diary'nin ilk sayfası artık DNA hesabını sınırlamıyor. */}
         <View style={styles.tasteCard}>
           <View style={styles.insightHeader}>
-            <Text style={styles.insightTitle}>Pellix seni böyle tanıyor</Text>
-            <Text style={styles.signalText}>{tasteDNA.signalCount} sinyal</Text>
+            <Text style={styles.insightTitle}>{translateUI("Pellix seni böyle tanıyor")}</Text>
+            <Text style={styles.signalText}>{tasteDNA.signalCount}{translateUI(" sinyal")}</Text>
           </View>
 
           {tasteDNA.genres.length > 0 ? (
             <ReelChart genres={tasteDNA.genres} />
           ) : (
-            <Text style={styles.insightEmpty}>Keşfet'te birkaç seçim yaptığında makaran burada sarılmaya başlayacak.</Text>
+            <Text style={styles.insightEmpty}>{translateUI("Keşfet'te birkaç seçim yaptığında makaran burada sarılmaya başlayacak.")}</Text>
           )}
 
           <View style={styles.typeSplitRow}>
-            <Text style={styles.typeSplitLabel}>Film %{tasteDNA.filmPercent}</Text>
+            <Text style={styles.typeSplitLabel}>{translateUI("Film %")}{tasteDNA.filmPercent}</Text>
             <View style={styles.typeSplitTrack}>
               <View style={[styles.typeSplitFilm, { width: `${tasteDNA.filmPercent}%` }]} />
             </View>
-            <Text style={styles.typeSplitLabel}>Dizi %{tasteDNA.showPercent}</Text>
+            <Text style={styles.typeSplitLabel}>{translateUI("Dizi %")}{tasteDNA.showPercent}</Text>
           </View>
           {Number(diaryStats?.tasteCandidatesUnrated || 0) > 0 && (
             <TouchableOpacity style={styles.deepenTasteBtn} onPress={() => navigation.navigate("RateTaste")} activeOpacity={0.84}>
               <Star size={14} color={c.accent} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.deepenTasteTitle}>İzlediklerini puanla</Text>
-                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated} beğenine puan verebilirsin{diaryStats.ratedTotal ? ` · ${diaryStats.ratedTotal} puanın var` : ""}</Text>
+                <Text style={styles.deepenTasteTitle}>{translateUI("İzlediklerini puanla")}</Text>
+                <Text style={styles.deepenTasteMeta}>{diaryStats.tasteCandidatesUnrated}{translateUI(" beğenine puan verebilirsin")}{diaryStats.ratedTotal ? translateUI(" · {0} puanın var", {0: diaryStats.ratedTotal}) : ""}</Text>
               </View>
               <ChevronRight size={15} color={c.dim} />
             </TouchableOpacity>
@@ -395,25 +397,25 @@ export default function ProfileScreen({ navigation, route }) {
           <TicketCard
             style={{ marginTop: 16 }}
             eyebrow="PREMIUM"
-            title="Premium'a geç"
-            subtitle="Sınırsız öneri ve TasteMate, haftalık"
+            title={translateUI("Premium'a geç")}
+            subtitle={translateUI("Sınırsız öneri ve TasteMate, haftalık")}
             onPress={() => navigation.navigate("Premium")}
           />
         )}
 
         {(profile.favoriteMovie || profile.favoriteShow) && (
           <View style={styles.favRow}>
-            {profile.favoriteMovie && <FavCard label="Favori Film" movie={profile.favoriteMovie} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteMovie })} />}
-            {profile.favoriteShow && <FavCard label="Favori Dizi" movie={profile.favoriteShow} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteShow })} />}
+            {profile.favoriteMovie && <FavCard label={translateUI("Favori Film")} movie={profile.favoriteMovie} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteMovie })} />}
+            {profile.favoriteShow && <FavCard label={translateUI("Favori Dizi")} movie={profile.favoriteShow} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteShow })} />}
           </View>
         )}
 
         <View style={styles.contentTabs}>
           <TouchableOpacity style={[styles.contentTab, sub === "posts" && styles.contentTabActive]} onPress={() => setSub("posts")}>
-            <Text style={[styles.contentTabText, sub === "posts" && styles.contentTabTextActive]}>Paylaşımlar</Text>
+            <Text style={[styles.contentTabText, sub === "posts" && styles.contentTabTextActive]}>{translateUI("Paylaşımlar")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.contentTab, sub === "likes" && styles.contentTabActive]} onPress={() => setSub("likes")}>
-            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>Beğendiklerim</Text>
+            <Text style={[styles.contentTabText, sub === "likes" && styles.contentTabTextActive]}>{translateUI("Beğendiklerim")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -422,7 +424,7 @@ export default function ProfileScreen({ navigation, route }) {
             <View style={{ marginTop: 12 }}>
               {socialPosts.map((item) => <SocialFeedCard key={item.id} item={item} navigation={navigation} compact />)}
             </View>
-          ) : <Text style={styles.emptyText}>Henüz bir paylaşımın yok. Sosyal sekmesinden ilk Taste Post’unu oluşturabilirsin.</Text>
+          ) : <Text style={styles.emptyText}>{translateUI("Henüz bir paylaşımın yok. Sosyal sekmesinden ilk Taste Post’unu oluşturabilirsin.")}</Text>
         )}
 
         {sub === "likes" && (
@@ -452,13 +454,13 @@ export default function ProfileScreen({ navigation, route }) {
               {likeCount > likedMovies.length && (
                 <TouchableOpacity
                   style={styles.seeAllBtn}
-                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: "Beğendiklerim" })}
+                  onPress={() => navigation.navigate("AllLikes", { userId: auth.id, title: translateUI("Beğendiklerim") })}
                 >
-                  <Text style={styles.seeAllBtnText}>Tümünü Gör ({likeCount})</Text>
+                  <Text style={styles.seeAllBtnText}>{translateUI("Tümünü Gör (")}{likeCount}{translateUI(")")}</Text>
                 </TouchableOpacity>
               )}
             </>
-          ) : <Text style={styles.emptyText}>Henüz beğendiğin bir şey yok. Keşfet'te afişleri duvarına asmaya başla.</Text>
+          ) : <Text style={styles.emptyText}>{translateUI("Henüz beğendiğin bir şey yok. Keşfet'te afişleri duvarına asmaya başla.")}</Text>
         )}
 
       </View>

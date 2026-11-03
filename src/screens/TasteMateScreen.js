@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -95,7 +96,7 @@ export default function TasteMateScreen({ navigation }) {
           hapticSuccess();
           setMutualMatch({ with: data.with || { id: swiped.id, name: swiped.name, avatarUrl: swiped.avatarUrl } });
         } else {
-          emitLocalEvent({ type: "toast", title: "İstek gönderildi ✅", message: `${swiped.name}'e arkadaşlık isteği gönderildi` });
+          emitLocalEvent({ type: "toast", title: translateUI("İstek gönderildi ✅"), message: `${swiped.name}'e arkadaşlık isteği gönderildi` });
         }
       }
       advance();
@@ -106,7 +107,7 @@ export default function TasteMateScreen({ navigation }) {
       }
       emitLocalEvent({
         type: "toast",
-        title: "İşlem tamamlanamadı",
+        title: translateUI("İşlem tamamlanamadı"),
         message: e?.message || "Bağlantını kontrol edip tekrar dener misin?",
       });
     }
@@ -129,8 +130,8 @@ export default function TasteMateScreen({ navigation }) {
       <View style={[styles.center, { backgroundColor: c.bg }]}>
         <TasteMateBackButton navigation={navigation} styles={styles} />
         <Users size={32} color={c.dim} style={{ opacity: 0.6, marginBottom: 12 }} />
-        <Text style={styles.emptyTitle}>Henüz bir eşleşme yok</Text>
-        <Text style={styles.emptySubtitle}>Daha fazla içerik beğendikçe zevkine uyan kullanıcılar burada görünmeye başlayacak.</Text>
+        <Text style={styles.emptyTitle}>{translateUI("Henüz bir eşleşme yok")}</Text>
+        <Text style={styles.emptySubtitle}>{translateUI("Daha fazla içerik beğendikçe zevkine uyan kullanıcılar burada görünmeye başlayacak.")}</Text>
       </View>
     );
   }
@@ -138,23 +139,23 @@ export default function TasteMateScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 54 }}>
       <TasteMateBackButton navigation={navigation} styles={styles} />
-      <Text style={styles.header}>Beğendiğin içeriklere göre zevk uyumu yüksek kullanıcılar</Text>
+      <Text style={styles.header}>{translateUI("Beğendiğin içeriklere göre zevk uyumu yüksek kullanıcılar")}</Text>
 
       <View style={styles.stage}>
         {!current ? (
           <View style={styles.center}>
-            <Text style={styles.emptyTitle}>Hepsine baktın</Text>
+            <Text style={styles.emptyTitle}>{translateUI("Hepsine baktın")}</Text>
             {limitReached ? (
               <>
-                <Text style={styles.emptySubtitle}>Bugünkü ücretsiz TasteMate hakkın doldu. Premium ile sınırsız kaydırabilirsin.</Text>
+                <Text style={styles.emptySubtitle}>{translateUI("Bugünkü ücretsiz TasteMate hakkın doldu. Premium ile sınırsız kaydırabilirsin.")}</Text>
                 {!!resetLabel && <Text style={styles.resetLabel}>{resetLabel}</Text>}
                 <TouchableOpacity onPress={() => navigation.navigate("Premium", { autoPurchase: true, reason: "tastemate_limit" })} style={styles.premiumBtn}>
-                  <Text style={styles.premiumBtnText}>Premium'a Geç</Text>
+                  <Text style={styles.premiumBtnText}>{translateUI("Premium'a Geç")}</Text>
                 </TouchableOpacity>
               </>
             ) : (
               <TouchableOpacity onPress={restart} style={styles.restartBtn}>
-                <Text style={styles.restartText}>Baştan Göster</Text>
+                <Text style={styles.restartText}>{translateUI("Baştan Göster")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -176,10 +177,10 @@ export default function TasteMateScreen({ navigation }) {
                 <>
                   <MateCardContent mate={current} c={c} styles={styles} navigation={navigation} interactive />
                   <Animated.View style={[styles.stampLike, { opacity: pan.x.interpolate({ inputRange: [20, 110], outputRange: [0, 1], extrapolate: "clamp" }) }]}>
-                    <Text style={styles.stampLikeText}>TANIŞ</Text>
+                    <Text style={styles.stampLikeText}>{translateUI("TANIŞ")}</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stampSkip, { opacity: pan.x.interpolate({ inputRange: [-110, -20], outputRange: [1, 0], extrapolate: "clamp" }) }]}>
-                    <Text style={styles.stampSkipText}>GEÇ</Text>
+                    <Text style={styles.stampSkipText}>{translateUI("GEÇ")}</Text>
                   </Animated.View>
                 </>
               )}
@@ -206,15 +207,15 @@ export default function TasteMateScreen({ navigation }) {
             leftAvatar={{ uri: avatarOr(myAvatarUrl, auth.id) }}
             rightAvatar={{ uri: avatarOr(mutualMatch.with?.avatarUrl, mutualMatch.with?.id) }}
           />
-          <Text style={styles.mutualTitle}>Karşılıklı eşleştiniz</Text>
-          <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name} de seni beğenmiş — artık arkadaşsınız.</Text>
-          <Text style={styles.mutualNextHint}>İlk ortak kararınızı hemen verin: birlikte ne izleyeceksiniz?</Text>
+          <Text style={styles.mutualTitle}>{translateUI("Karşılıklı eşleştiniz")}</Text>
+          <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name}{translateUI(" de seni beğenmiş — artık arkadaşsınız.")}</Text>
+          <Text style={styles.mutualNextHint}>{translateUI("İlk ortak kararınızı hemen verin: birlikte ne izleyeceksiniz?")}</Text>
           <View style={styles.mutualBtnRow}>
             <TouchableOpacity
               style={styles.mutualSecondaryBtn}
               onPress={() => { const m = mutualMatch; setMutualMatch(null); navigation.navigate("OtherProfile", { userId: m.with?.id }); }}
             >
-              <Text style={styles.mutualSecondaryBtnText}>Profiline Git</Text>
+              <Text style={styles.mutualSecondaryBtnText}>{translateUI("Profiline Git")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.mutualPrimaryBtn}
@@ -226,11 +227,11 @@ export default function TasteMateScreen({ navigation }) {
                 });
               }}
             >
-              <Text style={styles.mutualPrimaryBtnText}>Birlikte Seç</Text>
+              <Text style={styles.mutualPrimaryBtnText}>{translateUI("Birlikte Seç")}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.mutualContinueBtn} onPress={() => setMutualMatch(null)}>
-            <Text style={styles.mutualContinueText}>Şimdilik devam et</Text>
+            <Text style={styles.mutualContinueText}>{translateUI("Şimdilik devam et")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -245,7 +246,7 @@ function TasteMateBackButton({ navigation, styles }) {
       onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("MainTabs", { screen: "Activity" })}
       activeOpacity={0.82}
       accessibilityRole="button"
-      accessibilityLabel="Geri dön"
+      accessibilityLabel={translateUI("Geri dön")}
     >
       <ChevronLeft size={22} color="#fff" />
     </TouchableOpacity>
@@ -288,14 +289,14 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
       <View style={styles.infoArea}>
         <TouchableOpacity disabled={!interactive} onPress={() => navigation.navigate("OtherProfile", { userId: mate.id })}>
           <Text style={styles.mateName}>{mate.name}</Text>
-          {!!mate.username && <Text style={styles.mateUsername}>@{mate.username}</Text>}
+          {!!mate.username && <Text style={styles.mateUsername}>{translateUI("@")}{mate.username}</Text>}
           <Text style={styles.mateInsight}>{matchSummary(mate.matchPercent)}</Text>
         </TouchableOpacity>
         <View style={styles.bottomRow}>
           <View style={{ flex: 1, minWidth: 0 }}>
             {mate.common?.length > 0 && (
               <>
-                <Text style={styles.commonLabel}>ORTAK BEĞENİLER</Text>
+                <Text style={styles.commonLabel}>{translateUI("ORTAK BEĞENİLER")}</Text>
                 <View style={{ flexDirection: "row", gap: 6 }}>
                   {mate.common.slice(0, 3).map((m) => (
                     m.poster ? <Image key={m.id} source={{ uri: m.poster }} style={styles.commonPoster} />
@@ -307,9 +308,9 @@ function MateCardContent({ mate, c, styles, navigation, interactive }) {
           </View>
           <View style={styles.matchBlock}>
             <View style={[styles.matchRing, { borderColor: matchRingColor(mate.matchPercent, c) }]}>
-              <Text style={styles.matchRingText}>%{mate.matchPercent}</Text>
+              <Text style={styles.matchRingText}>{translateUI("%")}{mate.matchPercent}</Text>
             </View>
-            <Text style={styles.matchCaption}>uyum</Text>
+            <Text style={styles.matchCaption}>{translateUI("uyum")}</Text>
           </View>
         </View>
       </View>

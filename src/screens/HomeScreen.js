@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { View, Text, Image, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Dimensions, Animated, Alert, Keyboard, Platform } from "react-native";
 import { Search, Filter, Sparkles, Clock, X, Star } from "lucide-react-native";
@@ -556,7 +557,7 @@ export default function HomeScreen({ navigation }) {
           <Search size={16} color={searchFocused ? c.accent : c.dim} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Film, dizi, oyuncu veya yönetmen ara"
+            placeholder={translateUI("Film, dizi, oyuncu veya yönetmen ara")}
             placeholderTextColor={c.dim}
             value={query}
             onChangeText={setQuery}
@@ -591,7 +592,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.aiResultsBanner}>
           <Sparkles size={13} color={c.accent} />
           <Text style={styles.aiResultsBannerText} numberOfLines={1}>{aiResultsLabel}</Text>
-          <TouchableOpacity onPress={handleClearAiResults}><Text style={styles.clearDescribeText}>Temizle</Text></TouchableOpacity>
+          <TouchableOpacity onPress={handleClearAiResults}><Text style={styles.clearDescribeText}>{translateUI("Temizle")}</Text></TouchableOpacity>
         </View>
       )}
     </View>
@@ -689,8 +690,8 @@ export default function HomeScreen({ navigation }) {
             ListEmptyComponent={
               <EmptyState
                 icon={Clock}
-                title="Yakında çıkacak bir şey görünmüyor"
-                text="Bir şey duyurulduğunda burada göreceksin — o zamana kadar 'Beni Bilgilendir' ile abone olduklarını takip edebilirsin."
+                title={translateUI("Yakında çıkacak bir şey görünmüyor")}
+                text={translateUI("Bir şey duyurulduğunda burada göreceksin — o zamana kadar 'Beni Bilgilendir' ile abone olduklarını takip edebilirsin.")}
               />
             }
           />
@@ -708,10 +709,10 @@ export default function HomeScreen({ navigation }) {
       <IslandModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
-        title="Filtrele"
+        title={translateUI("Filtrele")}
         icon={Filter}
         gradientColors={["#7C3AED", "#DB2777", "#F97316"]}
-        subtitle="Ana sayfa akışını daralt"
+        subtitle={translateUI("Ana sayfa akışını daralt")}
       >
         <FilterFields
           typeValue={typeFilter}
@@ -737,7 +738,7 @@ export default function HomeScreen({ navigation }) {
           {searchLoading ? (
             <ActivityIndicator style={{ paddingVertical: 22 }} color={c.accent} />
           ) : dropdownResults.length === 0 ? (
-            <Text style={styles.dropdownEmpty}>"{query}" için sonuç bulunamadı</Text>
+            <Text style={styles.dropdownEmpty}>{translateUI("\"")}{query}{translateUI("\" için sonuç bulunamadı")}</Text>
           ) : (
             <FlatList
               data={dropdownResults}

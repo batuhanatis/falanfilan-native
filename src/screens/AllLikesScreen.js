@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
@@ -68,7 +69,7 @@ export default function AllLikesScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title || "Beğeniler"}</Text>
+        <Text style={styles.headerTitle}>{title || translateUI("Beğeniler")}</Text>
       </View>
 
       {loading ? (
@@ -96,7 +97,7 @@ export default function AllLikesScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={c.accent} /> : null}
-          ListEmptyComponent={<Text style={styles.emptyText}>{kind === "dislikes" ? "Henüz bir beğenmeme yok." : "Henüz bir beğeni yok."}</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{kind === "dislikes" ? translateUI("Henüz bir beğenmeme yok.") : translateUI("Henüz bir beğeni yok.")}</Text>}
         />
       )}
     </View>

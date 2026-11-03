@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator,  Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap, Gift, Minus, Palette } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -150,37 +152,36 @@ export default function PremiumScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Premium</Text>
+        <Text style={styles.headerTitle}>{translateUI("Premium")}</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <Crown size={32} color="#fff" />
-          <Text style={styles.heroTitle}>{isPremium ? "Premium Aktif" : reasonCopy?.title || "pellix Premium"}</Text>
+          <Text style={styles.heroTitle}>{isPremium ? translateUI("Premium Aktif") : reasonCopy?.title || translateUI("pellix Premium")}</Text>
           {isPremium ? (
             <Text style={styles.heroSubtitle}>
-              {new Date(status.premiumUntil).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} tarihine kadar sınırsız kullan.
-            </Text>
+              {new Date(status.premiumUntil).toLocaleDateString(getLocale(), { day: "numeric", month: "long" })}{translateUI(" tarihine kadar sınırsız kullan. ")}</Text>
           ) : (
-            <Text style={styles.heroSubtitle}>{reasonCopy?.subtitle || "Sınırsız AI önerisi ve TasteMate — haftalık"}</Text>
+            <Text style={styles.heroSubtitle}>{reasonCopy?.subtitle || translateUI("Sınırsız AI önerisi ve TasteMate — haftalık")}</Text>
           )}
         </LinearGradient>
 
         {!isPremium && (
           <View style={styles.limitsCard}>
-            <Text style={styles.limitsTitle}>Şu anki ücretsiz hakların</Text>
+            <Text style={styles.limitsTitle}>{translateUI("Şu anki ücretsiz hakların")}</Text>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>AI önerisi (bugün)</Text>
-              <Text style={styles.limitValue}>{status?.ai?.remaining ?? 0} / {status?.ai?.limit}</Text>
+              <Text style={styles.limitLabel}>{translateUI("AI önerisi (bugün)")}</Text>
+              <Text style={styles.limitValue}>{status?.ai?.remaining ?? 0}{translateUI(" / ")}{status?.ai?.limit}</Text>
             </View>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>TasteMate (bugün)</Text>
-              <Text style={styles.limitValue}>{status?.tastemate?.remaining ?? 0} / {status?.tastemate?.limit}</Text>
+              <Text style={styles.limitLabel}>{translateUI("TasteMate (bugün)")}</Text>
+              <Text style={styles.limitValue}>{status?.tastemate?.remaining ?? 0}{translateUI(" / ")}{status?.tastemate?.limit}</Text>
             </View>
             {status?.bonusAiUses > 0 && (
               <View style={styles.limitRow}>
-                <Text style={styles.limitLabel}>Davet bonusu (ekstra AI)</Text>
-                <Text style={[styles.limitValue, { color: c.accent }]}>+{status.bonusAiUses}</Text>
+                <Text style={styles.limitLabel}>{translateUI("Davet bonusu (ekstra AI)")}</Text>
+                <Text style={[styles.limitValue, { color: c.accent }]}>{translateUI("+")}{status.bonusAiUses}</Text>
               </View>
             )}
           </View>
@@ -193,20 +194,20 @@ export default function PremiumScreen({ navigation, route }) {
             style={styles.limitsCard}
           >
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={styles.limitsTitle}>Davetlerin</Text>
+              <Text style={styles.limitsTitle}>{translateUI("Davetlerin")}</Text>
               <ChevronRight size={16} color={c.dim} />
             </View>
             <Text style={styles.referralHint}>
               {referrals.totalCompleted > 0
-                ? `${referrals.totalCompleted} davetin tamamlandı, Premium günlerin tanımlandı 🎉`
-                : "Kodunu paylaş, arkadaşın katılınca ikiniz de 7 gün Premium kazanın."}
+                ? translateUI("{0} davetin tamamlandı, Premium günlerin tanımlandı 🎉", {0: referrals.totalCompleted})
+                : translateUI("Kodunu paylaş, arkadaşın katılınca ikiniz de 7 gün Premium kazanın.")}
             </Text>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>Davet edilen</Text>
+              <Text style={styles.limitLabel}>{translateUI("Davet edilen")}</Text>
               <Text style={styles.limitValue}>{referrals.totalInvited}</Text>
             </View>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>Tamamlanan</Text>
+              <Text style={styles.limitLabel}>{translateUI("Tamamlanan")}</Text>
               <Text style={[styles.limitValue, { color: c.accent }]}>{referrals.totalCompleted}</Text>
             </View>
           </TouchableOpacity>
@@ -227,12 +228,12 @@ export default function PremiumScreen({ navigation, route }) {
           <View style={styles.compareCard}>
             <View style={styles.compareHeaderRow}>
               <Text style={[styles.compareHeaderCell, { flex: 1.4, textAlign: "left" }]}> </Text>
-              <Text style={styles.compareHeaderCell}>Ücretsiz</Text>
-              <Text style={[styles.compareHeaderCell, { color: "#F59E0B" }]}>Premium</Text>
+              <Text style={styles.compareHeaderCell}>{translateUI("Ücretsiz")}</Text>
+              <Text style={[styles.compareHeaderCell, { color: "#F59E0B" }]}>{translateUI("Premium")}</Text>
             </View>
             {COMPARISON_ROWS.map((row, i) => (
               <View key={i} style={[styles.compareRow, i === COMPARISON_ROWS.length - 1 && { borderBottomWidth: 0 }]}>
-                <Text style={[styles.compareLabel, { flex: 1.4 }]}>{row.label}</Text>
+                <Text style={[styles.compareLabel, { flex: 1.4 }]}>{translateUI(row.label)}</Text>
                 <View style={styles.compareCell}>
                   {typeof row.free === "boolean" ? (
                     row.free ? <Check size={14} color={c.dim} /> : <Minus size={14} color={c.dim} />
@@ -254,7 +255,7 @@ export default function PremiumScreen({ navigation, route }) {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.purchaseBtnText}>
-                {offeringPkg ? `${offeringPkg.product.priceString} — Premium'a Geç` : offeringError ? "Şu an kullanılamıyor" : "Yükleniyor..."}
+                {offeringPkg ? translateUI("{0} — Premium'a Geç", {0: offeringPkg.product.priceString}) : offeringError ? translateUI("Şu an kullanılamıyor") : translateUI("Yükleniyor...")}
               </Text>
             )}
           </TouchableOpacity>
@@ -262,7 +263,7 @@ export default function PremiumScreen({ navigation, route }) {
 
         {!isPremium && (
           <TouchableOpacity onPress={handleRestore} disabled={restoring} style={styles.restoreLink}>
-            <Text style={styles.restoreLinkText}>{restoring ? "Kontrol ediliyor..." : "Satın Almaları Geri Yükle"}</Text>
+            <Text style={styles.restoreLinkText}>{restoring ? translateUI("Kontrol ediliyor...") : translateUI("Satın Almaları Geri Yükle")}</Text>
           </TouchableOpacity>
         )}
 
@@ -270,9 +271,9 @@ export default function PremiumScreen({ navigation, route }) {
             Şartları'na satın alma noktasına yakın bir bağlantı zorunlu (App Store Guideline 3.1.2). */}
         {!isPremium && (
           <View style={styles.legalLinksRow}>
-            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/privacy`)}>Gizlilik Politikası</Text>
-            <Text style={styles.legalLinksDot}>·</Text>
-            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/terms`)}>Kullanım Şartları</Text>
+            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/privacy`)}>{translateUI("Gizlilik Politikası")}</Text>
+            <Text style={styles.legalLinksDot}>{translateUI("·")}</Text>
+            <Text style={styles.legalLinkText} onPress={() => Linking.openURL(`${API_BASE}/terms`)}>{translateUI("Kullanım Şartları")}</Text>
           </View>
         )}
 
@@ -282,8 +283,8 @@ export default function PremiumScreen({ navigation, route }) {
             <LinearGradient colors={["#0EA5E9", "#6366F1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.questsCard}>
               <View style={styles.questsIconWrap}><Gift size={20} color="#fff" /></View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.questsCardTitle}>Ücretsiz de kazanabilirsin</Text>
-                <Text style={styles.questsCardSubtitle}>Haftalık görevleri tamamla, 3 günlük Premium kazan</Text>
+                <Text style={styles.questsCardTitle}>{translateUI("Ücretsiz de kazanabilirsin")}</Text>
+                <Text style={styles.questsCardSubtitle}>{translateUI("Haftalık görevleri tamamla, 3 günlük Premium kazan")}</Text>
               </View>
               <ChevronRight size={18} color="rgba(255,255,255,0.85)" />
             </LinearGradient>

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -155,7 +156,7 @@ export default function LiquidTabBar({ state, descriptors, navigation }) {
                 onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: state.index === i }}
-                accessibilityLabel={options.tabBarAccessibilityLabel ?? (badge ? `${label}, ${badge} okunmamış` : label)}
+                accessibilityLabel={options.tabBarAccessibilityLabel ?? (badge ? translateUI("{0}, {1} okunmamış", {0: label,1: badge}) : translateUI(label))}
               >
                 <View style={[styles.iconBox, { opacity: active ? 0 : 1 }]}>
                   {options.tabBarIcon?.({ focused: false, color: c.dim, size: 23 })}
@@ -166,7 +167,7 @@ export default function LiquidTabBar({ state, descriptors, navigation }) {
                   )}
                 </View>
                 <Text style={[styles.label, { color: active ? c.accent : c.dim, transform: [{ translateY: active ? 6 : 0 }] }]} numberOfLines={1}>
-                  {label}
+                  {translateUI(label)}
                 </Text>
               </Pressable>
             );

@@ -1,3 +1,4 @@
+import { t as translateUI } from "../../i18n/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { ChevronRight } from "lucide-react-native";
@@ -21,7 +22,7 @@ export default function TicketCard({ eyebrow, title, subtitle, onPress, notchCol
       <View style={[styles.main, { backgroundColor: c.surface, borderColor: c.border }]}>
         {!!eyebrow && <Text style={[styles.eyebrow, { color: c.accent }]}>{eyebrow}</Text>}
         <Text style={[styles.title, { color: c.text }]} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={[styles.subtitle, { color: c.dim }]} numberOfLines={2}>{subtitle}</Text>}
+        {!!subtitle && <Text style={[styles.subtitle, { color: c.dim }]} numberOfLines={2}>{translateUI(subtitle)}</Text>}
       </View>
       <View style={[styles.stub, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={[styles.perforation, { borderColor: c.border }]} />

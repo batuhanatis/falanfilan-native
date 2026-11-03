@@ -1,5 +1,7 @@
+import { Alert } from "../i18n/native";
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, Animated } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image,  Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, Image as ImageIcon, Star, Crown } from "lucide-react-native";
@@ -66,16 +68,16 @@ function ResultRow({ m, index, isTop, onPress, styles, c }) {
           {isTop && (
             <View style={styles.topMatchPill}>
               <Crown size={9} color="#fff" fill="#fff" />
-              <Text style={styles.topMatchPillText}>En iyi eşleşme</Text>
+              <Text style={styles.topMatchPillText}>{translateUI("En iyi eşleşme")}</Text>
             </View>
           )}
           <Text style={styles.resultTitle} numberOfLines={1}>{m.title}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
             <Star size={10} color={c.accent} fill={c.accent} />
-            <Text style={styles.resultMeta}>{m.imdb} · {m.year} · {m.type}</Text>
+            <Text style={styles.resultMeta}>{m.imdb}{translateUI(" · ")}{m.year}{translateUI(" · ")}{translateUI(m.type)}</Text>
           </View>
           {Number.isFinite(Number(m.matchConfidence)) && (
-            <Text style={styles.confidenceText}>Eşleşme güveni %{Math.round(Number(m.matchConfidence) * 100)}</Text>
+            <Text style={styles.confidenceText}>{translateUI("Eşleşme güveni %")}{Math.round(Number(m.matchConfidence) * 100)}</Text>
           )}
           {!!m.matchReason && <Text style={styles.matchReason} numberOfLines={2}>{m.matchReason}</Text>}
         </View>
@@ -153,10 +155,10 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
     <IslandModal
       visible
       onClose={onClose}
-      title="Fotoğraftan Bul"
+      title={translateUI("Fotoğraftan Bul")}
       icon={ImageIcon}
       gradientColors={PHOTO_GRADIENT}
-      subtitle="Bir sahne/kare yükle, hangi film/diziden olduğunu bulalım. Fotoğraf kaydedilmiyor."
+      subtitle={translateUI("Bir sahne/kare yükle, hangi film/diziden olduğunu bulalım. Fotoğraf kaydedilmiyor.")}
     >
       {imageUri ? (
         <TouchableOpacity onPress={() => pickImage(false)} disabled={loading}>
@@ -167,21 +169,21 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
         <View style={styles.pickRow}>
           <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(true)}>
             <Camera size={20} color={c.text} />
-            <Text style={styles.pickBtnText}>Kamera</Text>
+            <Text style={styles.pickBtnText}>{translateUI("Kamera")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.pickBtn} onPress={() => pickImage(false)}>
             <ImageIcon size={20} color={c.text} />
-            <Text style={styles.pickBtnText}>Galeri</Text>
+            <Text style={styles.pickBtnText}>{translateUI("Galeri")}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       {results && analysis?.confidenceLevel === "medium" && (
         <View style={styles.uncertainBox}>
-          <Text style={styles.uncertainTitle}>Tam emin değilim</Text>
-          <Text style={styles.uncertainText}>En olası üç eşleşmeyi sıraladım. Doğru olanı seçebilirsin.</Text>
+          <Text style={styles.uncertainTitle}>{translateUI("Tam emin değilim")}</Text>
+          <Text style={styles.uncertainText}>{translateUI("En olası üç eşleşmeyi sıraladım. Doğru olanı seçebilirsin.")}</Text>
         </View>
       )}
 
@@ -191,7 +193,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
             {loading ? (
               <LoadingLines lines={SCAN_LOADING_LINES} style={styles.goBtnText} />
             ) : (
-              <Text style={styles.goBtnText}>Bul</Text>
+              <Text style={styles.goBtnText}>{translateUI("Bul")}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -205,7 +207,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
           aynı kareyle tekrar deneyebiliyorsun. */}
       {results && (
         <TouchableOpacity onPress={() => { setResults(null); setAnalysis(null); }} style={{ alignSelf: "center", marginTop: 14 }}>
-          <Text style={styles.retryText}>Tekrar dene</Text>
+          <Text style={styles.retryText}>{translateUI("Tekrar dene")}</Text>
         </TouchableOpacity>
       )}
     </IslandModal>

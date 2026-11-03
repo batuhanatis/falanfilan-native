@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Animated } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
@@ -153,13 +154,13 @@ export default function NotificationsScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Bildirimler"
-        subtitle={notifications.length > 0 ? `${notifications.length} bildirim${unreadCount > 0 ? ` · ${unreadCount} yeni` : ""}` : undefined}
+        title={translateUI("Bildirimler")}
+        subtitle={notifications.length > 0 ? translateUI("{0} bildirim{1}", {0: notifications.length,1: unreadCount > 0 ? ` · ${unreadCount} yeni` : ""}) : undefined}
         onBack={() => navigation.goBack()}
         right={notifications.length > 0 ? (
           <TouchableOpacity onPress={deleteAllNotifications} style={styles.clearAllBtn} activeOpacity={0.78}>
             <Trash2 size={13} color={c.danger} />
-            <Text style={styles.clearAllText}>Temizle</Text>
+            <Text style={styles.clearAllText}>{translateUI("Temizle")}</Text>
           </TouchableOpacity>
         ) : null}
       />
@@ -171,7 +172,7 @@ export default function NotificationsScreen({ navigation }) {
           data={notifications}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={{ padding: 16 }}
-          ListHeaderComponent={notifications.length > 0 ? <View style={styles.listIntro}><Text style={styles.hint}>Bir bildirimi silmek için sola kaydır.</Text></View> : null}
+          ListHeaderComponent={notifications.length > 0 ? <View style={styles.listIntro}><Text style={styles.hint}>{translateUI("Bir bildirimi silmek için sola kaydır.")}</Text></View> : null}
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
             const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "party_link_joined" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type) || WATCHLIST_TYPES.includes(item.type);
@@ -194,8 +195,8 @@ export default function NotificationsScreen({ navigation }) {
                       <Text style={styles.text}>{notificationText(item)}</Text>
                       {isPartyInvite && (
                         <View style={styles.actionsRow}>
-                          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespond(item, true)}><Text style={styles.acceptText}>Kabul Et</Text></TouchableOpacity>
-                          <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespond(item, false)}><Text style={styles.declineText}>Reddet</Text></TouchableOpacity>
+                          <TouchableOpacity style={styles.acceptBtn} onPress={() => handleRespond(item, true)}><Text style={styles.acceptText}>{translateUI("Kabul Et")}</Text></TouchableOpacity>
+                          <TouchableOpacity style={styles.declineBtn} onPress={() => handleRespond(item, false)}><Text style={styles.declineText}>{translateUI("Reddet")}</Text></TouchableOpacity>
                         </View>
                       )}
                       {busyIds.has(item.id) && item.type === "party_invite" && <ActivityIndicator size="small" color={c.accent} style={{ marginTop: 6 }} />}
@@ -206,7 +207,7 @@ export default function NotificationsScreen({ navigation }) {
               </Swipeable>
             );
           }}
-          ListEmptyComponent={<View style={styles.emptyWrap}><View style={styles.emptyIcon}><Bell size={21} color={c.dim} /></View><Text style={styles.emptyTitle}>Şimdilik sessiz</Text><Text style={styles.empty}>Arkadaşlarından, MatchParty'den, Friend Battle'dan ve sosyal etkileşimlerden gelen gelişmeleri burada göreceksin.</Text></View>}
+          ListEmptyComponent={<View style={styles.emptyWrap}><View style={styles.emptyIcon}><Bell size={21} color={c.dim} /></View><Text style={styles.emptyTitle}>{translateUI("Şimdilik sessiz")}</Text><Text style={styles.empty}>{translateUI("Arkadaşlarından, MatchParty'den, Friend Battle'dan ve sosyal etkileşimlerden gelen gelişmeleri burada göreceksin.")}</Text></View>}
         />
       )}
     </View>

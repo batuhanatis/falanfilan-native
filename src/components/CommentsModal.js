@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from "react-native";
 import { X, Send } from "lucide-react-native";
@@ -46,7 +47,7 @@ export default function CommentsModal({ movie, onClose, onCommentAdded }) {
           <TouchableWithoutFeedback onPress={() => {}}>
             <DismissableSheet onClose={onClose} style={styles.sheet} handleOnly>
           <View style={styles.header}>
-            <Text style={styles.title} numberOfLines={1}>{movie.title} — Yorumlar</Text>
+            <Text style={styles.title} numberOfLines={1}>{movie.title}{translateUI(" — Yorumlar")}</Text>
             <TouchableOpacity onPress={onClose}><X size={20} color={c.text} /></TouchableOpacity>
           </View>
 
@@ -67,14 +68,14 @@ export default function CommentsModal({ movie, onClose, onCommentAdded }) {
                   </View>
                 </View>
               )}
-              ListEmptyComponent={<Text style={styles.empty}>Henüz yorum yok, ilk yorumu sen yaz.</Text>}
+              ListEmptyComponent={<Text style={styles.empty}>{translateUI("Henüz yorum yok, ilk yorumu sen yaz.")}</Text>}
             />
           )}
 
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder="Yorum ekle"
+              placeholder={translateUI("Yorum ekle")}
               placeholderTextColor={c.dim}
               value={comment}
               onChangeText={setComment}

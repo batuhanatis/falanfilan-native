@@ -1,3 +1,4 @@
+import { t as translateUI } from "../../i18n/core";
 import React, { useRef, useState } from "react";
 import {
   Modal, View, Text, Pressable, Animated, Easing, StyleSheet, AccessibilityInfo, Linking, Share, useWindowDimensions,
@@ -15,7 +16,8 @@ import { emitLocalEvent } from "../../utils/localEvents";
 // ekranın üst yarısındaysa seçenekler aşağı, alt yarısındaysa yukarı; kenara yakınsa içeri açılır.
 
 const OPTION = 56;
-const RADIUS = 104;
+const CELL_WIDTH = 104;
+const CELL_HEIGHT = 112;
 
 export default function ShareFan({ options, style, children, accessibilityLabel = "Paylaş", disabled, hitSlop }) {
   const { c } = useAppTheme();
@@ -30,19 +32,24 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
   const list = (options || []).filter(Boolean).slice(0, 5);
 
   function targets(a) {
-    const dy = a.cy < H * 0.45 ? 1 : -1;
-    const dx = a.cx > W * 0.7 ? -1 : a.cx < W * 0.3 ? 1 : 0;
-    const center = Math.atan2(dy, dx);
-    const span = Math.min(Math.PI * 0.85, (Math.PI / 4.2) * (list.length - 1));
-    return list.map((_, i) => {
-      const t = list.length === 1 ? 0 : i / (list.length - 1) - 0.5;
-      const ang = center + t * span;
-      let x = a.cx + Math.cos(ang) * RADIUS;
-      let y = a.cy + Math.sin(ang) * RADIUS;
-      x = Math.min(W - 40, Math.max(40, x));
-      y = Math.min(H - insets.bottom - 50, Math.max(insets.top + 34, y));
-      return { x, y };
-    });
+    // Her ikon ve etikete ayrı hücre ayır. Tek tek kenara sıkıştırılan yay
+    // noktaları özellikle sağ üstte üst üste geliyordu.
+    const columns = Math.min(3, list.length, Math.max(1, Math.floor((W - 32) / CELL_WIDTH)));
+    const rows = Math.ceil(list.length / columns);
+    const cellWidth = Math.min(CELL_WIDTH, (W - 32) / columns);
+    const panelWidth = columns * cellWidth;
+    const panelHeight = rows * CELL_HEIGHT;
+    const left = Math.max(16, Math.min(W - 16 - panelWidth, a.cx - panelWidth / 2));
+    const minTop = insets.top + 12;
+    const maxBottom = H - insets.bottom - 12;
+    const below = a.cy + 48;
+    const above = a.cy - 48 - panelHeight;
+    const preferred = below + panelHeight <= maxBottom ? below : above;
+    const top = Math.max(minTop, Math.min(maxBottom - panelHeight, preferred));
+    return list.map((_, i) => ({
+      x: left + (i % columns + 0.5) * cellWidth,
+      y: top + Math.floor(i / columns) * CELL_HEIGHT + OPTION / 2,
+    }));
   }
 
   function open() {
@@ -108,7 +115,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
       </Pressable>
 
       <Modal visible={!!anchor} transparent animationType="fade" statusBarTranslucent onRequestClose={() => close()}>
-        <Pressable style={styles.backdrop} onPress={() => close()} accessibilityLabel="Paylaşımı kapat" />
+        <Pressable style={styles.backdrop} onPress={() => close()} accessibilityLabel={translateUI("Paylaşımı kapat")} />
         {!!anchor && (
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill} accessibilityViewIsModal>
             {list.map((opt, i) => {
@@ -133,11 +140,11 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
                     style={[styles.opt, { backgroundColor: picked === i ? c.accent : c.surface, borderColor: c.border }]}
                     onPress={() => choose(i)}
                     accessibilityRole="button"
-                    accessibilityLabel={opt.a11y || opt.label}
+                    accessibilityLabel={opt.a11y || translateUI(opt.label)}
                   >
                     {opt.Icon && <opt.Icon size={22} color={picked === i ? "#1a140b" : c.text} />}
                   </Pressable>
-                  <Text style={styles.optLabel} numberOfLines={1}>{opt.label}</Text>
+                  <Text style={styles.optLabel} numberOfLines={2} maxFontSizeMultiplier={1.3}>{translateUI(opt.label)}</Text>
                 </Animated.View>
               );
             })}
@@ -145,7 +152,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
               style={[styles.hub, { left: anchor.cx - 24, top: anchor.cy - 24, backgroundColor: c.accent }]}
               onPress={() => close()}
               accessibilityRole="button"
-              accessibilityLabel="Kapat"
+              accessibilityLabel={translateUI("Kapat")}
             >
               <X size={20} color="#1a140b" />
             </Pressable>
@@ -169,12 +176,12 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
   }
   const run = (fn) => () => { payload().then((p) => p && fn(p)).catch(() => {}); };
   return [
-    card && { key: "card", label: "Görsel kart", Icon: ImageIcon, onPress: card },
-    sendToFriend && { key: "friend", label: "Arkadaşına", a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
-    feed && { key: "feed", label: "Akışta", a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
+    card && { key: "card", label: translateUI("Görsel kart"), Icon: ImageIcon, onPress: card },
+    sendToFriend && { key: "friend", label: translateUI("Arkadaşına"), a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
+    feed && { key: "feed", label: translateUI("Akışta"), a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
     {
       key: "whatsapp",
-      label: "WhatsApp",
+      label: translateUI("WhatsApp"),
       a11y: "WhatsApp'ta paylaş",
       Icon: MessageCircle,
       onPress: run(({ text }) => Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`)
@@ -182,7 +189,7 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
     },
     copy && (url || copyText || prepare) && {
       key: "copy",
-      label: "Kopyala",
+      label: translateUI("Kopyala"),
       a11y: copyText ? "Metni kopyala" : "Bağlantıyı kopyala",
       Icon: Link2,
       onPress: run(({ copyText: value }) => {
@@ -192,7 +199,7 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
           .catch(() => {});
       }),
     },
-    { key: "other", label: "Diğer", a11y: "Diğer uygulamalarla paylaş", Icon: Share2, onPress: run(({ text }) => Share.share({ message: text }).catch(() => {})) },
+    { key: "other", label: translateUI("Diğer"), a11y: "Diğer uygulamalarla paylaş", Icon: Share2, onPress: run(({ text }) => Share.share({ message: text }).catch(() => {})) },
   ].filter(Boolean);
 }
 
@@ -203,6 +210,6 @@ const styles = StyleSheet.create({
     width: OPTION, height: OPTION, borderRadius: OPTION / 2, borderWidth: 1, alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  optLabel: { marginTop: 6, color: "#f2ede2", fontSize: 12, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
+  optLabel: { width: 88, minHeight: 36, textAlign: "center", lineHeight: 18, marginTop: 6, color: "#f2ede2", fontSize: 12, fontWeight: "700", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   hub: { position: "absolute", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
 });

@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -109,8 +110,8 @@ export default function PellixPlayScreen({ navigation, route }) {
           <ChevronLeft size={21} color={c.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{activeGame ? GAME_META[activeGame]?.title : "pellix play"}</Text>
-          <Text style={styles.headerSub}>{activeGame ? GAME_META[activeGame]?.subtitle : "Zevkini oynayarak keşfet"}</Text>
+          <Text style={styles.headerTitle}>{activeGame ? GAME_META[activeGame]?.title : translateUI("pellix play")}</Text>
+          <Text style={styles.headerSub}>{activeGame ? translateUI(GAME_META[activeGame]?.subtitle) : translateUI("Zevkini oynayarak keşfet")}</Text>
         </View>
       </View>
 
@@ -132,34 +133,34 @@ export default function PellixPlayScreen({ navigation, route }) {
             <View style={styles.hubGlowOne} />
             <View style={styles.hubGlowTwo} />
             <Sparkles size={23} color="rgba(255,255,255,0.30)" style={{ position: "absolute", right: 22, top: 20 }} />
-            <Text style={styles.hubEyebrow}>PELLIX PLAY</Text>
-            <Text style={styles.hubHeroTitle}>Bugün ne oynayalım?</Text>
-            <Text style={styles.hubHeroSub}>Kısa turlar, hızlı kararlar ve arkadaşlarınla paylaşabileceğin sonuçlar.</Text>
+            <Text style={styles.hubEyebrow}>{translateUI("PELLIX PLAY")}</Text>
+            <Text style={styles.hubHeroTitle}>{translateUI("Bugün ne oynayalım?")}</Text>
+            <Text style={styles.hubHeroSub}>{translateUI("Kısa turlar, hızlı kararlar ve arkadaşlarınla paylaşabileceğin sonuçlar.")}</Text>
           </LinearGradient>
 
-          <Text style={styles.sectionLabel}>GÜNÜN OYUNU</Text>
+          <Text style={styles.sectionLabel}>{translateUI("GÜNÜN OYUNU")}</Text>
           <TouchableOpacity onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86} style={styles.gameCardTouch}>
             <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameCard}>
               <View style={styles.gameCardGlow} />
               <View style={styles.gameIcon}><Puzzle size={22} color="#fff" /></View>
               <View style={{ flex: 1 }}>
                 <View style={styles.gameTitleRow}>
-                  <Text style={styles.gameTitle}>Poster Puzzle</Text>
-                  <View style={styles.gameTag}><Text style={styles.gameTagText}>{puzzleResult ? "✓ BUGÜN ÇÖZÜLDÜ" : "HERKESE AYNI POSTER"}</Text></View>
+                  <Text style={styles.gameTitle}>{translateUI("Poster Puzzle")}</Text>
+                  <View style={styles.gameTag}><Text style={styles.gameTagText}>{puzzleResult ? translateUI("✓ BUGÜN ÇÖZÜLDÜ") : translateUI("HERKESE AYNI POSTER")}</Text></View>
                 </View>
                 <Text style={styles.gameSub}>
                   {puzzleResult
-                    ? (puzzleResult.correct ? "Bugünkü posteri bildin. Sonucunu paylaş, arkadaşların kaçta bulacak?" : "Bugün olmadı. Yarın yeni bir poster geliyor.")
-                    : "Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı."}
+                    ? (puzzleResult.correct ? translateUI("Bugünkü posteri bildin. Sonucunu paylaş, arkadaşların kaçta bulacak?") : translateUI("Bugün olmadı. Yarın yeni bir poster geliyor."))
+                    : translateUI("Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı.")}
                 </Text>
               </View>
               <View style={styles.gameArrow}><ArrowRight size={18} color="#fff" /></View>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.sectionLabel}>MİNİ OYUNLAR</Text>
+          <Text style={styles.sectionLabel}>{translateUI("MİNİ OYUNLAR")}</Text>
           {enabledKeys.length === 0 ? (
-            <View style={styles.emptyCard}><Text style={styles.emptyText}>Şu anda açık bir mini oyun yok.</Text></View>
+            <View style={styles.emptyCard}><Text style={styles.emptyText}>{translateUI("Şu anda açık bir mini oyun yok.")}</Text></View>
           ) : enabledKeys.map((key) => {
             const meta = GAME_META[key];
             const Icon = meta.icon;
@@ -170,10 +171,10 @@ export default function PellixPlayScreen({ navigation, route }) {
                   <View style={styles.gameIcon}><Icon size={22} color="#fff" /></View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.gameTitleRow}>
-                      <Text style={styles.gameTitle}>{meta.title}</Text>
-                      <View style={styles.gameTag}><Text style={styles.gameTagText}>{meta.tag}</Text></View>
+                      <Text style={styles.gameTitle}>{translateUI(meta.title)}</Text>
+                      <View style={styles.gameTag}><Text style={styles.gameTagText}>{translateUI(meta.tag)}</Text></View>
                     </View>
-                    <Text style={styles.gameSub}>{meta.subtitle}</Text>
+                    <Text style={styles.gameSub}>{translateUI(meta.subtitle)}</Text>
                   </View>
                   <View style={styles.gameArrow}><ArrowRight size={18} color="#fff" /></View>
                 </LinearGradient>
@@ -230,20 +231,20 @@ function TasteBattle({ token, styles, c, onDisabled }) {
           <LinearGradient colors={GAME_META.taste_battle.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
             <Sparkles size={24} color="rgba(255,255,255,0.26)" style={{ position: "absolute", top: 20, right: 22 }} />
             <View style={styles.resultIcon}><Swords size={28} color="#fff" /></View>
-            <Text style={styles.resultEyebrow}>TASTE BATTLE SONUCUN</Text>
-            <Text style={styles.resultTitle}>{result.topGenre || "Karışık Zevk"}</Text>
+            <Text style={styles.resultEyebrow}>{translateUI("TASTE BATTLE SONUCUN")}</Text>
+            <Text style={styles.resultTitle}>{result.topGenre || translateUI("Karışık Zevk")}</Text>
             <Text style={styles.resultSummary}>{result.summary}</Text>
           </LinearGradient>
 
           <View style={styles.resultStatsRow}>
-            <ResultStat value={String(selections.length)} label="SEÇİM" styles={styles} />
-            <ResultStat value={`%${result.moviePercent}`} label="FİLM" styles={styles} />
-            <ResultStat value={`%${100 - result.moviePercent}`} label="DİZİ" styles={styles} />
+            <ResultStat value={String(selections.length)} label={translateUI("SEÇİM")} styles={styles} />
+            <ResultStat value={`%${result.moviePercent}`} label={translateUI("FİLM")} styles={styles} />
+            <ResultStat value={`%${100 - result.moviePercent}`} label={translateUI("DİZİ")} styles={styles} />
           </View>
 
           {result.posters.length > 0 && (
             <View style={styles.resultPanel}>
-              <Text style={styles.resultPanelTitle}>Bu turdaki favori seçimlerin</Text>
+              <Text style={styles.resultPanelTitle}>{translateUI("Bu turdaki favori seçimlerin")}</Text>
               <View style={styles.resultPosterRow}>
                 {result.posters.slice(0, 4).map((poster, i) => <Image key={`${poster}-${i}`} source={{ uri: poster }} style={styles.resultPoster} />)}
               </View>
@@ -252,15 +253,15 @@ function TasteBattle({ token, styles, c, onDisabled }) {
 
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#7C3AED" }]}
-            accessibilityLabel="Sonucu paylaş"
+            accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: `Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+            <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
             <RotateCcw size={16} color={c.text} />
-            <Text style={styles.ghostBtnText}>Tekrar Oyna</Text>
+            <Text style={styles.ghostBtnText}>{translateUI("Tekrar Oyna")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -283,16 +284,16 @@ function TasteBattle({ token, styles, c, onDisabled }) {
   }
 
   const pair = pairs[index];
-  if (!pair) return <GameDone styles={styles} title="Eşleşme bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+  if (!pair) return <GameDone styles={styles} title={translateUI("Eşleşme bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
 
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title="Hızlı düşün, içinden geleni seç" subtitle="Doğru cevap yok. Her seçim zevk profilini biraz daha netleştiriyor." />
-      <Text style={styles.progressText}>{index + 1} / {pairs.length}</Text>
-      <Text style={styles.questionTitle}>Hangisini seçersin?</Text>
+      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title={translateUI("Hızlı düşün, içinden geleni seç")} subtitle={translateUI("Doğru cevap yok. Her seçim zevk profilini biraz daha netleştiriyor.")} />
+      <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{pairs.length}</Text>
+      <Text style={styles.questionTitle}>{translateUI("Hangisini seçersin?")}</Text>
       <View style={styles.battleRow}>
         <MovieChoice movie={pair.left} styles={styles} onPress={() => choose(pair.left, pair.right)} accent="#8B5CF6" />
-        <View style={[styles.vsBadge, { backgroundColor: "#8B5CF6" }]}><Text style={styles.vsText}>VS</Text></View>
+        <View style={[styles.vsBadge, { backgroundColor: "#8B5CF6" }]}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
         <MovieChoice movie={pair.right} styles={styles} onPress={() => choose(pair.right, pair.left)} accent="#8B5CF6" />
       </View>
     </ScrollView>
@@ -367,12 +368,12 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
   if (!started) {
     return (
       <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-        <GameHero meta={GAME_META.friend_quiz} styles={styles} icon={Users} title="Kimi ne kadar iyi tanıyorsun?" subtitle="Önce arkadaşını seç, sonra onun film ve dizi zevkini tahmin et." />
-        <Text style={styles.friendPickerTitle}>Arkadaşını seç</Text>
-        <Text style={styles.friendPickerSub}>En az 10 beğenisi olan arkadaşlarınla hemen oynayabilirsin.</Text>
+        <GameHero meta={GAME_META.friend_quiz} styles={styles} icon={Users} title={translateUI("Kimi ne kadar iyi tanıyorsun?")} subtitle={translateUI("Önce arkadaşını seç, sonra onun film ve dizi zevkini tahmin et.")} />
+        <Text style={styles.friendPickerTitle}>{translateUI("Arkadaşını seç")}</Text>
+        <Text style={styles.friendPickerSub}>{translateUI("En az 10 beğenisi olan arkadaşlarınla hemen oynayabilirsin.")}</Text>
 
         {friends.length === 0 ? (
-          <View style={styles.emptyCard}><Text style={styles.emptyText}>Henüz oynayabileceğin bir arkadaş görünmüyor.</Text></View>
+          <View style={styles.emptyCard}><Text style={styles.emptyText}>{translateUI("Henüz oynayabileceğin bir arkadaş görünmüyor.")}</Text></View>
         ) : friends.map((friend) => (
           <TouchableOpacity
             key={friend.id}
@@ -384,7 +385,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.friendPickerName}>{friend.name}</Text>
               <Text style={[styles.friendPickerStatus, friend.ready && { color: "#FB7185" }]}>
-                {friend.ready ? `${friend.questionCount} soruluk tur hazır` : `${friend.likeCount || 0}/10 beğeni · biraz daha gerekiyor`}
+                {friend.ready ? translateUI("{0} soruluk tur hazır", {0: friend.questionCount}) : translateUI("{0}/10 beğeni · biraz daha gerekiyor", {0: friend.likeCount || 0})}
               </Text>
             </View>
             {friend.ready ? <ArrowRight size={18} color="#FB7185" /> : <LockKeyhole size={16} color={c.dim} />}
@@ -395,7 +396,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
   }
 
   if (!data?.friend || !data.questions?.length) {
-    return <GameDone styles={styles} title="Şimdilik oynanamıyor" text={data?.unavailableReason || `${selectedFriend?.name || "Bu arkadaş"} için yeterli veri oluşunca açılacak.`} onAgain={loadFriends} />;
+    return <GameDone styles={styles} title={translateUI("Şimdilik oynanamıyor")} text={data?.unavailableReason || translateUI("{0} için yeterli veri oluşunca açılacak.", {0: selectedFriend?.name || "Bu arkadaş"})} onAgain={loadFriends} />;
   }
 
   if (index >= data.questions.length) {
@@ -405,28 +406,28 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
         <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
           <LinearGradient colors={GAME_META.friend_quiz.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
             <RetryImage source={{ uri: avatarOr(data.friend.avatarUrl, data.friend.id) }} style={styles.resultFriendAvatar} />
-            <Text style={styles.resultEyebrow}>ARKADAŞINI TANIYOR MUSUN?</Text>
-            <Text style={styles.resultBigPercent}>%{percent}</Text>
+            <Text style={styles.resultEyebrow}>{translateUI("ARKADAŞINI TANIYOR MUSUN?")}</Text>
+            <Text style={styles.resultBigPercent}>{translateUI("%")}{percent}</Text>
             <Text style={styles.resultFriendName}>{data.friend.name}</Text>
             <Text style={styles.resultSummary}>{friendResultCopy(percent)}</Text>
           </LinearGradient>
 
           <View style={styles.resultPanel}>
-            <View style={styles.scoreInline}><Trophy size={19} color="#F59E0B" /><Text style={styles.scoreInlineText}>{score}/{data.questions.length} doğru cevap</Text></View>
-            <Text style={styles.doneText}>Bu skoru paylaş; bakalım arkadaşın itiraz edecek mi.</Text>
+            <View style={styles.scoreInline}><Trophy size={19} color="#F59E0B" /><Text style={styles.scoreInlineText}>{score}{translateUI("/")}{data.questions.length}{translateUI(" doğru cevap")}</Text></View>
+            <Text style={styles.doneText}>{translateUI("Bu skoru paylaş; bakalım arkadaşın itiraz edecek mi.")}</Text>
           </View>
 
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#EC4899" }]}
-            accessibilityLabel="Sonucu paylaş"
+            accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: `${data.friend.name}'i ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+            <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={loadFriends}>
             <Users size={16} color={c.text} />
-            <Text style={styles.ghostBtnText}>Başka Arkadaş Seç</Text>
+            <Text style={styles.ghostBtnText}>{translateUI("Başka Arkadaş Seç")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -454,10 +455,10 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={GAME_META.friend_quiz.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.friendHeaderGradient}>
         <RetryImage source={{ uri: avatarOr(data.friend.avatarUrl, data.friend.id) }} style={styles.friendAvatar} />
-        <View style={{ flex: 1 }}><Text style={styles.friendName}>{data.friend.name}</Text><Text style={styles.friendSub}>Hangisini beğenmiş?</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.friendName}>{data.friend.name}</Text><Text style={styles.friendSub}>{translateUI("Hangisini beğenmiş?")}</Text></View>
         <Users size={20} color="rgba(255,255,255,0.80)" />
       </LinearGradient>
-      <Text style={styles.progressText}>{index + 1} / {data.questions.length} · Skor {score}</Text>
+      <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{data.questions.length}{translateUI(" · Skor ")}{score}</Text>
       <View style={styles.battleRow}>
         {[q.left, q.right].map((movie) => {
           const isCorrect = feedback && movie.id === q.correctMovieId;
@@ -468,7 +469,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
       {feedback && (
         <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: feedback.correct ? "#22C55E" : "#EC4899" }]} onPress={next}>
           {feedback.correct ? <Check size={17} color="#fff" /> : <X size={17} color="#fff" />}
-          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{feedback.correct ? "Bildin! Devam" : "Olmadı, devam et"}</Text>
+          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{feedback.correct ? translateUI("Bildin! Devam") : translateUI("Olmadı, devam et")}</Text>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -561,44 +562,44 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
   if (!started) {
     return (
       <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-        <GameHero meta={GAME_META.who_said_it} styles={styles} icon={Quote} title="Sahneyi hatırla, karakteri bul" subtitle="Film ve dizi hafızanı kolaydan zora test et." />
+        <GameHero meta={GAME_META.who_said_it} styles={styles} icon={Quote} title={translateUI("Sahneyi hatırla, karakteri bul")} subtitle={translateUI("Film ve dizi hafızanı kolaydan zora test et.")} />
 
         <TouchableOpacity activeOpacity={0.88} onPress={() => startRound("daily")} style={{ borderRadius: 18, overflow: "hidden" }}>
           <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dailyCard}>
             <View style={styles.gameIcon}><Quote size={21} color="#fff" /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.dailyTitle}>Günün Challenge'ı</Text>
-              <Text style={styles.dailySub}>Her gün herkes için aynı 5 soru. Bugünkü skoru kap.</Text>
+              <Text style={styles.dailyTitle}>{translateUI("Günün Challenge'ı")}</Text>
+              <Text style={styles.dailySub}>{translateUI("Her gün herkes için aynı 5 soru. Bugünkü skoru kap.")}</Text>
             </View>
             <ArrowRight size={18} color="#fff" />
           </LinearGradient>
         </TouchableOpacity>
 
         <View style={{ marginTop: 24, gap: 8 }}>
-          <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>Klasik Tur</Text>
-          <Text style={{ color: c.dim, fontSize: 12.5, lineHeight: 18 }}>10 soruluk turunu içerik türüne ve zorluğa göre ayarla.</Text>
+          <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>{translateUI("Klasik Tur")}</Text>
+          <Text style={{ color: c.dim, fontSize: 12.5, lineHeight: 18 }}>{translateUI("10 soruluk turunu içerik türüne ve zorluğa göre ayarla.")}</Text>
         </View>
 
-        <Text style={styles.filterLabel}>İÇERİK</Text>
+        <Text style={styles.filterLabel}>{translateUI("İÇERİK")}</Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           {[["all", "Tümü"], ["movie", "Film"], ["tv", "Dizi"]].map(([value, label]) => (
             <TouchableOpacity key={value} style={pill(kind === value)} onPress={() => setKind(value)}>
-              <Text style={pillText(kind === value)}>{label}</Text>
+              <Text style={pillText(kind === value)}>{translateUI(label)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.filterLabel}>ZORLUK</Text>
+        <Text style={styles.filterLabel}>{translateUI("ZORLUK")}</Text>
         <View style={{ flexDirection: "row", gap: 7 }}>
           {[["all", "Tümü"], ["easy", "Kolay"], ["medium", "Orta"], ["hard", "Zor"]].map(([value, label]) => (
             <TouchableOpacity key={value} style={pill(difficulty === value)} onPress={() => setDifficulty(value)}>
-              <Text style={pillText(difficulty === value)}>{label}</Text>
+              <Text style={pillText(difficulty === value)}>{translateUI(label)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <TouchableOpacity style={[styles.primaryBtn, { marginTop: 22, backgroundColor: "#7C3AED" }]} onPress={() => startRound("classic")}>
-          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>10 Soruluk Turu Başlat</Text>
+          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{translateUI("10 Soruluk Turu Başlat")}</Text>
           <ArrowRight size={17} color="#fff" />
         </TouchableOpacity>
       </ScrollView>
@@ -612,24 +613,24 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
     return (
       <View style={styles.centerPad}>
         <LinearGradient colors={GAME_META.who_said_it.colors} style={styles.compactResultCircle}>
-          <Text style={styles.compactResultScore}>{score}/{questions.length}</Text>
+          <Text style={styles.compactResultScore}>{score}{translateUI("/")}{questions.length}</Text>
         </LinearGradient>
-        <Text style={[styles.doneTitle, { marginTop: 18 }]}>Tur tamamlandı</Text>
-        <Text style={styles.doneText}>{isDaily ? "Bugünün challenge'ını tamamladın." : "Bu turdaki sinema hafızanı test ettin."}</Text>
-        {stats?.promptVariants ? <Text style={{ color: c.dim, fontSize: 11, marginTop: 4 }}>{stats.promptVariants}+ soru varyasyonu içinden oynadın.</Text> : null}
+        <Text style={[styles.doneTitle, { marginTop: 18 }]}>{translateUI("Tur tamamlandı")}</Text>
+        <Text style={styles.doneText}>{isDaily ? translateUI("Bugünün challenge'ını tamamladın.") : translateUI("Bu turdaki sinema hafızanı test ettin.")}</Text>
+        {stats?.promptVariants ? <Text style={{ color: c.dim, fontSize: 11, marginTop: 4 }}>{stats.promptVariants}{translateUI("+ soru varyasyonu içinden oynadın.")}</Text> : null}
         <ShareFan
           style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]}
-          accessibilityLabel="Sonucu paylaş"
+          accessibilityLabel={translateUI("Sonucu paylaş")}
           options={shareOptions({ message: `Sahneyi Hatırla, Karakteri Bul'da ${score}/${questions.length} yaptım 🎬 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
         >
           <Share2 size={17} color="#fff" />
-          <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+          <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
         </ShareFan>
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#7C3AED" }]} onPress={() => startRound(round?.mode || "classic")}>
-          <RotateCcw size={16} color="#fff" /><Text style={[styles.retryText, { color: "#fff" }]}>Tekrar Oyna</Text>
+          <RotateCcw size={16} color="#fff" /><Text style={[styles.retryText, { color: "#fff" }]}>{translateUI("Tekrar Oyna")}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={backToSetup} style={{ marginTop: 14, padding: 10 }}>
-          <Text style={{ color: c.dim, fontSize: 12.5, fontWeight: "800" }}>Mod / Filtre Değiştir</Text>
+          <Text style={{ color: c.dim, fontSize: 12.5, fontWeight: "800" }}>{translateUI("Mod / Filtre Değiştir")}</Text>
         </TouchableOpacity>
 
         {showShare && (
@@ -651,7 +652,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
   }
 
   const q = questions[index];
-  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={backToSetup} />;
+  if (!q) return <GameDone styles={styles} title={translateUI("Soru bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={backToSetup} />;
 
   const difficultyLabel = { easy: "Kolay", medium: "Orta", hard: "Zor" }[q.difficulty] || "";
   const kindLabel = q.kind === "tv" ? "Dizi" : "Film";
@@ -659,14 +660,14 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
       <View style={styles.quizMetaRow}>
-        <Text style={styles.progressText}>{index + 1} / {questions.length} · Skor {score}</Text>
-        <Text style={{ color: "#C084FC", fontSize: 11, fontWeight: "800" }}>{round?.mode === "daily" ? "Günlük" : kindLabel + " · " + difficultyLabel}</Text>
+        <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{questions.length}{translateUI(" · Skor ")}{score}</Text>
+        <Text style={{ color: "#C084FC", fontSize: 11, fontWeight: "800" }}>{round?.mode === "daily" ? translateUI("Günlük") : kindLabel + " · " + difficultyLabel}</Text>
       </View>
 
       <LinearGradient colors={GAME_META.who_said_it.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quoteGradient}>
         <Quote size={34} color="rgba(255,255,255,0.92)" />
-        <Text style={styles.quotePrompt}>“{q.prompt}”</Text>
-        <Text style={styles.quoteSub}>Bu ikonik an kime ait?</Text>
+        <Text style={styles.quotePrompt}>{translateUI("“")}{q.prompt}{translateUI("”")}</Text>
+        <Text style={styles.quoteSub}>{translateUI("Bu ikonik an kime ait?")}</Text>
       </LinearGradient>
 
       <View style={{ gap: 10, marginTop: 18 }}>
@@ -675,7 +676,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
           const isWrong = feedback && option === feedback.chosen && !feedback.correct;
           return (
             <TouchableOpacity
-              key={option}
+              key={translateUI(option)}
               disabled={!!feedback || answering}
               onPress={() => answer(option)}
               activeOpacity={0.82}
@@ -686,7 +687,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
                 { opacity: answering ? 0.7 : 1 },
               ]}
             >
-              <Text style={styles.quizOptionText}>{option}</Text>
+              <Text style={styles.quizOptionText}>{translateUI(option)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -695,11 +696,11 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
       {feedback && (
         <View style={{ marginTop: 18, gap: 10 }}>
           <Text style={{ color: feedback.correct ? "#22c55e" : "#ef4444", fontSize: 14, fontWeight: "900", textAlign: "center" }}>
-            {feedback.correct ? "Doğru!" : "Doğru cevap: " + feedback.answer}
+            {feedback.correct ? translateUI("Doğru!") : "Doğru cevap: " + feedback.answer}
           </Text>
           <Text style={{ color: c.dim, fontSize: 12, textAlign: "center" }}>{feedback.movie}</Text>
           <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#7C3AED" }]} onPress={next}>
-            <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{index >= questions.length - 1 ? "Sonucu Gör" : "Sonraki"}</Text>
+            <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{index >= questions.length - 1 ? translateUI("Sonucu Gör") : translateUI("Sonraki")}</Text>
             <ArrowRight size={17} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -732,27 +733,27 @@ function BlindPick({ token, styles, c, onDisabled }) {
   }
 
   if (loading) return <View style={styles.center}><ActivityIndicator color="#F59E0B" /></View>;
-  if (index >= items.length) return <GameDone styles={styles} title="Blind tur tamamlandı" text={`${items.length} içerik gördün.`} onAgain={load} />;
+  if (index >= items.length) return <GameDone styles={styles} title={translateUI("Blind tur tamamlandı")} text={translateUI("{0} içerik gördün.", {0: items.length})} onAgain={load} />;
   const item = items[index];
-  if (!item) return <GameDone styles={styles} title="İçerik bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+  if (!item) return <GameDone styles={styles} title={translateUI("İçerik bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
   const clue = item.clue || {};
 
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <GameHero meta={GAME_META.blind_pick} styles={styles} icon={EyeOff} title="Posteri unut, içgüdüne güven" subtitle="İpuçlarından karar ver; sonra ne seçtiğini gör." />
-      <Text style={styles.progressText}>{index + 1} / {items.length}</Text>
+      <GameHero meta={GAME_META.blind_pick} styles={styles} icon={EyeOff} title={translateUI("Posteri unut, içgüdüne güven")} subtitle={translateUI("İpuçlarından karar ver; sonra ne seçtiğini gör.")} />
+      <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{items.length}</Text>
       {!revealed ? (
         <>
           <LinearGradient colors={["#111827", "#1F2937", "#334155"]} style={styles.blindCardGradient}>
             <EyeOff size={36} color="#F59E0B" />
-            <Text style={styles.blindTitle}>Bu ne olabilir?</Text>
-            <View style={styles.clueChip}><Text style={styles.clueChipText}>{clue.year || "?"} · {clue.type === "tv" ? "Dizi" : "Film"}</Text></View>
-            <View style={styles.clueChip}><Text style={styles.clueChipText}>{(clue.genres || []).join(" · ") || "Tür gizli"}</Text></View>
-            <View style={styles.clueChip}><Text style={styles.clueChipText}>IMDb {clue.imdb || "?"}{clue.runtime ? ` · ${clue.runtime} dk` : ""}</Text></View>
+            <Text style={styles.blindTitle}>{translateUI("Bu ne olabilir?")}</Text>
+            <View style={styles.clueChip}><Text style={styles.clueChipText}>{clue.year || translateUI("?")}{translateUI(" · ")}{clue.type === "tv" ? translateUI("Dizi") : translateUI("Film")}</Text></View>
+            <View style={styles.clueChip}><Text style={styles.clueChipText}>{(clue.genres || []).join(" · ") || translateUI("Tür gizli")}</Text></View>
+            <View style={styles.clueChip}><Text style={styles.clueChipText}>{translateUI("IMDb ")}{clue.imdb || translateUI("?")}{clue.runtime ? translateUI(" · {0} dk", {0: clue.runtime}) : ""}</Text></View>
           </LinearGradient>
           <View style={styles.choiceButtons}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => decide(false)}><Text style={styles.secondaryBtnText}>Geç</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtnFlex, { backgroundColor: "#F59E0B" }]} onPress={() => decide(true)}><Text style={styles.primaryBtnText}>İzlerim</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => decide(false)}><Text style={styles.secondaryBtnText}>{translateUI("Geç")}</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryBtnFlex, { backgroundColor: "#F59E0B" }]} onPress={() => decide(true)}><Text style={styles.primaryBtnText}>{translateUI("İzlerim")}</Text></TouchableOpacity>
           </View>
         </>
       ) : (
@@ -760,9 +761,9 @@ function BlindPick({ token, styles, c, onDisabled }) {
           <View style={[styles.revealCard, { borderColor: "rgba(245,158,11,0.35)" }]}>
             {!!item.reveal?.poster && <Image source={{ uri: item.reveal.poster }} style={styles.revealPoster} />}
             <Text style={styles.revealTitle}>{item.reveal?.title}</Text>
-            <Text style={styles.revealMeta}>{item.reveal?.year} · {item.reveal?.type === "tv" ? "Dizi" : "Film"} · IMDb {item.reveal?.imdb}</Text>
+            <Text style={styles.revealMeta}>{item.reveal?.year}{translateUI(" · ")}{item.reveal?.type === "tv" ? translateUI("Dizi") : translateUI("Film")}{translateUI(" · IMDb ")}{item.reveal?.imdb}</Text>
           </View>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#F59E0B" }]} onPress={next}><Text style={styles.primaryBtnText}>Sonraki</Text><ArrowRight size={17} color={c.bg} /></TouchableOpacity>
+          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#F59E0B" }]} onPress={next}><Text style={styles.primaryBtnText}>{translateUI("Sonraki")}</Text><ArrowRight size={17} color={c.bg} /></TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -823,7 +824,7 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#DB2777" />
-        <Text style={{ color: c.dim, fontSize: 12, marginTop: 12 }}>Karakterin belirleniyor...</Text>
+        <Text style={{ color: c.dim, fontSize: 12, marginTop: 12 }}>{translateUI("Karakterin belirleniyor...")}</Text>
       </View>
     );
   }
@@ -843,31 +844,31 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
             ) : (
               <Text style={{ fontSize: 46 }}>{character.emoji}</Text>
             )}
-            <Text style={styles.resultEyebrow}>HANGİ KARAKTERSİN?</Text>
+            <Text style={styles.resultEyebrow}>{translateUI("HANGİ KARAKTERSİN?")}</Text>
             <Text style={styles.resultTitle}>{character.name}</Text>
             <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11.5, fontWeight: "800", marginTop: 2 }}>{character.title}</Text>
             {!!character.actor && (
-              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 2 }}>{character.actor} canlandırdı</Text>
+              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 2 }}>{character.actor}{translateUI(" canlandırdı")}</Text>
             )}
             <Text style={styles.resultSummary}>{character.blurb}</Text>
           </LinearGradient>
 
           <View style={styles.resultPanel}>
-            <View style={styles.scoreInline}><Sparkles size={18} color="#DB2777" /><Text style={styles.scoreInlineText}>%{result.matchPercent} uyum</Text></View>
-            <Text style={[styles.doneText, { fontStyle: "italic" }]}>"{character.quote}"</Text>
+            <View style={styles.scoreInline}><Sparkles size={18} color="#DB2777" /><Text style={styles.scoreInlineText}>{translateUI("%")}{result.matchPercent}{translateUI(" uyum")}</Text></View>
+            <Text style={[styles.doneText, { fontStyle: "italic" }]}>{translateUI("\"")}{character.quote}{translateUI("\"")}</Text>
           </View>
 
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]}
-            accessibilityLabel="Sonucu paylaş"
+            accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: `Hangi Karaktersin testinde ${character.name} çıktım (%${result.matchPercent} uyum) 🎭 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
-            <Text style={styles.shareResultText}>Sonucu Paylaş</Text>
+            <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
             <RotateCcw size={16} color={c.text} />
-            <Text style={styles.ghostBtnText}>Tekrar Oyna</Text>
+            <Text style={styles.ghostBtnText}>{translateUI("Tekrar Oyna")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -885,17 +886,17 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
   }
 
   const q = questions[index];
-  if (!q) return <GameDone styles={styles} title="Soru bulunamadı" text="Biraz sonra tekrar dene." onAgain={load} />;
+  if (!q) return <GameDone styles={styles} title={translateUI("Soru bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
 
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <GameHero meta={GAME_META.character_quiz} styles={styles} icon={Wand2} title="Kısa bir testle keşfet" subtitle="Doğru cevap yok, içinden geleni seç." />
-      <Text style={styles.progressText}>{index + 1} / {questions.length}</Text>
+      <GameHero meta={GAME_META.character_quiz} styles={styles} icon={Wand2} title={translateUI("Kısa bir testle keşfet")} subtitle={translateUI("Doğru cevap yok, içinden geleni seç.")} />
+      <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{questions.length}</Text>
       <Text style={[styles.questionTitle, { fontSize: 17, lineHeight: 23 }]}>{q.prompt}</Text>
       <View style={{ gap: 10 }}>
         {q.options.map((option) => (
           <TouchableOpacity key={option.id} onPress={() => choose(option)} activeOpacity={0.82} style={styles.quizOption}>
-            <Text style={styles.quizOptionText}>{option.label}</Text>
+            <Text style={styles.quizOptionText}>{translateUI(option.label)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -909,9 +910,9 @@ function GameHero({ meta, styles, icon: Icon, title, subtitle }) {
       <View style={styles.gameHeroGlow} />
       <View style={styles.gameHeroIcon}><Icon size={23} color="#fff" /></View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.gameHeroTag}>{meta.tag}</Text>
-        <Text style={styles.gameHeroTitle}>{title}</Text>
-        <Text style={styles.gameHeroSub}>{subtitle}</Text>
+        <Text style={styles.gameHeroTag}>{translateUI(meta.tag)}</Text>
+        <Text style={styles.gameHeroTitle}>{translateUI(title)}</Text>
+        <Text style={styles.gameHeroSub}>{translateUI(subtitle)}</Text>
       </View>
     </LinearGradient>
   );
@@ -921,7 +922,7 @@ function ResultStat({ value, label, styles }) {
   return (
     <View style={styles.resultStatBox}>
       <Text style={styles.resultStatValue}>{value}</Text>
-      <Text style={styles.resultStatLabel}>{label}</Text>
+      <Text style={styles.resultStatLabel}>{translateUI(label)}</Text>
     </View>
   );
 }
@@ -988,7 +989,7 @@ function MovieChoice({ movie, styles, onPress, state, accent }) {
     >
       {!!movie.poster && <Image source={{ uri: movie.poster }} style={styles.choicePoster} />}
       <Text style={styles.choiceTitle} numberOfLines={2}>{movie.title}</Text>
-      <Text style={styles.choiceMeta}>{movie.year || ""}{movie.imdb ? ` · IMDb ${movie.imdb}` : ""}</Text>
+      <Text style={styles.choiceMeta}>{movie.year || ""}{movie.imdb ? translateUI(" · IMDb {0}", {0: movie.imdb}) : ""}</Text>
     </TouchableOpacity>
   );
 }
@@ -996,9 +997,9 @@ function MovieChoice({ movie, styles, onPress, state, accent }) {
 function GameDone({ styles, title, text, onAgain }) {
   return (
     <View style={styles.centerPad}>
-      <Text style={styles.doneTitle}>{title}</Text>
-      <Text style={styles.doneText}>{text}</Text>
-      <TouchableOpacity style={styles.retryBtn} onPress={onAgain}><RotateCcw size={16} color="#0d0d10" /><Text style={styles.retryText}>Tekrar Oyna</Text></TouchableOpacity>
+      <Text style={styles.doneTitle}>{translateUI(title)}</Text>
+      <Text style={styles.doneText}>{translateUI(text)}</Text>
+      <TouchableOpacity style={styles.retryBtn} onPress={onAgain}><RotateCcw size={16} color="#0d0d10" /><Text style={styles.retryText}>{translateUI("Tekrar Oyna")}</Text></TouchableOpacity>
     </View>
   );
 }

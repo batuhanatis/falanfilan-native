@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -31,8 +32,8 @@ export default function MyWatchlistsScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader
-        title="Listelerim"
-        subtitle={watchlists.length > 0 ? `${watchlists.length} liste` : undefined}
+        title={translateUI("Listelerim")}
+        subtitle={watchlists.length > 0 ? translateUI("{0} liste", {0: watchlists.length}) : undefined}
         onBack={() => navigation.goBack()}
       />
 
@@ -42,7 +43,7 @@ export default function MyWatchlistsScreen({ navigation }) {
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           <TouchableOpacity style={styles.newListToggle} onPress={() => setShowNewList(true)}>
             <Plus size={15} color={c.accent} />
-            <Text style={styles.newListToggleText}>Yeni Liste Oluştur</Text>
+            <Text style={styles.newListToggleText}>{translateUI("Yeni Liste Oluştur")}</Text>
           </TouchableOpacity>
 
           {watchlists.length > 0 ? (
@@ -55,15 +56,15 @@ export default function MyWatchlistsScreen({ navigation }) {
                 >
                   <WatchlistCover list={wl} style={styles.watchlistPreview} />
                   <Text style={styles.watchlistName} numberOfLines={1}>{wl.name}</Text>
-                  <Text style={styles.watchlistCount}>{wl.count} içerik{wl.isPublic ? " · Herkese Açık" : ""}</Text>
+                  <Text style={styles.watchlistCount}>{wl.count}{translateUI(" içerik")}{wl.isPublic ? translateUI(" · Herkese Açık") : ""}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           ) : (
             <EmptyState
               icon={ListVideo}
-              title="Henüz bir listen yok"
-              text="Yukarıdan yeni bir liste oluşturup içerik eklemeye başlayabilirsin."
+              title={translateUI("Henüz bir listen yok")}
+              text={translateUI("Yukarıdan yeni bir liste oluşturup içerik eklemeye başlayabilirsin.")}
             />
           )}
         </ScrollView>

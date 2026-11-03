@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useRef, useEffect } from "react";
 import { View, Text, TouchableOpacity, Image, Animated } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
@@ -107,7 +108,7 @@ function ChatMessageRow({
 
   const timeInBubble = (
     <Text style={[styles.timeTextInBubble, isMine ? { color: "rgba(20,18,10,0.55)" } : { color: c.dim }]}>
-      {timeLabel(createdAt)}
+      {translateUI(timeLabel(createdAt))}
     </Text>
   );
 
@@ -140,7 +141,7 @@ function ChatMessageRow({
     bubbleContent = (
       <View style={[styles.photoLockedBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
         <X size={13} color={isMine ? c.bg : c.dim} />
-        <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs, { fontStyle: "italic" }]}>Bu mesaj silindi</Text>
+        <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs, { fontStyle: "italic" }]}>{translateUI("Bu mesaj silindi")}</Text>
       </View>
     );
   } else if (photo) {
@@ -148,7 +149,7 @@ function ChatMessageRow({
       bubbleContent = (
         <View style={[styles.photoLockedBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
           <EyeOff size={14} color={isMine ? c.bg : c.dim} />
-          <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>Fotoğraf görüntülendi</Text>
+          <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>{translateUI("Fotoğraf görüntülendi")}</Text>
         </View>
       );
     } else if (photo.once) {
@@ -161,7 +162,7 @@ function ChatMessageRow({
         >
           {isSending ? <Clock size={14} color={isMine ? c.bg : c.text} /> : isFailed ? <AlertCircle size={14} color={c.danger} /> : <Eye size={14} color={isMine ? c.bg : c.text} />}
           <Text style={[styles.messageBodyText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
-            {isSending ? "Gönderiliyor..." : isFailed ? "Gönderilemedi — tekrar dene" : isMine ? "Tek seferlik fotoğraf gönderildi" : "Fotoğrafı Gör"}
+            {isSending ? translateUI("Gönderiliyor...") : isFailed ? translateUI("Gönderilemedi — tekrar dene") : isMine ? translateUI("Tek seferlik fotoğraf gönderildi") : translateUI("Fotoğrafı Gör")}
           </Text>
         </TouchableOpacity>
       );
@@ -180,12 +181,12 @@ function ChatMessageRow({
               {isSending ? <Clock size={20} color="#fff" /> : (
                 <>
                   <AlertCircle size={20} color="#fff" />
-                  <Text style={styles.photoStatusOverlayText}>Tekrar dene</Text>
+                  <Text style={styles.photoStatusOverlayText}>{translateUI("Tekrar dene")}</Text>
                 </>
               )}
             </View>
           )}
-          <View style={styles.photoTimeBadge}><Text style={styles.photoTimeBadgeText}>{timeLabel(createdAt)}</Text></View>
+          <View style={styles.photoTimeBadge}><Text style={styles.photoTimeBadgeText}>{translateUI(timeLabel(createdAt))}</Text></View>
           {renderReactionBadge(reactionsKey, isMine, styles)}
         </TouchableOpacity>
       );
@@ -215,7 +216,7 @@ function ChatMessageRow({
         <View style={styles.movieBubbleInfo}>
           <LinearGradient colors={movieGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.movieBubblePill}>
             <Film size={10} color="#fff" />
-            <Text style={styles.movieBubblePillText} numberOfLines={1}>{shared.type === "Dizi" ? "Dizi Önerisi" : "Film Önerisi"}</Text>
+            <Text style={styles.movieBubblePillText} numberOfLines={1}>{shared.type === "Dizi" ? translateUI("Dizi Önerisi") : translateUI("Film Önerisi")}</Text>
           </LinearGradient>
           <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{shared.title}</Text>
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
@@ -252,12 +253,11 @@ function ChatMessageRow({
         <View style={styles.movieBubbleInfo}>
           <LinearGradient colors={["#14B8A6", "#0EA5E9"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.movieBubblePill}>
             <ListVideo size={10} color="#fff" />
-            <Text style={styles.movieBubblePillText} numberOfLines={1}>Liste</Text>
+            <Text style={styles.movieBubblePillText} numberOfLines={1}>{translateUI("Liste")}</Text>
           </LinearGradient>
           <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{listShared.name}</Text>
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
-            {listShared.ownerName} · {listShared.count} içerik
-          </Text>
+            {listShared.ownerName}{translateUI(" · ")}{listShared.count}{translateUI(" içerik ")}</Text>
         </View>
         <View style={styles.movieBubbleTimeCorner}>{timeInBubble}</View>
         {renderReactionBadge(reactionsKey, isMine, styles)}
@@ -274,7 +274,7 @@ function ChatMessageRow({
       >
         <LinearGradient colors={["#EC4899", "#8B5CF6", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
           <Sparkles size={12} color="#fff" />
-          <Text style={styles.activityShareHeaderText}>AKTİVİTE PAYLAŞIMI</Text>
+          <Text style={styles.activityShareHeaderText}>{translateUI("AKTİVİTE PAYLAŞIMI")}</Text>
         </LinearGradient>
         <View style={styles.activityShareBody}>
           {activityMovie?.poster ? (
@@ -288,12 +288,12 @@ function ChatMessageRow({
             <View style={styles.activityShareUserRow}>
               {!!activityShared.user && <RetryImage source={{ uri: avatarOr(activityShared.user.avatar_url, activityShared.user.id) }} style={styles.activityShareAvatar} />}
               <Text style={[styles.activityShareUser, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
-                {activityShared.user?.name || "Pellix"}
+                {activityShared.user?.name || translateUI("Pellix")}
               </Text>
             </View>
             <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={3}>{activityShared.text}</Text>
             {!!activityShared.body && (
-              <Text style={[styles.activityShareCaption, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>“{activityShared.body}”</Text>
+              <Text style={[styles.activityShareCaption, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{translateUI("“")}{activityShared.body}{translateUI("”")}</Text>
             )}
             {!!activityMovie?.title && (
               <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{activityMovie.title}</Text>
@@ -310,7 +310,7 @@ function ChatMessageRow({
       <View style={[styles.activityShareBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
         <LinearGradient colors={["#F59E0B", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
           <MessageCircle size={12} color="#fff" />
-          <Text style={styles.activityShareHeaderText}>{isMine ? "STORY'YE YANIT VERDİN" : "STORY'NE YANIT VERDİ"}</Text>
+          <Text style={styles.activityShareHeaderText}>{isMine ? translateUI("STORY'YE YANIT VERDİN") : translateUI("STORY'NE YANIT VERDİ")}</Text>
         </LinearGradient>
         <View style={styles.activityShareBody}>
           {storyActive ? (
@@ -341,7 +341,7 @@ function ChatMessageRow({
             {storyActive ? (
               <>
                 <Text style={[styles.activityShareText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                  {storyMovie?.title || (storyReplyShared.cinema?.name ? "Sinemada" : "Fotoğraf story'si")}
+                  {storyMovie?.title || (storyReplyShared.cinema?.name ? translateUI("Sinemada") : translateUI("Fotoğraf story'si"))}
                 </Text>
                 {!!storyMovie && (
                   <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
@@ -353,15 +353,12 @@ function ChatMessageRow({
                   </Text>
                 )}
                 {!!storyReplyShared.cinema?.name && (
-                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
-                    📍 {storyReplyShared.cinema.name}
+                  <Text style={[styles.activityShareMovieTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>{translateUI(" 📍 ")}{storyReplyShared.cinema.name}
                   </Text>
                 )}
               </>
             ) : (
-              <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>
-                Bu story artık görüntülenemiyor
-              </Text>
+              <Text style={[styles.activityShareMovieTitle, { fontStyle: "italic", opacity: 0.75 }, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{translateUI(" Bu story artık görüntülenemiyor ")}</Text>
             )}
           </View>
         </View>
@@ -442,7 +439,7 @@ function ChatMessageRow({
       <View style={[styles.planBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
         <LinearGradient colors={["#06B6D4", "#6366F1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.planHeaderStrip}>
           <CalendarClock size={14} color="#fff" />
-          <Text style={styles.planHeaderStripText}>İzleme Planı</Text>
+          <Text style={styles.planHeaderStripText}>{translateUI("İzleme Planı")}</Text>
         </LinearGradient>
         <View style={styles.planBody}>
           <Text style={[styles.planNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
@@ -454,15 +451,15 @@ function ChatMessageRow({
           {plan.status === "accepted" ? (
             <View style={styles.planStatusRow}>
               <Check size={13} color={isMine ? c.bg : c.accent2} />
-              <Text style={[styles.planStatusText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>Kabul edildi</Text>
+              <Text style={[styles.planStatusText, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>{translateUI("Kabul edildi")}</Text>
             </View>
           ) : isMine ? (
-            <Text style={[styles.planStatusText, styles.bubbleTextMine, { opacity: 0.8 }]}>Yanıt bekleniyor...</Text>
+            <Text style={[styles.planStatusText, styles.bubbleTextMine, { opacity: 0.8 }]}>{translateUI("Yanıt bekleniyor...")}</Text>
           ) : (
             <TouchableOpacity onPress={() => actions.acceptPlan(id)} activeOpacity={0.85}>
               <LinearGradient colors={["#22C55E", "#06B6D4"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.planAcceptBtn}>
                 <Check size={14} color="#fff" />
-                <Text style={styles.planAcceptBtnText}>Kabul Et</Text>
+                <Text style={styles.planAcceptBtnText}>{translateUI("Kabul Et")}</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -510,7 +507,7 @@ function ChatMessageRow({
         </Text>
         <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 5, marginTop: 2 }}>
           {!!editedAt && (
-            <Text style={[styles.editedTag, isMine ? { color: "rgba(20,18,10,0.6)" } : { color: c.dim }]}>düzenlendi</Text>
+            <Text style={[styles.editedTag, isMine ? { color: "rgba(20,18,10,0.6)" } : { color: c.dim }]}>{translateUI("düzenlendi")}</Text>
           )}
           {isMine && isSending && <Clock size={11} color="rgba(20,18,10,0.55)" />}
           {isMine && isFailed && <AlertCircle size={12} color={c.danger} />}
@@ -524,7 +521,7 @@ function ChatMessageRow({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <RotateCcw size={11} color={c.danger} />
-              <Text style={styles.failedText}>Gönderilemedi — tekrar dene</Text>
+              <Text style={styles.failedText}>{translateUI("Gönderilemedi — tekrar dene")}</Text>
             </TouchableOpacity>
           </ShakeOnMount>
         )}
@@ -547,7 +544,7 @@ function ChatMessageRow({
         {bubbleContent}
         {showSeenTick && (
           <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 2 }}>
-            <Text style={styles.seenText}>Görüldü</Text>
+            <Text style={styles.seenText}>{translateUI("Görüldü")}</Text>
           </View>
         )}
       </View>

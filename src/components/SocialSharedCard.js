@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -41,18 +42,18 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <View style={styles.purpleGlow} />
           <View style={styles.cardTopRow}>
             <View>
-              <Text style={styles.brand}>pellix</Text>
-              <Text style={styles.cardType}>POSTER PUZZLE</Text>
+              <Text style={styles.brand}>{translateUI("pellix")}</Text>
+              <Text style={styles.cardType}>{translateUI("POSTER PUZZLE")}</Text>
             </View>
-            <View style={styles.dailyBadge}><Text style={styles.dailyBadgeText}>GÜNÜN OYUNU</Text></View>
+            <View style={styles.dailyBadge}><Text style={styles.dailyBadgeText}>{translateUI("GÜNÜN OYUNU")}</Text></View>
           </View>
           <View style={styles.puzzleIcon}><Eye size={22} color="#C4B5FD" /></View>
-          <Text style={styles.puzzleTitle}>{payload.correct ? "Posteri çözdü" : "Poster bugün kazandı"}</Text>
-          <Text style={styles.puzzleSquares}>{payload.squares || (payload.correct ? "🟩⬛⬛" : "🟥🟥🟥")}</Text>
+          <Text style={styles.puzzleTitle}>{payload.correct ? translateUI("Posteri çözdü") : translateUI("Poster bugün kazandı")}</Text>
+          <Text style={styles.puzzleSquares}>{payload.squares || (payload.correct ? translateUI("🟩⬛⬛") : translateUI("🟥🟥🟥"))}</Text>
           <Text style={styles.puzzleMeta}>
-            {payload.correct ? `${Math.max(1, Number(payload.attempts || 1))}. denemede bildi` : "Bugün doğru cevabı bulamadı"}
+            {payload.correct ? translateUI("{0}. denemede bildi", {0: Math.max(1, Number(payload.attempts || 1))}) : translateUI("Bugün doğru cevabı bulamadı")}
           </Text>
-          <View style={styles.playCta}><Text style={styles.playCtaText}>Cevabı görmeden sen de oyna →</Text></View>
+          <View style={styles.playCta}><Text style={styles.playCtaText}>{translateUI("Cevabı görmeden sen de oyna →")}</Text></View>
         </LinearGradient>
       </TouchableOpacity>
     );
@@ -79,8 +80,8 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <View style={styles.purpleGlow} />
           <View style={styles.cardTopRow}>
             <View>
-              <Text style={styles.brand}>pellix</Text>
-              <Text style={styles.cardType}>TASTE BLEND</Text>
+              <Text style={styles.brand}>{translateUI("pellix")}</Text>
+              <Text style={styles.cardType}>{translateUI("TASTE BLEND")}</Text>
             </View>
             <Sparkles size={17} color="#A78BFA" />
           </View>
@@ -88,22 +89,22 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <View style={styles.blendPeopleRow}>
             <Avatar uri={me.avatarUrl} id={me.id} />
             <View style={styles.blendScoreWrap}>
-              <Text style={styles.blendPercent}>%{percent}</Text>
-              <Text style={styles.microLabel}>ZEVK UYUMU</Text>
+              <Text style={styles.blendPercent}>{translateUI("%")}{percent}</Text>
+              <Text style={styles.microLabel}>{translateUI("ZEVK UYUMU")}</Text>
             </View>
             <Avatar uri={friend.avatarUrl} id={friend.id} />
           </View>
-          <Text style={styles.blendNames} numberOfLines={1}>{firstName(me.name)} × {firstName(friend.name)}</Text>
+          <Text style={styles.blendNames} numberOfLines={1}>{firstName(me.name)}{translateUI(" × ")}{firstName(friend.name)}</Text>
           <Text style={styles.verdictText}>{verdictFor(percent)}</Text>
 
           <View style={styles.miniSignalRow}>
             <View style={styles.miniSignal}>
               <Text style={styles.miniSignalValue}>{Number(payload.commonCount || 0)}</Text>
-              <Text style={styles.miniSignalLabel}>ORTAK FAVORİ</Text>
+              <Text style={styles.miniSignalLabel}>{translateUI("ORTAK FAVORİ")}</Text>
             </View>
             <View style={styles.miniSignal}>
-              <Text style={styles.miniSignalValue} numberOfLines={1}>{payload.topGenre || "Karışık"}</Text>
-              <Text style={styles.miniSignalLabel}>ORTAK DAMAR</Text>
+              <Text style={styles.miniSignalValue} numberOfLines={1}>{payload.topGenre || translateUI("Karışık")}</Text>
+              <Text style={styles.miniSignalLabel}>{translateUI("ORTAK DAMAR")}</Text>
             </View>
           </View>
 
@@ -129,14 +130,14 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
         <LinearGradient colors={["#3B1B66", "#8B296F", "#C45A29"]} style={styles.card}>
-          <Text style={styles.eyebrow}>ARKADAŞINI TANIYOR MUSUN?</Text>
+          <Text style={styles.eyebrow}>{translateUI("ARKADAŞINI TANIYOR MUSUN?")}</Text>
           <Avatar uri={friend.avatarUrl} id={friend.id} large />
           <Text style={styles.profileName}>{friend.name}</Text>
           <View style={styles.centerScore}>
-            <Text style={styles.scoreNumber}>%{percent}</Text>
-            <Text style={styles.microLabel}>TANIMA SKORU</Text>
+            <Text style={styles.scoreNumber}>{translateUI("%")}{percent}</Text>
+            <Text style={styles.microLabel}>{translateUI("TANIMA SKORU")}</Text>
           </View>
-          <Text style={styles.subtitle}>{Number(payload.score || 0)}/{Number(payload.total || 0)} doğru cevap</Text>
+          <Text style={styles.subtitle}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}{translateUI(" doğru cevap")}</Text>
         </LinearGradient>
       </TouchableOpacity>
     );
@@ -147,11 +148,11 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
         <LinearGradient colors={["#3C1811", "#651D43", "#38205D"]} style={styles.card}>
-          <Text style={styles.eyebrow}>SAHNEYİ HATIRLA, KARAKTERİ BUL</Text>
+          <Text style={styles.eyebrow}>{translateUI("SAHNEYİ HATIRLA, KARAKTERİ BUL")}</Text>
           <Quote size={24} color="rgba(255,255,255,0.82)" style={{ marginTop: 14 }} />
           <View style={styles.centerScore}>
-            <Text style={styles.scoreNumber}>{Number(payload.score || 0)}/{Number(payload.total || 0)}</Text>
-            <Text style={styles.microLabel}>{payload.isDaily ? "GÜNÜN CHALLENGE'I" : "DOĞRU CEVAP"}</Text>
+            <Text style={styles.scoreNumber}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}</Text>
+            <Text style={styles.microLabel}>{payload.isDaily ? translateUI("GÜNÜN CHALLENGE'I") : translateUI("DOĞRU CEVAP")}</Text>
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -164,7 +165,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
         <LinearGradient colors={[character.color || "#4C1D95", "#711A5D", "#15121D"]} style={styles.card}>
-          <Text style={styles.eyebrow}>HANGİ KARAKTERSİN?</Text>
+          <Text style={styles.eyebrow}>{translateUI("HANGİ KARAKTERSİN?")}</Text>
           {character.actorPhoto ? (
             <View style={{ marginTop: 13 }}>
               <Image source={{ uri: character.actorPhoto }} style={styles.avatarLarge} />
@@ -176,8 +177,8 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <Text style={styles.profileName}>{character.name}</Text>
           <Text style={styles.subtitle}>{character.title}</Text>
           <View style={[styles.centerScore, { marginTop: 10 }]}>
-            <Text style={styles.scoreNumber}>%{bounded(payload.matchPercent)}</Text>
-            <Text style={styles.microLabel}>UYUM</Text>
+            <Text style={styles.scoreNumber}>{translateUI("%")}{bounded(payload.matchPercent)}</Text>
+            <Text style={styles.microLabel}>{translateUI("UYUM")}</Text>
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -201,20 +202,20 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
         <View style={styles.purpleGlow} />
         <View style={styles.cardTopRow}>
           <View>
-            <Text style={styles.brand}>pellix</Text>
-            <Text style={styles.cardType}>TASTE ID</Text>
+            <Text style={styles.brand}>{translateUI("pellix")}</Text>
+            <Text style={styles.cardType}>{translateUI("TASTE ID")}</Text>
           </View>
           <View style={styles.profileBadgeRow}>
             {Number(payload.streak || 0) > 0 && (
               <View style={styles.tinyBadge}>
                 <Flame size={9} color="#FDBA74" />
-                <Text style={styles.tinyBadgeText}>{payload.streak} HAFTA</Text>
+                <Text style={styles.tinyBadgeText}>{payload.streak}{translateUI(" HAFTA")}</Text>
               </View>
             )}
             {payload.isPremium && (
               <View style={[styles.tinyBadge, styles.tinyPremium]}>
                 <Crown size={9} color="#17120A" fill="#17120A" />
-                <Text style={styles.tinyPremiumText}>PREMIUM</Text>
+                <Text style={styles.tinyPremiumText}>{translateUI("PREMIUM")}</Text>
               </View>
             )}
           </View>
@@ -224,9 +225,9 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
           <Avatar uri={payload.avatarUrl} id={payload.userId} large />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[styles.profileName, { textAlign: "left", marginTop: 0 }]} numberOfLines={1}>{payload.name}</Text>
-            {!!payload.username && <Text style={styles.username}>@{payload.username}</Text>}
+            {!!payload.username && <Text style={styles.username}>{translateUI("@")}{payload.username}</Text>}
             <Text style={styles.profileSignal}>
-              {hasTasteDNA ? `${Number(payload.tasteDNA?.signalCount || 0)} zevk sinyali` : "Pellix profil kartı"}
+              {hasTasteDNA ? translateUI("{0} zevk sinyali", {0: Number(payload.tasteDNA?.signalCount || 0)}) : translateUI("Pellix profil kartı")}
             </Text>
           </View>
         </View>
@@ -239,7 +240,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
                 <View style={styles.socialGenreTrack}>
                   <LinearGradient colors={["#FFD76A", "#A78BFA"]} style={[styles.socialGenreFill, { width: `${Math.max(8, bounded(genre?.percent))}%` }]} />
                 </View>
-                <Text style={styles.socialGenrePercent}>%{bounded(genre?.percent)}</Text>
+                <Text style={styles.socialGenrePercent}>{translateUI("%")}{bounded(genre?.percent)}</Text>
               </View>
             ))}
           </View>
@@ -247,16 +248,16 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
 
         {hasTasteDNA && (
           <View style={styles.formatMini}>
-            <Text style={styles.formatText}>FİLM %{filmPercent}</Text>
+            <Text style={styles.formatText}>{translateUI("FİLM %")}{filmPercent}</Text>
             <View style={styles.formatTrack}><View style={[styles.formatFill, { width: `${filmPercent}%` }]} /></View>
-            <Text style={styles.formatText}>DİZİ %{100 - filmPercent}</Text>
+            <Text style={styles.formatText}>{translateUI("DİZİ %")}{100 - filmPercent}</Text>
           </View>
         )}
 
         <View style={styles.statsRow}>
-          <Stat icon={Heart} value={payload.likeCount} label="Beğeni" />
-          <Stat icon={Users} value={payload.friendCount} label="Arkadaş" />
-          <Stat icon={ListVideo} value={payload.listCount} label="Liste" />
+          <Stat icon={Heart} value={payload.likeCount} label={translateUI("Beğeni")} />
+          <Stat icon={Users} value={payload.friendCount} label={translateUI("Arkadaş")} />
+          <Stat icon={ListVideo} value={payload.listCount} label={translateUI("Liste")} />
         </View>
 
         {(payload.favoriteMovie?.title || payload.favoriteShow?.title) && (
@@ -278,7 +279,7 @@ function Stat({ icon: Icon, value, label }) {
     <View style={styles.stat}>
       <Icon size={12} color="rgba(255,255,255,0.66)" />
       <Text style={styles.statValue}>{Number(value || 0)}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel}>{translateUI(label)}</Text>
     </View>
   );
 }

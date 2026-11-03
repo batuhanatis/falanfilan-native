@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -194,30 +195,30 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Poster Puzzle" subtitle="Bugünün oyunu" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={translateUI("Poster Puzzle")} subtitle={translateUI("Bugünün oyunu")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={c.accent} />
-          <Text style={styles.loadingText}>Bugünün posteri hazırlanıyor…</Text>
+          <Text style={styles.loadingText}>{translateUI("Bugünün posteri hazırlanıyor…")}</Text>
         </View>
       ) : !puzzle ? (
         <View style={styles.center}>
           <Eye size={28} color={c.dim} />
-          <Text style={styles.emptyTitle}>Bugünkü bulmaca hazırlanamadı</Text>
-          <Text style={styles.emptyText}>Bağlantını kontrol edip biraz sonra tekrar deneyebilirsin.</Text>
+          <Text style={styles.emptyTitle}>{translateUI("Bugünkü bulmaca hazırlanamadı")}</Text>
+          <Text style={styles.emptyText}>{translateUI("Bağlantını kontrol edip biraz sonra tekrar deneyebilirsin.")}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <LinearGradient colors={["#6D28D9", "#4F46E5", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <View style={styles.heroGlow} />
             <Sparkles size={19} color="rgba(255,255,255,0.30)" style={styles.heroSparkle} />
-            <Text style={styles.heroEyebrow}>{puzzle.number ? `#${puzzle.number} · HERKESE AYNI POSTER` : "HER GÜN TEK POSTER"}</Text>
-            <Text style={styles.heroTitle}>{result ? (result.correct ? "Bildin! 🎉" : "Bugün olmadı") : "Bulanıklık açılmadan filmi bul"}</Text>
+            <Text style={styles.heroEyebrow}>{puzzle.number ? translateUI("#{0} · HERKESE AYNI POSTER", {0: puzzle.number}) : translateUI("HER GÜN TEK POSTER")}</Text>
+            <Text style={styles.heroTitle}>{result ? (result.correct ? translateUI("Bildin! 🎉") : translateUI("Bugün olmadı")) : translateUI("Bulanıklık açılmadan filmi bul")}</Text>
             <Text style={styles.heroSubtitle}>
               {result
-                ? (result.correct ? `${wrongCount + 1}. denemede doğru cevabı buldun.` : `Doğru cevap ${puzzle.target.title} idi.`)
-                : `Yanlış yaptıkça poster biraz daha netleşir. ${MAX_WRONG} hata hakkın var.`}
+                ? (result.correct ? translateUI("{0}. denemede doğru cevabı buldun.", {0: wrongCount + 1}) : translateUI("Doğru cevap {0} idi.", {0: puzzle.target.title}))
+                : translateUI("Yanlış yaptıkça poster biraz daha netleşir. {0} hata hakkın var.", {0: MAX_WRONG})}
             </Text>
           </LinearGradient>
 
@@ -226,14 +227,14 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
             {!result && (
               <View style={styles.blurBadge}>
                 <Eye size={12} color="#fff" />
-                <Text style={styles.blurBadgeText}>{wrongCount === 0 ? "Çok bulanık" : wrongCount === 1 ? "Biraz açıldı" : "Neredeyse net"}</Text>
+                <Text style={styles.blurBadgeText}>{wrongCount === 0 ? translateUI("Çok bulanık") : wrongCount === 1 ? translateUI("Biraz açıldı") : translateUI("Neredeyse net")}</Text>
               </View>
             )}
             {result && (
               <LinearGradient colors={["transparent", "rgba(0,0,0,0.86)"]} style={StyleSheet.absoluteFillObject}>
                 <View style={styles.revealCopy}>
                   <Text style={styles.revealTitle}>{puzzle.target.title}</Text>
-                  <Text style={styles.revealMeta}>{puzzle.target.year} · {puzzle.target.type}</Text>
+                  <Text style={styles.revealMeta}>{puzzle.target.year}{translateUI(" · ")}{translateUI(puzzle.target.type)}</Text>
                 </View>
               </LinearGradient>
             )}
@@ -247,10 +248,10 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
                     {i < wrongIds.size ? <X size={11} color="#fff" /> : <Text style={styles.attemptDotText}>{i + 1}</Text>}
                   </View>
                 ))}
-                <Text style={styles.attemptLabel}>{MAX_WRONG - wrongIds.size} hata hakkı kaldı</Text>
+                <Text style={styles.attemptLabel}>{MAX_WRONG - wrongIds.size}{translateUI(" hata hakkı kaldı")}</Text>
               </View>
 
-              <Text style={styles.question}>Bu poster hangisine ait?</Text>
+              <Text style={styles.question}>{translateUI("Bu poster hangisine ait?")}</Text>
               <View style={styles.options}>
                 {puzzle.options.map((option) => {
                   const wrong = wrongIds.has(option.id);
@@ -267,7 +268,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionTitle, wrong && { color: c.dim }]}>{option.title}</Text>
-                        <Text style={styles.optionMeta}>{option.year} · {option.type}</Text>
+                        <Text style={styles.optionMeta}>{option.year}{translateUI(" · ")}{translateUI(option.type)}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -277,19 +278,19 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
           ) : (
             <View style={styles.resultBlock}>
               <Text style={styles.squares}>{resultSquares(result)}</Text>
-              <Text style={styles.resultLabel}>{result.correct ? "Bugünün bulmacası tamamlandı" : "Yarın yeni bir poster gelecek"}</Text>
+              <Text style={styles.resultLabel}>{result.correct ? translateUI("Bugünün bulmacası tamamlandı") : translateUI("Yarın yeni bir poster gelecek")}</Text>
 
               <ShareFan
                 style={styles.shareBtn}
-                accessibilityLabel="Sonucumu paylaş"
+                accessibilityLabel={translateUI("Sonucumu paylaş")}
                 options={shareOptions({ message: shareText(puzzle, result), url: PUZZLE_SHARE_URL, copy: false, card: shareResult })}
               >
                 <Share2 size={16} color={c.bg} />
-                <Text style={styles.shareBtnText}>Sonucumu Paylaş</Text>
+                <Text style={styles.shareBtnText}>{translateUI("Sonucumu Paylaş")}</Text>
               </ShareFan>
               <TouchableOpacity style={styles.playMoreBtn} onPress={() => navigation.replace("PellixPlay")} activeOpacity={0.84}>
                 <Gamepad2 size={15} color={c.text} />
-                <Text style={styles.playMoreText}>Diğer Pellix Play Oyunları</Text>
+                <Text style={styles.playMoreText}>{translateUI("Diğer Pellix Play Oyunları")}</Text>
               </TouchableOpacity>
             </View>
           )}

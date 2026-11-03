@@ -16,10 +16,11 @@ if (enabled) {
 const colors = { bg: '#111', surface: '#222', surface2: '#333', text: '#fff', dim: '#aaa', accent: '#f0b429', border: '#444', danger: '#f44' };
 const fixtureOptions = { platforms: [{ id: 8, name: 'Netflix' }, { id: 9, name: 'Prime' }], friends: [{ id: 2, name: 'Deniz', username: 'deniz' }, { id: 3, name: 'Ece' }] };
 const flatten = node => typeof node === 'string' || typeof node === 'number' ? String(node) : (node?.children || []).map(flatten).join(' ');
-async function render({ premium = true, failPlan = false } = {}) {
+async function render({ premium = true, failPlan = false, language = "tr" } = {}) {
   const payloads = [], navigations = [];
   const mocks = {
     react: React,
+    '../i18n/core': { t: (value, params = {}) => typeof value === 'string' ? (language === 'en' ? (require('../src/i18n/en.json')[value] || value) : value).replace(/\{(\d+)\}/g, (match, key) => Object.hasOwn(params, key) ? String(params[key]) : match) : value, getLocale: () => 'tr-TR' },
     'react-native': { View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity', Image: 'Image', ActivityIndicator: 'ActivityIndicator', ScrollView: 'ScrollView', TextInput: 'TextInput', StyleSheet: { create: x => x } },
     '@react-navigation/native': { useFocusEffect: cb => React.useEffect(cb, [cb]) },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
@@ -82,4 +83,16 @@ test('API failure preserves the choices and offers retry', { skip: !enabled }, a
   const ui = await render({ failPlan: true }); for (let i=0;i<7;i++) await ui.tap('Devam et');
   await ui.tap('Netflix'); await ui.tap('Bu akşamı planla'); assert.match(ui.text(), /Ağ hatası/);
   await ui.tap('Bu akşamı planla'); assert.deepEqual(ui.payloads[0], ui.payloads[1]); await ui.close();
+});
+
+test('English planner labels preserve Turkish API type identifiers', { skip: !enabled }, async () => {
+  const ui = await render({ language: 'en' });
+  assert.match(ui.text(), /Who are you watching with tonight/);
+  for (let i = 0; i < 7; i++) await ui.tap('Continue');
+  await ui.tap('Netflix'); await ui.tap('Plan tonight');
+  assert.equal(ui.payloads[0].type, 'Film');
+  assert.equal(ui.payloads[0].company, 'solo');
+  assert.deepEqual(ui.payloads[0].providerIds, [8]);
+  assert.match(ui.text(), /Test Film/);
+  await ui.close();
 });

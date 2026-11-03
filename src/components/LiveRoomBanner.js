@@ -1,3 +1,4 @@
+import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, AccessibilityInfo } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -18,8 +19,8 @@ function timeOnly(iso) {
   if (Number.isNaN(d.getTime())) return null;
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  const hm = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  return sameDay ? `BU AKŞAM ${hm}` : `${upperTR(d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }))} ${hm}`;
+  const hm = d.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" });
+  return sameDay ? `BU AKŞAM ${hm}` : `${upperTR(d.toLocaleDateString(getLocale(), { day: "numeric", month: "long" }))} ${hm}`;
 }
 
 export default function LiveRoomBanner({ movieId, navigation }) {
@@ -68,7 +69,7 @@ export default function LiveRoomBanner({ movieId, navigation }) {
         activeOpacity={0.88}
         onPress={() => navigation.navigate("LiveRoom", { code: room.code })}
         accessibilityRole="button"
-        accessibilityLabel={`${live ? "Canlı sohbet" : "Sohbet odası"}: ${room.episodeLabel || room.title}. ${sub}. Odaya gir.`}
+        accessibilityLabel={translateUI("{0}: {1}. {2}. Odaya gir.", {0: live ? "Canlı sohbet" : "Sohbet odası",1: room.episodeLabel || room.title,2: sub})}
       >
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={styles.eyebrowRow}>
@@ -79,7 +80,7 @@ export default function LiveRoomBanner({ movieId, navigation }) {
           <Text style={styles.sub} numberOfLines={1}>{sub}</Text>
         </View>
         <View style={styles.cta}>
-          <Text style={styles.ctaText}>{live ? "Odaya gir" : "Göz at"}</Text>
+          <Text style={styles.ctaText}>{live ? translateUI("Odaya gir") : translateUI("Göz at")}</Text>
           <ChevronRight size={16} color="#1a140b" />
         </View>
       </TouchableOpacity>
