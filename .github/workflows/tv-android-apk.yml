@@ -1,0 +1,56 @@
+name: Pellix TV (Android TV APK)
+
+# tv/ klasöründeki Android TV uygulamasının test APK'sını derliyor. APK hata ayıklama anahtarıyla
+# imzalı: mağaza için değil, TV'ye elle kurup denemek için. Telefon uygulamasını etkilemiyor.
+
+on:
+  push:
+    branches: [claude/tv-app]
+    paths:
+      - 'tv/**'
+      - '.github/workflows/tv-android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android TV APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: tv
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tv/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Android project (TV)
+        run: EXPO_TV=1 npx expo prebuild --platform android --no-install --clean
+
+      - name: Build release APK
+        working-directory: tv/android
+        run: |
+          echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-tv-apk
+          path: tv/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14

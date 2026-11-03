@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Pellix TV",
+    "slug": "pellix-tv",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#14121a",
+    "android": {
+      "package": "com.batuhanatis.pellix.tv",
+      "versionCode": 1
+    },
+    "plugins": [
+      ["@react-native-tvos/config-tv", { "isTV": true, "androidTVBanner": "./assets/tv-banner.png" }],
+      "./plugins/withPlatformQueries",
+      "expo-font"
+    ]
+  }
+}

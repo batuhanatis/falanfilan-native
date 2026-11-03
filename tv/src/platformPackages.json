@@ -1,0 +1,8 @@
+{
+  "PLATFORM_PACKAGES": {
+    "Netflix": ["com.netflix.ninja", "com.netflix.mediaclient"],
+    "Disney Plus": ["com.disney.disneyplus"],
+    "HBO Max": ["com.wbd.stream", "com.hbo.hbonow"],
+    "Amazon Prime Video": ["com.amazon.amazonvideo.livingroom", "com.amazon.avod.thirdpartyclient"]
+  }
+}
