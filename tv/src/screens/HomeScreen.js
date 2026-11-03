@@ -17,6 +17,11 @@ import SeansBoard, { TRAILER_DWELL_MS } from "../components/SeansBoard";
 const PREVIEW_H = 190; // satırlardayken üstteki tanıtım şeridinin yüksekliği
 const AUTO_ADVANCE_MS = 9000; // kumandaya dokunulmadıkça (fragmanı olmayan) seçimde sıradakine geçiş
 const TRAILER_LOAD_TIMEOUT_MS = 12000; // oynatıcı bu sürede başlamazsa fragman yok sayılıyor
+// Kumandaya hiç dokunulmazsa pano en fazla bu kadar fragman oynatıp bu kadar kez sıradakine geçiyor,
+// sonra duruyor: kimse bakmıyorken TV'nin ekran koruyucusuna geçmesini engellemeyelim (Google
+// Play TV kuralı: kullanıcının başlatmadığı oynatma ambient modu engellememeli).
+const MAX_UNATTENDED_TRAILERS = 3;
+const MAX_UNATTENDED_ADVANCES = 10;
 const tagOf = (r) => (Platform.OS === "android" && r ? findNodeHandle(r) : null);
 
 // Kumanda tuşları: TV'de react-native-tvos'un olay dinleyicisi; tarayıcı ön izlemesinde klavye.
@@ -78,6 +83,8 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   interactedRef.current = interacted;
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  const unattended = useRef({ trailers: 0, advances: 0 });
+  const [resting, setResting] = useState(false); // dokunulmadan sınır doldu: pano duruyor
   // Android odak yolları için düğme kimlikleri (bkz. SeansBoard).
   const [signOutTag, setSignOutTag] = useState(null);
   const [primaryTag, setPrimaryTag] = useState(null);
@@ -160,8 +167,9 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
     const type = evt?.eventType;
     if (!type || type === "focus" || type === "blur") return;
     setInteracted(true);
+    setResting(false);
     const p = phaseRef.current;
-    if (p === "playing") setPhase("done");
+    if (p === "playing" || p === "ready") setPhase("done");
     else if (p === "waiting" || p === "loading") setPhase("idle");
   }, []);
   useRemoteKeys(onRemoteKey);
@@ -170,37 +178,50 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   // İçerikte 3 saniye durulunca fragman: pano görünürken (odak panoda, detay kapalı, uygulama önde).
   useEffect(() => {
     if (!canPlay) {
-      setPhase((p) => (p === "waiting" || p === "loading" || p === "playing" ? "idle" : p));
+      setPhase((p) => (p === "waiting" || p === "loading" || p === "ready" || p === "playing" ? "idle" : p));
       return undefined;
     }
-    if (phase === "idle" && currentTrailer?.key) setPhase("waiting");
+    if (phase === "idle" && currentTrailer?.key && !resting) setPhase("waiting");
     if (phase === "waiting") {
-      const t = setTimeout(() => setPhase("loading"), TRAILER_DWELL_MS);
+      const t = setTimeout(() => {
+        if (!interactedRef.current) unattended.current.trailers += 1;
+        setPhase("loading");
+      }, TRAILER_DWELL_MS);
       return () => clearTimeout(t);
     }
-    if (phase === "loading") {
+    if (phase === "loading" || phase === "ready") {
       const t = setTimeout(() => onTrailerError(), TRAILER_LOAD_TIMEOUT_MS);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [canPlay, phase, currentTrailer]);
+  }, [canPlay, phase, currentTrailer, resting]);
 
   // Kumandaya dokunulmadıkça pano 9 saniyede bir sıradakine geçiyor; kullanıcı bir şeye
   // dokunduğu an duruyor (izle düğmesi elinin altındayken içerik değişmesin).
   // Fragmanı olan seçimde geçiş fragman bitince oluyor (onTrailerEnded).
   useEffect(() => {
-    if (interacted || hidden || zone !== "board" || picks.length < 2) return undefined;
+    if (interacted || resting || hidden || zone !== "board" || picks.length < 2) return undefined;
     if (currentTrailer === undefined || (currentTrailer?.key && phase !== "done")) return undefined;
-    const timer = setTimeout(() => setPickIndex((i) => (i + 1) % picks.length), AUTO_ADVANCE_MS);
+    const timer = setTimeout(() => {
+      if (unattended.current.advances >= MAX_UNATTENDED_ADVANCES) { setResting(true); return; }
+      unattended.current.advances += 1;
+      setPickIndex((i) => (i + 1) % picks.length);
+    }, AUTO_ADVANCE_MS);
     return () => clearTimeout(timer);
-  }, [interacted, hidden, zone, picks.length, pickIndex, currentTrailer, phase]);
+  }, [interacted, resting, hidden, zone, picks.length, pickIndex, currentTrailer, phase]);
 
-  const onTrailerPlaying = useCallback(() => setPhase((p) => (p === "loading" ? "playing" : p)), []);
+  // Oynatıcı panonun arkasında hazır: pano kalkıyor, alan tamamen görününce oynatma başlıyor.
+  const onTrailerReady = useCallback(() => setPhase((p) => (p === "loading" ? "ready" : p)), []);
+  const onTrailerPlaying = useCallback(() => setPhase((p) => (p === "loading" || p === "ready" ? "playing" : p)), []);
   // Fragman bitince afişe dönülüyor; kumandaya hiç dokunulmadıysa pano sıradakine geçiyor
-  // (o da 3 saniye sonra kendi fragmanını oynatıyor).
+  // (o da 3 saniye sonra kendi fragmanını oynatıyor). Dokunulmadan oynanan fragman sınırı
+  // dolduysa pano duruyor.
   const onTrailerEnded = useCallback(() => {
     setPhase("done");
-    if (!interactedRef.current && picks.length > 1) setPickIndex((i) => (i + 1) % picks.length);
+    if (interactedRef.current || picks.length < 2) return;
+    if (unattended.current.trailers >= MAX_UNATTENDED_TRAILERS) { setResting(true); return; }
+    unattended.current.advances += 1;
+    setPickIndex((i) => (i + 1) % picks.length);
   }, [picks.length]);
   // Oynatılamayan fragman (YouTube'da gömülmeye kapalı vb.) bu oturumda "yok" sayılıyor.
   function onTrailerError() {
@@ -210,7 +231,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
 
   // Fragman oynarken (ya da başlamak üzereyken) geri tuşu yalnızca fragmanı durduruyor.
   useEffect(() => {
-    if (hidden || !(phase === "waiting" || phase === "loading" || phase === "playing")) return undefined;
+    if (hidden || !(phase === "waiting" || phase === "loading" || phase === "ready" || phase === "playing")) return undefined;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { setPhase("done"); return true; });
     return () => sub.remove();
   }, [hidden, phase]);
@@ -238,18 +259,19 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
     scrollTo((rowY.current[rowIndex] || 0) - PREVIEW_H);
   }, [scrollTo]);
 
-  // İzle'ye basınca fragman susuyor ve o seçimde bir daha kendiliğinden başlamıyor.
   // Fragman oynarken pano 16:9'a uzuyor; sayfayı panonun tamamı ekrana sığacak kadar kaydırıyoruz
   // (üst kenarı güvenli alanın başına). Fragman bitince başa dönülüyor.
   const boardY = useRef(0);
   const topBarIn = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (phase === "playing") scrollTo(boardY.current - SAFE_Y);
+    const revealed = phase === "ready" || phase === "playing";
+    if (revealed) scrollTo(boardY.current - SAFE_Y);
     else if (zone === "board") scrollTo(0);
     // Kayınca yarım kalan üst çubuk (logo, Çıkış) fragman boyunca gizli.
-    Animated.timing(topBarIn, { toValue: phase === "playing" ? 0 : 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(topBarIn, { toValue: revealed ? 0 : 1, duration: 300, useNativeDriver: true }).start();
   }, [phase, zone, scrollTo, topBarIn]);
 
+  // İzle'ye basınca fragman susuyor ve o seçimde bir daha kendiliğinden başlamıyor.
   const onWatch = useCallback((movie, link) => { setPhase("done"); setBoardStatus(watchAndDescribe(link)); }, []);
 
   // Marka adları düz büyük harf (NETFLIX, PRIME VIDEO), Türkçe İ değil.
@@ -311,6 +333,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
                   preferredFocus={boardPreferred}
                   trailer={currentTrailer}
                   phase={phase}
+                  onTrailerReady={onTrailerReady}
                   onTrailerPlaying={onTrailerPlaying}
                   onTrailerEnded={onTrailerEnded}
                   onTrailerError={onTrailerError}

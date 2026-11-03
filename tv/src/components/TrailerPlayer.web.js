@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 
 // Tarayıcı ön izlemesi için: aynı YouTube oynatıcısı, WebView yerine sayfanın içinde.
 // (Cihazdaki sürüm TrailerPlayer.js.) Tarayıcılar sesli otomatik oynatmayı engellediği için sessiz.
+// Cihazdaki gibi kendiliğinden oynamıyor: "ready" der, play=true gelince başlar.
 let apiReady = null;
 function loadYouTubeApi() {
   if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -16,10 +17,15 @@ function loadYouTubeApi() {
   return apiReady;
 }
 
-export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError }) {
+export default function TrailerPlayer({ videoKey, play, onReady, onPlaying, onEnded, onError }) {
   const host = useRef(null);
   const cb = useRef({});
-  cb.current = { onPlaying, onEnded, onError };
+  cb.current = { onReady, onPlaying, onEnded, onError };
+  const playerRef = useRef(null);
+  const readyRef = useRef(false);
+  const playProp = useRef(play);
+  playProp.current = play;
+  useEffect(() => { if (play && readyRef.current) playerRef.current?.playVideo(); }, [play]);
 
   useEffect(() => {
     let player = null;
@@ -32,11 +38,11 @@ export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError })
       const el = document.createElement("div");
       wrap.appendChild(el);
       host.current.appendChild(wrap);
-      player = new YT.Player(el, {
+      player = playerRef.current = new YT.Player(el, {
         width: "100%", height: "100%", videoId: videoKey,
-        playerVars: { autoplay: 1, mute: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1 },
+        playerVars: { autoplay: 0, mute: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1 },
         events: {
-          onReady: (e) => e.target.playVideo(),
+          onReady: (e) => { readyRef.current = true; cb.current.onReady?.(); if (playProp.current) e.target.playVideo(); },
           onStateChange: (e) => { if (e.data === 1) cb.current.onPlaying?.(); else if (e.data === 0) cb.current.onEnded?.(); },
           onError: (e) => cb.current.onError?.(e.data),
         },

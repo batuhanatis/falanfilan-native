@@ -68,6 +68,7 @@ export default function PairScreen({ onPaired }) {
         <View style={styles.steps}>
           <Text style={styles.step}><Text style={styles.stepNo}>1  </Text>Telefonunun kamerasıyla QR kodu okut.</Text>
           <Text style={styles.step}><Text style={styles.stepNo}>2  </Text>Açılan Pellix ekranında "Onayla"ya bas.</Text>
+          <Text style={styles.alt}>Telefonunda Pellix yok mu? open.pellix.app/tv adresine gir, kodu ve e-posta ile şifreni yaz.</Text>
         </View>
 
         {error ? (
@@ -107,6 +108,7 @@ const styles = StyleSheet.create({
   steps: { marginTop: 22, gap: 8 },
   step: { color: C.text, fontSize: 17 },
   stepNo: { fontFamily: FONTS.monoMedium, color: C.accent },
+  alt: { color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6, maxWidth: 420 },
   codeLabel: { fontFamily: FONTS.monoMedium, color: C.dim, fontSize: 12, letterSpacing: 2 },
   code: { fontFamily: FONTS.monoMedium, color: C.text, fontSize: 56, letterSpacing: 8, marginTop: 2 },
   expire: { fontFamily: FONTS.mono, color: C.dim, fontSize: 13, marginTop: 4 },

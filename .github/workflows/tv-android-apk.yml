@@ -1,7 +1,12 @@
 name: Pellix TV (Android TV APK)
 
-# tv/ klasöründeki Android TV uygulamasının test APK'sını derliyor. APK hata ayıklama anahtarıyla
-# imzalı: mağaza için değil, TV'ye elle kurup denemek için. Telefon uygulamasını etkilemiyor.
+# tv/ klasöründeki Android TV uygulamasını derliyor: TV'ye elle kurmak için APK ve Google Play'e
+# yüklemek için AAB. Telefon uygulamasını etkilemiyor.
+#
+# İmza: GitHub'da TV_UPLOAD_KEYSTORE_BASE64, TV_UPLOAD_STORE_PASSWORD, TV_UPLOAD_KEY_ALIAS ve
+# TV_UPLOAD_KEY_PASSWORD gizli değişkenleri tanımlıysa APK ve AAB o yükleme anahtarıyla
+# imzalanıyor (mağaza için). Tanımlı değilse hata ayıklama anahtarıyla (yalnızca elle kurulum
+# testi; bu AAB mağazaya yüklenemez). Bkz. tv/plugins/withReleaseSigning.js.
 
 on:
   push:
@@ -19,6 +24,8 @@ jobs:
     name: Build Android TV APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      HAS_UPLOAD_KEY: ${{ secrets.TV_UPLOAD_KEYSTORE_BASE64 != '' }}
     defaults:
       run:
         working-directory: tv
@@ -39,14 +46,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Google Play her yüklemede öncekinden büyük bir versionCode istiyor (bkz. tv/app.config.js).
+      - name: Version code
+        run: echo "TV_VERSION_CODE=$((1000000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
       - name: Generate Android project (TV)
         run: EXPO_TV=1 npx expo prebuild --platform android --no-install --clean
 
-      - name: Build release APK
+      - name: Upload key
+        if: env.HAS_UPLOAD_KEY == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.TV_UPLOAD_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+
+      - name: Build release APK and AAB
         working-directory: tv/android
+        env:
+          ORG_GRADLE_PROJECT_PELLIX_UPLOAD_STORE_FILE: ${{ env.HAS_UPLOAD_KEY == 'true' && format('{0}/upload.jks', runner.temp) || '' }}
+          ORG_GRADLE_PROJECT_PELLIX_UPLOAD_STORE_PASSWORD: ${{ secrets.TV_UPLOAD_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_PELLIX_UPLOAD_KEY_ALIAS: ${{ secrets.TV_UPLOAD_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_PELLIX_UPLOAD_KEY_PASSWORD: ${{ secrets.TV_UPLOAD_KEY_PASSWORD }}
         run: |
           echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g" >> gradle.properties
-          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+          ./gradlew assembleRelease bundleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Check native launcher module is in the APK
         working-directory: tv/android/app/build/outputs/apk/release
@@ -56,9 +78,30 @@ jobs:
           unzip -o -q app-release.apk 'classes*.dex' -d dex
           grep -l -a "expo/modules/platformlauncher/PlatformLauncherModule" dex/*.dex
 
+      - name: Summary
+        working-directory: tv/android/app/build/outputs
+        run: |
+          {
+            echo "### Pellix TV"
+            echo "- versionCode: \`$TV_VERSION_CODE\`"
+            if [ "$HAS_UPLOAD_KEY" = "true" ]; then
+              echo "- İmza: **yükleme anahtarı** (Google Play'e yüklenebilir)"
+            else
+              echo "- İmza: **hata ayıklama anahtarı** (yalnızca elle kurulum; AAB mağazaya yüklenemez)"
+            fi
+            echo "- Sertifika: \`$(keytool -printcert -jarfile apk/release/app-release.apk | grep -m1 'SHA256:' | tr -d ' \t')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: pellix-tv-apk
           path: tv/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: pellix-tv-aab
+          path: tv/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14

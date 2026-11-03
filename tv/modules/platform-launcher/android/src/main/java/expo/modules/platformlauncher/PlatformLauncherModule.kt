@@ -16,8 +16,10 @@ class PlatformLauncherModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("PlatformLauncher")
 
-    // Linki sırayla verilen paketlerde açmayı dener; hiçbiri açamazsa sistemin seçtiği uygulamada.
-    // Dönüş: "package:<ad>", "generic" ya da açılamadıysa null.
+    // Linki yalnızca verilen platform paketlerinde açar. Sistemin seçtiği uygulamaya (tarayıcıya)
+    // düşmüyoruz: Google Play TV kuralı tarayıcı açılmasını yasaklıyor (TV-WB); paket linki
+    // açamazsa JS tarafı platform uygulamasını ana ekranında açıyor.
+    // Dönüş: "package:<ad>" ya da açılamadıysa null.
     Function("openUrl") { url: String, packages: List<String>, extras: Map<String, String> ->
       val activity = appContext.throwingActivity
       for (pkg in packages) {
@@ -27,11 +29,6 @@ class PlatformLauncherModule : Module() {
           activity.startActivity(intent)
           return@Function "package:$pkg"
         }
-      }
-      val generic = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-      if (generic.resolveActivity(packageManager) != null) {
-        activity.startActivity(generic)
-        return@Function "generic"
       }
       null
     }

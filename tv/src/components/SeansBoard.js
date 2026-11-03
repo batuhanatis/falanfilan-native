@@ -128,7 +128,8 @@ function metaLine(movie) {
 }
 
 // Panodaki ekran: bulanık zeminin üstünde afiş. phase: idle → waiting (alt çizgi 3 sn'de doluyor)
-// → loading (oynatıcı panonun arkasında açılıyor) → playing (pano kalkıyor, fragman tüm alanda)
+// → loading (oynatıcı panonun arkasında hazırlanıyor, oynamıyor) → ready (pano kalkıyor, alan
+// 16:9'a uzuyor; tamamen görününce oynatma başlıyor) → playing (fragman tüm alanda)
 // → done. Fragman yoksa yalnızca afiş.
 function Screen({ movie, trailer, phase }) {
   const caption = !trailer?.key ? "" : phase === "waiting" ? "FRAGMAN BİRAZDAN" : phase === "loading" ? "FRAGMAN YÜKLENİYOR" : "";
@@ -138,7 +139,7 @@ function Screen({ movie, trailer, phase }) {
     if (phase === "waiting") {
       warm.setValue(0);
       Animated.timing(warm, { toValue: 1, duration: TRAILER_DWELL_MS, easing: Easing.linear, useNativeDriver: true }).start();
-    } else if (phase === "loading" || phase === "playing") {
+    } else if (phase === "loading" || phase === "ready" || phase === "playing") {
       warm.stopAnimation(); warm.setValue(1);
     } else {
       warm.stopAnimation(); warm.setValue(0);
@@ -170,7 +171,7 @@ const focusView = (r) => { if (r?.requestTVFocus) r.requestTVFocus(); else r?.fo
 // trailer: undefined (bakılıyor) | null (yok) | { key }. upTag: yukarı tuşunun gideceği düğme (Çıkış).
 export default function SeansBoard({
   selections, index, onIndexChange, onOpen, onWatch, onFocusBoard, onInteract, status, preferredFocus,
-  trailer, phase, onTrailerPlaying, onTrailerEnded, onTrailerError, onStopTrailer, upTag, onPrimaryTag,
+  trailer, phase, onTrailerReady, onTrailerPlaying, onTrailerEnded, onTrailerError, onStopTrailer, upTag, onPrimaryTag,
 }) {
   const [reduceMotion, setReduceMotion] = useState(true);
   const [nextTag, setNextTag] = useState(null);
@@ -187,6 +188,9 @@ export default function SeansBoard({
   const height = useRef(new Animated.Value(0)).current;
   const heightReady = useRef(false);
   const prevPhase = useRef(phase);
+  // Fragman alanı tamamen göründü mü (pano kalktı, 16:9'a uzandı): oynatma ancak o zaman başlıyor.
+  const [visibleForPlay, setVisibleForPlay] = useState(false);
+  const revealed = phase === "ready" || phase === "playing";
   const count = selections.length;
   const safeIndex = Math.min(index, Math.max(0, count - 1));
   const item = selections[safeIndex];
@@ -213,23 +217,25 @@ export default function SeansBoard({
   const videoH = boardW ? Math.round((boardW - 2) * 9 / 16) + 2 : 0; // 1 px kenarlık iki yanda
   useEffect(() => {
     if (!innerH) return;
-    const target = phase === "playing" && videoH ? videoH : innerH;
+    const target = revealed && videoH ? videoH : innerH;
     Animated.timing(height, {
-      toValue: target, duration: reduceMotion ? 0 : phase === "playing" ? 450 : 300,
+      toValue: target, duration: reduceMotion ? 0 : revealed ? 450 : 300,
       easing: Easing.out(Easing.cubic), useNativeDriver: false,
     }).start();
-  }, [phase, innerH, videoH, height, reduceMotion]);
+  }, [revealed, innerH, videoH, height, reduceMotion]);
 
   useEffect(() => {
-    const playing = phase === "playing";
-    Animated.timing(content, { toValue: playing ? 0 : 1, duration: reduceMotion ? 0 : playing ? 500 : 250, useNativeDriver: true }).start();
+    if (!revealed) setVisibleForPlay(false);
+    Animated.timing(content, { toValue: revealed ? 0 : 1, duration: reduceMotion ? 0 : revealed ? 500 : 250, useNativeDriver: true })
+      .start(({ finished }) => { if (finished && revealed) setVisibleForPlay(true); });
     // Fragman bitince/kesilince odak, yakalayıcıdan en son odaklanan düğmeye geri dönüyor.
-    if (prevPhase.current === "playing" && !playing) {
+    const wasRevealed = prevPhase.current === "ready" || prevPhase.current === "playing";
+    if (wasRevealed && !revealed) {
       const refs = { primary: primaryRef, detail: detailRef, next: nextRef };
       requestAnimationFrame(() => focusView((refs[lastFocused.current] || primaryRef).current || primaryRef.current));
     }
     prevPhase.current = phase;
-  }, [phase, content, reduceMotion]);
+  }, [phase, revealed, content, reduceMotion]);
 
   // Pano yüksekliği seçkideki en uzun başlığa göre sabit: seçim değişince düzen zıplamasın.
   const titleHeight = useMemo(
@@ -240,8 +246,7 @@ export default function SeansBoard({
   if (!movie) return null;
   const link = primaryWatchLink(movie);
   const focus = (name) => () => { lastFocused.current = name; onFocusBoard?.(); };
-  const playing = phase === "playing";
-  const showPlayer = !!trailer?.key && (phase === "loading" || playing);
+  const showPlayer = !!trailer?.key && (phase === "loading" || revealed);
   const press = (fn) => () => { onInteract?.(); fn(); };
 
   return (
@@ -249,7 +254,16 @@ export default function SeansBoard({
       style={[styles.board, innerH ? { height } : null]}
       onLayout={(e) => { const w = Math.round(e.nativeEvent.layout.width); if (w !== boardW) setBoardW(w); }}
     >
-      {showPlayer && <TrailerPlayer videoKey={trailer.key} onPlaying={onTrailerPlaying} onEnded={onTrailerEnded} onError={onTrailerError} />}
+      {showPlayer && (
+        <TrailerPlayer
+          videoKey={trailer.key}
+          play={revealed && visibleForPlay}
+          onReady={onTrailerReady}
+          onPlaying={onTrailerPlaying}
+          onEnded={onTrailerEnded}
+          onError={onTrailerError}
+        />
+      )}
       <Animated.View
         style={[styles.boardInner, { opacity: content }]}
         onLayout={(e) => {
@@ -308,7 +322,7 @@ export default function SeansBoard({
 
       {/* Fragman oynarken odak bu görünmez katmanda: ilk tuş hiçbir düğmeyi tetiklemeden ya da
           odağı kaydırmadan yalnızca fragmanı kesiyor (yön tuşları kendine dönüyor). */}
-      {playing && (
+      {revealed && (
         <Pressable
           ref={catcherRef}
           hasTVPreferredFocus

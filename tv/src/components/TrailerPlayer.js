@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { View, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
 
@@ -6,6 +6,9 @@ import { WebView } from "react-native-webview";
 // içi oynatıcılarda isteğin kimden geldiğini görmek istiyor; telefondaki gibi paket adını origin
 // olarak veriyoruz (bkz. falanfilan-native src/components/TrailerPlayerModal.js). Kontroller
 // kapalı: kumandanın herhangi bir tuşu fragmanı kesiyor (bkz. SeansBoard, HomeScreen).
+// Kendiliğinden oynamıyor: YouTube kuralına göre otomatik oynatma ancak oynatıcı görünürken
+// başlayabilir. Oynatıcı panonun arkasında hazırlanıp "ready" diyor; pano kalkıp video alanı
+// göründükten sonra play=true geliyor ve o zaman başlıyor.
 const APP_ORIGIN = "https://com.batuhanatis.pellix.tv";
 
 function playerHtml(videoKey) {
@@ -28,12 +31,14 @@ function playerHtml(videoKey) {
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     function send(type, value) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, value: value })); }
+    var player = null, ready = false, wantPlay = false;
+    window.__pellixPlay = function () { wantPlay = true; if (ready) player.playVideo(); };
     function onYouTubeIframeAPIReady() {
-      new YT.Player("player", {
+      player = new YT.Player("player", {
         width: "100%", height: "100%", videoId: ${safeKey},
-        playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, origin: ${safeOrigin}, widget_referrer: ${safeOrigin} },
+        playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, origin: ${safeOrigin}, widget_referrer: ${safeOrigin} },
         events: {
-          onReady: function (e) { e.target.playVideo(); },
+          onReady: function (e) { ready = true; send("ready"); if (wantPlay) e.target.playVideo(); },
           onStateChange: function (e) { if (e.data === 1) send("playing"); else if (e.data === 0) send("ended"); },
           onError: function (e) { send("error", e.data); }
         }
@@ -45,12 +50,18 @@ function playerHtml(videoKey) {
 </html>`;
 }
 
-export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError }) {
+export default function TrailerPlayer({ videoKey, play, onReady, onPlaying, onEnded, onError }) {
   const html = useMemo(() => playerHtml(videoKey), [videoKey]);
+  const web = useRef(null);
+  const playRef = useRef(play);
+  playRef.current = play;
+  const startPlayback = () => web.current?.injectJavaScript("window.__pellixPlay && window.__pellixPlay(); true;");
+  useEffect(() => { if (play) startPlayback(); }, [play]);
   const onMessage = (event) => {
     try {
       const m = JSON.parse(event.nativeEvent.data);
-      if (m.type === "playing") onPlaying?.();
+      if (m.type === "ready") { onReady?.(); if (playRef.current) startPlayback(); }
+      else if (m.type === "playing") onPlaying?.();
       else if (m.type === "ended") onEnded?.();
       else if (m.type === "error") onError?.(m.value);
     } catch { /* YouTube dışı mesajlar */ }
@@ -58,6 +69,7 @@ export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError })
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" importantForAccessibility="no-hide-descendants">
       <WebView
+        ref={web}
         source={{ html, baseUrl: APP_ORIGIN }}
         style={styles.web}
         originWhitelist={["https://*", "about:blank"]}
