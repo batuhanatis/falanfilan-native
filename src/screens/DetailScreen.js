@@ -8,6 +8,9 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { platformName, platformLogo } from "../utils/platform";
+import { watchOptions, openWatchOption } from "../utils/watchLinks";
+import { emitLocalEvent } from "../utils/localEvents";
+import { FONTS } from "../theme/fonts";
 import { avatarOr } from "../utils/avatar";
 import { hapticLight, hapticSuccess } from "../utils/haptics";
 import RetryImage from "../components/RetryImage";
@@ -39,6 +42,26 @@ export default function DetailScreen({ route, navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = makeStyles(c);
+
+  // "…'te izle" düğmeleri. Liste ekranlarından gelen içerik eski önbellekten geliyorsa
+  // watchLinks taşımıyor olabilir; o zaman içerik bir kez tazelenip linkler oradan alınıyor.
+  const [platforms, setPlatforms] = useState(movie.platforms);
+  const [watchLinks, setWatchLinks] = useState(movie.watchLinks);
+  useEffect(() => {
+    if (Array.isArray(movie.watchLinks) || !movie.id) return;
+    api.movieById(auth.token, movie.id)
+      .then((fresh) => {
+        setWatchLinks(Array.isArray(fresh?.watchLinks) ? fresh.watchLinks : []);
+        if (Array.isArray(fresh?.platforms)) setPlatforms(fresh.platforms);
+      })
+      .catch(() => {});
+  }, [movie.id]);
+
+  async function watch(option) {
+    hapticLight();
+    const ok = await openWatchOption(option);
+    if (!ok) emitLocalEvent({ type: "toast", title: translateUI("{0} açılamadı.", { 0: option.key }), message: "" });
+  }
 
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
@@ -329,15 +352,36 @@ export default function DetailScreen({ route, navigation }) {
 
           {!!movie.overview && <Text style={styles.overview}>{movie.overview}</Text>}
 
-          <View style={styles.platformsRow}>
-            {Array.isArray(movie.platforms) && movie.platforms.length > 0 ? (
-              movie.platforms.map((p, i) => {
-                const logo = platformLogo(p);
+          {Array.isArray(platforms) && platforms.length > 0 && (
+            <Text style={styles.watchSection}>{translateUI("NEREDE İZLENİR")}</Text>
+          )}
+          <View style={[styles.platformsRow, Array.isArray(platforms) && platforms.length > 0 && { marginTop: 8 }]}>
+            {Array.isArray(platforms) && platforms.length > 0 ? (
+              watchOptions(platforms, watchLinks).map((o, i) => {
+                const logo = platformLogo(o.platform);
+                // Açılacak adresi olmayan (bilinmeyen) platform yalnızca etiket.
+                if (!o.url) {
+                  return (
+                    <View key={o.key || i} style={styles.platformPill}>
+                      {logo && <Image source={{ uri: logo }} style={styles.platformPillLogo} />}
+                      <Text style={styles.platformPillText}>{platformName(o.platform)}</Text>
+                    </View>
+                  );
+                }
+                const primary = i === 0;
                 return (
-                  <View key={i} style={styles.platformPill}>
-                    {logo && <Image source={{ uri: logo }} style={styles.platformPillLogo} />}
-                    <Text style={styles.platformPillText}>{platformName(p)}</Text>
-                  </View>
+                  <TouchableOpacity
+                    key={o.key || i}
+                    style={[styles.watchBtn, primary && styles.watchBtnPrimary]}
+                    onPress={() => watch(o)}
+                    activeOpacity={0.85}
+                    accessibilityRole="link"
+                    accessibilityLabel={o.label}
+                  >
+                    {logo && <Image source={{ uri: logo }} style={styles.watchBtnLogo} />}
+                    <Text style={[styles.watchBtnText, primary && { color: "#1a140b" }]}>{o.label}</Text>
+                    <Play size={12} color={primary ? "#1a140b" : c.dim} fill={primary ? "#1a140b" : "none"} />
+                  </TouchableOpacity>
                 );
               })
             ) : (
@@ -576,6 +620,14 @@ function makeStyles(c) {
     overview: { fontSize: 13, color: c.dim, lineHeight: 20, marginTop: 14 },
     platformsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 14 },
     socialProofSection: { marginTop: 14 },
+    watchSection: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1, color: c.dim, marginTop: 16 },
+    watchBtn: {
+      flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: 999,
+      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2,
+    },
+    watchBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent },
+    watchBtnLogo: { width: 18, height: 18, borderRadius: 4, backgroundColor: "#fff" },
+    watchBtnText: { fontSize: 13, fontWeight: "700", color: c.text },
     platformPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
     platformPillLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     platformPillText: { fontSize: 11, color: c.text },
