@@ -1,20 +1,25 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, Animated, StyleSheet, AccessibilityInfo } from "react-native";
+import { View, Text, Image, Animated, Easing, StyleSheet, AccessibilityInfo, Platform, findNodeHandle } from "react-native";
 import { FONTS, upperTR } from "../theme";
 import FocusButton from "./FocusButton";
+import TrailerPlayer from "./TrailerPlayer";
 import { primaryWatchLink, watchButtonLabel } from "../platforms";
 
 // Telefondaki "Bu akşam senin için" panosunun TV hali (bkz. falanfilan-native
 // src/components/salon/SeansBoard.js). Gar/sinema seans panosu: başlık harf kutucuklarına
 // yazılıyor, sıradaki seçime geçince her kutu birkaç rastgele harften geçip yenisine dönüyor.
-// İçerik telefondakiyle aynı günlük seçki (API /api/me/home-hero). Pano fiziksel bir nesne,
-// hep koyu.
+// Sağda panoya gömülü bir "ekran": önce afiş; içerikte birkaç saniye durulunca alt kenarındaki
+// çizgi dolup fragman o ekranda başlıyor. İçerik telefondakiyle aynı günlük seçki
+// (API /api/me/home-hero). Pano fiziksel bir nesne, hep koyu.
 
 const CHARS = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ0123456789";
 // Başlık sığana kadar sırayla denenen pano boyutları (sütun × satır), telefonla aynı.
 const LAYOUTS = [[11, 2], [14, 2], [14, 3], [18, 3]];
 const GAP = 4;
-const TITLE_W = 520;
+const TITLE_W = 368;
+const SCREEN_W = 416;
+const SCREEN_H = 234; // 16:9
+export const TRAILER_DWELL_MS = 3000;
 const BOARD = { bg: "#0d0b0a", border: "#3a332b", top: "#2e2924", bottom: "#26221d", seam: "#070606", ink: "#f2ede2", gold: "#d4a94a", dim: "#a39684" };
 
 function splitLines(words, cols) {
@@ -56,6 +61,8 @@ const gridHeight = ({ cols, rows }) => rows * cellSize(cols).h + GAP * (rows - 1
 const boardTitle = (movie) => (String(movie?.originalLanguage || "").toLowerCase() === "tr"
   ? upperTR(movie?.title)
   : String(movie?.title || "").toUpperCase());
+
+const tagOf = (r) => (Platform.OS === "android" && r ? findNodeHandle(r) : null);
 
 const FlapCell = memo(function FlapCell({ char, delay, steps, size, reduceMotion, cycle }) {
   const [shown, setShown] = useState(char);
@@ -119,10 +126,61 @@ function metaLine(movie) {
     .filter(Boolean).map((part) => upperTR(part)).join("  ·  ");
 }
 
+// Panodaki ekran: afiş (bulanık zeminin üstünde) ya da fragman. phase:
+// idle → waiting (alt çizgi 3 sn'de doluyor) → loading (oynatıcı arkada açılıyor) → playing
+// (afiş kalkıyor) → done (afişe dönüldü). Fragman yoksa yalnızca afiş.
+function Screen({ movie, trailer, phase, reduceMotion, onPlaying, onEnded, onError }) {
+  const caption = !trailer?.key ? "" : phase === "waiting" ? "FRAGMAN BİRAZDAN" : phase === "loading" ? "FRAGMAN YÜKLENİYOR" : "";
+  const warm = useRef(new Animated.Value(0)).current;
+  const cover = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (phase === "waiting") {
+      warm.setValue(0);
+      Animated.timing(warm, { toValue: 1, duration: TRAILER_DWELL_MS, easing: Easing.linear, useNativeDriver: true }).start();
+    } else if (phase === "loading" || phase === "playing") {
+      warm.stopAnimation(); warm.setValue(1);
+    } else {
+      warm.stopAnimation(); warm.setValue(0);
+    }
+    Animated.timing(cover, { toValue: phase === "playing" ? 0 : 1, duration: reduceMotion ? 0 : 450, useNativeDriver: true }).start();
+  }, [phase, warm, cover, reduceMotion]);
+
+  const showPlayer = !!trailer?.key && (phase === "loading" || phase === "playing");
+  return (
+    <View style={styles.screen}>
+      {showPlayer && <TrailerPlayer videoKey={trailer.key} onPlaying={onPlaying} onEnded={onEnded} onError={onError} />}
+      <Animated.View style={[StyleSheet.absoluteFill, styles.cover, { opacity: cover }]} pointerEvents="none">
+        {movie.poster ? (
+          <>
+            <Image source={{ uri: movie.poster }} style={[StyleSheet.absoluteFill, { opacity: 0.55 }]} blurRadius={18} resizeMode="cover" />
+            <Image source={{ uri: movie.poster }} style={styles.screenPoster} />
+          </>
+        ) : <View style={[StyleSheet.absoluteFill, { backgroundColor: BOARD.top }]} />}
+      </Animated.View>
+      {!!caption && (
+        <Animated.View pointerEvents="none" style={[styles.captionBox, { opacity: cover }]}>
+          <Text style={styles.caption} numberOfLines={1}>{caption}</Text>
+        </Animated.View>
+      )}
+      {!!trailer?.key && (
+        <Animated.View pointerEvents="none" style={[styles.warm, { opacity: cover, transform: [{ scaleX: warm }] }]} />
+      )}
+    </View>
+  );
+}
+
 // selections: [{ movie, reason }]. onWatch(movie, link) platformu açar; onOpen(movie) detaya gider.
 // onFocusBoard: odak panoya gelince (liste en üste kaysın). status: izle düğmesinin sonucu.
-export default function SeansBoard({ selections, index, onIndexChange, onOpen, onWatch, onFocusBoard, onInteract, status, preferredFocus }) {
+// trailer: undefined (bakılıyor) | null (yok) | { key }. upTag: yukarı tuşunun gideceği düğme (Çıkış).
+export default function SeansBoard({
+  selections, index, onIndexChange, onOpen, onWatch, onFocusBoard, onInteract, status, preferredFocus,
+  trailer, phase, onTrailerPlaying, onTrailerEnded, onTrailerError, upTag, onPrimaryTag,
+}) {
   const [reduceMotion, setReduceMotion] = useState(true);
+  const [nextTag, setNextTag] = useState(null);
+  const primaryRef = useRef(null);
+  const nextRef = useRef(null);
   const count = selections.length;
   const safeIndex = Math.min(index, Math.max(0, count - 1));
   const item = selections[safeIndex];
@@ -133,6 +191,14 @@ export default function SeansBoard({ selections, index, onIndexChange, onOpen, o
     AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { if (mounted) setReduceMotion(v); }).catch(() => setReduceMotion(false));
     return () => { mounted = false; };
   }, []);
+
+  // Odak yolları (Android): düğmelerden yukarı Çıkış'a, en sağdaki düğmeden sağa hiçbir yere
+  // (fragman oynatıcısı bir WebView; odak içine kaçarsa kumanda takılır).
+  useEffect(() => {
+    onPrimaryTag?.(tagOf(primaryRef.current));
+    const t = tagOf(nextRef.current);
+    if (t !== nextTag) setNextTag(t);
+  });
 
   // Pano yüksekliği seçkideki en uzun başlığa göre sabit: seçim değişince düzen zıplamasın.
   const titleHeight = useMemo(
@@ -157,28 +223,50 @@ export default function SeansBoard({ selections, index, onIndexChange, onOpen, o
             <FlapGrid text={boardTitle(movie)} reduceMotion={reduceMotion} cycle={safeIndex} />
           </View>
           <Text style={styles.meta} numberOfLines={1}>{metaLine(movie)}</Text>
+          {!!movie.overview && <Text style={styles.overview} numberOfLines={3}>{movie.overview}</Text>}
           {status
-            ? <Text style={[styles.reason, status.tone === "error" && { color: "#e58a93" }]} numberOfLines={2}>{status.text}</Text>
-            : !!item.reason && <Text style={styles.reason} numberOfLines={2}>{item.reason}</Text>}
-          {/* Düğmeler sabit anahtarlı: pano kendi kendine sıradakine geçince odaktaki düğme
-              yeniden kurulmasın (TV'de odak kaybolurdu), yalnızca yazısı değişsin. */}
-          <View style={styles.actions}>
-            <FocusButton
-              key="primary"
-              label={link ? `▶  ${watchButtonLabel(link)}` : "Detayı aç"}
-              primary
-              hasTVPreferredFocus={preferredFocus}
-              onFocus={focus}
-              onPress={press(() => (link ? onWatch(movie, link) : onOpen(movie)))}
-              style={styles.btn}
-            />
-            {!!link && <FocusButton key="detail" label="Detay" onFocus={focus} onPress={press(() => onOpen(movie))} style={styles.btn} />}
-            {count > 1 && <FocusButton key="next" label="Sıradaki  ›" onFocus={focus} onPress={press(() => onIndexChange((safeIndex + 1) % count))} style={styles.btn} />}
-          </View>
+            ? <Text style={[styles.reason, status.tone === "error" && { color: "#e58a93" }]} numberOfLines={1}>{status.text}</Text>
+            : phase === "playing"
+              ? <Text style={styles.reason} numberOfLines={1}>▶  FRAGMAN OYNUYOR  ·  GERİ TUŞU DURDURUR</Text>
+              : !!item.reason && <Text style={styles.reason} numberOfLines={1}>{item.reason}</Text>}
         </View>
-        {movie.poster
-          ? <Image source={{ uri: movie.poster }} style={styles.poster} />
-          : <View style={[styles.poster, { backgroundColor: BOARD.top }]} />}
+        <Screen
+          movie={movie}
+          trailer={trailer}
+          phase={phase}
+          reduceMotion={reduceMotion}
+          onPlaying={onTrailerPlaying}
+          onEnded={onTrailerEnded}
+          onError={onTrailerError}
+        />
+      </View>
+      {/* Düğmeler sabit anahtarlı: pano kendi kendine sıradakine geçince odaktaki düğme
+          yeniden kurulmasın (TV'de odak kaybolurdu), yalnızca yazısı değişsin. */}
+      <View style={styles.actions}>
+        <FocusButton
+          key="primary"
+          ref={primaryRef}
+          label={link ? `▶  ${watchButtonLabel(link)}` : "Detayı aç"}
+          primary
+          hasTVPreferredFocus={preferredFocus}
+          onFocus={focus}
+          onPress={press(() => (link ? onWatch(movie, link) : onOpen(movie)))}
+          nextFocusUp={upTag}
+          style={styles.btn}
+        />
+        {!!link && <FocusButton key="detail" label="Detay" onFocus={focus} onPress={press(() => onOpen(movie))} nextFocusUp={upTag} style={styles.btn} />}
+        {count > 1 && (
+          <FocusButton
+            key="next"
+            ref={nextRef}
+            label="Sıradaki  ›"
+            onFocus={focus}
+            onPress={press(() => onIndexChange((safeIndex + 1) % count))}
+            nextFocusUp={upTag}
+            nextFocusRight={nextTag}
+            style={styles.btn}
+          />
+        )}
       </View>
     </View>
   );
@@ -187,19 +275,25 @@ export default function SeansBoard({ selections, index, onIndexChange, onOpen, o
 const styles = StyleSheet.create({
   board: {
     backgroundColor: BOARD.bg, borderRadius: 22, borderWidth: 1, borderColor: BOARD.border,
-    paddingHorizontal: 26, paddingTop: 20, paddingBottom: 22,
+    paddingHorizontal: 26, paddingTop: 18, paddingBottom: 20,
   },
-  boardTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  boardTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   boardLabel: { fontFamily: FONTS.monoMedium, fontSize: 12, color: BOARD.gold, letterSpacing: 1.6 },
-  body: { flexDirection: "row", gap: 32 },
+  body: { flexDirection: "row", gap: 28 },
   left: { flex: 1, minWidth: 0 },
   cell: { borderRadius: 4, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   cellHalf: { position: "absolute", left: 0, right: 0, top: 0 },
   cellText: { fontFamily: FONTS.marqueeBold, color: BOARD.ink, textAlign: "center", includeFontPadding: false },
   seam: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: BOARD.seam },
-  meta: { fontFamily: FONTS.mono, fontSize: 13, color: BOARD.dim, letterSpacing: 0.6, marginTop: 14 },
-  reason: { color: BOARD.dim, fontSize: 16, lineHeight: 22, marginTop: 6 },
+  meta: { fontFamily: FONTS.mono, fontSize: 12.5, color: BOARD.dim, letterSpacing: 0.6, marginTop: 12 },
+  overview: { color: BOARD.ink, opacity: 0.86, fontSize: 15, lineHeight: 20, marginTop: 7 },
+  reason: { color: BOARD.gold, fontSize: 14, lineHeight: 19, marginTop: 7 },
   actions: { flexDirection: "row", marginTop: 16 },
   btn: { marginRight: 12 },
-  poster: { width: 160, height: 240, borderRadius: 10 },
+  screen: { width: SCREEN_W, height: SCREEN_H, borderRadius: 12, overflow: "hidden", backgroundColor: "#000", borderWidth: 1, borderColor: BOARD.border },
+  screenPoster: { position: "absolute", top: 0, bottom: 0, left: (SCREEN_W - SCREEN_H * (2 / 3)) / 2, width: SCREEN_H * (2 / 3) },
+  warm: { position: "absolute", left: 0, right: 0, bottom: 0, height: 3, backgroundColor: BOARD.gold, transformOrigin: "left" },
+  cover: { backgroundColor: "#000" },
+  captionBox: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(13,11,10,0.78)" },
+  caption: { fontFamily: FONTS.monoMedium, fontSize: 11, color: BOARD.gold, letterSpacing: 1.4 },
 });

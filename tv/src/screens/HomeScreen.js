@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, Image, ScrollView, FlatList, StyleSheet, ActivityIndicator, Animated, AppState } from "react-native";
+import { View, Text, Image, ScrollView, FlatList, StyleSheet, ActivityIndicator, Animated, AppState, BackHandler, Platform, findNodeHandle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../api";
 import { C, FONTS, SAFE_X, SAFE_Y, upperTR } from "../theme";
 import { platformLabel, watchAndDescribe } from "../platforms";
 import Poster from "../components/Poster";
 import FocusButton from "../components/FocusButton";
-import SeansBoard from "../components/SeansBoard";
+import SeansBoard, { TRAILER_DWELL_MS } from "../components/SeansBoard";
 
 // Telefondaki ana ekranın TV hali. En üstte telefondaki "Bu akşam senin için" panosu, büyük:
-// aynı günlük seçki, "Netflix'te izle" düğmesiyle. Altında kumandayla gezilen satırlar; odak
-// satırlara inince pano yukarı kayıyor ve üstte odaktaki afişin kısa tanıtımı çıkıyor. AI modu yok.
+// aynı günlük seçki, konusu ve "Netflix'te izle" düğmesiyle; içerikte 3 saniye durulunca fragmanı
+// panonun ekranında oynuyor. Altında kumandayla gezilen satırlar; odak satırlara inince pano yukarı
+// kayıyor ve üstte odaktaki afişin kısa tanıtımı çıkıyor. AI modu yok.
 
 const PREVIEW_H = 190; // satırlardayken üstteki tanıtım şeridinin yüksekliği
-const AUTO_ADVANCE_MS = 9000; // kumandaya dokunulmadıkça pano kendi kendine sıradakine geçiyor
+const AUTO_ADVANCE_MS = 9000; // kumandaya dokunulmadıkça (fragmanı olmayan) seçimde sıradakine geçiş
+const TRAILER_LOAD_TIMEOUT_MS = 12000; // oynatıcı bu sürede başlamazsa fragman yok sayılıyor
+const tagOf = (r) => (Platform.OS === "android" && r ? findNodeHandle(r) : null);
 
 function interleave(a = [], b = []) {
   const out = [];
@@ -55,6 +58,19 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const scrollRef = useRef(null);
   const rowY = useRef({});
   const boardFocusCount = useRef(0);
+  // Fragman: içerik id'si → { key } | null (yok). Henüz bakılmadıysa anahtar yok (undefined).
+  const [trailers, setTrailers] = useState({});
+  const requestedTrailers = useRef(new Set());
+  // idle → waiting (3 sn) → loading → playing → done. Seçim değişince idle'a dönüyor.
+  const [phase, setPhase] = useState("idle");
+  const [appActive, setAppActive] = useState(AppState.currentState === "active" || AppState.currentState == null);
+  const interactedRef = useRef(false);
+  interactedRef.current = interacted;
+  // Android odak yolları için düğme kimlikleri (bkz. SeansBoard).
+  const [signOutTag, setSignOutTag] = useState(null);
+  const [primaryTag, setPrimaryTag] = useState(null);
+  const signOutRef = useCallback((r) => { const t = tagOf(r); setSignOutTag((old) => (old === t ? old : t)); }, []);
+  const onPrimaryTag = useCallback((t) => setPrimaryTag((old) => (old === t ? old : t)), []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,20 +113,81 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
 
   useEffect(() => { load(); }, [load]);
 
-  // Kumandaya dokunulmadıkça pano 9 saniyede bir sıradakine geçiyor; kullanıcı bir şeye
-  // dokunduğu an duruyor (izle düğmesi elinin altındayken içerik değişmesin).
-  useEffect(() => {
-    if (interacted || hidden || zone !== "board" || picks.length < 2) return undefined;
-    const timer = setInterval(() => setPickIndex((i) => (i + 1) % picks.length), AUTO_ADVANCE_MS);
-    return () => clearInterval(timer);
-  }, [interacted, hidden, zone, picks.length]);
-
-  useEffect(() => { setBoardStatus(null); }, [pickIndex]);
+  useEffect(() => { setBoardStatus(null); setPhase("idle"); }, [pickIndex]);
   // Platform uygulamasından geri dönünce izle düğmesinin durum yazısını temizle.
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (s) => { if (s === "active") setBoardStatus(null); });
+    const sub = AppState.addEventListener("change", (s) => {
+      setAppActive(s === "active");
+      if (s === "active") setBoardStatus(null);
+    });
     return () => sub.remove();
   }, []);
+
+  // Fragmanlar: o anki seçimin ve bir sonrakinin fragmanına önceden bakıyoruz.
+  const pickAt = (i) => picks[((i % picks.length) + picks.length) % picks.length];
+  useEffect(() => {
+    if (!picks.length) return;
+    [pickAt(pickIndex), pickAt(pickIndex + 1)].forEach((p) => {
+      const id = p?.movie?.id;
+      if (id == null || requestedTrailers.current.has(id)) return;
+      requestedTrailers.current.add(id);
+      api.trailer(auth.token, id)
+        .then((r) => setTrailers((m) => ({ ...m, [id]: r.trailer?.key ? r.trailer : null })))
+        .catch(() => setTrailers((m) => ({ ...m, [id]: null })));
+    });
+  }, [picks, pickIndex, auth.token]);
+
+  const currentId = picks.length ? pickAt(pickIndex)?.movie?.id : null;
+  const currentTrailer = currentId == null ? null : trailers[currentId];
+  const canPlay = zone === "board" && !hidden && appActive;
+
+  // İçerikte 3 saniye durulunca fragman: pano görünürken (odak panoda, detay kapalı, uygulama önde).
+  useEffect(() => {
+    if (!canPlay) {
+      setPhase((p) => (p === "waiting" || p === "loading" || p === "playing" ? "idle" : p));
+      return undefined;
+    }
+    if (phase === "idle" && currentTrailer?.key) setPhase("waiting");
+    if (phase === "waiting") {
+      const t = setTimeout(() => setPhase("loading"), TRAILER_DWELL_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === "loading") {
+      const t = setTimeout(() => onTrailerError(), TRAILER_LOAD_TIMEOUT_MS);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [canPlay, phase, currentTrailer]);
+
+  // Kumandaya dokunulmadıkça pano 9 saniyede bir sıradakine geçiyor; kullanıcı bir şeye
+  // dokunduğu an duruyor (izle düğmesi elinin altındayken içerik değişmesin).
+  // Fragmanı olan seçimde geçiş fragman bitince oluyor (onTrailerEnded).
+  useEffect(() => {
+    if (interacted || hidden || zone !== "board" || picks.length < 2) return undefined;
+    if (currentTrailer === undefined || (currentTrailer?.key && phase !== "done")) return undefined;
+    const timer = setTimeout(() => setPickIndex((i) => (i + 1) % picks.length), AUTO_ADVANCE_MS);
+    return () => clearTimeout(timer);
+  }, [interacted, hidden, zone, picks.length, pickIndex, currentTrailer, phase]);
+
+  const onTrailerPlaying = useCallback(() => setPhase((p) => (p === "loading" ? "playing" : p)), []);
+  // Fragman bitince afişe dönülüyor; kumandaya hiç dokunulmadıysa pano sıradakine geçiyor
+  // (o da 3 saniye sonra kendi fragmanını oynatıyor).
+  const onTrailerEnded = useCallback(() => {
+    setPhase("done");
+    if (!interactedRef.current && picks.length > 1) setPickIndex((i) => (i + 1) % picks.length);
+  }, [picks.length]);
+  // Oynatılamayan fragman (YouTube'da gömülmeye kapalı vb.) bu oturumda "yok" sayılıyor.
+  function onTrailerError() {
+    if (currentId != null) setTrailers((m) => ({ ...m, [currentId]: null }));
+    setPhase("done");
+  }
+
+  // Fragman oynarken (ya da başlamak üzereyken) geri tuşu yalnızca fragmanı durduruyor.
+  useEffect(() => {
+    if (hidden || !(phase === "waiting" || phase === "loading" || phase === "playing")) return undefined;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { setPhase("done"); return true; });
+    return () => sub.remove();
+  }, [hidden, phase]);
 
   useEffect(() => {
     Animated.timing(previewIn, { toValue: zone === "rows" ? 1 : 0, duration: 180, useNativeDriver: true }).start();
@@ -137,7 +214,8 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
     scrollTo((rowY.current[rowIndex] || 0) - PREVIEW_H);
   }, [scrollTo]);
 
-  const onWatch = useCallback((movie, link) => setBoardStatus(watchAndDescribe(link)), []);
+  // İzle'ye basınca fragman susuyor ve o seçimde bir daha kendiliğinden başlamıyor.
+  const onWatch = useCallback((movie, link) => { setPhase("done"); setBoardStatus(watchAndDescribe(link)); }, []);
 
   // Marka adları düz büyük harf (NETFLIX, PRIME VIDEO), Türkçe İ değil.
   const previewPlatforms = (preview?.platforms || []).map((p) => platformLabel(p.name).name.toUpperCase()).join("  ·  ");
@@ -150,7 +228,14 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
       <Text style={styles.logo}>pellix</Text>
       <View style={styles.topRight}>
         {!!auth.user?.name && <Text style={styles.user}>{upperTR(auth.user.name)}</Text>}
-        <FocusButton label="Çıkış" onPress={() => onSignOut(false)} onFocus={() => { setZone("board"); scrollTo(0); }} style={styles.signOut} />
+        <FocusButton
+          ref={signOutRef}
+          label="Çıkış"
+          onPress={() => onSignOut(false)}
+          onFocus={() => { setZone("board"); scrollTo(0); }}
+          nextFocusDown={picks.length ? primaryTag : null}
+          style={styles.signOut}
+        />
       </View>
     </View>
   );
@@ -189,6 +274,13 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
                   onInteract={() => setInteracted(true)}
                   status={boardStatus}
                   preferredFocus={boardPreferred}
+                  trailer={currentTrailer}
+                  phase={phase}
+                  onTrailerPlaying={onTrailerPlaying}
+                  onTrailerEnded={onTrailerEnded}
+                  onTrailerError={onTrailerError}
+                  upTag={signOutTag}
+                  onPrimaryTag={onPrimaryTag}
                 />
               </View>
             )}

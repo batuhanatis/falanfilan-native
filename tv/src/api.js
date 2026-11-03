@@ -27,6 +27,8 @@ export const api = {
   trending: (token, type) => request(`/api/trending?type=${type}`, { token }),
   // Telefondaki "Bu akşam senin için" panosunun günlük seçkisi (telefon yazıyor).
   homeHero: (token) => request("/api/me/home-hero", { token }),
+  // Panonun ekranında oynayan fragman: { trailer: { key, name, ... } | null } (YouTube).
+  trailer: (token, id) => request(`/api/movies/${id}/trailer`, { token }),
 };
 
 export async function loadAuth() {
