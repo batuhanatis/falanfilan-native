@@ -33,6 +33,7 @@ import MyWatchlistsScreen from "../screens/MyWatchlistsScreen";
 import ChatConversationScreen from "../screens/ChatConversationScreen";
 import SharedItemScreen from "../screens/SharedItemScreen";
 import LiveRoomScreen from "../screens/LiveRoomScreen";
+import TvPairScreen from "../screens/TvPairScreen";
 import GlobalPopups from "../components/GlobalPopups";
 
 const Stack = createNativeStackNavigator();
@@ -47,7 +48,7 @@ export default function RootNavigator() {
 
   const linking = {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
-    config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token", LiveRoom: "oda/:code" } },
+    config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token", LiveRoom: "oda/:code", TvPair: "tv/:code" } },
     getStateFromPath: (path, options) => {
       // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
       // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
@@ -62,6 +63,9 @@ export default function RootNavigator() {
       // Canlı sohbet odası linki: open.pellix.app/oda/<kod> ya da pellix://oda/<kod>.
       const roomMatch = path.match(/^\/?oda\/([^/?]+)/);
       if (roomMatch) return { routes: [{ name: "MainTabs" }, { name: "LiveRoom", params: { code: decodeURIComponent(roomMatch[1]) } }] };
+      // TV eşleştirme: TV'deki QR open.pellix.app/tv/<kod> açıyor, sayfa pellix://tv/<kod>'a yönlendiriyor.
+      const tvMatch = path.match(/^\/?tv\/([^/?]+)/);
+      if (tvMatch) return { routes: [{ name: "MainTabs" }, { name: "TvPair", params: { code: decodeURIComponent(tvMatch[1]) } }] };
       const partyMatch = path.match(/^\/?party\/([^/?]+)/);
       if (partyMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyMatch[1]) } }] };
       return defaultGetStateFromPath(path, options);
@@ -77,6 +81,7 @@ export default function RootNavigator() {
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="SharedItem" component={SharedItemScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="LiveRoom" component={LiveRoomScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="TvPair" component={TvPairScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="ProfileChat" component={ChatConversationScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ presentation: "card" }} />

@@ -211,6 +211,8 @@ export const api = {
   banFromLiveRoom: (token, code, userId) =>
     request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId } }),
   liveRooms: (token) => request("/api/live-rooms", { token }),
+  // TV eşleştirme: TV ekranındaki kodu onaylayınca o TV hesapla açılıyor (bkz. TvPairScreen).
+  approveTvPair: (token, code) => request("/api/tv/pair/approve", { method: "POST", token, body: { code } }),
   // kind: "mute" (minutes boşsa oda boyunca) | "kick" (odadan at).
   restrictInLiveRoom: (token, code, userId, { kind, minutes } = {}) =>
     request(`/api/live-rooms/${encodeURIComponent(code)}/bans`, { method: "POST", token, body: { userId, kind, minutes } }),
