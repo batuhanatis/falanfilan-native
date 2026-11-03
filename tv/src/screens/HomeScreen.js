@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import * as RN from "react-native";
 import { View, Text, Image, ScrollView, FlatList, StyleSheet, ActivityIndicator, Animated, AppState, BackHandler, Platform, findNodeHandle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../api";
@@ -17,6 +18,16 @@ const PREVIEW_H = 190; // satırlardayken üstteki tanıtım şeridinin yüksekl
 const AUTO_ADVANCE_MS = 9000; // kumandaya dokunulmadıkça (fragmanı olmayan) seçimde sıradakine geçiş
 const TRAILER_LOAD_TIMEOUT_MS = 12000; // oynatıcı bu sürede başlamazsa fragman yok sayılıyor
 const tagOf = (r) => (Platform.OS === "android" && r ? findNodeHandle(r) : null);
+
+// Kumanda tuşları: TV'de react-native-tvos'un olay dinleyicisi; tarayıcı ön izlemesinde klavye.
+function useWebKeys(handler) {
+  useEffect(() => {
+    const onKey = (e) => handler({ eventType: e.key });
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handler]);
+}
+const useRemoteKeys = RN.useTVEventHandler || useWebKeys;
 
 function interleave(a = [], b = []) {
   const out = [];
@@ -57,7 +68,6 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const previewIn = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef(null);
   const rowY = useRef({});
-  const boardFocusCount = useRef(0);
   // Fragman: içerik id'si → { key } | null (yok). Henüz bakılmadıysa anahtar yok (undefined).
   const [trailers, setTrailers] = useState({});
   const requestedTrailers = useRef(new Set());
@@ -66,6 +76,8 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const [appActive, setAppActive] = useState(AppState.currentState === "active" || AppState.currentState == null);
   const interactedRef = useRef(false);
   interactedRef.current = interacted;
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   // Android odak yolları için düğme kimlikleri (bkz. SeansBoard).
   const [signOutTag, setSignOutTag] = useState(null);
   const [primaryTag, setPrimaryTag] = useState(null);
@@ -141,6 +153,20 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   const currentTrailer = currentId == null ? null : trailers[currentId];
   const canPlay = zone === "board" && !hidden && appActive;
 
+  // Kumandanın herhangi bir tuşu: fragman oynuyorsa keser (pano geri gelir, o seçimde bir daha
+  // kendiliğinden başlamaz); geri sayım sürüyorsa 3 saniyeyi baştan başlatır ("3 saniye
+  // dokunulmazsa" kuralı). Hiç dokunulmadıysa pano kendi kendine sıradakine de geçiyor.
+  const onRemoteKey = useCallback((evt) => {
+    const type = evt?.eventType;
+    if (!type || type === "focus" || type === "blur") return;
+    setInteracted(true);
+    const p = phaseRef.current;
+    if (p === "playing") setPhase("done");
+    else if (p === "waiting" || p === "loading") setPhase("idle");
+  }, []);
+  useRemoteKeys(onRemoteKey);
+  const onStopTrailer = useCallback(() => { setInteracted(true); setPhase("done"); }, []);
+
   // İçerikte 3 saniye durulunca fragman: pano görünürken (odak panoda, detay kapalı, uygulama önde).
   useEffect(() => {
     if (!canPlay) {
@@ -199,8 +225,6 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
   }, []);
 
   const onFocusBoard = useCallback(() => {
-    boardFocusCount.current += 1;
-    if (boardFocusCount.current > 1) setInteracted(true);
     setZone("board");
     scrollTo(0);
   }, [scrollTo]);
@@ -279,6 +303,7 @@ export default function HomeScreen({ auth, onOpen, onSignOut, preferred, hidden 
                   onTrailerPlaying={onTrailerPlaying}
                   onTrailerEnded={onTrailerEnded}
                   onTrailerError={onTrailerError}
+                  onStopTrailer={onStopTrailer}
                   upTag={signOutTag}
                   onPrimaryTag={onPrimaryTag}
                 />

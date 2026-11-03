@@ -2,10 +2,10 @@ import React, { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
 import { WebView } from "react-native-webview";
 
-// Panonun ekranında oynayan YouTube fragmanı. YouTube, uygulama içi oynatıcılarda isteğin kimden
-// geldiğini görmek istiyor; telefondaki gibi paket adını origin olarak veriyoruz (bkz.
-// falanfilan-native src/components/TrailerPlayerModal.js). Kontroller kapalı: TV'de kumanda
-// pano düğmelerinde kalıyor, fragmanı geri tuşu durduruyor.
+// Panonun tamamında oynayan YouTube fragmanı (alanı doldurur, kenarları kırpar). YouTube, uygulama
+// içi oynatıcılarda isteğin kimden geldiğini görmek istiyor; telefondaki gibi paket adını origin
+// olarak veriyoruz (bkz. falanfilan-native src/components/TrailerPlayerModal.js). Kontroller
+// kapalı: kumandanın herhangi bir tuşu fragmanı kesiyor (bkz. SeansBoard, HomeScreen).
 const APP_ORIGIN = "https://com.batuhanatis.pellix.tv";
 
 function playerHtml(videoKey) {
@@ -16,10 +16,15 @@ function playerHtml(videoKey) {
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <style>html,body,#player{width:100%;height:100%;margin:0;padding:0;background:#000;overflow:hidden}</style>
+  <style>
+    html,body{width:100%;height:100%;margin:0;padding:0;background:#000;overflow:hidden}
+    /* 16:9 videoyu alanı dolduracak kadar büyütüp ortalıyoruz (kenarlar kırpılıyor, siyah bant yok). */
+    #wrap{position:absolute;left:50%;top:50%;width:max(100vw,177.78vh);height:max(56.25vw,100vh);transform:translate(-50%,-50%)}
+    #player{width:100%;height:100%}
+  </style>
 </head>
 <body>
-  <div id="player"></div>
+  <div id="wrap"><div id="player"></div></div>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     function send(type, value) { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type, value: value })); }

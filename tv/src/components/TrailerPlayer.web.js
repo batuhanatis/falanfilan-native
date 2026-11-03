@@ -26,8 +26,12 @@ export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError })
     let cancelled = false;
     loadYouTubeApi().then((YT) => {
       if (cancelled || !host.current) return;
+      // 16:9 videoyu alanı dolduracak kadar büyütüp ortala (cihazdaki sürümle aynı kırpma).
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "position:absolute;left:50%;top:50%;width:max(100cqw,177.78cqh);height:max(56.25cqw,100cqh);transform:translate(-50%,-50%)";
       const el = document.createElement("div");
-      host.current.appendChild(el);
+      wrap.appendChild(el);
+      host.current.appendChild(wrap);
       player = new YT.Player(el, {
         width: "100%", height: "100%", videoId: videoKey,
         playerVars: { autoplay: 1, mute: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1 },
@@ -43,6 +47,6 @@ export default function TrailerPlayer({ videoKey, onPlaying, onEnded, onError })
 
   return React.createElement("div", {
     ref: host,
-    style: { position: "absolute", inset: 0, background: "#000", pointerEvents: "none" },
+    style: { position: "absolute", inset: 0, background: "#000", pointerEvents: "none", overflow: "hidden", containerType: "size" },
   });
 }
