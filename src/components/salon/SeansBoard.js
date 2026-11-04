@@ -1,10 +1,11 @@
 import { useIsFocused } from "@react-navigation/native";
 import { t as translateUI, getLanguage } from "../../i18n/core";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, TouchableOpacity, Animated, ScrollView, StyleSheet, AccessibilityInfo, AppState } from "react-native";
+import { View, Text, Image, TouchableOpacity, Animated, ScrollView, StyleSheet, AccessibilityInfo, AppState, Platform } from "react-native";
 import { Heart, ChevronRight, ChevronLeft } from "lucide-react-native";
 import { FONTS, upperTR } from "../../theme/fonts";
 import { platformName, platformLogo } from "../../utils/platform";
+import { storeOptions } from "../../utils/watchLinks";
 import { isDomestic } from "../../utils/origin";
 import { hapticSelection } from "../../utils/haptics";
 
@@ -248,6 +249,8 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
             const pageMovie = item.movie;
             const reason = item.reasons?.find(r => r.personalized)?.short || item.reasons?.[0]?.short;
             const platform = (pageMovie.platforms || [])[0];
+            // Abonelikte yoksa kiralık/satın alınabilir ilk mağaza (detaydakiyle aynı bilgi).
+            const store = platform ? null : storeOptions(pageMovie.stores, Platform.OS)[0];
             const active = pageIndex === safeIndex;
             return (
               <View key={pageMovie.id} style={{ width: pageWidth }} accessibilityElementsHidden={!active} importantForAccessibility={active ? "auto" : "no-hide-descendants"}>
@@ -264,6 +267,10 @@ export default function SeansBoard({ selections, index, onIndexChange, isLiked, 
                     {!!platform && <View style={styles.platformRow}>
                       {!!platformLogo(platform) && <Image source={{ uri: platformLogo(platform) }} style={styles.platformLogo} />}
                       <Text style={styles.platformText} numberOfLines={1}>{platformName(platform)}</Text>
+                    </View>}
+                    {!!store && <View style={styles.platformRow}>
+                      {!!store.logo && <Image source={{ uri: store.logo }} style={styles.platformLogo} />}
+                      <Text style={styles.platformText} numberOfLines={1}>{store.name}{translateUI(" · ")}{store.offerText}</Text>
                     </View>}
                     {!!reason && <Text style={styles.reason} numberOfLines={2}>{translateUI(reason)}</Text>}
                   </View>

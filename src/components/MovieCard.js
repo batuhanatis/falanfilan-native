@@ -1,10 +1,10 @@
 import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, Image, Animated, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Animated, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Heart, X, Bookmark, Star, Send, Sparkles, MessageCircle, Bell, BellRing } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
-import { platformName, platformLogo } from "../utils/platform";
+import WatchBadges from "./WatchBadges";
 import { hapticLight } from "../utils/haptics";
 import CommentsModal from "./CommentsModal";
 
@@ -106,22 +106,17 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
         {/* ÖNEMLİ: Hangi platformda yayında olduğu — bilgi amaçlı (bir AKSİYON değil), bu yüzden
             "sadece beğen butonu yeterli" kuralı bunu kapsamıyor. Detay sayfasına gitmeden burada
             görünmesi gerekiyordu, geri eklendi. */}
-        {Array.isArray(movie.platforms) && movie.platforms.length > 0 ? (
-          <View style={styles.compactPlatformsRow}>
-            {movie.platforms.slice(0, 3).map((p, i) => {
-              const logo = platformLogo(p);
-              return logo ? (
-                <Image key={i} source={{ uri: logo }} style={styles.compactPlatformLogo} />
-              ) : (
-                <View key={i} style={styles.compactPlatformFallback}>
-                  <Text style={styles.compactPlatformFallbackText} numberOfLines={1}>{platformName(p)}</Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <Text style={styles.compactNoPlatform} numberOfLines={1}>{translateUI("Platformda yok")}</Text>
-        )}
+        {/* Abonelik platformları + kiralık/satın alınabilir mağazalar (detaydakiyle aynı bilgi). */}
+        <WatchBadges
+          platforms={movie.platforms}
+          stores={movie.stores}
+          size={16}
+          max={3}
+          short
+          style={styles.compactPlatformsRow}
+          emptyText={translateUI("Platformda yok")}
+          emptyStyle={styles.compactNoPlatform}
+        />
       </TouchableOpacity>
     );
   }
@@ -197,23 +192,15 @@ const MovieCard = React.memo(function MovieCard({ movie, liked, disliked, watchl
         </TouchableOpacity>
       )}
 
-      {Array.isArray(movie.platforms) && movie.platforms.length > 0 ? (
-        <View style={styles.platformsRow}>
-          {movie.platforms.slice(0, 4).map((p, i) => {
-            const logo = platformLogo(p);
-            const name = platformName(p);
-            return logo ? (
-              <Image key={i} source={{ uri: logo }} style={styles.platformLogo} />
-            ) : (
-              <View key={i} style={styles.platformFallback}>
-                <Text style={styles.platformFallbackText} numberOfLines={1}>{name}</Text>
-              </View>
-            );
-          })}
-        </View>
-      ) : (
-        <Text style={styles.noPlatformText}>{translateUI("Şu an Türkiye'de bir platformda yayında değil")}</Text>
-      )}
+      <WatchBadges
+        platforms={movie.platforms}
+        stores={movie.stores}
+        size={20}
+        max={4}
+        style={styles.platformsRow}
+        emptyText={translateUI("Şu an Türkiye'de bir platformda yayında değil")}
+        emptyStyle={styles.noPlatformText}
+      />
 
       {showComments && (
         <CommentsModal
@@ -279,11 +266,8 @@ function makeStyles(c) {
     captionTitle: { fontSize: 13, fontWeight: "800", color: c.text },
     captionMeta: { fontSize: 12, color: c.dim },
     viewComments: { fontSize: 12, color: c.dim, paddingHorizontal: 14, marginTop: 4 },
-    platformsRow: { flexDirection: "row", gap: 6, paddingHorizontal: 14, marginTop: 10, marginBottom: 14, flexWrap: "wrap" },
+    platformsRow: { paddingHorizontal: 14, marginTop: 10, marginBottom: 14 },
     noPlatformText: { fontSize: 11, color: c.dim, fontStyle: "italic", paddingHorizontal: 14, marginTop: 10, marginBottom: 14 },
-    platformLogo: { width: 20, height: 20, borderRadius: 6, backgroundColor: "#fff" },
-    platformFallback: { backgroundColor: c.surface2, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
-    platformFallbackText: { fontSize: 9, color: c.text },
 
     // Ana Sayfa'nın 2 sütunlu kişiselleştirilmiş ızgarası için kompakt kart.
     compactCard: { flex: 1, marginBottom: 18 },
@@ -312,10 +296,7 @@ function makeStyles(c) {
     },
     compactTitle: { fontSize: 12.5, fontWeight: "800", color: c.text, marginTop: 6 },
     compactMeta: { fontSize: 10.5, color: c.dim, marginTop: 1 },
-    compactPlatformsRow: { flexDirection: "row", gap: 4, marginTop: 5 },
-    compactPlatformLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
-    compactPlatformFallback: { backgroundColor: c.surface2, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 999 },
-    compactPlatformFallbackText: { fontSize: 7.5, color: c.text },
+    compactPlatformsRow: { marginTop: 5 },
     compactNoPlatform: { fontSize: 9.5, color: c.dim, fontStyle: "italic", marginTop: 4 },
   });
 }

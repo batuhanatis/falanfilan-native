@@ -11,7 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
 import { diaryApi } from "../api/diary";
-import { platformName, platformLogo } from "../utils/platform";
+import WatchBadges from "../components/WatchBadges";
 import { emitLocalEvent } from "../utils/localEvents";
 import SwipeableCard from "../components/SwipeableCard";
 import ListPickerModal from "../components/ListPickerModal";
@@ -391,21 +391,7 @@ export default function DiscoverScreen({ navigation }) {
                     <Text style={styles.cardTitle} numberOfLines={1}>{current.title}</Text>
                     {!!meta && <Text style={styles.cardMeta} numberOfLines={1}>{meta}</Text>}
                     <View style={styles.cardFooter}>
-                      {Array.isArray(current.platforms) && current.platforms.length > 0 && (
-                        <View style={styles.platformsRow}>
-                          {current.platforms.slice(0, 4).map((p, i) => {
-                            const logo = platformLogo(p);
-                            const name = platformName(p);
-                            return logo ? (
-                              <Image key={i} source={{ uri: logo }} style={styles.platformLogo} />
-                            ) : (
-                              <View key={i} style={styles.platformFallback}>
-                                <Text style={styles.platformFallbackText} numberOfLines={1}>{name}</Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      )}
+                      <WatchBadges platforms={current.platforms} stores={current.stores} size={22} max={4} />
                       <View style={{ flexShrink: 1 }}>
                         <SocialProofRow stats={socialStats[current.id]} compact />
                       </View>
@@ -525,10 +511,6 @@ function makeStyles(c, insets) {
     cardTitle: { color: c.text, fontSize: 28, fontFamily: FONTS.marquee },
     cardMeta: { color: c.dim, fontSize: 11, fontFamily: FONTS.mono, marginTop: 2, letterSpacing: 0.3 },
     cardFooter: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8, minHeight: 22 },
-    platformsRow: { flexDirection: "row", gap: 5 },
-    platformLogo: { width: 22, height: 22, borderRadius: 6, backgroundColor: "#fff" },
-    platformFallback: { backgroundColor: c.surface2, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
-    platformFallbackText: { fontSize: 9, color: c.text },
     topBar: { position: "absolute", top: topInset, left: 14, right: 14, flexDirection: "row", alignItems: "center" },
     pillWrap: { flex: 1, alignItems: "center" },
     playBtnWrap: { width: 46, alignItems: "center", marginRight: -4 },
