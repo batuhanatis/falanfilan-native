@@ -21,6 +21,7 @@
       ],
       "./plugins/withPlatformQueries",
       "./plugins/withReleaseSigning",
+      "./plugins/withBackToBackground",
       "expo-font"
     ]
   }

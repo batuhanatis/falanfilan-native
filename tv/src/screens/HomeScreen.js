@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, FlatList, StyleSheet, Platform, findNodeHandle } from "react-native";
+import { View, Text, FlatList, StyleSheet, Platform, findNodeHandle, BackHandler } from "react-native";
 import { api } from "../api";
 import { C, FONTS, SAFE_X, SAFE_Y, TOPBAR_H, HERO_H, PREVIEW_H, upperTR } from "../theme";
 import { focusStore } from "../focusStore";
@@ -130,6 +130,14 @@ export default function HomeScreen({ auth, onOpen, onSignOut, onSearch, preferre
   }, [scrollTo]);
   const onOpenItem = useCallback((movie, rowIndex) => onOpen(movie, rowsRef.current[rowIndex]?.key), [onOpen]);
   const backToTop = useCallback(() => { scrollTo(0); setZone("board"); heroRef.current?.focus(); }, [scrollTo]);
+
+  // Satırlardayken geri tuşu uygulamadan çıkmıyor, en üste (panoya) dönüyor; panodayken geri
+  // tuşu uygulamayı arka plana alıyor (fragman oynuyorsa önce onu durduruyor, bkz. Hero).
+  useEffect(() => {
+    if (hidden || zone !== "rows") return undefined;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { backToTop(); return true; });
+    return () => sub.remove();
+  }, [hidden, zone, backToTop]);
 
   const header = useMemo(() => (
     <View style={styles.header}>
