@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../api";
 import { C, BOARD, FONTS, SAFE_X, SAFE_Y, upperTR } from "../theme";
-import { platformLabel, canOpenPlatform, watchLinksOf, watchButtonLabel, watchAndDescribe, openTrailerInYouTube } from "../platforms";
+import { platformLabel, canOpenPlatform, watchLinksOf, watchButtonLabel, watchAndDescribe, openTrailerInYouTube, storesOf, canOpenStore, openStoreAndDescribe } from "../platforms";
 import FocusButton from "../components/FocusButton";
 import Huzme from "../components/Huzme";
 
@@ -15,7 +15,7 @@ import Huzme from "../components/Huzme";
 export default function DetailScreen({ movie: initial, token, onBack }) {
   const [movie, setMovie] = useState(initial);
   const [media, setMedia] = useState(null); // { trailer, backdrop }
-  const [ready, setReady] = useState(Array.isArray(initial.watchLinks));
+  const [ready, setReady] = useState(Array.isArray(initial.watchLinks) && Array.isArray(initial.stores));
   const [status, setStatus] = useState(null); // { text, tone }
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function DetailScreen({ movie: initial, token, onBack }) {
 
   useEffect(() => {
     let alive = true;
-    if (!Array.isArray(initial.watchLinks)) {
+    if (!Array.isArray(initial.watchLinks) || !Array.isArray(initial.stores)) {
       api.movie(token, initial.id)
         .then((full) => { if (alive) setMovie((m) => ({ ...m, ...full })); })
         .catch(() => {})
@@ -47,6 +47,11 @@ export default function DetailScreen({ movie: initial, token, onBack }) {
   const otherNames = all.filter((l) => !canOpenPlatform(l)).map((l) => platformLabel(l.platform).name);
   const others = otherNames.map((n) => n.toUpperCase());
   const trailerKey = media?.trailer?.key;
+  // Kiralık / satın alınabilir: TV'de açabildiklerimiz düğme, diğerleri bilgi satırı.
+  const stores = storesOf(movie);
+  const storeButtons = stores.filter(canOpenStore);
+  const storeOthers = stores.filter((st) => !canOpenStore(st)).map((st) => `${st.name.toUpperCase()} (${st.offerText.toLocaleUpperCase("tr-TR")})`);
+  const focusStoreFirst = !links.length && storeButtons.length > 0;
 
   const watch = (link) => setStatus(watchAndDescribe(link));
   const meta = [movie.genre, movie.type, movie.year, movie.runtime, movie.imdb ? `IMDb ${movie.imdb}` : null].filter(Boolean).join("  ·  ");
@@ -90,12 +95,33 @@ export default function DetailScreen({ movie: initial, token, onBack }) {
               {!!others.length && (links.length
                 ? <Text style={styles.others}>AYRICA  ·  {others.join("  ·  ")}</Text>
                 : <Text style={styles.none}>{otherNames.join(", ")} uygulamasından izleyebilirsin; o uygulamayı TV'nden açman yeterli.</Text>)}
-              {!links.length && <FocusButton label="Geri dön" onPress={onBack} hasTVPreferredFocus style={{ marginTop: 14, alignSelf: "flex-start" }} />}
+              {!links.length && !storeButtons.length && <FocusButton label="Geri dön" onPress={onBack} hasTVPreferredFocus style={{ marginTop: 14, alignSelf: "flex-start" }} />}
             </View>
           ) : (
             <View style={{ alignItems: "flex-start" }}>
-              <Text style={styles.none}>Şu an Türkiye'de bir platformda görünmüyor.</Text>
-              <FocusButton label="Geri dön" onPress={onBack} hasTVPreferredFocus style={{ marginTop: 14 }} />
+              <Text style={styles.none}>Şu an Türkiye'de abonelikle izlenebileceği bir platformda görünmüyor.</Text>
+              {!storeButtons.length && <FocusButton label="Geri dön" onPress={onBack} hasTVPreferredFocus style={{ marginTop: 14 }} />}
+            </View>
+          )}
+
+          {ready && stores.length > 0 && (
+            <View>
+              <Text style={styles.section}>KİRALA / SATIN AL</Text>
+              {!!storeButtons.length && (
+                <View style={styles.buttons}>
+                  {storeButtons.map((st, i) => (
+                    <FocusButton
+                      key={st.key || st.store}
+                      label={`${st.name}  ·  ${st.offerText}`}
+                      hasTVPreferredFocus={focusStoreFirst && i === 0}
+                      onPress={() => setStatus(openStoreAndDescribe(st))}
+                      style={styles.btn}
+                    />
+                  ))}
+                  {!links.length && !others.length && !!trailerKey && <FocusButton label="Fragman" onPress={() => setStatus(openTrailerInYouTube(trailerKey))} style={styles.btn} />}
+                </View>
+              )}
+              {!!storeOthers.length && <Text style={styles.others}>{storeButtons.length ? "AYRICA  ·  " : ""}{storeOthers.join("  ·  ")}</Text>}
             </View>
           )}
           {!!status && (

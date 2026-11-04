@@ -19,6 +19,18 @@
       "com.google.android.youtube.tv",
       "com.google.android.youtube.googletv",
       "com.google.android.youtube"
+    ],
+    "Apple TV": [
+      "com.apple.atve.androidtv.appletv"
+    ],
+    "Apple TV Plus": [
+      "com.apple.atve.androidtv.appletv"
+    ],
+    "Apple TV+": [
+      "com.apple.atve.androidtv.appletv"
+    ],
+    "Google Play Movies": [
+      "com.google.android.videos"
     ]
   }
 }

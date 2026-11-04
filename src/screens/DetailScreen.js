@@ -8,7 +8,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { platformName, platformLogo } from "../utils/platform";
-import { watchOptions, openWatchOption } from "../utils/watchLinks";
+import { watchOptions, openWatchOption, storeOptions } from "../utils/watchLinks";
 import { emitLocalEvent } from "../utils/localEvents";
 import { FONTS } from "../theme/fonts";
 import { avatarOr } from "../utils/avatar";
@@ -47,20 +47,25 @@ export default function DetailScreen({ route, navigation }) {
   // watchLinks taşımıyor olabilir; o zaman içerik bir kez tazelenip linkler oradan alınıyor.
   const [platforms, setPlatforms] = useState(movie.platforms);
   const [watchLinks, setWatchLinks] = useState(movie.watchLinks);
+  // Kiralık / satın alınabilir seçenekler (Apple TV, Google Play...); eski önbellekten gelen
+  // içerikte yoksa aynı tazelemeyle geliyor.
+  const [stores, setStores] = useState(movie.stores);
   useEffect(() => {
-    if (Array.isArray(movie.watchLinks) || !movie.id) return;
+    if ((Array.isArray(movie.watchLinks) && Array.isArray(movie.stores)) || !movie.id) return;
     api.movieById(auth.token, movie.id)
       .then((fresh) => {
         setWatchLinks(Array.isArray(fresh?.watchLinks) ? fresh.watchLinks : []);
         if (Array.isArray(fresh?.platforms)) setPlatforms(fresh.platforms);
+        setStores(Array.isArray(fresh?.stores) ? fresh.stores : []);
       })
       .catch(() => {});
   }, [movie.id]);
+  const storeList = storeOptions(stores, Platform.OS);
 
   async function watch(option) {
     hapticLight();
     const ok = await openWatchOption(option);
-    if (!ok) emitLocalEvent({ type: "toast", title: translateUI("{0} açılamadı.", { 0: option.key }), message: "" });
+    if (!ok) emitLocalEvent({ type: "toast", title: translateUI("{0} açılamadı.", { 0: option.name || option.key }), message: "" });
   }
 
   const [liked, setLiked] = useState(false);
@@ -389,6 +394,35 @@ export default function DetailScreen({ route, navigation }) {
             )}
           </View>
 
+          {storeList.length > 0 && (
+            <>
+              <Text style={styles.watchSection}>{translateUI("KİRALA / SATIN AL")}</Text>
+              <View style={[styles.platformsRow, { marginTop: 8 }]}>
+                {storeList.map((o) => (
+                  o.url ? (
+                    <TouchableOpacity
+                      key={o.key}
+                      style={styles.watchBtn}
+                      onPress={() => watch(o)}
+                      activeOpacity={0.85}
+                      accessibilityRole="link"
+                      accessibilityLabel={`${o.name}: ${o.offerText}`}
+                    >
+                      {o.logo && <Image source={{ uri: o.logo }} style={styles.watchBtnLogo} />}
+                      <Text style={styles.watchBtnText}>{o.name}</Text>
+                      <Text style={styles.storeOfferText}>{o.offerText}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View key={o.key} style={styles.platformPill}>
+                      {o.logo && <Image source={{ uri: o.logo }} style={styles.platformPillLogo} />}
+                      <Text style={styles.platformPillText}>{o.name} · {o.offerText}</Text>
+                    </View>
+                  )
+                ))}
+              </View>
+            </>
+          )}
+
           <View style={styles.socialProofSection}>
             <SocialProofRow stats={socialStats} />
           </View>
@@ -628,6 +662,7 @@ function makeStyles(c) {
     watchBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent },
     watchBtnLogo: { width: 18, height: 18, borderRadius: 4, backgroundColor: "#fff" },
     watchBtnText: { fontSize: 13, fontWeight: "700", color: c.text },
+    storeOfferText: { fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 0.6, color: c.dim },
     platformPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
     platformPillLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     platformPillText: { fontSize: 11, color: c.text },

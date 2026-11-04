@@ -82,3 +82,42 @@ export function openTrailerInYouTube(videoKey) {
     return { text: e?.message || "Fragman açılamadı.", tone: "error" };
   }
 }
+
+// Kiralık / satın alınabilir seçenekler (API'nin stores alanı). Açma akışı abonelik
+// platformlarıyla aynı: içeriğin mağaza sayfası (yoksa mağazada adıyla arama) mağaza
+// uygulamasında açılıyor; uygulama linki açamazsa ana ekranında, yüklü değilse bunu söylüyoruz.
+const STORE_APPS = { apple: "Apple TV", google: "Google Play Movies", amazon: "Amazon Prime Video" };
+const STORE_NAMES = { apple: "Apple TV", google: "Google Play", amazon: "Prime Video", microsoft: "Microsoft Store" };
+
+export function storeOfferText(offers) {
+  const rent = offers?.includes("rent");
+  const buy = offers?.includes("buy");
+  if (rent && buy) return "Kirala / Satın al";
+  return rent ? "Kirala" : "Satın al";
+}
+
+export function storesOf(movie) {
+  return (Array.isArray(movie?.stores) ? movie.stores : [])
+    .filter((s) => s && s.store)
+    .map((s) => ({
+      ...s,
+      name: STORE_NAMES[s.key] || s.store,
+      offerText: storeOfferText(s.offers),
+      packages: PLATFORM_PACKAGES[STORE_APPS[s.key]] || [],
+    }));
+}
+
+export const canOpenStore = (store) => store.packages.length > 0;
+
+export function openStoreAndDescribe(store) {
+  try {
+    const url = store.url || store.searchUrl;
+    if (url && openUrl(url, store.packages, {})) return { text: `${store.name} açılıyor…`, tone: "info" };
+    if (openApp(store.packages)) {
+      return { text: `${store.name} açıldı; içeriği adıyla aratabilirsin.`, tone: "info" };
+    }
+    return { text: `${store.name} bu TV'de yüklü değil.`, tone: "error" };
+  } catch (e) {
+    return { text: e?.message || "Açılamadı.", tone: "error" };
+  }
+}

@@ -41,3 +41,35 @@ export function openWatchOption(option) {
   if (!option?.url) return Promise.resolve(false);
   return Linking.openURL(option.url).then(() => true).catch(() => false);
 }
+
+// Kiralık / satın alınabilir seçenekler (API'nin stores alanı: Apple TV, Google Play Filmler...).
+// Mağazada içeriğin sayfası varsa o, yoksa mağazada adıyla arama açılıyor; ikisi de yoksa düğme
+// değil etiket. Fiyat göstermiyoruz (kaynak vermiyor). iPhone'da Google Play'den film alınamadığı
+// için orada Google Play seçeneği gösterilmiyor.
+const STORES = {
+  apple: { name: "Apple TV" },
+  google: { name: "Google Play", hideOn: ["ios"] },
+  amazon: { name: "Prime Video" },
+  microsoft: { name: "Microsoft Store" },
+};
+
+export function storeOfferText(offers) {
+  const rent = offers?.includes("rent");
+  const buy = offers?.includes("buy");
+  if (rent && buy) return translateUI("Kirala · Satın al");
+  return rent ? translateUI("Kirala") : translateUI("Satın al");
+}
+
+export function storeOptions(stores, os) {
+  return (Array.isArray(stores) ? stores : [])
+    .filter((s) => s && s.store && !(STORES[s.key]?.hideOn || []).includes(os))
+    .map((s) => ({
+      key: s.key || s.store,
+      name: STORES[s.key]?.name || s.store,
+      logo: s.logo || null,
+      offers: s.offers || [],
+      offerText: storeOfferText(s.offers),
+      url: s.url || s.searchUrl || null,
+      deep: !!s.url,
+    }));
+}
