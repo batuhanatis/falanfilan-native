@@ -54,7 +54,7 @@ export default function DetailScreen({ movie: initial, token, onBack }) {
   const focusStoreFirst = !links.length && storeButtons.length > 0;
 
   const watch = (link) => setStatus(watchAndDescribe(link));
-  const meta = [movie.genre, movie.type, movie.year, movie.runtime, movie.imdb ? `IMDb ${movie.imdb}` : null].filter(Boolean).join("  ·  ");
+  const meta = [movie.genre, movie.type, movie.year, movie.runtime, movie.imdb ? `IMDb ${movie.imdb}` : null].filter(Boolean).join(" · ");
 
   return (
     <View style={styles.root}>
@@ -70,7 +70,7 @@ export default function DetailScreen({ movie: initial, token, onBack }) {
           ? <Image source={movie.poster} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" />
           : <View style={[styles.poster, { backgroundColor: C.surface2 }]} />}
         <View style={styles.info}>
-          <Text style={styles.meta}>{upperTR(meta)}</Text>
+          <Text style={styles.meta} numberOfLines={1}>{upperTR(meta)}</Text>
           <Text style={styles.title} numberOfLines={2}>{movie.title}</Text>
           {!!movie.overview && <Text style={styles.overview} numberOfLines={5}>{movie.overview}</Text>}
 
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: SAFE_X * 1.5, paddingVertical: SAFE_Y },
   poster: { width: 220, height: 330, borderRadius: 10, backgroundColor: C.surface2 },
   info: { flex: 1, marginLeft: 40 },
-  meta: { fontFamily: FONTS.monoMedium, color: BOARD.gold, fontSize: 13, letterSpacing: 1.5 },
+  meta: { fontFamily: FONTS.monoMedium, color: BOARD.gold, fontSize: 13, letterSpacing: 1.2 },
   title: { fontFamily: FONTS.marquee, color: C.text, fontSize: 56, lineHeight: 58, marginTop: 6 },
   overview: { color: C.text, opacity: 0.88, fontSize: 16, lineHeight: 23, marginTop: 12, maxWidth: 620 },
   section: { fontFamily: FONTS.monoMedium, color: C.dim, fontSize: 12, letterSpacing: 2, marginTop: 24, marginBottom: 10 },
