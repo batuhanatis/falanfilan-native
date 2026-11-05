@@ -8,8 +8,8 @@ import { WebView } from "react-native-webview";
 // kalkıp oynatıcı tamamen görününce play() geliyor (YouTube otomatik oynatma kuralı). Oynatıcının
 // önüne hiçbir şey çizilmiyor; kontroller kapalı.
 // YouTube, uygulama içi oynatıcılarda isteğin kimden geldiğini görmek istiyor; telefondaki gibi
-// paket adını origin olarak veriyoruz.
-const APP_ORIGIN = "https://com.batuhanatis.pellix.tv";
+// paket adını origin olarak veriyoruz (TV ve telefon aynı paket adıyla, aynı Play sayfasında).
+const APP_ORIGIN = "https://com.batuhanatis.pellix";
 
 const HTML = `<!doctype html>
 <html>

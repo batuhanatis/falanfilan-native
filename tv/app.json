@@ -2,13 +2,13 @@
   "expo": {
     "name": "Pellix TV",
     "slug": "pellix-tv",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#14121a",
     "android": {
-      "package": "com.batuhanatis.pellix.tv",
+      "package": "com.batuhanatis.pellix",
       "versionCode": 1
     },
     "plugins": [
