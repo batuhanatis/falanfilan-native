@@ -17,6 +17,9 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# eas credentials ile indirilen anahtar ve şifreler (asla depoya girmemeli)
+credentials.json
+credentials/
 
 # Metro
 .metro-health-check*
