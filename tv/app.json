@@ -22,7 +22,16 @@
       "./plugins/withPlatformQueries",
       "./plugins/withReleaseSigning",
       "./plugins/withBackToBackground",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#14121a",
+          "image": "./assets/splash-blank.png",
+          "imageWidth": 1,
+          "resizeMode": "contain"
+        }
+      ]
     ]
   }
 }
