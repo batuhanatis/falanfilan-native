@@ -1,6 +1,7 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Easing, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useScrollToTop } from "@react-navigation/native";
 import { ChevronRight, Compass, Plus, Puzzle, Trophy, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -80,6 +81,12 @@ const DAILY_QUESTIONS = [
   "Bir dizi izlerken 'bu hafta bölüm ne zaman gelecek' diye sayılı gün beklediğin son yapım neydi?",
 ];
 
+// Sosyal akışın iki sekmesi: "Herkes" (herkese açık hesapların neler yaptığı; yeni açılan, henüz
+// arkadaşı olmayan hesapların akışı boş kalmasın diye ilk açılışta bu) ve "Arkadaşlar". Seçilen
+// sekme hatırlanıyor.
+const SOCIAL_TAB_KEY = "pellix_social_tab_v1";
+const SCOPES = [["public", "Herkes"], ["friends", "Arkadaşlar"]];
+
 function getDailyQuestion() {
   const now = new Date();
   const dayKey = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000);
@@ -133,8 +140,12 @@ export default function ActivityScreen({ navigation }) {
   const styles = useMemo(() => makeStyles(c), [c]);
   const listRef = useRef(null);
   useScrollToTop(listRef);
-  const [feed, setFeed] = useState([]);
+  const [scope, setScopeState] = useState("public");
+  const [feeds, setFeeds] = useState({ public: [], friends: [] });
+  const feed = feeds[scope];
   const [loading, setLoading] = useState(true);
+  const [tabWidth, setTabWidth] = useState(0);
+  const tabPos = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerType, setComposerType] = useState("thought");
@@ -169,16 +180,17 @@ export default function ActivityScreen({ navigation }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const fallbackQuestion = getDailyQuestion();
-    const [feedResult, questionResult, storiesResult, meResult, questsResult] = await Promise.allSettled([
-      api.socialFeed(auth.token),
+    const [publicResult, friendsResult, questionResult, storiesResult, meResult, questsResult] = await Promise.allSettled([
+      api.socialFeed(auth.token, "public"),
+      api.socialFeed(auth.token, "friends"),
       api.dailyQuestion(localDateKey()),
       api.socialStories(auth.token),
       api.me(auth.token),
       api.quests(auth.token),
     ]);
     if (questsResult.status === "fulfilled") setQuestData(questsResult.value);
-    if (feedResult.status === "fulfilled") setFeed(groupActivities(expandActivityItems(feedResult.value.results)));
-    else setFeed([]);
+    const shape = (r) => (r.status === "fulfilled" ? groupActivities(expandActivityItems(r.value.results)) : []);
+    setFeeds({ public: shape(publicResult), friends: shape(friendsResult) });
     setDailyQuestion(
       questionResult.status === "fulfilled" && questionResult.value?.question
         ? questionResult.value.question
@@ -192,6 +204,24 @@ export default function ActivityScreen({ navigation }) {
   }, [auth.token]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Son seçilen sekme (ilk kez açan için "Herkes").
+  useEffect(() => {
+    AsyncStorage.getItem(SOCIAL_TAB_KEY).then((v) => {
+      if (v === "friends") { setScopeState("friends"); tabPos.setValue(1); }
+    }).catch(() => {});
+  }, [tabPos]);
+
+  function setScope(next) {
+    if (next === scope) {
+      listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+      return;
+    }
+    setScopeState(next);
+    Animated.timing(tabPos, { toValue: next === "friends" ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    listRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+    AsyncStorage.setItem(SOCIAL_TAB_KEY, next).catch(() => {});
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -246,11 +276,13 @@ export default function ActivityScreen({ navigation }) {
 
   function handleFeedChanged(event) {
     if (event?.type !== "deleted") return;
-    setFeed((items) => items.filter((item) => Number(item.post?.id) !== Number(event.postId)));
+    const keep = (items) => items.filter((item) => Number(item.post?.id) !== Number(event.postId));
+    setFeeds((f) => ({ public: keep(f.public), friends: keep(f.friends) }));
   }
 
   function dismissNudge(nudgeId) {
-    setFeed((items) => items.filter((item) => item.id !== nudgeId));
+    const keep = (items) => items.filter((item) => item.id !== nudgeId);
+    setFeeds((f) => ({ public: keep(f.public), friends: keep(f.friends) }));
   }
 
   // Sosyal ekran artık feature promosyonlarıyla başlamıyor. Önce story'ler ve gerçek arkadaş
@@ -374,6 +406,26 @@ export default function ActivityScreen({ navigation }) {
           accessibilityLabel: translateUI("Paylaşım oluştur"),
         }}
       />
+      <View style={styles.tabs} accessibilityRole="tablist" onLayout={(e) => setTabWidth(e.nativeEvent.layout.width / SCOPES.length)}>
+        {SCOPES.map(([id, label]) => (
+          <TouchableOpacity
+            key={id}
+            style={styles.tab}
+            onPress={() => setScope(id)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: scope === id }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabText, scope === id && styles.tabTextActive]}>{translateUI(label)}</Text>
+          </TouchableOpacity>
+        ))}
+        {tabWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.tabIndicator, { width: tabWidth * 0.42, left: tabWidth * 0.29, transform: [{ translateX: tabPos.interpolate({ inputRange: [0, 1], outputRange: [0, tabWidth] }) }] }]}
+          />
+        )}
+      </View>
       {loading && feed.length === 0 ? (
         <View style={styles.content}>
           <ActivitySkeleton />
@@ -409,18 +461,33 @@ export default function ActivityScreen({ navigation }) {
             return <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />;
           }}
           ListEmptyComponent={
-            <View>
-              {renderDailyQuestionCard()}
-              {renderPlayCard()}
-              {renderQuestsCard()}
+            scope === "friends" ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>{translateUI("Akışın henüz sakin")}</Text>
-                <Text style={styles.emptyText}>{translateUI("Arkadaşların paylaşım yaptıkça, içerik beğendikçe ve listeler oluşturdukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.")}</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
-                  <Text style={styles.emptyBtnText}>{translateUI("İlk paylaşımı yap")}</Text>
-                </TouchableOpacity>
+                <Text style={styles.emptyTitle}>{translateUI("Arkadaşların henüz sessiz")}</Text>
+                <Text style={styles.emptyText}>{translateUI("Arkadaş ekledikçe paylaşımları, beğenileri ve listeleri burada görünecek. Bu arada Herkes sekmesinde Pellix'te neler olduğuna bakabilirsin.")}</Text>
+                <View style={styles.emptyBtnRow}>
+                  <TouchableOpacity style={styles.emptyBtn} onPress={() => setScope("public")}>
+                    <Text style={styles.emptyBtnText}>{translateUI("Herkes'e bak")}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.emptyBtnGhost} onPress={() => navigation.navigate("FriendSearch")}>
+                    <Text style={styles.emptyBtnGhostText}>{translateUI("Arkadaş bul")}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View>
+                {renderDailyQuestionCard()}
+                {renderPlayCard()}
+                {renderQuestsCard()}
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyTitle}>{translateUI("Akışın henüz sakin")}</Text>
+                  <Text style={styles.emptyText}>{translateUI("Pellix'te paylaşım yapıldıkça, içerik beğenildikçe ve listeler oluşturuldukça burada göreceksin. İlk Taste Post’u sen başlatabilirsin.")}</Text>
+                  <TouchableOpacity style={styles.emptyBtn} onPress={() => openComposer("thought")}>
+                    <Text style={styles.emptyBtnText}>{translateUI("İlk paylaşımı yap")}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )
           }
         />
       )}
@@ -486,5 +553,14 @@ function makeStyles(c) {
     emptyText: { color: c.dim, fontSize: 11.5, lineHeight: 17, textAlign: "center", marginTop: 6 },
     emptyBtn: { marginTop: 14, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
     emptyBtnText: { color: c.bg, fontWeight: "900", fontSize: 11.5 },
+    emptyBtnRow: { flexDirection: "row", gap: 8 },
+    emptyBtnGhost: { marginTop: 14, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
+    emptyBtnGhostText: { color: c.text, fontWeight: "800", fontSize: 11.5 },
+    // Herkes / Arkadaşlar sekmeleri: üst çubuğun hemen altında sabit; altlarında kayan vurgu çizgisi
+    tabs: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border, backgroundColor: c.bg },
+    tab: { flex: 1, alignItems: "center", justifyContent: "center", height: 44 },
+    tabText: { color: c.dim, fontSize: 14, fontWeight: "700" },
+    tabTextActive: { color: c.text, fontWeight: "900" },
+    tabIndicator: { position: "absolute", bottom: 0, height: 3, borderRadius: 2, backgroundColor: c.accent },
   });
 }

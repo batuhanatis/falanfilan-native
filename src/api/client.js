@@ -270,7 +270,8 @@ export const api = {
   activityFeed: (token) => request("/api/activity-feed", { token }),
   dailyQuestion: (date) => request(`/api/daily-question?date=${encodeURIComponent(date)}`),
   dailyPosterPuzzle: () => request("/api/play/daily-poster"),
-  socialFeed: (token) => request("/api/social/feed", { token }),
+  // scope: "public" (Herkes sekmesi) ya da "friends" (Arkadaşlar). Sunucu parametresizi "friends" sayıyor.
+  socialFeed: (token, scope) => request(scope ? `/api/social/feed?scope=${encodeURIComponent(scope)}` : "/api/social/feed", { token }),
   markFeedSeen: (token, ids) => request("/api/social/feed/seen", { method: "POST", token, body: { ids } }),
   socialPostById: (token, id) => request(`/api/social/posts/${id}`, { token }),
   socialActivityById: (token, id) => request(`/api/social/activities/${id}`, { token }),
