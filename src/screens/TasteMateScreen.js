@@ -1,7 +1,6 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { ChevronLeft, Heart, X, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -11,24 +10,9 @@ import { avatarOr } from "../utils/avatar";
 import { emitLocalEvent } from "../utils/localEvents";
 import { hapticSuccess } from "../utils/haptics";
 import SwipeableCard from "../components/SwipeableCard";
-import RetryImage from "../components/RetryImage";
 import KnotHeart from "../components/salon/KnotHeart";
+import SeatTicket, { TicketStamp } from "../components/salon/SeatTicket";
 import { FONTS } from "../theme/fonts";
-
-function matchRingColor(pct, c) {
-  if (pct >= 85) return "#FFD700";
-  if (pct >= 60) return c.accent;
-  if (pct >= 40) return c.accent2;
-  return c.border;
-}
-
-function matchSummary(pct) {
-  if (pct >= 90) return "Neredeyse ikiz gibisiniz";
-  if (pct >= 80) return "Çok güçlü uyum";
-  if (pct >= 65) return "Güçlü uyum";
-  if (pct >= 50) return "Ortak noktanız bol";
-  return "Keşfedilecek ortaklıklar var";
-}
 
 export default function TasteMateScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -37,6 +21,9 @@ export default function TasteMateScreen({ navigation }) {
 
   const [loading, setLoading] = useState(true);
   const [mates, setMates] = useState([]);
+  // Ücretsiz kullanıcının bugünkü kalan TasteMate hakkı (null = bilinmiyor); Premium'da sınırsız.
+  const [allowance, setAllowance] = useState({ remaining: null, premium: false });
+  const applyAllowance = (data) => setAllowance({ remaining: data?.remainingSwipes ?? null, premium: !!data?.isPremium });
   const [limitReached, setLimitReached] = useState(false);
   const [index, setIndex] = useState(0);
   const cardRef = useRef(null);
@@ -50,11 +37,12 @@ export default function TasteMateScreen({ navigation }) {
   useEffect(() => {
     if (prefetched) {
       setMates(prefetched.results || []);
+      applyAllowance(prefetched);
       setLoading(false);
       return;
     }
     api.tastemates(auth.token)
-      .then((data) => { setMates(data.results || []); })
+      .then((data) => { setMates(data.results || []); applyAllowance(data); })
       .catch(() => setMates([]))
       .finally(() => setLoading(false));
   }, []);
@@ -65,6 +53,7 @@ export default function TasteMateScreen({ navigation }) {
       api.tastemates(auth.token)
         .then((data) => {
           setMates(data.results || []);
+          applyAllowance(data);
           setIndex(0);
           setLimitReached(false);
         })
@@ -80,7 +69,7 @@ export default function TasteMateScreen({ navigation }) {
   function restart() {
     setLoading(true);
     api.tastemates(auth.token)
-      .then((data) => { setMates(data.results || []); setIndex(0); })
+      .then((data) => { setMates(data.results || []); applyAllowance(data); setIndex(0); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }
@@ -91,6 +80,7 @@ export default function TasteMateScreen({ navigation }) {
 
     try {
       const data = await api.tastemateSwipeV2(auth.token, swiped.id, direction);
+      setAllowance((a) => (a.premium || a.remaining == null ? a : { ...a, remaining: Math.max(0, a.remaining - 1) }));
       if (direction === "right") {
         if (data.mutualMatch) {
           hapticSuccess();
@@ -103,6 +93,7 @@ export default function TasteMateScreen({ navigation }) {
     } catch (e) {
       if (e.limitReached) {
         setLimitReached(true);
+        setAllowance((a) => ({ ...a, remaining: 0 }));
         return;
       }
       emitLocalEvent({
@@ -139,6 +130,16 @@ export default function TasteMateScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 54 }}>
       <TasteMateBackButton navigation={navigation} styles={styles} />
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{translateUI("TasteMate")}</Text>
+        {(allowance.premium || allowance.remaining != null) && (
+          <View style={styles.hak} accessibilityLabel={allowance.premium ? translateUI("Sınırsız TasteMate") : translateUI("Bugün {0} TasteMate hakkın kaldı", { 0: allowance.remaining })}>
+            <View style={[styles.hakNotch, { left: -5, backgroundColor: c.bg }]} />
+            <Text style={styles.hakText}>{allowance.premium ? translateUI("SINIRSIZ") : translateUI("BUGÜN {0} HAK", { 0: allowance.remaining })}</Text>
+            <View style={[styles.hakNotch, { right: -5, backgroundColor: c.bg }]} />
+          </View>
+        )}
+      </View>
       <Text style={styles.header}>{translateUI("Beğendiğin içeriklere göre sana en çok uyan kullanıcılar")}</Text>
 
       <View style={styles.stage}>
@@ -161,11 +162,12 @@ export default function TasteMateScreen({ navigation }) {
           </View>
         ) : (
           <>
-            {mates[index + 1] && (
-              <View style={[styles.card, styles.cardBehind]}>
-                <MateCardContent mate={mates[index + 1]} c={c} styles={styles} navigation={navigation} interactive={false} />
+            {/* arkadaki biletler: deste gibi hafifçe görünüyor, henüz "hesaplanmamış" */}
+            {[2, 1].map((k) => mates[index + k] && (
+              <View key={mates[index + k].id} style={[styles.card, k === 1 ? styles.cardBehind1 : styles.cardBehind2]} pointerEvents="none">
+                <SeatTicket mate={mates[index + k]} pending notchColor={c.bg} />
               </View>
-            )}
+            ))}
             <SwipeableCard
               key={current.id}
               ref={cardRef}
@@ -174,15 +176,18 @@ export default function TasteMateScreen({ navigation }) {
               onSwipeRight={() => handleSwipe("right")}
             >
               {(pan) => (
-                <>
-                  <MateCardContent mate={current} c={c} styles={styles} navigation={navigation} interactive />
-                  <Animated.View style={[styles.stampLike, { opacity: pan.x.interpolate({ inputRange: [20, 110], outputRange: [0, 1], extrapolate: "clamp" }) }]}>
-                    <Text style={styles.stampLikeText}>{translateUI("TANIŞ")}</Text>
-                  </Animated.View>
-                  <Animated.View style={[styles.stampSkip, { opacity: pan.x.interpolate({ inputRange: [-110, -20], outputRange: [1, 0], extrapolate: "clamp" }) }]}>
-                    <Text style={styles.stampSkipText}>{translateUI("GEÇ")}</Text>
-                  </Animated.View>
-                </>
+                <SeatTicket
+                  mate={current}
+                  notchColor={c.bg}
+                  interactive
+                  onOpenProfile={() => navigation.navigate("OtherProfile", { userId: current.id })}
+                  stamps={(
+                    <>
+                      <TicketStamp label={translateUI("TANIŞ")} color="#e2c171" side="left" opacity={pan.x.interpolate({ inputRange: [20, 110], outputRange: [0, 0.95], extrapolate: "clamp" })} />
+                      <TicketStamp label={translateUI("GEÇ")} color="#d9636f" side="right" opacity={pan.x.interpolate({ inputRange: [-110, -20], outputRange: [0.95, 0], extrapolate: "clamp" })} />
+                    </>
+                  )}
+                />
               )}
             </SwipeableCard>
           </>
@@ -272,57 +277,16 @@ function useMidnightCountdown(active) {
   return label;
 }
 
-function MateCardContent({ mate, c, styles, navigation, interactive }) {
-  return (
-    <>
-      <View style={styles.photoArea}>
-        <TouchableOpacity
-          disabled={!interactive}
-          onPress={() => navigation.navigate("OtherProfile", { userId: mate.id })}
-          activeOpacity={0.9}
-          style={StyleSheet.absoluteFillObject}
-        >
-          <RetryImage source={{ uri: avatarOr(mate.avatarUrl, mate.id) }} style={StyleSheet.absoluteFillObject} />
-        </TouchableOpacity>
-        <LinearGradient colors={["rgba(0,0,0,0.55)", "rgba(0,0,0,0)"]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0.55 }} style={StyleSheet.absoluteFillObject} pointerEvents="none" />
-      </View>
-      <View style={styles.infoArea}>
-        <TouchableOpacity disabled={!interactive} onPress={() => navigation.navigate("OtherProfile", { userId: mate.id })}>
-          <Text style={styles.mateName}>{mate.name}</Text>
-          {!!mate.username && <Text style={styles.mateUsername}>{translateUI("@")}{mate.username}</Text>}
-          <Text style={styles.mateInsight}>{matchSummary(mate.matchPercent)}</Text>
-        </TouchableOpacity>
-        <View style={styles.bottomRow}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            {mate.common?.length > 0 && (
-              <>
-                <Text style={styles.commonLabel}>{translateUI("ORTAK BEĞENİLER")}</Text>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  {mate.common.slice(0, 3).map((m) => (
-                    m.poster ? <Image key={m.id} source={{ uri: m.poster }} style={styles.commonPoster} />
-                      : <View key={m.id} style={[styles.commonPoster, { backgroundColor: c.surface2 }]} />
-                  ))}
-                </View>
-              </>
-            )}
-          </View>
-          <View style={styles.matchBlock}>
-            <View style={[styles.matchRing, { borderColor: matchRingColor(mate.matchPercent, c) }]}>
-              <Text style={styles.matchRingText}>{translateUI("%")}{mate.matchPercent}</Text>
-            </View>
-            <Text style={styles.matchCaption}>{translateUI("uyum")}</Text>
-          </View>
-        </View>
-      </View>
-    </>
-  );
-}
-
 function makeStyles(c) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
     backButton: { position: "absolute", top: 48, left: 14, zIndex: 50, width: 40, height: 40, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.62)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
-    header: { fontSize: 12, color: c.dim, textAlign: "center", marginBottom: 12, paddingHorizontal: 62, minHeight: 40, textAlignVertical: "center" },
+    titleRow: { height: 40, alignItems: "center", justifyContent: "center" },
+    title: { fontFamily: FONTS.marquee, fontSize: 25, color: c.text, letterSpacing: 0.5 },
+    hak: { position: "absolute", right: 16, top: 5, height: 30, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: "#3a332b", backgroundColor: "#0d0b0a", justifyContent: "center", overflow: "hidden" },
+    hakNotch: { position: "absolute", top: 10, width: 9, height: 9, borderRadius: 5, borderWidth: 1, borderColor: "#3a332b" },
+    hakText: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.5, color: "#e2c171" },
+    header: { fontSize: 11.5, lineHeight: 15, color: c.dim, textAlign: "center", marginTop: 4, marginBottom: 12, paddingHorizontal: 40 },
     emptyTitle: { fontSize: 15, fontWeight: "700", color: c.text },
     emptySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 8, lineHeight: 18 },
     restartBtn: { marginTop: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
@@ -345,30 +309,9 @@ function makeStyles(c) {
     mutualContinueBtn: { paddingHorizontal: 16, paddingVertical: 10, marginTop: 8 },
     mutualContinueText: { color: "rgba(255,255,255,0.52)", fontSize: 11.5, fontWeight: "700" },
     stage: { flex: 1, paddingHorizontal: 16 },
-    card: {
-      position: "absolute", top: 0, bottom: 0, left: 16, right: 16,
-      borderRadius: 22, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-    },
-    cardBehind: { transform: [{ scale: 0.96 }] },
-    photoArea: { height: "72%", position: "relative", backgroundColor: c.surface2 },
-    matchBlock: { alignItems: "center", flexShrink: 0 },
-    matchRing: {
-      width: 44, height: 44, borderRadius: 999,
-      backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", borderWidth: 2,
-    },
-    matchRingText: { color: c.text, fontSize: 10.5, fontWeight: "900" },
-    matchCaption: { fontSize: 8.5, color: c.dim, fontWeight: "700", marginTop: 2 },
-    stampLike: { position: "absolute", top: 20, left: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, transform: [{ rotate: "-12deg" }] },
-    stampLikeText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-    stampSkip: { position: "absolute", top: 20, right: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, transform: [{ rotate: "12deg" }] },
-    stampSkipText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-    infoArea: { flex: 1, padding: 14, justifyContent: "center" },
-    mateName: { fontSize: 16, fontWeight: "700", color: c.text },
-    mateUsername: { fontSize: 11, color: c.dim, marginTop: 1 },
-    mateInsight: { fontSize: 10.5, color: c.accent, fontWeight: "800", marginTop: 4 },
-    bottomRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 8 },
-    commonLabel: { fontSize: 9, fontWeight: "800", color: c.dim, letterSpacing: 0.5, marginBottom: 6 },
-    commonPoster: { width: 34, height: 48, borderRadius: 7 },
+    card: { position: "absolute", top: 0, bottom: 20, left: 16, right: 16 },
+    cardBehind1: { opacity: 0.55, transform: [{ translateY: 10 }, { scale: 0.955 }] },
+    cardBehind2: { opacity: 0.28, transform: [{ translateY: 20 }, { scale: 0.91 }] },
     actionsRow: { flexDirection: "row", justifyContent: "center", gap: 26, paddingTop: 14, paddingBottom: 10 },
     actionCircle: { width: 54, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center" },
   });

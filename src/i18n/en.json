@@ -1685,5 +1685,13 @@
   "tabii'de izle": "Watch on tabii",
   "tabii'yi aç": "Open tabii",
   "NEREDE İZLENİR": "WHERE TO WATCH",
-  "{0} açılamadı.": "Couldn't open {0}."
+  "{0} açılamadı.": "Couldn't open {0}.",
+  "ORTAK TÜRLER": "SHARED GENRES",
+  "FAVORİSİ": "FAVORITE",
+  "SINIRSIZ": "UNLIMITED",
+  "BUGÜN {0} HAK": "{0} LEFT TODAY",
+  "Sınırsız TasteMate": "Unlimited TasteMate",
+  "Bugün {0} TasteMate hakkın kaldı": "{0} TasteMate swipes left today",
+  "{0}, %{1} uyum, {2} ortak beğeni": "{0}, {1}% match, {2} shared likes",
+  "Henüz ortak beğeniniz yok; uyum sevdiğiniz türlerden ve puanlarınızdan geliyor.": "No shared likes yet; your match comes from the genres you love and how you rate."
 }
