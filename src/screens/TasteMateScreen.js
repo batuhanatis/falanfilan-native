@@ -23,9 +23,9 @@ function matchRingColor(pct, c) {
 }
 
 function matchSummary(pct) {
-  if (pct >= 90) return "Neredeyse aynı zevk";
-  if (pct >= 80) return "Çok güçlü zevk uyumu";
-  if (pct >= 65) return "Güçlü zevk uyumu";
+  if (pct >= 90) return "Neredeyse ikiz gibisiniz";
+  if (pct >= 80) return "Çok güçlü uyum";
+  if (pct >= 65) return "Güçlü uyum";
   if (pct >= 50) return "Ortak noktanız bol";
   return "Keşfedilecek ortaklıklar var";
 }
@@ -131,7 +131,7 @@ export default function TasteMateScreen({ navigation }) {
         <TasteMateBackButton navigation={navigation} styles={styles} />
         <Users size={32} color={c.dim} style={{ opacity: 0.6, marginBottom: 12 }} />
         <Text style={styles.emptyTitle}>{translateUI("Henüz bir eşleşme yok")}</Text>
-        <Text style={styles.emptySubtitle}>{translateUI("Daha fazla içerik beğendikçe zevkine uyan kullanıcılar burada görünmeye başlayacak.")}</Text>
+        <Text style={styles.emptySubtitle}>{translateUI("Daha fazla içerik beğendikçe sana uyan kullanıcılar burada görünmeye başlayacak.")}</Text>
       </View>
     );
   }
@@ -139,7 +139,7 @@ export default function TasteMateScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: 54 }}>
       <TasteMateBackButton navigation={navigation} styles={styles} />
-      <Text style={styles.header}>{translateUI("Beğendiğin içeriklere göre zevk uyumu yüksek kullanıcılar")}</Text>
+      <Text style={styles.header}>{translateUI("Beğendiğin içeriklere göre sana en çok uyan kullanıcılar")}</Text>
 
       <View style={styles.stage}>
         {!current ? (

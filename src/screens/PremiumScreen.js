@@ -36,7 +36,7 @@ const COMPARISON_ROWS = [
 const REASON_COPY = {
   tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak zevkinize göre bir ana öneri ve iki alternatif bulalım." },
   ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Zevkine Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
-  tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp zevk uyumu yüksek kişileri keşfetmeye devam et." },
+  tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp sana en çok uyan kişileri keşfetmeye devam et." },
 };
 
 export default function PremiumScreen({ navigation, route }) {
