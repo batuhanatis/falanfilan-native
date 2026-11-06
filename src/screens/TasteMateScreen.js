@@ -1,4 +1,4 @@
-import { t as translateUI } from "../i18n/core";
+import { t as translateUI, getLanguage } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { ChevronLeft, Heart, X, Users } from "lucide-react-native";
@@ -9,6 +9,7 @@ import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import { emitLocalEvent } from "../utils/localEvents";
 import { hapticSuccess } from "../utils/haptics";
+import { dativeTR, alsoTR } from "../utils/turkishSuffix";
 import SwipeableCard from "../components/SwipeableCard";
 import KnotHeart from "../components/salon/KnotHeart";
 import SeatTicket, { TicketStamp } from "../components/salon/SeatTicket";
@@ -86,7 +87,8 @@ export default function TasteMateScreen({ navigation }) {
           hapticSuccess();
           setMutualMatch({ with: data.with || { id: swiped.id, name: swiped.name, avatarUrl: swiped.avatarUrl } });
         } else {
-          emitLocalEvent({ type: "toast", title: translateUI("İstek gönderildi ✅"), message: `${swiped.name}'e arkadaşlık isteği gönderildi` });
+          const to = getLanguage() === "en" ? null : dativeTR(swiped.name);
+          emitLocalEvent({ type: "toast", title: translateUI("İstek gönderildi ✅"), message: to ? `${to} arkadaşlık isteği gönderildi` : translateUI("Arkadaşlık isteği gönderildi: {0}", { 0: swiped.name }) });
         }
       }
       advance();
@@ -213,7 +215,7 @@ export default function TasteMateScreen({ navigation }) {
             rightAvatar={{ uri: avatarOr(mutualMatch.with?.avatarUrl, mutualMatch.with?.id) }}
           />
           <Text style={styles.mutualTitle}>{translateUI("Karşılıklı eşleştiniz")}</Text>
-          <Text style={styles.mutualSubtitle}>{mutualMatch.with?.name}{translateUI(" de seni beğenmiş — artık arkadaşsınız.")}</Text>
+          <Text style={styles.mutualSubtitle}>{getLanguage() === "en" ? `${mutualMatch.with?.name || ""}${translateUI(" de seni beğenmiş — artık arkadaşsınız.")}` : `${alsoTR(mutualMatch.with?.name)} seni beğenmiş — artık arkadaşsınız.`}</Text>
           <Text style={styles.mutualNextHint}>{translateUI("İlk ortak kararınızı hemen verin: birlikte ne izleyeceksiniz?")}</Text>
           <View style={styles.mutualBtnRow}>
             <TouchableOpacity

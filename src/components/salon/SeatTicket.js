@@ -1,4 +1,4 @@
-import { t as translateUI } from "../../i18n/core";
+import { t as translateUI, getLanguage } from "../../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -138,7 +138,7 @@ export default function SeatTicket({ mate, pending = false, notchColor, onOpenPr
             )}
           </View>
           <View style={s.score}>
-            <Text style={[s.scoreNum, { color: tier }]}>{pending ? "%··" : `%${shown}`}</Text>
+            <Text style={[s.scoreNum, { color: tier }]}>{getLanguage() === "en" ? (pending ? "··%" : `${shown}%`) : (pending ? "%··" : `%${shown}`)}</Text>
             <Text style={s.scoreLabel}>{translateUI("UYUM")}</Text>
           </View>
         </View>
