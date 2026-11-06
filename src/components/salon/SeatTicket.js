@@ -138,8 +138,8 @@ export default function SeatTicket({ mate, pending = false, notchColor, onOpenPr
             )}
           </View>
           <View style={s.score}>
-            <Text style={[s.scoreNum, { color: tier }]}>{getLanguage() === "en" ? (pending ? "··%" : `${shown}%`) : (pending ? "%··" : `%${shown}`)}</Text>
-            <Text style={s.scoreLabel}>{translateUI("UYUM")}</Text>
+            <Text style={[s.scoreNum, { color: tier }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.15}>{getLanguage() === "en" ? (pending ? "··%" : `${shown}%`) : (pending ? "%··" : `%${shown}`)}</Text>
+            <Text style={s.scoreLabel} numberOfLines={1} maxFontSizeMultiplier={1.3}>{translateUI("UYUM")}</Text>
           </View>
         </View>
 
@@ -185,7 +185,9 @@ export function TicketStamp({ label, color, side, opacity }) {
 
 const s = StyleSheet.create({
   ticket: { flex: 1, borderRadius: 22, overflow: "hidden", backgroundColor: D.surface, borderWidth: 1, borderColor: D.border },
-  photo: { height: "55%", backgroundColor: D.surface2, overflow: "hidden" },
+  // Fotoğraf koçandan kalan bütün yüksekliği alıyor (koçan içeriği kadar yer kaplıyor; bio/favori
+  // yoksa altta boşluk kalmıyor). En az kartın %48'i fotoğraf.
+  photo: { flex: 1, minHeight: "48%", backgroundColor: D.surface2, overflow: "hidden" },
   pill: {
     position: "absolute", top: 14, left: 14, maxWidth: "80%", flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(10,9,14,0.58)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
@@ -201,7 +203,7 @@ const s = StyleSheet.create({
   notch: { position: "absolute", top: -2, width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: D.border },
   notchL: { left: -11 },
   notchR: { right: -11 },
-  stub: { flex: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, overflow: "hidden" },
+  stub: { flexShrink: 1, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, overflow: "hidden" },
   label: { fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.2, color: D.dim, marginBottom: 6 },
   labelGold: { color: "#e2c171" },
   rowA: { flexDirection: "row", gap: 12 },
@@ -212,7 +214,8 @@ const s = StyleSheet.create({
   more: { backgroundColor: D.surface2, alignItems: "center", justifyContent: "center" },
   moreText: { fontFamily: FONTS.monoMedium, fontSize: 11, color: D.text },
   empty: { fontSize: 11.5, lineHeight: 16, color: D.dim },
-  score: { width: 88, borderLeftWidth: 1.5, borderStyle: "dashed", borderColor: D.border, alignItems: "center", justifyContent: "center", paddingLeft: 10 },
+  // "%99" Big Shoulders 46'da yaklaşık 77 pt; kutunun içi ~94 pt (eskiden 76,5 pt'ydi, yüzde iki satıra bölünüyordu)
+  score: { width: 104, borderLeftWidth: 1.5, borderStyle: "dashed", borderColor: D.border, alignItems: "center", justifyContent: "center", paddingLeft: 8 },
   scoreNum: { fontFamily: FONTS.marquee, fontSize: 46, lineHeight: 48 },
   scoreLabel: { fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 2.5, color: D.dim, marginTop: 1 },
   rowB: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
