@@ -164,12 +164,14 @@ export default function TasteMateScreen({ navigation }) {
           </View>
         ) : (
           <>
-            {/* arkadaki biletler: deste gibi hafifçe görünüyor, henüz "hesaplanmamış" */}
-            {[2, 1].map((k) => mates[index + k] && (
-              <View key={mates[index + k].id} style={[styles.card, k === 1 ? styles.cardBehind1 : styles.cardBehind2]} pointerEvents="none">
-                <SeatTicket mate={mates[index + k]} pending notchColor={c.bg} />
+            {/* arkada yalnızca sıradaki bilet, henüz "hesaplanmamış". Saydam değil (saydam olunca
+                arkasındaki üçüncü bilet içinden görünüyordu); geride durduğu koyu bir perdeyle belli. */}
+            {mates[index + 1] && (
+              <View key={mates[index + 1].id} style={[styles.card, styles.cardBehind]} pointerEvents="none">
+                <SeatTicket mate={mates[index + 1]} pending notchColor={c.bg} />
+                <View style={styles.cardBehindDim} />
               </View>
-            ))}
+            )}
             <SwipeableCard
               key={current.id}
               ref={cardRef}
@@ -312,8 +314,8 @@ function makeStyles(c) {
     mutualContinueText: { color: "rgba(255,255,255,0.52)", fontSize: 11.5, fontWeight: "700" },
     stage: { flex: 1, paddingHorizontal: 16 },
     card: { position: "absolute", top: 0, bottom: 20, left: 16, right: 16 },
-    cardBehind1: { opacity: 0.55, transform: [{ translateY: 10 }, { scale: 0.955 }] },
-    cardBehind2: { opacity: 0.28, transform: [{ translateY: 20 }, { scale: 0.91 }] },
+    cardBehind: { transform: [{ translateY: 10 }, { scale: 0.955 }] },
+    cardBehindDim: { ...StyleSheet.absoluteFillObject, borderRadius: 22, backgroundColor: "rgba(10,9,14,0.5)" },
     actionsRow: { flexDirection: "row", justifyContent: "center", gap: 26, paddingTop: 14, paddingBottom: 10 },
     actionCircle: { width: 54, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center" },
   });
