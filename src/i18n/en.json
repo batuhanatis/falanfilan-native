@@ -1694,5 +1694,11 @@
   "Bugün {0} TasteMate hakkın kaldı": "{0} TasteMate swipes left today",
   "{0}, %{1} uyum, {2} ortak beğeni": "{0}, {1}% match, {2} shared likes",
   "Henüz ortak beğeniniz yok; uyum sevdiğiniz türlerden ve puanlarınızdan geliyor.": "No shared likes yet; your match comes from the genres you love and how you rate.",
-  "Arkadaşlık isteği gönderildi: {0}": "Friend request sent to {0}"
+  "Arkadaşlık isteği gönderildi: {0}": "Friend request sent to {0}",
+  "Afişleri kaydır": "Swipe the posters",
+  "Sağa kaydır: afişi duvarına as, beğendiklerine eklensin.": "Swipe right to hang it on your wall and add it to your likes.",
+  "Sola kaydır: geç.": "Swipe left to pass.",
+  "Afişe dokun: detayını aç.": "Tap the poster to see details.",
+  "Anladım": "Got it",
+  "Sağa kaydır: duvarına as. Sola kaydır: geç.": "Swipe right to hang it on your wall. Swipe left to pass."
 }

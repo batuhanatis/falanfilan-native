@@ -51,14 +51,45 @@ const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRi
     });
   }
 
+  // Tanıtım "provası": kart kendiliğinden hafifçe sağa, sonra sola kayıp geri geliyor (kaydırmayı
+  // gösteriyor; kartın üstündeki ipuçları da pan.x'e bağlı olduğu için kendiliğinden beliriyor).
+  // follower verilirse aynı anda -1..1 arasında aynı ritimle oynatılıyor (eşlik eden el ikonu için).
+  // Kullanıcı karta dokunduğu an duruyor; Promise, prova sonuna kadar oynadıysa true döner.
+  const nudgeRef = useRef(null);
+  function nudge(follower) {
+    nudgeRef.current?.stop();
+    const STEPS = [[72, 520, 450], [0, 380, 250], [-72, 520, 450], [0, 380, 0]];
+    const seq = (value, k) => Animated.sequence(STEPS.flatMap(([to, duration, hold]) => [
+      Animated.timing(value, { toValue: to * k, duration, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }),
+      ...(hold ? [Animated.delay(hold)] : []),
+    ]));
+    const anim = follower ? Animated.parallel([seq(pan.x, 1), seq(follower, 1 / 72)]) : seq(pan.x, 1);
+    nudgeRef.current = anim;
+    return new Promise((resolve) => anim.start(({ finished }) => {
+      if (nudgeRef.current === anim) nudgeRef.current = null;
+      resolve(finished);
+    }));
+  }
+  function stopNudge() {
+    if (!nudgeRef.current) return;
+    nudgeRef.current.stop();
+    nudgeRef.current = null;
+    Animated.timing(pan.x, { toValue: 0, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }
+
   useImperativeHandle(ref, () => ({
     swipeRight: () => animateOff("right"),
     swipeLeft: () => animateOff("left"),
+    nudge,
+    stopNudge,
   }));
 
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6,
-    onPanResponderGrant: () => { crossedRef.current = false; },
+    onPanResponderGrant: () => {
+      crossedRef.current = false;
+      if (nudgeRef.current) { nudgeRef.current.stop(); nudgeRef.current = null; }
+    },
     onPanResponderMove: (...args) => {
       Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(...args);
       const [, g] = args;

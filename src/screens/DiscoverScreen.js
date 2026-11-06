@@ -1,10 +1,10 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing, useWindowDimensions } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Easing, useWindowDimensions, AccessibilityInfo } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { X, ListVideo, Send, Gamepad2, Pin } from "lucide-react-native";
+import { ListVideo, Send, Gamepad2, Pin, Pointer } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -28,11 +28,17 @@ function todaysPuzzleResultKey() {
   return `pellix_daily_poster_result_v2_${date}`;
 }
 const TASTE_MILESTONE = 5;
-// Kartın yerleşimi (styles.card ile aynı sayılar) — beğenilen kartın sol üstteki duvara uçacağı
-// noktayı hesaplamak için.
+// Kartın yerleşimi: üst çubuğun altından ekranın altına kadarki alanda, afiş kırpılmadan (2:3) sığacak
+// en büyük kart. Genişlik mi yükseklik mi sınırlıyorsa ona göre hesaplanıp ortalanıyor. Beğenilen
+// kartın sol üstteki duvara uçacağı nokta da bu dikdörtgenden hesaplanıyor.
 const CARD_TOP_OFFSET = 69;
-const CARD_BOTTOM = 111;
+const CARD_BOTTOM_GAP = 14;
+const CARD_SIDE = 21;
+const CARD_PAD = 8;
+const POSTER_RATIO = 1.5;
 const WALL_CENTER_X = 14 + 22;
+// İlk kez Keşfet'e gelene kaydırmayı gösteren prova bir kez gösteriliyor.
+const SWIPE_TUTORIAL_KEY = "pellix_discover_swipe_tutorial_v1";
 
 export default function DiscoverScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -62,7 +68,11 @@ export default function DiscoverScreen({ navigation }) {
   const [wallPosters, setWallPosters] = useState([]);
   const wallBump = useRef(new Animated.Value(1)).current;
   const [stageHeight, setStageHeight] = useState(0);
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  // Kartın alt bilgi bölümünün (ad, künye, platformlar) ölçülen yüksekliği; afiş kalan alana 2:3 sığıyor.
+  const [infoHeight, setInfoHeight] = useState(96);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const tutorialDemo = useRef(new Animated.Value(0)).current;
   const [sessionLikes, setSessionLikes] = useState(0);
   const [sessionSkips, setSessionSkips] = useState(0);
   const [sessionGenreCounts, setSessionGenreCounts] = useState({});
@@ -195,6 +205,7 @@ export default function DiscoverScreen({ navigation }) {
   function handleSwipe(direction) {
     const top = queue[0];
     if (!top) return;
+    if (showTutorial) dismissTutorial();
     const rest = queue.slice(1);
     const newShown = new Set(shownIds); newShown.add(top.id);
     setShownIds(newShown);
@@ -231,6 +242,45 @@ export default function DiscoverScreen({ navigation }) {
 
   const current = queue[0];
   const next = queue[1];
+
+  // Kart dikdörtgeni (afiş 2:3, kırpılmadan)
+  const areaTop = topInset + CARD_TOP_OFFSET;
+  const areaHeight = Math.max(260, (stageHeight || windowHeight) - areaTop - CARD_BOTTOM_GAP);
+  const posterWidth = Math.max(150, Math.min(windowWidth - CARD_SIDE * 2 - CARD_PAD * 2, (areaHeight - CARD_PAD * 2 - infoHeight) / POSTER_RATIO));
+  const cardWidth = posterWidth + CARD_PAD * 2;
+  const cardHeight = posterWidth * POSTER_RATIO + CARD_PAD * 2 + infoHeight;
+  const cardRect = { left: (windowWidth - cardWidth) / 2, top: areaTop + Math.max(0, (areaHeight - cardHeight) / 2), width: cardWidth, height: cardHeight };
+
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(SWIPE_TUTORIAL_KEY).then((v) => { if (alive && !v) setShowTutorial(true); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  function dismissTutorial() {
+    setShowTutorial(false);
+    cardRef.current?.stopNudge?.();
+    Animated.timing(tutorialDemo, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    AsyncStorage.setItem(SWIPE_TUTORIAL_KEY, "1").catch(() => {});
+  }
+  // Prova: kart kendiliğinden sağa ("AS"), sonra sola ("GEÇ") kayıp geri geliyor, arada kısa bir mola.
+  // Kullanıcı karta dokununca duruyor. Hareketi azalt açıksa yalnızca açıklama paneli görünüyor.
+  const currentId = current?.id;
+  useEffect(() => {
+    if (!showTutorial || !stockReady || !currentId) return undefined;
+    let alive = true;
+    let timer = null;
+    const run = async () => {
+      if (!alive) return;
+      const reduce = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
+      if (!alive || reduce) return;
+      const done = await cardRef.current?.nudge?.(tutorialDemo);
+      if (!alive) return;
+      if (done) timer = setTimeout(run, 900);
+      else Animated.timing(tutorialDemo, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    };
+    timer = setTimeout(run, 650);
+    return () => { alive = false; clearTimeout(timer); cardRef.current?.stopNudge?.(); };
+  }, [showTutorial, stockReady, currentId]);
   const socialQueueKey = queue.slice(0, STOCK_TARGET).map((item) => item.id).join(",");
 
   useEffect(() => {
@@ -332,10 +382,10 @@ export default function DiscoverScreen({ navigation }) {
       ) : (
         <View style={styles.stage}>
           {Array.from({ length: Math.min(3, Math.max(0, queue.length - 2)) }, (_, k) => (
-            <View key={`edge-${k}`} style={[styles.deckEdge, { left: 21 + 8 * (k + 1), right: 21 + 8 * (k + 1), bottom: CARD_BOTTOM - 4 * (k + 1), opacity: 0.85 - k * 0.22 }]} />
+            <View key={`edge-${k}`} style={[styles.deckEdge, { left: cardRect.left + 8 * (k + 1), width: cardRect.width - 16 * (k + 1), top: Math.min(cardRect.top + cardRect.height - 40 + 4 * (k + 1), (stageHeight || windowHeight) - 40), opacity: 0.85 - k * 0.22 }]} />
           ))}
           {next && (
-            <View style={[styles.card, styles.cardBehind]}>
+            <View style={[styles.card, cardRect, styles.cardBehind]}>
               <View style={styles.posterBox}>
                 {next.poster ? <Image source={{ uri: next.poster }} style={StyleSheet.absoluteFillObject} /> : null}
               </View>
@@ -347,12 +397,12 @@ export default function DiscoverScreen({ navigation }) {
           <SwipeableCard
             key={current.id}
             ref={cardRef}
-            style={styles.card}
+            style={[styles.card, cardRect]}
             onSwipeLeft={() => handleSwipe("left")}
             onSwipeRight={() => handleSwipe("right")}
             rightExitTarget={() => {
               if (!stageHeight) return null;
-              const cardCenterY = (topInset + CARD_TOP_OFFSET + stageHeight - CARD_BOTTOM) / 2;
+              const cardCenterY = cardRect.top + cardRect.height / 2;
               return { x: WALL_CENTER_X - windowWidth / 2, y: topInset + 22 - cardCenterY };
             }}
           >
@@ -368,6 +418,14 @@ export default function DiscoverScreen({ navigation }) {
                     activeOpacity={1}
                     style={styles.posterBox}
                     onPress={() => navigation.navigate("Detail", { movie: current })}
+                    accessibilityRole="button"
+                    accessibilityLabel={current.title}
+                    accessibilityHint={translateUI("Sağa kaydır: duvarına as. Sola kaydır: geç.")}
+                    accessibilityActions={[{ name: "pin", label: translateUI("Duvarıma as") }, { name: "skip", label: translateUI("Geç") }]}
+                    onAccessibilityAction={(e) => {
+                      if (e.nativeEvent.actionName === "pin") cardRef.current?.swipeRight();
+                      else if (e.nativeEvent.actionName === "skip") cardRef.current?.swipeLeft();
+                    }}
                   >
                     {current.poster ? <Image source={{ uri: current.poster }} style={StyleSheet.absoluteFillObject} /> : null}
                     <View style={styles.cardActionsCol}>
@@ -387,7 +445,14 @@ export default function DiscoverScreen({ navigation }) {
                     </Animated.View>
                   </TouchableOpacity>
 
-                  <View style={styles.cardInfo} pointerEvents="none">
+                  <View
+                    style={styles.cardInfo}
+                    pointerEvents="none"
+                    onLayout={(e) => {
+                      const h = Math.ceil(e.nativeEvent.layout.height);
+                      if (Math.abs(h - infoHeight) > 1) setInfoHeight(h);
+                    }}
+                  >
                     <Text style={styles.cardTitle} numberOfLines={1}>{current.title}</Text>
                     {!!meta && <Text style={styles.cardMeta} numberOfLines={1}>{meta}</Text>}
                     <View style={styles.cardFooter}>
@@ -452,13 +517,26 @@ export default function DiscoverScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {stockReady && current && (
-        <View style={styles.actionsRow}>
-          <TouchableOpacity style={[styles.actionCircle, styles.actionSkip]} onPress={() => cardRef.current?.swipeLeft()} accessibilityRole="button" accessibilityLabel={translateUI("Geç")}>
-            <X size={24} color="#f2ede2" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.accent }]} onPress={() => cardRef.current?.swipeRight()} accessibilityRole="button" accessibilityLabel={translateUI("Duvarıma as")}>
-            <Pin size={23} color="#1a140b" />
+      {showTutorial && stockReady && current && (
+        <View style={[styles.tutorial, { left: cardRect.left + 6, width: cardRect.width - 12, bottom: Math.max(10, (stageHeight || windowHeight) - (cardRect.top + cardRect.height) + 6) }]} accessibilityViewIsModal>
+          <Text style={styles.tutorialTitle}>{translateUI("Afişleri kaydır")}</Text>
+          <View style={styles.tutorialGesture} pointerEvents="none">
+            <Animated.View style={[styles.hintSkip, styles.tutorialChip, { opacity: tutorialDemo.interpolate({ inputRange: [-1, -0.3, 0], outputRange: [1, 0.5, 0.5], extrapolate: "clamp" }) }]}>
+              <Text style={styles.hintSkipText}>{translateUI("GEÇ")}</Text>
+            </Animated.View>
+            <Animated.View style={{ transform: [{ translateX: tutorialDemo.interpolate({ inputRange: [-1, 1], outputRange: [-34, 34] }) }, { rotate: tutorialDemo.interpolate({ inputRange: [-1, 1], outputRange: ["-10deg", "10deg"] }) }] }}>
+              <Pointer size={26} color="#f2ede2" />
+            </Animated.View>
+            <Animated.View style={[styles.hintPin, styles.tutorialChip, { opacity: tutorialDemo.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.5, 0.5, 1], extrapolate: "clamp" }) }]}>
+              <Pin size={14} color="#1a140b" />
+              <Text style={styles.hintPinText}>{translateUI("AS")}</Text>
+            </Animated.View>
+          </View>
+          <Text style={styles.tutorialLine}>{translateUI("Sağa kaydır: afişi duvarına as, beğendiklerine eklensin.")}</Text>
+          <Text style={styles.tutorialLine}>{translateUI("Sola kaydır: geç.")}</Text>
+          <Text style={styles.tutorialLine}>{translateUI("Afişe dokun: detayını aç.")}</Text>
+          <TouchableOpacity style={styles.tutorialBtn} onPress={dismissTutorial} accessibilityRole="button">
+            <Text style={styles.tutorialBtnText}>{translateUI("Anladım")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -480,10 +558,11 @@ function makeStyles(c, insets) {
       paddingHorizontal: 24, paddingVertical: 12,
     },
     restartBtnText: { color: c.bg, fontWeight: "800", fontSize: 13.5 },
-    stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 21, paddingTop: topInset + 69, paddingBottom: 111 },
+    stage: { flex: 1 },
+    // Konum ve boyut ekrandan hesaplanan cardRect'ten geliyor.
     card: {
-      position: "absolute", top: topInset + CARD_TOP_OFFSET, bottom: CARD_BOTTOM, left: 21, right: 21,
-      borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: 8,
+      position: "absolute",
+      borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: CARD_PAD,
       shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6,
     },
     cardBehind: { transform: [{ translateY: 8 }, { scale: 0.95 }] },
@@ -533,8 +612,17 @@ function makeStyles(c, insets) {
     pillActive: { backgroundColor: "#fff" },
     pillText: { fontSize: 13, fontWeight: "600", color: "#fff" },
     pillTextActive: { color: "#14121a" },
-    actionsRow: { position: "absolute", bottom: Math.max(14, insets.bottom + 8), left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 26 },
-    actionCircle: { width: 58, height: 58, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-    actionSkip: { backgroundColor: "rgba(0,0,0,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+    // İlk ziyaret provası: kartın alt bilgisinin üstüne oturan koyu panel
+    tutorial: {
+      position: "absolute", borderRadius: 16, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
+      backgroundColor: "rgba(14,12,20,0.94)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
+      shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 8,
+    },
+    tutorialTitle: { color: "#f2ede2", fontSize: 24, fontFamily: FONTS.marquee, textAlign: "center" },
+    tutorialGesture: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18, marginTop: 10, marginBottom: 10, height: 34 },
+    tutorialChip: { position: "relative", top: 0, left: 0, right: 0 },
+    tutorialLine: { color: "rgba(242,237,226,0.82)", fontSize: 12.5, lineHeight: 18, textAlign: "center" },
+    tutorialBtn: { alignSelf: "center", marginTop: 10, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9 },
+    tutorialBtnText: { color: "#1a140b", fontWeight: "800", fontSize: 13 },
   });
 }
