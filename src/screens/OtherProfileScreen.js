@@ -335,7 +335,7 @@ export default function OtherProfileScreen({ route, navigation }) {
                   )}
                 />
                 {profile.likeCount > profile.likedMovies.length && (
-                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate("AllLikes", { userId, title: `${profile.name} — Beğeniler` })}>
+                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate("AllLikes", { userId, title: translateUI("{0} — Beğeniler", { 0: profile.name }) })}>
                     <Text style={styles.seeAllBtnText}>{translateUI("Tümünü Gör (")}{profile.likeCount}{translateUI(")")}</Text>
                   </TouchableOpacity>
                 )}

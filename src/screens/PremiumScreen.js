@@ -12,11 +12,11 @@ import { getCurrentOffering, purchasePackage, restorePurchases, hasActivePremium
 // PM1 — üç fayda artık salt limit kaldırmakla sınırlı değil, profilde görünen bir KİMLİK de
 // içeriyor (altın çerçeve — bkz. ProfileScreen/OtherProfileScreen avatarPremiumRing).
 const BENEFITS = [
-  { icon: Sparkles, text: "Bu Akşamı Planla: platformlarına ve ortak zevkinize göre öneri" },
+  { icon: Sparkles, text: "Bu Akşamı Planla: platformlarına ve ortak beğenilerinize göre öneri" },
   { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Zevkine Göre Öner, Fotoğraftan Bul)" },
   { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
   { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
-  { icon: Palette, text: "Zevkine özel, AI ile üretilen profil arka planı" },
+  { icon: Palette, text: "Sana özel, AI ile üretilen profil arka planı" },
   { icon: Zap, text: "Yeni özelliklere öncelikli erişim" },
 ];
 
@@ -34,7 +34,7 @@ const COMPARISON_ROWS = [
 // PM4 — kullanıcı buraya BOŞ yere değil, bir limite takıldığı için geldiyse, bunu bağlama
 // duyarlı bir başlıkla karşılıyoruz.
 const REASON_COPY = {
-  tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak zevkinize göre bir ana öneri ve iki alternatif bulalım." },
+  tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak beğenilerinize göre bir ana öneri ve iki alternatif bulalım." },
   ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Zevkine Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
   tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp sana en çok uyan kişileri keşfetmeye devam et." },
 };
@@ -158,12 +158,12 @@ export default function PremiumScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
           <Crown size={32} color="#fff" />
-          <Text style={styles.heroTitle}>{isPremium ? translateUI("Premium Aktif") : reasonCopy?.title || translateUI("pellix Premium")}</Text>
+          <Text style={styles.heroTitle}>{isPremium ? translateUI("Premium Aktif") : (reasonCopy ? translateUI(reasonCopy.title) : translateUI("pellix Premium"))}</Text>
           {isPremium ? (
             <Text style={styles.heroSubtitle}>
               {new Date(status.premiumUntil).toLocaleDateString(getLocale(), { day: "numeric", month: "long" })}{translateUI(" tarihine kadar sınırsız kullan. ")}</Text>
           ) : (
-            <Text style={styles.heroSubtitle}>{reasonCopy?.subtitle || translateUI("Sınırsız AI önerisi ve TasteMate — haftalık")}</Text>
+            <Text style={styles.heroSubtitle}>{reasonCopy ? translateUI(reasonCopy.subtitle) : translateUI("Sınırsız AI önerisi ve TasteMate — haftalık")}</Text>
           )}
         </LinearGradient>
 
@@ -217,7 +217,7 @@ export default function PremiumScreen({ navigation, route }) {
           {BENEFITS.map((b, i) => (
             <View key={i} style={styles.benefitRow}>
               <View style={styles.benefitIconWrap}><b.icon size={16} color={c.accent} /></View>
-              <Text style={styles.benefitText}>{b.text}</Text>
+              <Text style={styles.benefitText}>{translateUI(b.text)}</Text>
               <Check size={16} color={c.accent} />
             </View>
           ))}

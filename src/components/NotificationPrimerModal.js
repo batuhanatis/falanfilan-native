@@ -38,7 +38,7 @@ export default function NotificationPrimerModal({ onEnable, onDismiss }) {
           </View>
           <View style={styles.reasonRow}>
             <View style={styles.reasonIconWrap}><Sparkles size={15} color="#DB2777" /></View>
-            <Text style={styles.reasonText}>{translateUI("Zevkiniz eşleştiğinde ya da MatchParty'de kazandığında")}</Text>
+            <Text style={styles.reasonText}>{translateUI("Biriyle uyumun yüksek çıktığında ya da MatchParty'de kazandığında")}</Text>
           </View>
           <View style={styles.reasonRow}>
             <View style={styles.reasonIconWrap}><Clock size={15} color="#6366F1" /></View>

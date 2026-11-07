@@ -24,3 +24,15 @@ export function alsoTR(name) {
   const v = lastVowel(name);
   return `${String(name || "").trim()} ${v && v.back ? "da" : "de"}`;
 }
+
+// Belirtme hâli: "Elif'i", "Ece'yi", "Kaan'ı", "Burcu'yu", "Ömür'ü"
+export function accusativeTR(name) {
+  const s = String(name || "").trim();
+  const low = s.toLocaleLowerCase("tr-TR");
+  for (let i = low.length - 1; i >= 0; i--) {
+    const ch = low[i];
+    const suffix = "aıâ".includes(ch) ? "ı" : "eiî".includes(ch) ? "i" : "ouû".includes(ch) ? "u" : "öü".includes(ch) ? "ü" : null;
+    if (suffix) return `${s}'${i === low.length - 1 ? "y" : ""}${suffix}`;
+  }
+  return null;
+}

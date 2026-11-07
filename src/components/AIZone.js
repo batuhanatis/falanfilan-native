@@ -77,7 +77,7 @@ export default function AIZone({ navigation, hasResults, onResults, onClear, def
             <View style={[styles.aiRowIcon, { backgroundColor: c.surface2 }]}><Moon size={18} color={c.accent} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiRowTitle}>{translateUI("Bu Akşamı Planla · Premium")}</Text>
-              <Text style={styles.aiRowSubtitle}>{translateUI("Platformlarına ve ortak zevkinize göre akşamın seçimi")}</Text>
+              <Text style={styles.aiRowSubtitle}>{translateUI("Platformlarına ve ortak beğenilerinize göre akşamın seçimi")}</Text>
             </View>
             <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
           </TouchableOpacity>

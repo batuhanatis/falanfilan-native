@@ -100,7 +100,7 @@ export default function GroupPartyScreen({ navigation }) {
   const partyShareOptions = shareOptions({
     prepare: async () => {
       const data = await ensurePartyLink();
-      return data ? { message: `Benimle MatchParty yap: ${data.url}`, url: data.url } : null;
+      return data ? { message: translateUI("Benimle MatchParty yap: {0}", { 0: data.url }), url: data.url } : null;
     },
   });
 

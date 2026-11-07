@@ -1,7 +1,7 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from "react-native";
-import { PartyPopper, MessageCircle, CheckCircle2 } from "lucide-react-native";
+import { PartyPopper, MessageCircle, CheckCircle2, Award } from "lucide-react-native";
 import { useWS } from "../context/WSContext";
 import { subscribeLocalEvents } from "../utils/localEvents";
 import { useAuth } from "../context/AuthContext";

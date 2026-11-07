@@ -113,19 +113,19 @@ export default function TonightPlannerScreen({ navigation }) {
   function body() {
     if (premiumRequired) return <View style={styles.gate}>
       <Crown size={32} color={c.accent} /><Text style={styles.title}>{translateUI("Bu akşamın seçimi sana özel.")}</Text>
-      <Text style={styles.hint}>{translateUI("Platformlarına ve zevkine göre bir ana öneri, iki alternatif. İstersen sevgilinin veya arkadaşlarının Pellix profillerini de dahil et.")}</Text>
+      <Text style={styles.hint}>{translateUI("Platformlarına ve beğenilerine göre bir ana öneri, iki alternatif. İstersen sevgilinin veya arkadaşlarının Pellix profillerini de dahil et.")}</Text>
       <TouchableOpacity style={styles.primary} onPress={() => navigation.navigate('Premium', { reason: 'tonight_planner' })}><Text style={styles.primaryText}>{translateUI("Premium ile akşamı planla")}</Text></TouchableOpacity>
       <TouchableOpacity style={styles.secondary} onPress={() => loadOptions()} disabled={loadingOptions}><Text style={styles.secondaryText}>{translateUI("Üyeliğimi tekrar kontrol et")}</Text></TouchableOpacity>
     </View>;
     if (loadingOptions && !options) return <View style={styles.gate}><ActivityIndicator color={c.accent} /><Text style={styles.hint}>{translateUI("Platformlar ve profiller hazırlanıyor…")}</Text></View>;
     if (!options) return <TouchableOpacity style={styles.primary} onPress={() => loadOptions()}><Text style={styles.primaryText}>{translateUI("Tekrar dene")}</Text></TouchableOpacity>;
-    if (busy) return <View style={styles.gate}><ActivityIndicator size="large" color={c.accent} /><Text style={styles.title}>{translateUI("Bu akşamı hazırlıyoruz.")}</Text><Text style={styles.hint}>{translateUI("Zevkleri karşılaştırıyor, platformları ve süreleri kontrol ediyoruz.")}</Text></View>;
+    if (busy) return <View style={styles.gate}><ActivityIndicator size="large" color={c.accent} /><Text style={styles.title}>{translateUI("Bu akşamı hazırlıyoruz.")}</Text><Text style={styles.hint}>{translateUI("Beğenileri karşılaştırıyor, platformları ve süreleri kontrol ediyoruz.")}</Text></View>;
     if (result) return <>
       <Text style={styles.eyebrow}>{translateUI("BU AKŞAMIN SEÇİMİ")}</Text><Text style={styles.title}>{answers.company === 'solo' ? translateUI('Kendine bir akşam ayır.') : translateUI('Birlikte güzel bir akşam.')}</Text>
       {!!result.participants?.length && <Text style={styles.hint}>{translateUI("Sen + ")}{result.participants.map(p => p.name).join(', ')}</Text>}
-      {answers.company !== 'solo' && !result.participants?.length && <Text style={styles.hint}>{translateUI("Başka profil eklemediğin için öneriler senin zevkine ve yanıtlarına göre.")}</Text>}
-      {!!result.participants?.some(p => !p.hasTaste) && <Text style={styles.hint}>{translateUI("Bazı profillerde henüz yeterli görünür beğeni yok; o kişilerin zevki sıralamaya dahil edilemedi.")}</Text>}
-      {result.tasteProfileCount === 0 && <Text style={styles.hint}>{translateUI("Henüz yeterli zevk verisi yok; bu seçimler sorulara verdiğin yanıtlara göre hazırlandı.")}</Text>}
+      {answers.company !== 'solo' && !result.participants?.length && <Text style={styles.hint}>{translateUI("Başka profil eklemediğin için öneriler senin beğenilerine ve yanıtlarına göre.")}</Text>}
+      {!!result.participants?.some(p => !p.hasTaste) && <Text style={styles.hint}>{translateUI("Bazı profillerde henüz yeterli görünür beğeni yok; o kişilerin beğenileri sıralamaya dahil edilemedi.")}</Text>}
+      {result.tasteProfileCount === 0 && <Text style={styles.hint}>{translateUI("Henüz yeterli beğeni verisi yok; bu seçimler sorulara verdiğin yanıtlara göre hazırlandı.")}</Text>}
       {!result.results?.length && <Text style={styles.hint}>{result.emptyMessage}</Text>}
       {(result.results || []).map((movie, i) => <View key={movie.id} style={[styles.result, i === 0 && styles.featured]}>
         <Text style={styles.eyebrow}>{i === 0 ? translateUI('ANA ÖNERİ') : translateUI("ALTERNATİF {0}", {0: i})}</Text>

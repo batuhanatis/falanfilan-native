@@ -1,7 +1,7 @@
 import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Appearance } from "react-native";
-import { api } from "../api/client";
+import { reportHandledError } from "../utils/crashReporter";
 import { THEMES } from "../theme/theme";
 
 // React'in kendi hata yakalama mekanizması — bir ekranın RENDER sırasında çökmesi durumunda
@@ -18,11 +18,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    api.reportError({
-      message: error?.message,
-      stack: `${error?.stack || ""}\n${info?.componentStack || ""}`,
-      context: "render-crash",
-    });
+    reportHandledError(error, "render-crash", info?.componentStack || "");
   }
 
   render() {

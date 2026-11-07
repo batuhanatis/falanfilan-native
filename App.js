@@ -32,17 +32,12 @@ import { registerForPushNotifications, getPushPermissionStatus, clearDeliveredNo
 import { configurePurchases } from "./src/utils/purchases";
 import { emitLocalEvent } from "./src/utils/localEvents";
 import { navigationRef } from "./src/navigation/RootNavigator";
+import { installCrashReporter } from "./src/utils/crashReporter";
 
-// React render'ının DIŞINDA kalan JS hataları (örn. bir Promise'in beklenmeyen reddi, bir
-// event handler'daki hata) için global yakalayıcı — Expo Go'da native Sentry SDK'sı
-// kullanamadığımız için, hatayı kendi backend'imize gönderip oradan Sentry'ye iletiyoruz.
-if (typeof ErrorUtils !== "undefined") {
-  const defaultHandler = ErrorUtils.getGlobalHandler();
-  ErrorUtils.setGlobalHandler((error, isFatal) => {
-    api.reportError({ message: error?.message, stack: error?.stack, context: isFatal ? "fatal" : "non-fatal" });
-    defaultHandler(error, isFatal);
-  });
-}
+// React render'ının DIŞINDA kalan JS hataları (event handler'daki hata, yakalanmamış Promise
+// reddi, ölümcül çökme) için global yakalayıcı — hata kendi backend'imize gidiyor. Ayrıntı:
+// src/utils/crashReporter.js
+installCrashReporter();
 
 const PUSH_PRIMER_DISMISSED_KEY = "push_primer_dismissed_v1";
 
@@ -228,7 +223,7 @@ function Gate() {
           {introDone && auth?.onboardingCompleted && auth?.tutorialSeen && !auth?.tasteSurveySeen && (
             <View style={StyleSheet.absoluteFillObject}>
               <TasteSurveyStep
-                title={translateUI("Zevkini biraz daha tanıyalım")}
+                title={translateUI("Seni biraz daha tanıyalım")}
                 subtitle={translateUI("Bu birkaç soru, önerilerini ve arkadaşlarınla uyumunu çok daha isabetli hale getiriyor.")}
                 skipLabel={translateUI("Atla")}
                 continueLabel={translateUI("Tamamla")}

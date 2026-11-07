@@ -245,7 +245,7 @@ function BattleResult({ battle, styles, onAgain }) {
   const result = battle.result;
   const message = result.percent >= 80 ? "Aynı rafın insanısınız 🔥" : result.percent >= 60 ? "Beğenileriniz oldukça yakın" : result.percent >= 40 ? "Bazı filmlerde buluşuyorsunuz 🎬" : "Film gecesi pazarlığı zor geçecek 😄";
   const shareFanOptions = shareOptions({
-    message: `${battle.opponent?.name || "Arkadaşımla"} Friend Battle sonucumuz: %${result.percent} beğeni uyumu. Pellix: https://www.pellix.app`,
+    message: translateUI("{0} Friend Battle sonucumuz: %{1} beğeni uyumu. Pellix: {2}", { 0: battle.opponent?.name || translateUI("Arkadaşımla"), 1: result.percent, 2: "https://www.pellix.app" }),
     url: "https://www.pellix.app",
     copy: false,
   });

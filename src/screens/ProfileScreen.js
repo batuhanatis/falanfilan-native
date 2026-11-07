@@ -325,7 +325,7 @@ export default function ProfileScreen({ navigation, route }) {
             style={styles.profileActionBtn}
             accessibilityLabel={translateUI("Profili paylaş")}
             options={shareOptions({
-              message: `${profile.name} Pellix'te profilini paylaştı`,
+              message: translateUI("{0} Pellix'te profilini paylaştı", { 0: profile.name }),
               url: profile.username ? `https://open.pellix.app/u/${profile.username}` : "https://www.pellix.app",
               card: () => setShowShareCard(true),
             })}

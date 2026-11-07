@@ -445,7 +445,7 @@ export default function DetailScreen({ route, navigation }) {
               style={styles.actionSquare}
               accessibilityLabel={translateUI("Paylaş")}
               options={shareOptions({
-                message: `${auth.name} Pellix'te "${movie.title}" önerdi: https://www.pellix.app/film/${movie.id}\n\nSen de Pellix'i indir (${getStoreLink("send_to_friend")}), kayıt olurken "${auth.username}" davet kodunu yaz, 7 gün Premium hediye.`,
+                message: translateUI("{0} Pellix'te \"{1}\" önerdi: {2}\n\nSen de Pellix'i indir ({3}), kayıt olurken \"{4}\" davet kodunu yaz, 7 gün Premium hediye.", { 0: auth.name, 1: movie.title, 2: `https://www.pellix.app/film/${movie.id}`, 3: getStoreLink("send_to_friend"), 4: auth.username }),
                 url: `https://www.pellix.app/film/${movie.id}`,
                 sendToFriend: () => setSendOpen(true),
                 feed: () => setPostComposerOpen(true),

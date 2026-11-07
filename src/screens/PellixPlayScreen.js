@@ -1,4 +1,4 @@
-import { t as translateUI, getLocale } from "../i18n/core";
+import { t as translateUI, getLocale, getLanguage } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,6 +14,7 @@ import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 
 const PLAY_URL = "https://www.pellix.app";
 import PlayResultShareCard from "../components/PlayResultShareCard";
+import { accusativeTR } from "../utils/turkishSuffix";
 
 // DailyPosterPuzzleScreen'deki sonuç anahtarıyla AYNI — bugünün bulmacası çözüldü mü?
 function todaysPuzzleResultKey() {
@@ -254,7 +255,7 @@ function TasteBattle({ token, styles, c, onDisabled }) {
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#7C3AED" }]}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: `Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: translateUI("Taste Battle sonucum: {0}. Seninki ne? 🎮", { 0: translateUI(result.topGenre || "Karışık") }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -420,7 +421,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#EC4899" }]}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: `${data.friend.name}'i ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: getLanguage() === "en" ? translateUI("{0}'i ne kadar iyi tanıyorum? Skorum %{1} 😄 Sen de dene.", { 0: data.friend.name, 1: percent }) : `${accusativeTR(data.friend.name) || data.friend.name} ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -621,7 +622,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
         <ShareFan
           style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]}
           accessibilityLabel={translateUI("Sonucu paylaş")}
-          options={shareOptions({ message: `Sahneyi Hatırla, Karakteri Bul'da ${score}/${questions.length} yaptım 🎬 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+          options={shareOptions({ message: translateUI("Sahneyi Hatırla, Karakteri Bul'da {0}/{1} yaptım 🎬 Sen de dene.", { 0: score, 1: questions.length }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
         >
           <Share2 size={17} color="#fff" />
           <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -861,7 +862,7 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
           <ShareFan
             style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: `Hangi Karaktersin testinde ${character.name} çıktım (%${result.matchPercent} uyum) 🎭 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: translateUI("Hangi Karaktersin testinde {0} çıktım (%{1} uyum) 🎭 Sen de dene.", { 0: character.name, 1: result.matchPercent }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color="#fff" />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>

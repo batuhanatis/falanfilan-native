@@ -269,9 +269,9 @@ export default function MatchPartyScreen({ route, navigation }) {
       const list = await api.createWatchlist(auth.token, listName);
       await Promise.all(matches.map((m) => api.addToWatchlist(auth.token, list.id, m.id).catch(() => {})));
       setWatchlistCreated(true);
-      emitLocalEvent({ type: "toast", title: translateUI("✅ Liste oluşturuldu"), message: `"${listName}" listesine ${matches.length} içerik eklendi` });
+      emitLocalEvent({ type: "toast", title: translateUI("✅ Liste oluşturuldu"), message: translateUI('"{0}" listesine {1} içerik eklendi', { 0: listName, 1: matches.length }) });
     } catch {
-      emitLocalEvent({ type: "toast", title: translateUI("Bir şeyler ters gitti"), message: "Liste oluşturulamadı, tekrar dene" });
+      emitLocalEvent({ type: "toast", title: translateUI("Bir şeyler ters gitti"), message: translateUI("Liste oluşturulamadı, tekrar dene") });
     }
     setCreatingWatchlist(false);
   }
@@ -489,7 +489,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                 style={styles.shareResultBtn}
                 accessibilityLabel={translateUI("Eşleşmeyi paylaş")}
                 options={shareOptions({
-                  message: `${displayName} ile Pellix'te ${matches.length} ortak içerikte eşleştik. Sen de arkadaşınla dene: https://www.pellix.app`,
+                  message: translateUI("{0} ile Pellix'te {1} ortak içerikte eşleştik. Sen de arkadaşınla dene: {2}", { 0: displayName, 1: matches.length, 2: "https://www.pellix.app" }),
                   url: "https://www.pellix.app",
                   copy: false,
                   card: () => setShowShareCard(true),

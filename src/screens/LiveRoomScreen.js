@@ -372,7 +372,7 @@ export default function LiveRoomScreen({ route, navigation }) {
 
   // Paylaş düğmesi Yelpaze: Arkadaşına (uygulama içi sohbete link), WhatsApp, Kopyala, Diğer.
   const shareFanOptions = room ? shareOptions({
-    message: `${roomLabel(room)} canlı sohbet odası: ${room.link}`,
+    message: translateUI("{0} canlı sohbet odası: {1}", { 0: roomLabel(room), 1: room.link }),
     url: room.link,
     sendToFriend: () => setSendOpen(true),
   }) : [];

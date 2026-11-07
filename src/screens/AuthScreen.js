@@ -179,7 +179,7 @@ export default function AuthScreen() {
         <Text style={styles.logo}>{translateUI(" pell")}<Text style={{ color: c.accent }}>{translateUI("i")}</Text>{translateUI("x ")}</Text>
         <Text style={styles.title}>{view === "login" ? translateUI("Tekrar hoş geldin") : translateUI("Hesabını oluştur")}</Text>
         <Text style={styles.subtitle}>
-          {view === "login" ? translateUI("Film zevkine göre önerilerine devam et") : translateUI("Zevkine göre önerilerin bir dakikada hazır")}
+          {view === "login" ? translateUI("Sana özel önerilerine kaldığın yerden devam et") : translateUI("Sana özel önerilerin bir dakikada hazır")}
         </Text>
 
         {appleAvailable && (

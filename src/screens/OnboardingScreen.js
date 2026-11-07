@@ -29,7 +29,7 @@ export default function OnboardingScreen() {
   if (step === 1) {
     return (
       <TasteSurveyStep
-        title={translateUI("Zevkini tanıyalım, {0}", {0: auth?.name?.split(" ")[0] || ""})}
+        title={translateUI("Seni tanıyalım, {0}", {0: auth?.name?.split(" ")[0] || ""})}
         subtitle={translateUI("Birkaç soru, sana çok daha isabetli öneriler sunmamızı sağlıyor.")}
         topExtra={<StepDots c={c} activeStep={1} />}
         onSkip={finishOnboarding}
@@ -116,7 +116,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
     const willBeSize = picked.has(id) ? picked.size - 1 : picked.size + 1;
     if (picked.size < 5 && willBeSize >= 5) {
       hapticSuccess();
-      emitLocalEvent({ type: "toast", title: translateUI("Zevkini öğrendik! 🎬"), message: "Artık sana özel öneriler hazırlayabiliriz." });
+      emitLocalEvent({ type: "toast", title: translateUI("Seni tanımaya başladık! 🎬"), message: translateUI("Artık sana özel öneriler hazırlayabiliriz.") });
     }
 
     const wasPicked = picked.has(id);
@@ -192,7 +192,7 @@ function LikePicksStep({ c, styles, auth, insets, onBack, onSkip, onFinish }) {
         </TouchableOpacity>
         <TouchableOpacity style={[styles.continueBtn, !done && { backgroundColor: c.surface2 }]} disabled={!done} onPress={continueWithReveal}>
           <Text style={[styles.continueText, !done && { color: c.dim }]}>
-            {done ? translateUI("Zevkimi Göster") : translateUI("{0} beğeni daha", {0: 5 - count})}
+            {done ? translateUI("Sonucumu Göster") : translateUI("{0} beğeni daha", {0: 5 - count})}
           </Text>
         </TouchableOpacity>
       </View>
@@ -257,7 +257,7 @@ function TasteRevealStep({ c, styles, insets, name, reveal, onFinish }) {
             <Sparkles size={28} color={c.accent} />
           </View>
           <Text style={styles.revealEyebrow}>{translateUI("PELLIX TASTE")}</Text>
-          <Text style={styles.revealTitle}>{name ? translateUI("{0}, zevkini yakaladık", {0: name}) : translateUI("Zevkini yakaladık")}</Text>
+          <Text style={styles.revealTitle}>{name ? translateUI("{0}, film tarzını yakaladık", {0: name}) : translateUI("Film tarzını yakaladık")}</Text>
           <Text style={styles.revealSubtitle}>{translateUI("İlk seçimlerine göre akışını şekillendirmeye başladık. Kullandıkça bu profil daha da netleşecek.")}</Text>
 
           <View style={styles.genreRow}>
