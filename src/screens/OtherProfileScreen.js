@@ -278,7 +278,7 @@ export default function OtherProfileScreen({ route, navigation }) {
                     <Sparkles size={20} color="#fff" />
                   </View>
                   <Text style={styles.funTitle}>{translateUI("Blend")}</Text>
-                  <Text style={styles.funSubtitle}>{translateUI("Ortak zevkinizi keşfet")}</Text>
+                  <Text style={styles.funSubtitle}>{translateUI("Ortak beğenilerinizi keşfet")}</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
