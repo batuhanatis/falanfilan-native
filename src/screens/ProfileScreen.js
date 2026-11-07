@@ -3,9 +3,7 @@ import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator} from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 import {
   Settings, Camera, Star, ChevronRight, Pencil, Share2, BookOpen,
   Eye, EyeOff,
@@ -26,37 +24,13 @@ import SocialFeedCard from "../components/SocialFeedCard";
 import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
 import ReelChart from "../components/salon/ReelChart";
 import TicketCard from "../components/salon/TicketCard";
+import FavCard from "../components/salon/FavCard";
+import { Curtain, Spotlight } from "../components/salon/OneSheet";
 import { FONTS, upperTR } from "../theme/fonts";
 
 // Profilin üst kısmı kişinin kendi filminin afişi: adı başlık, biyografisi slogan, sayıları
-// afişin altındaki künye yazısı. Kapak fotoğrafı varsa afişin zemini o; yoksa kadife perde.
-// Afiş fiziksel bir nesne olduğu için iki temada da aynı koyu renklerde.
-const CURTAIN_FOLDS = 18;
-function Curtain() {
-  return (
-    <View style={[StyleSheet.absoluteFillObject, { flexDirection: "row" }]} pointerEvents="none">
-      {Array.from({ length: CURTAIN_FOLDS }, (_, i) => (
-        <LinearGradient key={i} colors={["#3a1012", "#7a2428", "#4a1416"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
-      ))}
-      <LinearGradient colors={["rgba(0,0,0,0)", "rgba(10,3,4,0.55)"]} style={StyleSheet.absoluteFillObject} />
-    </View>
-  );
-}
-
-function Spotlight() {
-  return (
-    <Svg style={StyleSheet.absoluteFillObject} width="100%" height="100%" pointerEvents="none">
-      <Defs>
-        <RadialGradient id="profileSpot" cx="50%" cy="22%" rx="60%" ry="62%" fx="50%" fy="18%">
-          <Stop offset="0" stopColor="#ffe4aa" stopOpacity="0.5" />
-          <Stop offset="0.55" stopColor="#ffe4aa" stopOpacity="0.1" />
-          <Stop offset="1" stopColor="#ffe4aa" stopOpacity="0" />
-        </RadialGradient>
-      </Defs>
-      <Ellipse cx="50%" cy="22%" rx="60%" ry="62%" fill="url(#profileSpot)" />
-    </Svg>
-  );
-}
+// afişin altındaki künye yazısı. Kapak fotoğrafı varsa afişin zemini o; yoksa kadife perde
+// (Curtain/Spotlight: components/salon/OneSheet.js, başkasının profili de aynı afişi kullanıyor).
 
 function splitGenres(value) {
   if (Array.isArray(value)) return value.flatMap(splitGenres);
@@ -552,25 +526,6 @@ export default function ProfileScreen({ navigation, route }) {
       )}
       </ScrollView>
     </View>
-  );
-}
-
-function FavCard({ label, movie, c, onPress }) {
-  return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={{ flex: 1, flexDirection: "row", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 8, alignItems: "center" }}>
-      {movie.poster ? (
-        <Image source={{ uri: movie.poster }} style={{ width: 40, height: 58, borderRadius: 8 }} />
-      ) : (
-        <View style={{ width: 40, height: 58, borderRadius: 8, backgroundColor: c.surface2 }} />
-      )}
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-          <Star size={10} color={c.accent} fill={c.accent} />
-          <Text style={{ fontSize: 10, fontFamily: FONTS.monoMedium, color: c.accent, letterSpacing: 0.6 }}>{upperTR(label)}</Text>
-        </View>
-        <Text style={{ fontSize: 13, fontWeight: "600", color: c.text, marginTop: 3 }} numberOfLines={2}>{movie.title}</Text>
-      </View>
-    </TouchableOpacity>
   );
 }
 

@@ -1,9 +1,9 @@
 import { Alert } from "../i18n/native";
 import { t as translateUI } from "../i18n/core";
-import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Lock, Star, PartyPopper, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown, Mail, UserMinus } from "lucide-react-native";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, FlatList } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChevronLeft, Lock, MoreVertical, Flag, Ban, ShieldOff, Sparkles, Crown, Mail, UserMinus, UserPlus, Check, Clock } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -14,10 +14,45 @@ import RetryImage from "../components/RetryImage";
 import ReportUserModal from "../components/ReportUserModal";
 import ImageLightbox from "../components/ImageLightbox";
 import SocialFeedCard from "../components/SocialFeedCard";
+import ProfileSkeleton from "../components/skeletons/ProfileSkeleton";
+import ReelChart from "../components/salon/ReelChart";
+import TicketCard from "../components/salon/TicketCard";
+import FavCard from "../components/salon/FavCard";
+import { Curtain, Spotlight } from "../components/salon/OneSheet";
+import { FONTS, upperTR } from "../theme/fonts";
+
+// Başkasının profili de kendi profilin gibi "Salon" dilinde: üstte kişinin afişi (kapak ya da kadife
+// perde, spot ışığı, tabela harfiyle adı, künye satırında beğeni · arkadaş · uyum), altında ilişkiye
+// göre tek bir eylem, arkadaşsanız Blend ve MatchParty bilet kartları, görünür beğenilerinden sarılan
+// film makarası, favoriler ve paylaşımlar/beğeniler.
+
+function splitGenres(value) {
+  if (Array.isArray(value)) return value.flatMap(splitGenres);
+  if (!value || typeof value !== "string") return [];
+  return value.split(/[,/·|]/).map((x) => x.trim()).filter(Boolean);
+}
+
+// Makara yalnızca profilde zaten görünen beğenilerden (en fazla 30, gizlenenler hariç) hesaplanıyor;
+// gizli beğeniye ya da puanlara bakmıyor.
+function reelFromLikes(likedMovies) {
+  const weights = new Map();
+  let film = 0, show = 0;
+  (likedMovies || []).forEach((m) => {
+    if (m.type === "Film") film += 1; else if (m.type === "Dizi") show += 1;
+    const genres = [...new Set(splitGenres(m.genre || m.genres))];
+    genres.forEach((g) => weights.set(g, (weights.get(g) || 0) + 1 / genres.length));
+  });
+  const total = [...weights.values()].reduce((a, b) => a + b, 0) || 1;
+  const genres = [...weights.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([name, w]) => ({ name, percent: Math.max(10, Math.round((w / total) * 100)) }));
+  const filmPercent = film + show ? Math.round((film / (film + show)) * 100) : 50;
+  return { genres, filmPercent, showPercent: 100 - filmPercent };
+}
 
 export default function OtherProfileScreen({ route, navigation }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(c);
 
   // ÖNEMLİ (derin bağlantı desteği): Paylaşım linkleri (pellix.app/u/kullaniciadi gibi)
@@ -130,6 +165,8 @@ export default function OtherProfileScreen({ route, navigation }) {
     setBusy(false);
   }
 
+  const reel = useMemo(() => reelFromLikes(profile?.likedMovies), [profile?.likedMovies]);
+
   if (resolveError) {
     return (
       <View style={[styles.center, { flex: 1, padding: 20 }]}>
@@ -141,20 +178,21 @@ export default function OtherProfileScreen({ route, navigation }) {
 
   if (loading || !profile) {
     return (
-      <View style={[styles.center, { flex: 1 }]}>
-        <ActivityIndicator size="large" color={c.accent} />
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+        <ProfileSkeleton />
       </View>
     );
   }
 
   // Arkadaşının profil teması da (Premium'sa, bir tane üretmişse) kendi profilindeki AYNI
-  // muameleyi görüyor — kapak fotoğrafından bağımsız, sayfanın kaydırılan içeriğinin ARKASINDA
-  // sabit duran, ağır karartılmış/bulanık bir "duvar kağıdı" (bkz. ProfileScreen.js'deki aynı
-  // yaklaşımın gerekçesi).
+  // muameleyi görüyor — sayfanın kaydırılan içeriğinin ARKASINDA sabit duran, karartılmış
+  // "duvar kağıdı" (bkz. ProfileScreen.js). Belirginlik profil sahibinin kendi tercihi.
   const showPremiumBackground = !!(profile.isPremium && profile.profileBackgroundUrl);
-  // Belirginlik profil sahibinin kendi tercihi — bkz. GET /api/users/:id'deki
-  // profileBackgroundIntensity, utils/profileBackground.js.
   const { blurRadius: bgBlurRadius, dim: bgDim } = backgroundBlurAndDim(profile.profileBackgroundIntensity);
+  const friends = profile.relationship === "friends";
+  const hasMatch = profile.matchPercent != null;
+  const visibleLikes = profile.canSeeLikes ? (profile.likedMovies || []) : [];
+  const showReel = reel.genres.length > 0 && visibleLikes.length >= 3;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -164,45 +202,50 @@ export default function OtherProfileScreen({ route, navigation }) {
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: hexToRgba(c.bg, bgDim) }]} />
         </View>
       )}
-      <View style={[styles.header, showPremiumBackground && { backgroundColor: "transparent", borderBottomColor: "transparent" }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <ChevronLeft size={20} color={c.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{profile.name}</Text>
-        {profile.relationship === "friends" && (
-          <TouchableOpacity onPress={startChat} style={styles.headerActionBtn} accessibilityRole="button" accessibilityLabel={translateUI("Mesaj gönder")}>
-            <Mail size={17} color={c.text} />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.backBtn}>
-          <MoreVertical size={20} color={c.text} />
-        </TouchableOpacity>
-      </View>
 
-      {profile.isBlocked && (
-        <View style={styles.blockedBanner}>
-          <Ban size={13} color={c.danger} />
-          <Text style={styles.blockedBannerText}>{translateUI("Bu kullanıcıyı engelledin")}</Text>
-          <TouchableOpacity onPress={unblock} disabled={busy}>
-            <Text style={styles.unblockLink}>{translateUI("Engeli Kaldır")}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <ScrollView style={[styles.container, showPremiumBackground && { backgroundColor: "transparent" }]}>
+        <View style={{ padding: 16, paddingTop: Math.max(insets.top, 12) + 6 }}>
+          {profile.isBlocked && (
+            <View style={styles.blockedBanner}>
+              <Ban size={13} color={c.danger} />
+              <Text style={styles.blockedBannerText}>{translateUI("Bu kullanıcıyı engelledin")}</Text>
+              <TouchableOpacity onPress={unblock} disabled={busy}>
+                <Text style={styles.unblockLink}>{translateUI("Engeli Kaldır")}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-      <ScrollView style={showPremiumBackground && { backgroundColor: "transparent" }}>
-        <View style={[styles.cover, { backgroundColor: profile.coverUrl ? c.surface2 : c.accent }]}>
-          {profile.coverUrl && <RetryImage source={{ uri: profile.coverUrl }} style={StyleSheet.absoluteFillObject} />}
-        </View>
+          <View style={styles.onesheet}>
+            {profile.coverUrl ? (
+              <>
+                <RetryImage source={{ uri: profile.coverUrl }} style={StyleSheet.absoluteFillObject} />
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(12,6,6,0.55)" }]} />
+              </>
+            ) : <Curtain />}
+            <Spotlight id="otherProfileSpot" />
 
-        <View style={{ padding: 20 }}>
-          <View style={styles.topRow}>
-            {/* PM1 — Premium artık profilde de görünen bir kimlik: altın çerçeve + taç rozeti.
-                Gerçek bir fotoğrafı varsa dokununca tam boyutta görülebiliyor — yoksa (bkz.
-                utils/avatar.js, artık sahte/rastgele bir fotoğraf üretmiyor) gösterecek gerçek
-                bir şey olmadığı için dokunma etkisiz. */}
+            <View style={styles.osTopRow}>
+              <TouchableOpacity style={styles.osIconBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={translateUI("Geri")}>
+                <ChevronLeft size={18} color="#fbf2df" />
+              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {friends && (
+                  <TouchableOpacity style={styles.osIconBtn} onPress={startChat} accessibilityRole="button" accessibilityLabel={translateUI("Mesaj gönder")}>
+                    <Mail size={16} color="#fbf2df" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.osIconBtn} onPress={() => setShowMenu(true)} accessibilityRole="button" accessibilityLabel={translateUI("Seçenekler")}>
+                  <MoreVertical size={16} color="#fbf2df" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Gerçek bir fotoğrafı varsa dokununca tam boyutta görülüyor; yoksa (utils/avatar.js
+                sahte fotoğraf üretmiyor) gösterecek bir şey olmadığı için dokunma etkisiz. */}
             <TouchableOpacity
               activeOpacity={profile.avatarUrl ? 0.85 : 1}
               onPress={() => profile.avatarUrl && setShowAvatarLightbox(true)}
+              style={styles.osAvatarWrap}
             >
               <RetryImage
                 source={{ uri: avatarOr(profile.avatarUrl, profile.id) }}
@@ -210,92 +253,103 @@ export default function OtherProfileScreen({ route, navigation }) {
               />
               {profile.isPremium && (
                 <View style={styles.premiumCrownBadge}>
-                  <Crown size={11} color="#111" fill="#111" />
+                  <Crown size={12} color="#111" fill="#111" />
                 </View>
               )}
             </TouchableOpacity>
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNum}>{profile.friendCount}</Text>
-                <Text style={styles.statLabel}>{translateUI("Arkadaş")}</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={styles.statNum}>{profile.likeCount}</Text>
-                <Text style={styles.statLabel}>{translateUI("Beğeni")}</Text>
-              </View>
-              {profile.matchPercent != null && (
-                <>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statBox}>
-                    <Text style={[styles.statNum, { color: c.accent }]}>{translateUI("%")}{profile.matchPercent}</Text>
-                    <Text style={styles.statLabel}>{translateUI("Uyum")}</Text>
+
+            <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{upperTR(profile.name)}</Text>
+            {!!profile.username && <Text style={styles.username}>{`@${profile.username}`}</Text>}
+            <Text style={styles.bio}>{profile.bio || translateUI("Bu kullanıcı henüz bir biyografi eklemedi.")}</Text>
+
+            <View style={styles.billing}>
+              <Text style={styles.billingLine} numberOfLines={1}>{translateUI("PELLIX SUNAR · BİR ")}{upperTR(profile.name)}{translateUI(" PROFİLİ")}</Text>
+              <View style={styles.statsRow}>
+                <TouchableOpacity
+                  style={styles.statItem}
+                  disabled={!profile.canSeeLikes}
+                  onPress={() => setContentTab("likes")}
+                  accessibilityLabel={translateUI("{0} beğeni", { 0: profile.likeCount })}
+                >
+                  <Text style={styles.statNum}>{profile.likeCount}</Text>
+                  <Text style={styles.statLabel}>{translateUI("BEĞENİ")}</Text>
+                </TouchableOpacity>
+                <View style={[styles.statItem, styles.statDivided]} accessibilityLabel={translateUI("{0} arkadaş", { 0: profile.friendCount })}>
+                  <Text style={styles.statNum}>{profile.friendCount}</Text>
+                  <Text style={styles.statLabel}>{translateUI("ARKADAŞ")}</Text>
+                </View>
+                {hasMatch && (
+                  <View style={[styles.statItem, styles.statDivided]} accessibilityLabel={translateUI("Uyum %{0}", { 0: profile.matchPercent })}>
+                    <Text style={[styles.statNum, styles.statNumMatch]}>{translateUI("%{0}", { 0: profile.matchPercent })}</Text>
+                    <Text style={[styles.statLabel, styles.statLabelMatch]}>{translateUI("UYUM")}</Text>
                   </View>
-                </>
-              )}
+                )}
+              </View>
             </View>
           </View>
 
-          <Text style={styles.name}>{profile.name}</Text>
-          {!!profile.username && <Text style={styles.username}>{translateUI("@")}{profile.username}</Text>}
-          <Text style={styles.bio}>{profile.bio || translateUI("Bu kullanıcı henüz bir biyografi eklemedi.")}</Text>
-
-          {(profile.favoriteMovie || profile.favoriteShow) && (
-            <View style={styles.favRow}>
-              {profile.favoriteMovie && <FavCard label={translateUI("FAVORİ FİLM")} movie={profile.favoriteMovie} c={c} navigation={navigation} />}
-              {profile.favoriteShow && <FavCard label={translateUI("FAVORİ DİZİ")} movie={profile.favoriteShow} c={c} navigation={navigation} />}
+          {/* İlişkiye göre tek eylem; arkadaşsanız mesaj başlıkta, burada iki bilet var. */}
+          {!friends && (
+            <View style={styles.profileActionsRow}>
+              {profile.relationship === "pending_sent" && (
+                <View style={[styles.profileActionBtn, { opacity: 0.7 }]}>
+                  <Clock size={14} color={c.dim} />
+                  <Text style={[styles.profileActionBtnText, { color: c.dim }]}>{translateUI("İstek Gönderildi")}</Text>
+                </View>
+              )}
+              {profile.relationship === "pending_received" && (
+                <TouchableOpacity style={[styles.profileActionBtn, styles.profileActionBtnPrimary]} onPress={acceptRequest} disabled={busy}>
+                  <Check size={14} color={c.bg} />
+                  <Text style={[styles.profileActionBtnText, { color: c.bg }]}>{translateUI("İsteği Kabul Et")}</Text>
+                </TouchableOpacity>
+              )}
+              {profile.relationship === "none" && (
+                <TouchableOpacity style={[styles.profileActionBtn, styles.profileActionBtnPrimary]} onPress={sendRequest} disabled={busy}>
+                  <UserPlus size={14} color={c.bg} />
+                  <Text style={[styles.profileActionBtnText, { color: c.bg }]}>{translateUI("Arkadaş Ekle")}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
-          {profile.relationship !== "friends" && <View style={styles.actionsRow}>
-            {profile.relationship === "pending_sent" && (
-              <View style={[styles.primaryBtn, { backgroundColor: c.surface2 }]}>
-                <Text style={[styles.primaryBtnText, { color: c.dim }]}>{translateUI("İstek Gönderildi")}</Text>
-              </View>
-            )}
-            {profile.relationship === "pending_received" && (
-              <TouchableOpacity style={styles.primaryBtn} onPress={acceptRequest} disabled={busy}>
-                <Text style={styles.primaryBtnText}>{translateUI("İsteği Kabul Et")}</Text>
-              </TouchableOpacity>
-            )}
-            {profile.relationship === "none" && (
-              <TouchableOpacity style={styles.primaryBtn} onPress={sendRequest} disabled={busy}>
-                <Text style={styles.primaryBtnText}>{translateUI("Arkadaş Ekle")}</Text>
-              </TouchableOpacity>
-            )}
-          </View>}
-
-          {profile.relationship === "friends" && (
-            <View style={styles.funRow}>
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.funCardShadow}
+          {friends && (
+            <View style={{ gap: 12, marginTop: 14 }}>
+              <TicketCard
+                eyebrow={hasMatch ? translateUI("%{0} UYUM", { 0: profile.matchPercent }) : translateUI("İKİNİZE ÖZEL")}
+                title={translateUI("Blend")}
+                subtitle={translateUI("Ortak beğenilerinizi keşfet")}
                 onPress={() => navigation.navigate("Blend", { friendId: profile.id, friendName: profile.name, friendAvatar: profile.avatarUrl })}
-              >
-                <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.funCard}>
-                  <Sparkles size={44} color="rgba(255,255,255,0.25)" style={styles.funSparkle} />
-                  <View style={styles.funIconWrap}>
-                    <Sparkles size={20} color="#fff" />
-                  </View>
-                  <Text style={styles.funTitle}>{translateUI("Blend")}</Text>
-                  <Text style={styles.funSubtitle}>{translateUI("Ortak beğenilerinizi keşfet")}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.funCardShadow}
+              />
+              <TicketCard
+                eyebrow={translateUI("BİRLİKTE SEÇİN")}
+                title={translateUI("MatchParty")}
+                subtitle={translateUI("Birlikte kaydırın, eşleşin")}
                 onPress={() => navigation.navigate("MatchParty", { friend: { id: profile.id, name: profile.name, avatarUrl: profile.avatarUrl } })}
-              >
-                <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.funCard}>
-                  <PartyPopper size={44} color="rgba(255,255,255,0.25)" style={styles.funSparkle} />
-                  <View style={styles.funIconWrap}>
-                    <PartyPopper size={20} color="#fff" />
-                  </View>
-                  <Text style={styles.funTitle}>{translateUI("MatchParty")}</Text>
-                  <Text style={styles.funSubtitle}>{translateUI("Birlikte kaydırın, eşleşin")}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              />
+            </View>
+          )}
+
+          {showReel && (
+            <View style={styles.tasteCard}>
+              <View style={styles.insightHeader}>
+                <Text style={styles.insightTitle}>{translateUI("Film makarası")}</Text>
+                <Text style={styles.signalText}>{translateUI("{0} beğeniden", { 0: visibleLikes.length })}</Text>
+              </View>
+              <ReelChart genres={reel.genres} />
+              <View style={styles.typeSplitRow}>
+                <Text style={styles.typeSplitLabel}>{translateUI("Film %")}{reel.filmPercent}</Text>
+                <View style={styles.typeSplitTrack}>
+                  <View style={[styles.typeSplitFilm, { width: `${reel.filmPercent}%` }]} />
+                </View>
+                <Text style={styles.typeSplitLabel}>{translateUI("Dizi %")}{reel.showPercent}</Text>
+              </View>
+            </View>
+          )}
+
+          {(profile.favoriteMovie || profile.favoriteShow) && (
+            <View style={styles.favRow}>
+              {profile.favoriteMovie && <FavCard label={translateUI("Favori Film")} movie={profile.favoriteMovie} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteMovie })} />}
+              {profile.favoriteShow && <FavCard label={translateUI("Favori Dizi")} movie={profile.favoriteShow} c={c} onPress={() => navigation.navigate("Detail", { movie: profile.favoriteShow })} />}
             </View>
           )}
 
@@ -316,16 +370,16 @@ export default function OtherProfileScreen({ route, navigation }) {
             ) : (
               <View style={styles.emptyPosts}>
                 <View style={styles.emptyPostsIcon}>
-                  <Sparkles size={24} color={c.dim} />
+                  <Sparkles size={22} color={c.dim} />
                 </View>
                 <Text style={styles.emptyPostsTitle}>{translateUI("Henüz paylaşım yok")}</Text>
                 <Text style={styles.emptyPostsText}>{translateUI("Bu kullanıcı daha hiçbir şey paylaşmadı.")}</Text>
               </View>
             )
           ) : profile.canSeeLikes ? (
-            profile.likedMovies?.length > 0 ? (
+            visibleLikes.length > 0 ? (
               <>
-                <FlatList data={profile.likedMovies} numColumns={3} scrollEnabled={false}
+                <FlatList data={visibleLikes} numColumns={3} scrollEnabled={false}
                   columnWrapperStyle={{ gap: 6 }} contentContainerStyle={{ gap: 6, marginTop: 12 }}
                   keyExtractor={(item) => String(item.id)}
                   renderItem={({ item }) => (
@@ -334,7 +388,7 @@ export default function OtherProfileScreen({ route, navigation }) {
                     </TouchableOpacity>
                   )}
                 />
-                {profile.likeCount > profile.likedMovies.length && (
+                {profile.likeCount > visibleLikes.length && (
                   <TouchableOpacity style={styles.seeAllBtn} onPress={() => navigation.navigate("AllLikes", { userId, title: translateUI("{0} — Beğeniler", { 0: profile.name }) })}>
                     <Text style={styles.seeAllBtnText}>{translateUI("Tümünü Gör (")}{profile.likeCount}{translateUI(")")}</Text>
                   </TouchableOpacity>
@@ -350,8 +404,8 @@ export default function OtherProfileScreen({ route, navigation }) {
       {showMenu && (
         <View style={styles.menuOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowMenu(false)} />
-          <View style={styles.menuSheet}>
-            {profile.relationship === "friends" && (
+          <View style={[styles.menuSheet, { marginTop: Math.max(insets.top, 12) + 64 }]}>
+            {friends && (
               <TouchableOpacity style={styles.menuRow} onPress={confirmUnfriend} disabled={busy}>
                 <View style={styles.menuIconWrap}><UserMinus size={16} color={c.danger} /></View>
                 <Text style={[styles.menuText, { color: c.danger }]}>{translateUI("Arkadaşlıktan Çık")}</Text>
@@ -384,51 +438,81 @@ export default function OtherProfileScreen({ route, navigation }) {
   );
 }
 
-function FavCard({ label, movie, c, navigation }) {
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("Detail", { movie })}
-      style={{ flex: 1, flexDirection: "row", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 8, alignItems: "center" }}
-    >
-      {movie.poster ? (
-        <Image source={{ uri: movie.poster }} style={{ width: 40, height: 58, borderRadius: 8 }} />
-      ) : (
-        <View style={{ width: 40, height: 58, borderRadius: 8, backgroundColor: c.surface2 }} />
-      )}
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-          <Star size={9} color={c.accent} fill={c.accent} />
-          <Text style={{ fontSize: 8, fontWeight: "800", color: c.accent }}>{translateUI(label)}</Text>
-        </View>
-        <Text style={{ fontSize: 11, fontWeight: "700", color: c.text, marginTop: 2 }} numberOfLines={1}>{movie.title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 function makeStyles(c) {
   return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
     center: { alignItems: "center", justifyContent: "center", backgroundColor: c.bg },
-    header: {
-      flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
-      borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg,
-    },
-    backBtn: { padding: 2 },
-    headerActionBtn: {
-      width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center",
-      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
-    },
-    headerTitle: { fontSize: 14, fontWeight: "700", color: c.text, flex: 1 },
+
     blockedBanner: {
       flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface2,
-      paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
+      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: c.border, marginBottom: 10,
     },
     blockedBannerText: { flex: 1, fontSize: 12, color: c.dim, fontWeight: "600" },
     unblockLink: { fontSize: 12, color: c.accent, fontWeight: "700" },
+
+    // afiş (ProfileScreen ile aynı ölçüler)
+    onesheet: { borderRadius: 14, overflow: "hidden", backgroundColor: "#3f1214", alignItems: "center", paddingTop: 14, paddingHorizontal: 14 },
+    osTopRow: { alignSelf: "stretch", flexDirection: "row", justifyContent: "space-between" },
+    osIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
+    osAvatarWrap: { marginTop: -8 },
+    avatar: { width: 96, height: 96, borderRadius: 999, borderWidth: 3, borderColor: "#efe4cc", backgroundColor: "#2a2520" },
+    avatarPremiumRing: { borderColor: "#F5C518" },
+    premiumCrownBadge: {
+      position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 999,
+      backgroundColor: "#F5C518", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#3f1214",
+    },
+    name: { fontSize: 52, lineHeight: 50, fontFamily: FONTS.marquee, color: "#fbf2df", marginTop: 14, textAlign: "center", textShadowColor: "rgba(0,0,0,0.5)", textShadowRadius: 14 },
+    username: { fontSize: 12, fontFamily: FONTS.mono, color: "#e9d8b9", marginTop: 4 },
+    bio: { fontSize: 14, fontStyle: "italic", color: "#f0dfc0", marginTop: 10, lineHeight: 20, textAlign: "center", maxWidth: 300 },
+    billing: { alignSelf: "stretch", marginHorizontal: -14, marginTop: 20, paddingTop: 12, paddingBottom: 6, backgroundColor: "rgba(10,4,4,0.55)" },
+    billingLine: { fontFamily: FONTS.marqueeMedium, fontSize: 11.5, letterSpacing: 1.6, color: "rgba(233,216,185,0.8)", textAlign: "center", paddingHorizontal: 10, marginBottom: 4 },
+    statsRow: { flexDirection: "row" },
+    statItem: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 50 },
+    statDivided: { borderLeftWidth: 1, borderLeftColor: "rgba(255,255,255,0.14)" },
+    statNum: { fontSize: 25, fontFamily: FONTS.marqueeBold, color: "#fbf2df" },
+    statNumMatch: { color: "#e2c171" },
+    statLabel: { fontSize: 11, fontFamily: FONTS.marqueeMedium, color: "rgba(233,216,185,0.75)", letterSpacing: 1.4 },
+    statLabelMatch: { color: "rgba(226,193,113,0.9)" },
+
+    profileActionsRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+    profileActionBtn: {
+      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+      height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.border,
+    },
+    profileActionBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent },
+    profileActionBtnText: { fontSize: 14, fontWeight: "600", color: c.text },
+
+    tasteCard: {
+      marginTop: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+      borderRadius: 18, padding: 15,
+    },
+    insightHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
+    insightTitle: { fontSize: 24, fontFamily: FONTS.marquee, color: c.text, flexShrink: 1 },
+    signalText: { fontSize: 11.5, color: c.dim, fontFamily: FONTS.mono },
+    typeSplitRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border },
+    typeSplitLabel: { fontSize: 11.5, fontFamily: FONTS.mono, color: c.dim },
+    typeSplitTrack: { flex: 1, height: 8, backgroundColor: "#6f9fb0", borderRadius: 999, overflow: "hidden" },
+    typeSplitFilm: { height: "100%", backgroundColor: c.accent },
+
+    favRow: { flexDirection: "row", gap: 10, marginTop: 14 },
+    contentTabs: { flexDirection: "row", marginTop: 20, borderBottomWidth: 1, borderBottomColor: c.border },
+    contentTab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
+    contentTabActive: { borderBottomColor: c.accent },
+    contentTabText: { color: c.dim, fontSize: 21, fontFamily: FONTS.marqueeBold },
+    contentTabTextActive: { color: c.text },
+    posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
+    emptyText: { color: c.dim, fontSize: 12, marginTop: 14 },
+    emptyPosts: { minHeight: 170, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+    emptyPostsIcon: { width: 54, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
+    emptyPostsTitle: { color: c.text, fontSize: 22, fontFamily: FONTS.marquee, textAlign: "center" },
+    emptyPostsText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 4 },
+    seeAllBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
+    seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
+    lockedBox: { alignItems: "center", paddingVertical: 20, gap: 8 },
+
     menuOverlay: {
       position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
-      backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-start", alignItems: "flex-end",
-      paddingTop: 90, paddingRight: 16,
+      backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-start", alignItems: "flex-end", paddingRight: 16,
     },
     menuSheet: {
       backgroundColor: c.surface, borderRadius: 14, paddingVertical: 6, width: 200,
@@ -438,55 +522,5 @@ function makeStyles(c) {
     menuRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
     menuIconWrap: { width: 26, alignItems: "center" },
     menuText: { fontSize: 13, fontWeight: "600", color: c.text },
-    cover: { height: 100 },
-    topRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginTop: -40, zIndex: 5, elevation: 5 },
-    avatar: { width: 76, height: 76, borderRadius: 999, borderWidth: 4, borderColor: c.bg },
-    avatarPremiumRing: { borderColor: "#F5C518" },
-    premiumCrownBadge: {
-      position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: 999,
-      backgroundColor: "#F5C518", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: c.bg,
-    },
-    statsRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 16 },
-    statBox: { minWidth: 46, alignItems: "center" },
-    statDivider: { width: 1, height: 24, backgroundColor: c.border },
-    statNum: { fontSize: 16, fontWeight: "800", color: c.text },
-    statLabel: { fontSize: 10, color: c.dim, marginTop: 1 },
-    name: { fontSize: 20, fontWeight: "700", color: c.text, marginTop: 12 },
-    username: { fontSize: 12, color: c.dim, marginTop: 2 },
-    bio: { fontSize: 13, color: c.dim, marginTop: 6, lineHeight: 19 },
-    favRow: { flexDirection: "row", gap: 10, marginTop: 14 },
-    actionsRow: { flexDirection: "row", gap: 8, marginTop: 18 },
-    primaryBtn: { flex: 1, backgroundColor: c.accent, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
-    primaryBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
-    secondaryBtn: { backgroundColor: c.surface2, borderRadius: 12, paddingHorizontal: 16, justifyContent: "center", borderWidth: 1, borderColor: c.border },
-    secondaryBtnText: { color: c.text, fontWeight: "700", fontSize: 12 },
-    funRow: { flexDirection: "row", gap: 10, marginTop: 12 },
-    funCardShadow: {
-      flex: 1, borderRadius: 18,
-      shadowColor: "#6366F1", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.28, shadowRadius: 12, elevation: 6,
-    },
-    funCard: { borderRadius: 18, padding: 13, overflow: "hidden", minHeight: 86, justifyContent: "flex-end" },
-    funSparkle: { position: "absolute", top: -6, right: -6 },
-    funIconWrap: {
-      width: 34, height: 34, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)",
-      alignItems: "center", justifyContent: "center", marginBottom: 8,
-    },
-    funTitle: { fontSize: 14, fontWeight: "800", color: "#fff" },
-    funSubtitle: { fontSize: 10.5, color: "rgba(255,255,255,0.9)", marginTop: 2, lineHeight: 14 },
-    sectionTitle: { fontSize: 13, fontWeight: "700", color: c.text, marginTop: 26, marginBottom: 10 },
-    contentTabs: { flexDirection: "row", marginTop: 26, borderBottomWidth: 1, borderBottomColor: c.border },
-    contentTab: { flex: 1, alignItems: "center", paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: "transparent" },
-    contentTabActive: { borderBottomColor: c.accent },
-    contentTabText: { color: c.dim, fontSize: 12.5, fontWeight: "800" },
-    contentTabTextActive: { color: c.accent },
-    posterThumb: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8 },
-    emptyText: { color: c.dim, fontSize: 12 },
-    emptyPosts: { minHeight: 190, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-    emptyPostsIcon: { width: 58, height: 58, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
-    emptyPostsTitle: { color: c.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
-    emptyPostsText: { color: c.dim, fontSize: 11, textAlign: "center", marginTop: 4 },
-    seeAllBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
-    seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
-    lockedBox: { alignItems: "center", paddingVertical: 20, gap: 8 },
   });
 }

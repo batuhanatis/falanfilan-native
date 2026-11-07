@@ -1717,5 +1717,13 @@
   "{0} Pellix'te profilini paylaştı": "{0} shared their Pellix profile",
   "Benimle MatchParty yap: {0}": "Do a MatchParty with me: {0}",
   "{0} Friend Battle sonucumuz: %{1} beğeni uyumu. Pellix: {2}": "Friend Battle with {0}: {1}% match on likes. Pellix: {2}",
-  "{0} canlı sohbet odası: {1}": "{0} live chat room: {1}"
+  "{0} canlı sohbet odası: {1}": "{0} live chat room: {1}",
+  "Seçenekler": "Options",
+  "Uyum %{0}": "{0}% match",
+  "%{0} UYUM": "{0}% MATCH",
+  "İKİNİZE ÖZEL": "JUST FOR YOU TWO",
+  "Film makarası": "Film reel",
+  "{0} beğeniden": "from {0} likes",
+  "%{0}": "{0}%",
+  "BİRLİKTE SEÇİN": "PICK TOGETHER"
 }
