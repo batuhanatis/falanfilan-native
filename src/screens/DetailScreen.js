@@ -17,6 +17,9 @@ import RetryImage from "../components/RetryImage";
 import ListPickerModal from "../components/ListPickerModal";
 import SendToFriendModal from "../components/SendToFriendModal";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+import ShareCardModal from "../components/ShareCardModal";
+import TitleStoryCard, { STORY_CARD_HEIGHT } from "../components/TitleStoryCard";
+import { diaryApi } from "../api/diary";
 import { getStoreLink } from "../utils/appLinks";
 import SocialPostComposer from "../components/SocialPostComposer";
 import TrailerPlayerModal from "../components/TrailerPlayerModal";
@@ -76,6 +79,14 @@ export default function DetailScreen({ route, navigation }) {
   const [showListPicker, setShowListPicker] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [postComposerOpen, setPostComposerOpen] = useState(false);
+  // "Story kartı": kullanıcının bu içerik için günlükteki puanı ve notu (varsa) karta yazılıyor.
+  const [storyCardOpen, setStoryCardOpen] = useState(false);
+  const [storyEntry, setStoryEntry] = useState(null);
+  function openStoryCard() {
+    setStoryCardOpen(true);
+    if (!auth.token || !movie.id) return;
+    diaryApi.entry(auth.token, movie.id).then((r) => setStoryEntry(r?.entry || null)).catch(() => {});
+  }
   const [selectedTrailer, setSelectedTrailer] = useState(null);
 
   const [comment, setComment] = useState("");
@@ -447,12 +458,31 @@ export default function DetailScreen({ route, navigation }) {
               options={shareOptions({
                 message: translateUI("{0} Pellix'te \"{1}\" önerdi: {2}\n\nSen de Pellix'i indir ({3}), kayıt olurken \"{4}\" davet kodunu yaz, 7 gün Premium hediye.", { 0: auth.name, 1: movie.title, 2: `https://www.pellix.app/film/${movie.id}`, 3: getStoreLink("send_to_friend"), 4: auth.username }),
                 url: `https://www.pellix.app/film/${movie.id}`,
+                card: openStoryCard,
+                cardLabel: translateUI("Story kartı"),
                 sendToFriend: () => setSendOpen(true),
                 feed: () => setPostComposerOpen(true),
               })}
             >
               <Send size={16} color={c.text} />
             </ShareFan>
+            {storyCardOpen && (
+              <ShareCardModal
+                onClose={() => setStoryCardOpen(false)}
+                shareMessage={translateUI("Bu akşamki seansım: {0} 🎬", { 0: movie.title })}
+                shareUrl={`https://www.pellix.app/film/${movie.id}`}
+                previewHeight={STORY_CARD_HEIGHT}
+              >
+                <TitleStoryCard
+                  movie={movie}
+                  platforms={platforms}
+                  stores={stores}
+                  username={auth.username}
+                  rating={storyEntry?.rating}
+                  note={storyEntry?.note}
+                />
+              </ShareCardModal>
+            )}
           </View>
 
           <TouchableOpacity style={styles.tastePostBtn} onPress={() => setPostComposerOpen(true)} activeOpacity={0.85}>

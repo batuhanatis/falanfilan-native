@@ -1725,5 +1725,12 @@
   "Film makarası": "Film reel",
   "{0} beğeniden": "from {0} likes",
   "%{0}": "{0}%",
-  "BİRLİKTE SEÇİN": "PICK TOGETHER"
+  "BİRLİKTE SEÇİN": "PICK TOGETHER",
+  "Story kartı": "Story card",
+  "BU AKŞAMKİ SEANSIM": "MY SCREENING TONIGHT",
+  "NEREDE": "WHERE",
+  "TÜR": "GENRE",
+  "PUANIM": "MY SCORE",
+  "PUAN": "SCORE",
+  "Bu akşamki seansım: {0} 🎬": "My screening tonight: {0} 🎬"
 }

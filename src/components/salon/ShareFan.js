@@ -29,7 +29,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
   const progress = useRef([]).current;
   const busy = useRef(false);
 
-  const list = (options || []).filter(Boolean).slice(0, 5);
+  const list = (options || []).filter(Boolean).slice(0, 6);
 
   function targets(a) {
     // Her ikon ve etikete ayrı hücre ayır. Tek tek kenara sıkıştırılan yay
@@ -167,7 +167,7 @@ export default function ShareFan({ options, style, children, accessibilityLabel 
 // gönder, akışta paylaş) başa ekliyor; WhatsApp, kopyala ve diğer uygulamalar buradan.
 // Link dokunuşta oluşuyorsa (ör. Party linki) message/url yerine prepare verilir:
 // async () => ({ message, url }); null dönerse paylaşım yapılmaz.
-export function shareOptions({ message, url, prepare, copyText, card, sendToFriend, feed, copy = true }) {
+export function shareOptions({ message, url, prepare, copyText, card, cardLabel, sendToFriend, feed, copy = true }) {
   async function payload() {
     const p = prepare ? await prepare() : { message, url };
     if (!p) return null;
@@ -176,7 +176,7 @@ export function shareOptions({ message, url, prepare, copyText, card, sendToFrie
   }
   const run = (fn) => () => { payload().then((p) => p && fn(p)).catch(() => {}); };
   return [
-    card && { key: "card", label: translateUI("Görsel kart"), Icon: ImageIcon, onPress: card },
+    card && { key: "card", label: cardLabel || translateUI("Görsel kart"), Icon: ImageIcon, onPress: card },
     sendToFriend && { key: "friend", label: translateUI("Arkadaşına"), a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
     feed && { key: "feed", label: translateUI("Akışta"), a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
     {
