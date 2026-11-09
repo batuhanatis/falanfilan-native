@@ -22,11 +22,12 @@ function nativeModule() {
 }
 
 // Doğrudan paylaşım bu cihazda mümkün mü (modül var, App ID tanımlı, Instagram yüklü)?
-export function canShareToStoryDirect() {
+// Yerel taraf ana iş parçacığında baktığı için asenkron.
+export async function canShareToStoryDirect() {
   const mod = nativeModule();
   if (!mod || !FACEBOOK_APP_ID) return false;
   try {
-    return !!mod.isAvailable();
+    return !!(await mod.isAvailable());
   } catch {
     return false;
   }

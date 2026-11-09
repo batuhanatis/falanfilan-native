@@ -1,5 +1,5 @@
 import { t as translateUI } from "../i18n/core";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated, useWindowDimensions } from "react-native";
 import ViewShot from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
@@ -131,7 +131,13 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
   const [igBusy, setIgBusy] = useState(false);
   const [igHint, setIgHint] = useState(false);
   const igCoachSeen = useRef(false);
-  const igDirect = igMode && canShareToStoryDirect();
+  const [igDirect, setIgDirect] = useState(false);
+  useEffect(() => {
+    if (!igMode) return undefined;
+    let alive = true;
+    canShareToStoryDirect().then((ok) => { if (alive) setIgDirect(ok); }).catch(() => {});
+    return () => { alive = false; };
+  }, [igMode]);
   async function handleInstagramStory() {
     if (igBusy) return;
     if (!igCoachSeen.current) {
