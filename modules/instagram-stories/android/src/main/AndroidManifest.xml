@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Story görselini Instagram'a vermek için content:// adresi (yalnızca önbellek klasörü). -->
+    <provider
+      android:name="expo.modules.instagramstories.InstagramStoriesFileProvider"
+      android:authorities="${applicationId}.pellixinstagramstories"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/pellix_instagram_stories_paths" />
+    </provider>
+  </application>
+</manifest>
