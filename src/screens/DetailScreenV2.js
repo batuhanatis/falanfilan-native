@@ -1,11 +1,12 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { Check, Eye } from "lucide-react-native";
+import { Check, Eye, ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { diaryApi } from "../api/diary";
+import { api } from "../api/client";
 import DetailScreen from "./DetailScreen";
 import DiaryEntryModal from "../components/DiaryEntryModal";
 import LiveRoomBanner from "../components/LiveRoomBanner";
@@ -14,6 +15,50 @@ import LiveRoomBanner from "../components/LiveRoomBanner";
 // olarak ekliyoruz. Backend henüz deploy edilmemişse /api/diary çağrısı başarısız olur ve buton
 // kendini gizler; böylece native OTA, API rollout'undan önce bile eski kullanıcı akışını bozmaz.
 export default function DetailScreenV2(props) {
+  const movie = props.route?.params?.movie;
+  // Linkten (open.pellix.app/u/film/<id>) gelince elde yalnızca kimlik var: içerik bir kez
+  // çekiliyor, ekran tam veriyle açılıyor (DetailScreen ilk değerlerini movie'den alıyor).
+  if (movie?.id && !movie.title) return <DetailLoader {...props} />;
+  return <DetailWithDiary {...props} />;
+}
+
+function DetailLoader({ route, navigation }) {
+  const { c } = useAppTheme();
+  const { auth } = useAuth();
+  const insets = useSafeAreaInsets();
+  const id = route?.params?.movie?.id;
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api.movieById(auth.token, id)
+      .then((fresh) => {
+        if (cancelled) return;
+        if (fresh?.id && fresh?.title) navigation.setParams({ movie: fresh });
+        else setFailed(true);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [id, auth.token]);
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <TouchableOpacity
+        onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate("MainTabs"))}
+        style={{ position: "absolute", top: insets.top + 8, left: 12, padding: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={translateUI("Geri")}
+      >
+        <ChevronLeft size={26} color={c.text} />
+      </TouchableOpacity>
+      {failed ? (
+        <Text style={{ color: c.dim, fontSize: 14, textAlign: "center" }}>{translateUI("Bu içerik açılamadı. Bağlantını kontrol edip tekrar dene.")}</Text>
+      ) : (
+        <ActivityIndicator color={c.accent} />
+      )}
+    </View>
+  );
+}
+
+function DetailWithDiary(props) {
   const movie = props.route?.params?.movie;
   const { navigation } = props;
   const { c } = useAppTheme();

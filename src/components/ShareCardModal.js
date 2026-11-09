@@ -4,14 +4,30 @@ import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Pla
 import ViewShot from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
+import * as Clipboard from "expo-clipboard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Svg, { Rect, Circle } from "react-native-svg";
 import { X, Share2, Download, Check, Radio, Image as ImageIcon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import DismissableSheet from "./DismissableSheet";
+import { canShareToStoryDirect, shareToStoryDirect } from "../utils/instagramStories";
 
 const APP_LINK = "https://www.pellix.app";
+const IG_COACH_KEY = "pellix_ig_story_coach_v1";
+
+// Instagram düğmesindeki sade kamera simgesi (lucide'da marka simgeleri yok).
+function InstagramGlyph({ size = 17, color }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2}>
+      <Rect x={3} y={3} width={18} height={18} rx={5.5} />
+      <Circle cx={12} cy={12} r={4.2} />
+      <Circle cx={17.4} cy={6.6} r={1.1} fill={color} stroke="none" />
+    </Svg>
+  );
+}
 
 // Herhangi bir kartı (children olarak verilen görsel içerik) ekran görüntüsüne çevirip
 // paylaşan/kaydeden genel amaçlı modal. Blend, MatchParty ve Profil kartları bunu kullanıyor.
@@ -31,7 +47,12 @@ const APP_LINK = "https://www.pellix.app";
 // muhtemelen üstteki TouchableWithoutFeedback katmanlarıyla ilişkiliydi). Basit bir dokunuş,
 // hiçbir gesture-negotiation riski taşımadığı için kesin çalışıyor — ayrıca DismissableSheet'in
 // aşağı-çekerek-kapatması da artık HİÇBİR kullanımda (Blend/MatchParty/Profil) engellenmiyor.
-export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK, socialCard, onSocialShared, previewHeight }) {
+// instagramStory ({ link }): Story kartı gibi 9:16 kartlarda "Instagram Story" düğmesi. Instagram,
+// uygulamaların story'ye tıklanabilir link eklemesine izin vermiyor; link panoya kopyalanıyor ve
+// kullanıcı Instagram'ın Bağlantı çıkartmasına yapıştırıyor (ilk seferde üç adımlık kısa anlatım).
+// Yerel modül olan sürümlerde (bkz. utils/instagramStories.js) Instagram story düzenleyicisi
+// doğrudan kartla açılıyor; diğerlerinde görsel sistemin paylaşım menüsüne gidiyor.
+export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK, socialCard, onSocialShared, previewHeight, instagramStory }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const insets = useSafeAreaInsets();
@@ -39,8 +60,12 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
   const styles = makeStyles(c);
   // Büyük, dışa aktarılacak kartın gerçek çözünürlüğünü değiştirmeden yalnızca ekrandaki
   // önizlemesini Android'in kullanılabilir yüksekliğine sığdır.
+  const igMode = !!instagramStory?.link;
+  const [igCoach, setIgCoach] = useState(false);
+  // Kartın altındaki düğmeler (ya da Instagram anlatımı) için ayrılan yükseklik.
+  const reserved = igMode ? (igCoach ? 340 : 236) : 150;
   const previewScale = previewHeight
-    ? Math.min(1, Math.max(0.58, (windowHeight - insets.top - insets.bottom - 150) / previewHeight))
+    ? Math.min(1, Math.max(0.42, (windowHeight - insets.top - insets.bottom - reserved) / previewHeight))
     : 1;
   const previewMargin = previewHeight ? -((previewHeight * (1 - previewScale)) / 2) : 0;
   const shotRef = useRef(null);
@@ -101,6 +126,39 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
       }
     } catch { /* iptal edilmiş olabilir */ }
     setImageSharing(false);
+  }
+
+  const [igBusy, setIgBusy] = useState(false);
+  const [igHint, setIgHint] = useState(false);
+  const igCoachSeen = useRef(false);
+  const igDirect = igMode && canShareToStoryDirect();
+  async function handleInstagramStory() {
+    if (igBusy) return;
+    if (!igCoachSeen.current) {
+      const seen = await AsyncStorage.getItem(IG_COACH_KEY).catch(() => null);
+      igCoachSeen.current = !!seen;
+      if (!seen) { setIgCoach(true); return; }
+    }
+    runInstagramStory();
+  }
+  async function runInstagramStory() {
+    setIgCoach(false);
+    igCoachSeen.current = true;
+    AsyncStorage.setItem(IG_COACH_KEY, "1").catch(() => {});
+    setIgBusy(true);
+    try {
+      await Clipboard.setStringAsync(instagramStory.link);
+      setIgHint(true);
+      const uri = await shotRef.current.capture();
+      if (igDirect && await shareToStoryDirect(uri)) return;
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "Instagram Story" });
+      } else {
+        await Share.share({ url: uri });
+      }
+    } catch { /* iptal edilmiş olabilir */ } finally {
+      setIgBusy(false);
+    }
   }
 
   async function handleSocialShare() {
@@ -175,21 +233,58 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                 </TouchableOpacity>
               )}
 
+              {igMode && igCoach && (
+                <View style={styles.igCoach}>
+                  <Text style={styles.igCoachTitle}>{translateUI("Story'ye dokunan Pellix'te bu içeriğe gitsin")}</Text>
+                  {[
+                    !igDirect && translateUI("Açılan menüden Instagram'ı, sonra Hikaye'yi seç."),
+                    translateUI("Üstteki çıkartma simgesine dokun, BAĞLANTI'yı seç."),
+                    translateUI("Link panoda: yapıştır ve story'yi paylaş."),
+                  ].filter(Boolean).map((step, i) => (
+                    <View key={i} style={styles.igStep}>
+                      <Text style={styles.igStepNo}>{i + 1}</Text>
+                      <Text style={styles.igStepText}>{step}</Text>
+                    </View>
+                  ))}
+                  <TouchableOpacity style={styles.igBtn} onPress={runInstagramStory} accessibilityRole="button">
+                    <InstagramGlyph color={c.bg} />
+                    <Text style={styles.igBtnText}>{translateUI("Tamam, Instagram'a geç")}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {igMode && !igCoach && (
+                <>
+                  <TouchableOpacity style={styles.igBtn} onPress={handleInstagramStory} disabled={igBusy} accessibilityRole="button">
+                    {igBusy ? <ActivityIndicator color={c.bg} /> : (
+                      <>
+                        <InstagramGlyph color={c.bg} />
+                        <Text style={styles.igBtnText}>{translateUI("Instagram Story'de paylaş")}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  {igHint && <Text style={styles.igHint}>{translateUI("Link panoda · çıkartma → BAĞLANTI → yapıştır")}</Text>}
+                </>
+              )}
+
+              {!igCoach && (
               <View style={styles.btnRow}>
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} accessibilityLabel={translateUI("Galeriye kaydet")}>
                   {saving ? <ActivityIndicator color="#fff" /> : saved ? <Check size={20} color="#fff" /> : <Download size={20} color="#fff" />}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.shareBtn} onPress={handleImageShare} disabled={imageSharing}>
+                <TouchableOpacity style={igMode ? styles.shareBtnQuiet : styles.shareBtn} onPress={handleImageShare} disabled={imageSharing}>
                   {imageSharing ? (
-                    <ActivityIndicator color={c.bg} />
+                    <ActivityIndicator color={igMode ? "#fff" : c.bg} />
                   ) : (
                     <>
-                      <ImageIcon size={16} color={c.bg} />
-                      <Text style={styles.shareBtnText}>{translateUI("Görseli Paylaş (Story, WhatsApp…)")}</Text>
+                      <ImageIcon size={16} color={igMode ? "#fff" : c.bg} />
+                      <Text style={igMode ? styles.shareBtnQuietText : styles.shareBtnText}>{igMode ? translateUI("Görseli paylaş (WhatsApp…)") : translateUI("Görseli Paylaş (Story, WhatsApp…)")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
               </View>
+              )}
+              {!igCoach && (
               <TouchableOpacity style={[styles.linkBtn, { marginBottom: insets.bottom }]} onPress={handleShare} disabled={sharing}>
                 {sharing ? <ActivityIndicator color="#fff" /> : (
                   <>
@@ -198,6 +293,12 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
                   </>
                 )}
               </TouchableOpacity>
+              )}
+              {igCoach && (
+                <TouchableOpacity style={[styles.igCancel, { marginBottom: insets.bottom }]} onPress={() => setIgCoach(false)}>
+                  <Text style={styles.igCancelText}>{translateUI("Vazgeç")}</Text>
+                </TouchableOpacity>
+              )}
             </DismissableSheet>
           </TouchableWithoutFeedback>
         </View>
@@ -226,6 +327,24 @@ function makeStyles(c) {
       borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13,
     },
     shareBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
+    shareBtnQuiet: {
+      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, backgroundColor: "rgba(255,255,255,0.15)",
+    },
+    shareBtnQuietText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    igBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16,
+      borderRadius: 999, paddingVertical: 14, backgroundColor: c.accent,
+    },
+    igBtnText: { color: c.bg, fontWeight: "900", fontSize: 14 },
+    igHint: { color: "rgba(255,255,255,0.62)", fontSize: 11.5, textAlign: "center", marginTop: 8 },
+    igCoach: { marginTop: 16, borderRadius: 18, padding: 16, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+    igCoachTitle: { color: "#fff", fontWeight: "800", fontSize: 14, marginBottom: 10 },
+    igStep: { flexDirection: "row", gap: 10, alignItems: "flex-start", marginBottom: 8 },
+    igStepNo: { width: 20, height: 20, borderRadius: 10, overflow: "hidden", textAlign: "center", lineHeight: 20, fontSize: 11, fontWeight: "900", color: c.bg, backgroundColor: c.accent },
+    igStepText: { flex: 1, color: "rgba(255,255,255,0.86)", fontSize: 13, lineHeight: 19 },
+    igCancel: { alignItems: "center", paddingVertical: 12, marginTop: 4 },
+    igCancelText: { color: "rgba(255,255,255,0.6)", fontWeight: "700", fontSize: 13 },
     linkBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 10,
       borderRadius: 999, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)",

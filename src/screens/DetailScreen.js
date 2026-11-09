@@ -470,8 +470,9 @@ export default function DetailScreen({ route, navigation }) {
               <ShareCardModal
                 onClose={() => setStoryCardOpen(false)}
                 shareMessage={translateUI("Bu akşamki seansım: {0} 🎬", { 0: movie.title })}
-                shareUrl={`https://www.pellix.app/film/${movie.id}`}
+                shareUrl={`https://open.pellix.app/u/film/${movie.id}`}
                 previewHeight={STORY_CARD_HEIGHT}
+                instagramStory={{ link: `https://open.pellix.app/u/film/${movie.id}` }}
               >
                 <TitleStoryCard
                   movie={movie}

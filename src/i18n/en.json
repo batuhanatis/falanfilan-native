@@ -1732,5 +1732,14 @@
   "TÜR": "GENRE",
   "PUANIM": "MY SCORE",
   "PUAN": "SCORE",
-  "Bu akşamki seansım: {0} 🎬": "My screening tonight: {0} 🎬"
+  "Bu akşamki seansım: {0} 🎬": "My screening tonight: {0} 🎬",
+  "Bu içerik açılamadı. Bağlantını kontrol edip tekrar dene.": "Couldn't open this title. Check your connection and try again.",
+  "Story'ye dokunan Pellix'te bu içeriğe gitsin": "Send people who tap your story to this title on Pellix",
+  "Açılan menüden Instagram'ı, sonra Hikaye'yi seç.": "In the menu that opens, pick Instagram, then Story.",
+  "Üstteki çıkartma simgesine dokun, BAĞLANTI'yı seç.": "Tap the sticker icon at the top and pick LINK.",
+  "Link panoda: yapıştır ve story'yi paylaş.": "The link is copied: paste it and share your story.",
+  "Tamam, Instagram'a geç": "OK, open Instagram",
+  "Instagram Story'de paylaş": "Share to Instagram Story",
+  "Link panoda · çıkartma → BAĞLANTI → yapıştır": "Link copied · sticker → LINK → paste",
+  "Görseli paylaş (WhatsApp…)": "Share image (WhatsApp…)"
 }

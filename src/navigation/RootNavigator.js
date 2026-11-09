@@ -50,6 +50,11 @@ export default function RootNavigator() {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
     config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token", LiveRoom: "oda/:code", TvPair: "tv/:code" } },
     getStateFromPath: (path, options) => {
+      // Story kartı linki: open.pellix.app/u/film/<id> (mağazadaki sürümler /u yolunu zaten
+      // uygulama linki olarak tanıyor) ya da sayfanın denediği pellix://film/<id>. Elde yalnızca
+      // kimlik var; Detail ekranı içeriği kendisi çekiyor (DetailScreenV2).
+      const filmMatch = path.match(/^\/?(?:u\/)?film\/(\d+)/);
+      if (filmMatch) return { routes: [{ name: "MainTabs" }, { name: "Detail", params: { movie: { id: Number(filmMatch[1]) } } }] };
       // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
       // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
       const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
