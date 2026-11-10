@@ -17,6 +17,10 @@ const SHARED_ITEM_TYPES = ["social_post_like", "social_comment", "social_reactio
 const FRIEND_BATTLE_TYPES = ["friend_battle_invite", "friend_battle_turn", "friend_battle_result"];
 const WATCHLIST_TYPES = ["watchlist_collaborator_added", "watchlist_item_added"];
 
+// Salon: bildirim türleri renk renk değil; hepsi altın, yalnızca reddedilen davet sönük.
+const GOLD = "#c9a44c";
+const DIM = "#8c8579";
+
 function notificationText(n) {
   const p = n.payload || {};
   switch (n.type) {
@@ -62,27 +66,27 @@ function notificationText(n) {
 function notificationMeta(n) {
   const p = n.payload || {};
   switch (n.type) {
-    case "friend_request": return { person: p.from, icon: UserPlus, color: "#c9a44c" };
-    case "friend_accepted": return { person: p.by, icon: UserCheck, color: "#c9a44c" };
-    case "party_invite": return { person: p.from, icon: Film, color: "#DB2777" };
-    case "party_accepted": return { person: p.by, icon: PartyPopper, color: "#7C3AED" };
-    case "party_declined": return { person: p.by, icon: Film, color: "#8f8a9c" };
-    case "party_match": return { person: null, icon: PartyPopper, color: "#F97316", moviePoster: p.movie?.poster };
-    case "party_link_joined": return { person: p.by, icon: PartyPopper, color: "#22D3EE" };
-    case "referral_completed": return { person: null, icon: Gift, color: "#c9a44c" };
-    case "referral_bonus_received": return { person: null, icon: Gift, color: "#14B8A6" };
-    case "watchlist_collaborator_added": return { person: p.by, icon: ListVideo, color: "#14B8A6" };
-    case "watchlist_item_added": return { person: p.by, icon: ListVideo, color: "#22D3EE" };
-    case "social_post_like": return { person: p.by, icon: Heart, color: "#FF3D81" };
-    case "social_comment": return { person: p.by, icon: MessageCircle, color: "#2563EB" };
-    case "social_reaction": return { person: p.by, icon: Sparkles, color: "#F97316" };
-    case "social_poll_vote": return { person: p.by, icon: Vote, color: "#22D3EE" };
-    case "friend_quiz_shared": return { person: p.by, icon: Users, color: "#FB7185" };
-    case "friend_battle_invite": return { person: p.from, icon: Swords, color: "#DB2777" };
-    case "friend_battle_turn": return { person: p.by, icon: Swords, color: "#F97316" };
-    case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: "#7C3AED" };
-    case "rating_nudge": return { person: null, icon: Sparkles, color: "#8B5CF6" };
-    default: return { person: null, icon: Bell, color: "#8f8a9c" };
+    case "friend_request": return { person: p.from, icon: UserPlus, color: GOLD };
+    case "friend_accepted": return { person: p.by, icon: UserCheck, color: GOLD };
+    case "party_invite": return { person: p.from, icon: Film, color: GOLD };
+    case "party_accepted": return { person: p.by, icon: PartyPopper, color: GOLD };
+    case "party_declined": return { person: p.by, icon: Film, color: DIM };
+    case "party_match": return { person: null, icon: PartyPopper, color: GOLD, moviePoster: p.movie?.poster };
+    case "party_link_joined": return { person: p.by, icon: PartyPopper, color: GOLD };
+    case "referral_completed": return { person: null, icon: Gift, color: GOLD };
+    case "referral_bonus_received": return { person: null, icon: Gift, color: GOLD };
+    case "watchlist_collaborator_added": return { person: p.by, icon: ListVideo, color: GOLD };
+    case "watchlist_item_added": return { person: p.by, icon: ListVideo, color: GOLD };
+    case "social_post_like": return { person: p.by, icon: Heart, color: GOLD };
+    case "social_comment": return { person: p.by, icon: MessageCircle, color: GOLD };
+    case "social_reaction": return { person: p.by, icon: Sparkles, color: GOLD };
+    case "social_poll_vote": return { person: p.by, icon: Vote, color: GOLD };
+    case "friend_quiz_shared": return { person: p.by, icon: Users, color: GOLD };
+    case "friend_battle_invite": return { person: p.from, icon: Swords, color: GOLD };
+    case "friend_battle_turn": return { person: p.by, icon: Swords, color: GOLD };
+    case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: GOLD };
+    case "rating_nudge": return { person: null, icon: Sparkles, color: GOLD };
+    default: return { person: null, icon: Bell, color: DIM };
   }
 }
 
@@ -186,7 +190,7 @@ export default function NotificationsScreen({ navigation }) {
                     {meta.person ? (
                       <View>
                         <RetryImage source={{ uri: avatarOr(meta.person.avatarUrl, meta.person.id) }} style={styles.avatar} />
-                        <View style={[styles.avatarIconBadge, { backgroundColor: meta.color }]}><Icon size={9} color="#fff" /></View>
+                        <View style={[styles.avatarIconBadge, { backgroundColor: meta.color }]}><Icon size={9} color="#1a150c" /></View>
                       </View>
                     ) : (
                       <View style={[styles.typeIconWrap, { backgroundColor: `${meta.color}26` }]}><Icon size={16} color={meta.color} /></View>

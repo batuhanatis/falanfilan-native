@@ -1,7 +1,6 @@
 import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Pencil, Sparkles, Lock, Crown } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -9,7 +8,8 @@ import { api } from "../api/client";
 import IslandModal from "./IslandModal";
 import Slider from "./Slider";
 
-const BRAND_GRADIENT = ["#8e2de2", "#4a00e0", "#00c9ff"];
+import { AI_HEADER_GRADIENT } from "./aiTheme";
+const ON_GOLD = "#1a150c";
 const PROFILE_BG_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ÖNEMLİ: "Sana Özel Arka Plan" (AI profil teması) eskiden Ayarlar'daydı — kullanıcı bunun
@@ -91,7 +91,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
   }
 
   return (
-    <IslandModal visible onClose={onClose} title={translateUI("Profili Düzenle")} icon={Pencil} gradientColors={BRAND_GRADIENT}>
+    <IslandModal visible onClose={onClose} title={translateUI("Profili Düzenle")} icon={Pencil} gradientColors={AI_HEADER_GRADIENT}>
       <Text style={styles.fieldLabel}>{translateUI("AD")}</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholderTextColor={c.dim} maxLength={40} />
 
@@ -141,12 +141,12 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
 
           {showLockedInfo && (
             <TouchableOpacity activeOpacity={0.88} onPress={goPremium} style={{ marginTop: 12 }}>
-              <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bgBtn}>
+              <View style={styles.bgBtn}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Crown size={13} color="#fff" />
+                  <Crown size={13} color={ON_GOLD} />
                   <Text style={styles.bgBtnText}>{translateUI("Premium'a Geç")}</Text>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
         </TouchableOpacity>
@@ -155,7 +155,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
       {isPremium && (
         <View style={styles.bgSection}>
           <View style={styles.bgHeaderRow}>
-            <View style={styles.bgIconWrap}><Sparkles size={14} color="#fff" /></View>
+            <View style={styles.bgIconWrap}><Sparkles size={14} color={ON_GOLD} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bgTitle}>{translateUI("Sana Özel Arka Plan")}</Text>
               <Text style={styles.bgSubtitle}>
@@ -175,18 +175,13 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
               disabled={!canGenerateBackground || bgGenerating || bgResetting}
               style={{ flex: 1 }}
             >
-              <LinearGradient
-                colors={BRAND_GRADIENT}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.bgBtn, (!canGenerateBackground || bgGenerating || bgResetting) && { opacity: 0.5 }]}
-              >
+              <View style={[styles.bgBtn, (!canGenerateBackground || bgGenerating || bgResetting) && { opacity: 0.5 }]}>
                 {bgGenerating ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={ON_GOLD} />
                 ) : (
                   <Text style={styles.bgBtnText}>{bgUrl ? translateUI("Yenile") : translateUI("Oluştur")}</Text>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             {!!bgUrl && (
               <TouchableOpacity
@@ -218,9 +213,9 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
       {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={save} disabled={saving}>
-        <LinearGradient colors={BRAND_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>{translateUI("Kaydet")}</Text>}
-        </LinearGradient>
+        <View style={styles.saveBtn}>
+          {saving ? <ActivityIndicator size="small" color={ON_GOLD} /> : <Text style={styles.saveBtnText}>{translateUI("Kaydet")}</Text>}
+        </View>
       </TouchableOpacity>
     </IslandModal>
   );
@@ -235,8 +230,8 @@ function makeStyles(c) {
     },
     bioInput: { minHeight: 70, textAlignVertical: "top" },
     errorText: { color: c.danger, fontSize: 11, marginTop: 10 },
-    saveBtn: { marginTop: 20, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    saveBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    saveBtn: { marginTop: 20, borderRadius: 14, paddingVertical: 14, alignItems: "center", backgroundColor: c.accent },
+    saveBtnText: { color: ON_GOLD, fontWeight: "800", fontSize: 13 },
 
     bgSection: {
       marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: c.border,
@@ -249,8 +244,8 @@ function makeStyles(c) {
     bgTitle: { fontSize: 12.5, fontWeight: "800", color: c.text },
     bgSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2, lineHeight: 14 },
     bgBtnRow: { flexDirection: "row", gap: 8, marginTop: 12 },
-    bgBtn: { borderRadius: 10, paddingVertical: 10, alignItems: "center" },
-    bgBtnText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+    bgBtn: { borderRadius: 10, paddingVertical: 10, alignItems: "center", backgroundColor: c.accent },
+    bgBtnText: { color: ON_GOLD, fontWeight: "800", fontSize: 12 },
     bgSecondaryBtn: {
       paddingHorizontal: 12, borderRadius: 10, alignItems: "center", justifyContent: "center",
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,

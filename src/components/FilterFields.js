@@ -3,23 +3,15 @@ import React, { useRef, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Shuffle, Check } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { FONTS } from "../theme/fonts";
 import { GENRE_FILTERS } from "../theme/theme";
-import { GENRE_COLORS } from "../utils/genreColors";
 import { YEAR_OPTIONS } from "../utils/filterYears";
 import { platformName, platformLogo } from "../utils/platform";
 import { ORIGIN_OPTIONS } from "../utils/origin";
 import { hapticLight, hapticMedium } from "../utils/haptics";
 
 const TYPE_OPTIONS = ["Hepsi", "Film", "Dizi"];
-// Gerçek logosu olmayan platformlar (COMMON_PLATFORMS sadece isim taşıyor, HomeScreen'in
-// gerçek film verisinden türetilen availablePlatformObjs'un aksine) için — icat edilmiş marka
-// renkleri yerine, nötr ama canlı, isimden DETERMİNİSTİK seçilen bir palet.
-const MONOGRAM_PALETTE = ["#DB2777", "#7C3AED", "#0EA5E9", "#F97316", "#14B8A6", "#DC2626", "#6366F1", "#EAB308"];
-function colorForName(name) {
-  let hash = 0;
-  for (let i = 0; i < (name || "").length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return MONOGRAM_PALETTE[hash % MONOGRAM_PALETTE.length];
-}
+// Gerçek logosu olmayan platformlar koyu yüzeyde altın monogramla çiziliyor (Salon).
 
 // CH2/DC2'deki AYNI "sıçrama" deseni — bir çipe her dokunuşta kısa bir spring pop'u.
 function useTapPop() {
@@ -35,7 +27,7 @@ function useTapPop() {
 
 function GenreChip({ genre, active, onPress, c, styles }) {
   const [scale, pop] = useTapPop();
-  const color = GENRE_COLORS[genre] || c.accent;
+  // Salon: türler renk renk değil; seçili olan altın, öbürleri koyu yüzeyde.
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -44,12 +36,12 @@ function GenreChip({ genre, active, onPress, c, styles }) {
       <Animated.View
         style={[
           styles.genreChip,
-          { backgroundColor: active ? color : `${color}22`, borderColor: active ? color : `${color}55` },
+          { backgroundColor: active ? c.accent : c.surface2, borderColor: active ? c.accent : c.border },
           { transform: [{ scale }] },
         ]}
       >
         <Text style={styles.genreEmoji}>{GENRE_EMOJI[genre] || translateUI("🎬")}</Text>
-        <Text style={[styles.genreChipText, { color: active ? "#fff" : c.text }]}>{translateUI(genre)}</Text>
+        <Text style={[styles.genreChipText, { color: active ? "#1a150c" : c.text }]}>{translateUI(genre)}</Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -119,7 +111,7 @@ export default function FilterFields({
         <Text style={styles.sectionLabel}>{translateUI("🎨 KATEGORİ")}</Text>
         {!!onShuffleGenre && (
           <TouchableOpacity onPress={shuffle} activeOpacity={0.85} style={styles.shuffleBtn}>
-            <Shuffle size={12} color="#fff" />
+            <Shuffle size={12} color={c.accent} />
             <Text style={styles.shuffleBtnText}>{translateUI("Sürpriz Seç")}</Text>
           </TouchableOpacity>
         )}
@@ -192,7 +184,7 @@ export default function FilterFields({
                 >
                   <View style={[
                     styles.platTile,
-                    logo ? { backgroundColor: "#fff" } : { backgroundColor: colorForName(name) },
+                    logo ? { backgroundColor: "#fff" } : styles.platTileMono,
                     active && styles.platTileActive,
                   ]}>
                     {logo ? (
@@ -226,9 +218,9 @@ function makeStyles(c) {
     labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     shuffleBtn: {
       flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999,
-      paddingHorizontal: 11, paddingVertical: 6, backgroundColor: "#DB2777", marginTop: 12,
+      paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)", marginTop: 12,
     },
-    shuffleBtnText: { color: "#fff", fontSize: 10.5, fontWeight: "800" },
+    shuffleBtnText: { color: c.accent, fontSize: 10.5, fontWeight: "800" },
 
     segmented: { position: "relative", flexDirection: "row", backgroundColor: c.surface2, borderRadius: 13, padding: 4 },
     segIndicator: { position: "absolute", top: 4, bottom: 4, width: "33.3333%", backgroundColor: c.accent, borderRadius: 9 },
@@ -253,12 +245,13 @@ function makeStyles(c) {
     platTile: {
       width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", overflow: "hidden",
     },
-    platTileActive: { borderWidth: 2, borderColor: c.accent2 },
+    platTileActive: { borderWidth: 2, borderColor: c.accent },
+    platTileMono: { backgroundColor: c.surface2, borderWidth: 1, borderColor: "rgba(201,164,76,0.3)" },
     platLogo: { width: "100%", height: "100%" },
-    platMonogram: { fontSize: 12, fontWeight: "800", color: "#fff" },
+    platMonogram: { fontSize: 13, fontFamily: FONTS.marquee, color: c.accent },
     platCheck: {
       position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: 999,
-      backgroundColor: c.accent2, borderWidth: 2, borderColor: c.surface, alignItems: "center", justifyContent: "center",
+      backgroundColor: c.accent, borderWidth: 2, borderColor: c.surface, alignItems: "center", justifyContent: "center",
     },
 
     clearPill: { backgroundColor: `${c.accent}22`, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginTop: 18 },

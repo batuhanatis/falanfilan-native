@@ -230,9 +230,9 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
 
               {!!socialCard && (
                 <TouchableOpacity style={styles.socialBtn} onPress={handleSocialShare} disabled={socialSharing || socialShared}>
-                  {socialSharing ? <ActivityIndicator color="#fff" /> : (
+                  {socialSharing ? <ActivityIndicator color="#1a150c" /> : (
                     <>
-                      {socialShared ? <Check size={17} color="#fff" /> : <Radio size={17} color="#fff" />}
+                      {socialShared ? <Check size={17} color="#1a150c" /> : <Radio size={17} color="#1a150c" />}
                       <Text style={styles.socialBtnText}>{socialShared ? translateUI("Sosyal akışta paylaşıldı") : translateUI("Sosyal Akışta Paylaş")}</Text>
                     </>
                   )}
@@ -321,8 +321,8 @@ function makeStyles(c) {
     dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)" },
     dotActive: { backgroundColor: "#fff", width: 16 },
     swipeHint: { color: "rgba(255,255,255,0.55)", fontSize: 11, textAlign: "center", marginTop: 8 },
-    socialBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, borderRadius: 999, paddingVertical: 12, backgroundColor: "#7C3AED" },
-    socialBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    socialBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, borderRadius: 999, paddingVertical: 12, backgroundColor: "#c9a44c" },
+    socialBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 13 },
     btnRow: { flexDirection: "row", gap: 14, marginTop: 10, alignItems: "center" },
     saveBtn: {
       width: 46, height: 46, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)",

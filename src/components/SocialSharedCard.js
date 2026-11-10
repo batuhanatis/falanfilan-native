@@ -82,24 +82,23 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
 
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
-        <LinearGradient colors={["#090A11", "#11152B", "#24143D"]} style={styles.card}>
-          <View style={styles.blueGlow} />
-          <View style={styles.purpleGlow} />
+        <View style={[styles.card, styles.salonCard]}>
+          <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
           <View style={styles.cardTopRow}>
             <View>
-              <Text style={styles.brand}>{translateUI("pellix")}</Text>
-              <Text style={styles.cardType}>{translateUI("TASTE BLEND")}</Text>
+              <Text style={styles.salonBrand}>PELLIX</Text>
+              <Text style={[styles.salonType, { textAlign: "left" }]}>{translateUI("TASTE BLEND")}</Text>
             </View>
-            <Sparkles size={17} color="#A78BFA" />
+            <Sparkles size={17} color={GOLD} />
           </View>
 
           <View style={styles.blendPeopleRow}>
-            <Avatar uri={me.avatarUrl} id={me.id} />
+            <Avatar uri={me.avatarUrl} id={me.id} gold />
             <View style={styles.blendScoreWrap}>
               <Text style={styles.blendPercent}>{translateUI("%")}{percent}</Text>
               <Text style={styles.microLabel}>{translateUI("UYUM")}</Text>
             </View>
-            <Avatar uri={friend.avatarUrl} id={friend.id} />
+            <Avatar uri={friend.avatarUrl} id={friend.id} gold />
           </View>
           <Text style={styles.blendNames} numberOfLines={1}>{firstName(me.name)}{translateUI(" × ")}{firstName(friend.name)}</Text>
           <Text style={styles.verdictText}>{verdictFor(percent)}</Text>
@@ -122,7 +121,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
               ))}
             </View>
           )}
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -208,23 +207,23 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
 
   return (
     <TouchableOpacity onPress={openProfile} activeOpacity={0.9}>
-      <LinearGradient colors={["#0A0A0F", "#171326", "#2B1845"]} style={styles.card}>
-        <View style={styles.purpleGlow} />
+      <View style={[styles.card, styles.salonCard]}>
+        <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
         <View style={styles.cardTopRow}>
           <View>
-            <Text style={styles.brand}>{translateUI("pellix")}</Text>
-            <Text style={styles.cardType}>{translateUI("TASTE ID")}</Text>
+            <Text style={styles.salonBrand}>PELLIX</Text>
+            <Text style={[styles.salonType, { textAlign: "left" }]}>{translateUI("TASTE ID")}</Text>
           </View>
           <View style={styles.profileBadgeRow}>
             {Number(payload.streak || 0) > 0 && (
               <View style={styles.tinyBadge}>
-                <Flame size={9} color="#FDBA74" />
+                <Flame size={9} color={GOLD} />
                 <Text style={styles.tinyBadgeText}>{payload.streak}{translateUI(" HAFTA")}</Text>
               </View>
             )}
             {payload.isPremium && (
               <View style={[styles.tinyBadge, styles.tinyPremium]}>
-                <Crown size={9} color="#17120A" fill="#17120A" />
+                <Crown size={9} color="#1a150c" fill="#1a150c" />
                 <Text style={styles.tinyPremiumText}>{translateUI("PREMIUM")}</Text>
               </View>
             )}
@@ -232,9 +231,9 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
         </View>
 
         <View style={styles.profileIdentity}>
-          <Avatar uri={payload.avatarUrl} id={payload.userId} large />
+          <Avatar uri={payload.avatarUrl} id={payload.userId} large gold />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.profileName, { textAlign: "left", marginTop: 0 }]} numberOfLines={1}>{payload.name}</Text>
+            <Text style={[styles.salonName, { textAlign: "left", marginTop: 0 }]} numberOfLines={1}>{payload.name}</Text>
             {!!payload.username && <Text style={styles.username}>{translateUI("@")}{payload.username}</Text>}
             <Text style={styles.profileSignal}>
               {hasTasteDNA ? translateUI("{0} beğeni sinyali", {0: Number(payload.tasteDNA?.signalCount || 0)}) : translateUI("Pellix profil kartı")}
@@ -248,7 +247,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
               <View key={`${genre?.name}-${index}`} style={styles.socialGenreRow}>
                 <Text style={styles.socialGenreName} numberOfLines={1}>{genre?.name}</Text>
                 <View style={styles.socialGenreTrack}>
-                  <LinearGradient colors={["#FFD76A", "#A78BFA"]} style={[styles.socialGenreFill, { width: `${Math.max(8, bounded(genre?.percent))}%` }]} />
+                  <View style={[styles.socialGenreFill, { width: `${Math.max(8, bounded(genre?.percent))}%` }]} />
                 </View>
                 <Text style={styles.socialGenrePercent}>{translateUI("%")}{bounded(genre?.percent)}</Text>
               </View>
@@ -275,7 +274,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
             {[payload.favoriteMovie?.title, payload.favoriteShow?.title].filter(Boolean).join(" · ")}
           </Text>
         )}
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -287,7 +286,7 @@ function Avatar({ uri, id, large = false, gold = false }) {
 function Stat({ icon: Icon, value, label }) {
   return (
     <View style={styles.stat}>
-      <Icon size={12} color="rgba(255,255,255,0.66)" />
+      <Icon size={12} color={GOLD} />
       <Text style={styles.statValue}>{Number(value || 0)}</Text>
       <Text style={styles.statLabel}>{translateUI(label)}</Text>
     </View>
@@ -296,62 +295,47 @@ function Stat({ icon: Icon, value, label }) {
 
 const styles = StyleSheet.create({
   card: { marginTop: 12, borderRadius: 21, padding: 17, alignItems: "center", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)" },
-  blueGlow: { position: "absolute", width: 170, height: 170, borderRadius: 999, backgroundColor: "rgba(14,165,233,0.12)", top: -105, left: -80 },
-  purpleGlow: { position: "absolute", width: 180, height: 180, borderRadius: 999, backgroundColor: "rgba(139,92,246,0.15)", right: -85, bottom: -115 },
   cardTopRow: { width: "100%", flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  brand: { color: "#fff", fontSize: 15, lineHeight: 17, fontWeight: "900" },
-  cardType: { color: "rgba(255,255,255,0.42)", fontSize: 7.2, fontWeight: "900", letterSpacing: 1.1, marginTop: 1 },
-  dailyBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "rgba(255,215,106,0.10)", borderWidth: 1, borderColor: "rgba(255,215,106,0.18)" },
-  dailyBadgeText: { color: "#FFD76A", fontSize: 7, fontWeight: "900", letterSpacing: 0.6 },
-  puzzleIcon: { width: 46, height: 46, borderRadius: 16, marginTop: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
-  puzzleTitle: { color: "#fff", fontSize: 21, fontWeight: "900", marginTop: 9 },
   puzzleSquares: { fontSize: 28, letterSpacing: 4, marginTop: 15 },
-  puzzleMeta: { color: "rgba(255,255,255,0.58)", fontSize: 10, fontWeight: "700", marginTop: 7 },
-  playCta: { marginTop: 15, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "rgba(167,139,250,0.11)", borderWidth: 1, borderColor: "rgba(167,139,250,0.18)" },
-  playCtaText: { color: "#DDD6FE", fontSize: 9.5, fontWeight: "800" },
   blendPeopleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 11, marginTop: 17 },
   blendScoreWrap: { alignItems: "center", minWidth: 70 },
-  blendPercent: { color: "#fff", fontSize: 29, fontWeight: "900", lineHeight: 32 },
-  microLabel: { color: "rgba(255,255,255,0.48)", fontSize: 7, fontWeight: "900", letterSpacing: 0.65, textAlign: "center" },
-  blendNames: { color: "#fff", fontSize: 15, fontWeight: "900", marginTop: 10 },
-  verdictText: { color: "#FFE8A3", fontSize: 10, fontWeight: "800", marginTop: 4, textAlign: "center" },
+  blendPercent: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 38, lineHeight: 40 },
+  microLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 7.5, letterSpacing: 1, textAlign: "center" },
+  blendNames: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 22, marginTop: 10 },
+  verdictText: { color: DIM, fontSize: 10, fontWeight: "700", marginTop: 4, textAlign: "center" },
   miniSignalRow: { width: "100%", flexDirection: "row", gap: 7, marginTop: 13 },
-  miniSignal: { flex: 1, minHeight: 45, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", paddingHorizontal: 6 },
-  miniSignalValue: { color: "#fff", fontSize: 11.5, fontWeight: "900", maxWidth: "100%" },
-  miniSignalLabel: { color: "rgba(255,255,255,0.38)", fontSize: 6.4, fontWeight: "900", letterSpacing: 0.5, marginTop: 2 },
+  miniSignal: { flex: 1, minHeight: 45, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "rgba(243,234,216,0.04)", borderWidth: 1, borderColor: "rgba(243,234,216,0.08)", paddingHorizontal: 6 },
+  miniSignalValue: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 16, maxWidth: "100%" },
+  miniSignalLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 6.6, letterSpacing: 0.5, marginTop: 2 },
   posterRow: { flexDirection: "row", gap: 6, marginTop: 13 },
-  poster: { width: 47, height: 69, borderRadius: 7, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.11)" },
-  eyebrow: { color: "rgba(255,255,255,0.62)", fontSize: 8.5, fontWeight: "900", letterSpacing: 1.1 },
-  avatar: { width: 57, height: 57, borderRadius: 999, borderWidth: 2, borderColor: "rgba(255,255,255,0.72)" },
-  avatarLarge: { width: 68, height: 68, borderRadius: 999, borderWidth: 2.5, borderColor: "rgba(255,255,255,0.80)", marginTop: 11 },
+  poster: { width: 47, height: 69, borderRadius: 7, backgroundColor: "rgba(243,234,216,0.06)", borderWidth: 1, borderColor: "rgba(201,164,76,0.28)" },
+  avatar: { width: 57, height: 57, borderRadius: 999, borderWidth: 2, borderColor: GOLD },
+  avatarLarge: { width: 68, height: 68, borderRadius: 999, borderWidth: 2, borderColor: GOLD, marginTop: 11 },
   charEmojiBadge: { position: "absolute", right: -3, bottom: 3, width: 25, height: 25, borderRadius: 13, backgroundColor: "rgba(0,0,0,0.48)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.62)" },
-  profileName: { color: "#fff", fontSize: 18, fontWeight: "900", marginTop: 9, textAlign: "center" },
-  subtitle: { color: "rgba(255,255,255,0.65)", fontSize: 9.5, marginTop: 3, textAlign: "center" },
   centerScore: { alignItems: "center", marginTop: 11 },
-  scoreNumber: { color: "#fff", fontSize: 29, fontWeight: "900" },
   profileBadgeRow: { flexDirection: "row", gap: 4 },
-  tinyBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 4, backgroundColor: "rgba(249,115,22,0.11)" },
-  tinyBadgeText: { color: "#FDBA74", fontSize: 6.5, fontWeight: "900" },
-  tinyPremium: { backgroundColor: "#FFD76A" },
-  tinyPremiumText: { color: "#17120A", fontSize: 6.5, fontWeight: "900" },
+  tinyBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(201,164,76,0.4)" },
+  tinyBadgeText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 6.8 },
+  tinyPremium: { backgroundColor: GOLD, borderColor: GOLD },
+  tinyPremiumText: { color: "#1a150c", fontFamily: FONTS.monoMedium, fontSize: 6.8 },
   profileIdentity: { width: "100%", flexDirection: "row", alignItems: "center", gap: 11, marginTop: 13 },
-  username: { color: "rgba(255,255,255,0.55)", fontSize: 9.5, marginTop: 1 },
-  profileSignal: { color: "rgba(255,255,255,0.38)", fontSize: 8, marginTop: 3 },
+  username: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 9, marginTop: 1 },
+  profileSignal: { color: DIM, fontSize: 8, marginTop: 3 },
   socialGenreList: { width: "100%", gap: 6, marginTop: 14 },
   socialGenreRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  socialGenreName: { width: 55, color: "rgba(255,255,255,0.76)", fontSize: 8.5, fontWeight: "800" },
-  socialGenreTrack: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
-  socialGenreFill: { height: 4, borderRadius: 999 },
-  socialGenrePercent: { width: 25, color: "rgba(255,255,255,0.45)", fontSize: 7.5, fontWeight: "800", textAlign: "right" },
+  socialGenreName: { width: 55, color: CREAM, fontSize: 8.5, fontWeight: "800" },
+  socialGenreTrack: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "rgba(243,234,216,0.08)", overflow: "hidden" },
+  socialGenreFill: { height: 4, borderRadius: 999, backgroundColor: GOLD },
+  socialGenrePercent: { width: 25, color: DIM, fontFamily: FONTS.monoMedium, fontSize: 7.5, textAlign: "right" },
   formatMini: { width: "100%", flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
-  formatText: { color: "rgba(255,255,255,0.42)", fontSize: 6.7, fontWeight: "900" },
-  formatTrack: { flex: 1, height: 5, borderRadius: 999, backgroundColor: "rgba(96,165,250,0.40)", overflow: "hidden" },
-  formatFill: { height: 5, borderRadius: 999, backgroundColor: "#FFD76A" },
+  formatText: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 6.8 },
+  formatTrack: { flex: 1, height: 5, borderRadius: 999, backgroundColor: "rgba(243,234,216,0.16)", overflow: "hidden" },
+  formatFill: { height: 5, borderRadius: 999, backgroundColor: GOLD },
   statsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18, marginTop: 14 },
   stat: { alignItems: "center", minWidth: 46 },
-  statValue: { color: "#fff", fontSize: 13, fontWeight: "900", marginTop: 2 },
-  statLabel: { color: "rgba(255,255,255,0.46)", fontSize: 7.5, marginTop: 1 },
-  favorites: { color: "rgba(255,255,255,0.66)", fontSize: 9, fontWeight: "700", textAlign: "center", marginTop: 12 },
+  statValue: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 18, marginTop: 2 },
+  statLabel: { color: DIM, fontSize: 7.5, marginTop: 1 },
+  favorites: { color: DIM, fontSize: 9, fontWeight: "700", textAlign: "center", marginTop: 12 },
 
   salonCard: { backgroundColor: "#14121a", borderColor: "rgba(201,164,76,0.28)", borderRadius: 16 },
   salonSpot: { position: "absolute", left: 0, right: 0, top: 0, height: 150 },

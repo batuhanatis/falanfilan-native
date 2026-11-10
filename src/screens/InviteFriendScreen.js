@@ -2,7 +2,8 @@ import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { Copy, Share2, Users, PartyPopper, Gift, Check, ArrowRight } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useAppTheme } from "../context/ThemeContext";
@@ -59,8 +60,9 @@ export default function InviteFriendScreen({ navigation }) {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
-          <View style={styles.heroIconWrap}><PartyPopper size={25} color="#fff" /></View>
+        <View style={styles.heroCard}>
+          <GoldWash height={190} />
+          <View style={styles.heroIconWrap}><PartyPopper size={23} color={c.accent} /></View>
           <Text style={styles.heroEyebrow}>{translateUI("PELLIX'İ BİRLİKTE KULLANIN")}</Text>
           <Text style={styles.heroTitle}>{translateUI("Arkadaşını getir, ikiniz de 7 gün Premium kazanın")}</Text>
           <Text style={styles.heroSubtitle}>{translateUI("Arkadaşın kodunla katılıp ilk 10 içeriği değerlendirince Premium ikinize de otomatik tanımlanır.")}</Text>
@@ -74,7 +76,7 @@ export default function InviteFriendScreen({ navigation }) {
               <Text style={styles.rewardPillText}>{translateUI("Ona 7 gün Premium")}</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.stepsCard}>
           <Text style={styles.stepsTitle}>{translateUI("3 adımda tamamla")}</Text>
@@ -157,18 +159,18 @@ function makeStyles(c, insets) {
   return StyleSheet.create({
     center: { alignItems: "center", justifyContent: "center" },
     content: { padding: 20, paddingBottom: Math.max(34, insets.bottom + 24) },
-    heroCard: { borderRadius: 22, padding: 22, alignItems: "center", overflow: "hidden" },
-    heroIconWrap: { width: 50, height: 50, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-    heroEyebrow: { fontSize: 9, fontWeight: "900", color: "rgba(255,255,255,0.72)", letterSpacing: 1, marginTop: 12 },
-    heroTitle: { fontSize: 18, fontWeight: "900", color: "#fff", marginTop: 5, textAlign: "center", lineHeight: 24 },
-    heroSubtitle: { fontSize: 11.5, color: "rgba(255,255,255,0.84)", marginTop: 7, textAlign: "center", lineHeight: 17, maxWidth: 280 },
+    heroCard: { borderRadius: 18, padding: 22, alignItems: "center", overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },
+    heroIconWrap: { width: 50, height: 50, borderRadius: 999, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    heroEyebrow: { fontFamily: FONTS.monoMedium, fontSize: 9.5, color: c.accent, letterSpacing: 1.3, marginTop: 12 },
+    heroTitle: { fontFamily: FONTS.marquee, fontSize: 28, color: c.text, marginTop: 5, textAlign: "center", lineHeight: 31 },
+    heroSubtitle: { fontSize: 12, color: c.dim, marginTop: 7, textAlign: "center", lineHeight: 17.5, maxWidth: 290 },
     rewardPillRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 14 },
     rewardPill: {
-      flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.18)",
-      borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
+      flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: c.bg,
+      borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
     },
     rewardPillEmoji: { fontSize: 13 },
-    rewardPillText: { fontSize: 11.5, fontWeight: "800", color: "#fff" },
+    rewardPillText: { fontSize: 11.5, fontWeight: "800", color: c.accent },
     stepsCard: {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
       padding: 14, marginTop: 14, gap: 4,

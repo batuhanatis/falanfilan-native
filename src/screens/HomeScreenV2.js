@@ -47,6 +47,7 @@ import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
 import { matchesOrigin } from "../utils/origin";
 import IslandModal from "../components/IslandModal";
+import { AI_HEADER_GRADIENT } from "../components/aiTheme";
 import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 import RecommendationWhyModal from "../components/RecommendationWhyModal";
 import SeansBoard from "../components/salon/SeansBoard";
@@ -1062,7 +1063,7 @@ export default function HomeScreenV2({ navigation }) {
         onClose={() => setShowFilters(false)}
         title={translateUI("Akışını Daralt")}
         icon={Filter}
-        gradientColors={["#d4a94a", "#a8842f", "#6f5420"]}
+        gradientColors={AI_HEADER_GRADIENT}
         subtitle={translateUI("Ne izleyeceğini daha hızlı bul")}
       >
         <FilterFields

@@ -4,6 +4,8 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Sparkles, ChevronRight, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import IslandModal from "./IslandModal";
+import { AI_HEADER_GRADIENT } from "./aiTheme";
+import { FONTS } from "../theme/fonts";
 
 export default function RecommendationWhyModal({ visible, movie, reasons = [], onClose, onOpenDetail }) {
   const { c } = useAppTheme();
@@ -20,7 +22,7 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
       onClose={onClose}
       title={translateUI("Bunu sana neden önerdik?")}
       icon={Sparkles}
-      gradientColors={["#7C3AED", "#5B21B6", "#312E81"]}
+      gradientColors={AI_HEADER_GRADIENT}
       subtitle={movie.title}
       forceScrollable
     >
@@ -60,7 +62,7 @@ export default function RecommendationWhyModal({ visible, movie, reasons = [], o
       </View>
 
       <View style={styles.trustBox}>
-        <Sparkles size={14} color="#A78BFA" />
+        <Sparkles size={14} color={c.accent} />
         <Text style={styles.trustText}>{translateUI(" Bu açıklamalar yalnızca gerçek beğenilerin, profil tercihlerin, açık filtrelerin ve içeriğin ölçülebilir özelliklerinden üretilir. Elimizde olmayan bir sinyali uydurmuyoruz. ")}</Text>
       </View>
 
@@ -77,7 +79,7 @@ function makeStyles(c) {
     movieRow: { flexDirection: "row", gap: 13, alignItems: "center" },
     poster: { width: 64, height: 96, borderRadius: 12, backgroundColor: c.surface2 },
     movieCopy: { flex: 1, minWidth: 0 },
-    movieTitle: { color: c.text, fontSize: 17, lineHeight: 21, fontWeight: "900" },
+    movieTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 22, lineHeight: 24 },
     metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, flexWrap: "wrap" },
     metaText: { color: c.dim, fontSize: 10.5, fontWeight: "700" },
     summaryText: { color: c.dim, fontSize: 11, lineHeight: 16, marginTop: 8 },
@@ -85,14 +87,14 @@ function makeStyles(c) {
     reasonList: { gap: 9, marginTop: 18 },
     reasonCard: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 15, padding: 13 },
     reasonHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
-    dot: { width: 7, height: 7, borderRadius: 999, backgroundColor: "#8B5CF6" },
+    dot: { width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent },
     dotNeutral: { backgroundColor: c.dim },
-    source: { color: "#A78BFA", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.7 },
+    source: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1 },
     sourceNeutral: { color: c.dim },
     reasonTitle: { color: c.text, fontSize: 12.5, fontWeight: "800" },
     reasonDetail: { color: c.dim, fontSize: 11, lineHeight: 16, marginTop: 4 },
 
-    trustBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14, borderRadius: 13, backgroundColor: "rgba(124,58,237,0.10)", borderWidth: 1, borderColor: "rgba(124,58,237,0.20)", padding: 11 },
+    trustBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14, borderRadius: 13, backgroundColor: "rgba(201,164,76,0.08)", borderWidth: 1, borderColor: "rgba(201,164,76,0.26)", padding: 11 },
     trustText: { flex: 1, color: c.dim, fontSize: 10, lineHeight: 15 },
 
     detailButton: { minHeight: 46, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },

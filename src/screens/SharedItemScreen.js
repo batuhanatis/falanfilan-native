@@ -52,8 +52,7 @@ export default function SharedItemScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        <LinearGradient colors={["rgba(139,92,246,0.16)", "rgba(139,92,246,0)"]} style={styles.glowTop} />
-        <LinearGradient colors={["rgba(236,72,153,0.12)", "rgba(236,72,153,0)"]} style={styles.glowBottom} />
+        <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.glowTop} />
       </View>
 
       <View style={styles.header}>
@@ -88,7 +87,6 @@ export default function SharedItemScreen({ navigation, route }) {
 function makeStyles(c) {
   return StyleSheet.create({
     glowTop: { position: "absolute", top: -120, left: -80, width: 320, height: 320, borderRadius: 999 },
-    glowBottom: { position: "absolute", bottom: -140, right: -100, width: 340, height: 340, borderRadius: 999 },
     header: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8,
       paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,

@@ -1,9 +1,9 @@
 import { Alert } from "../i18n/native";
+import { FONTS } from "../theme/fonts";
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, Platform, KeyboardAvoidingView, Modal, ActivityIndicator,  Animated, TouchableWithoutFeedback, Keyboard, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
@@ -959,16 +959,16 @@ export default function ChatConversationScreen({ route, navigation }) {
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Blend", { friendId, friendName, friendAvatar })}>
-            <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerPill}>
-              <Sparkles size={12} color="#fff" />
+            <View style={styles.headerPill}>
+              <Sparkles size={12} color={c.accent} />
               <Text style={styles.headerPillText}>{translateUI("Blend")}</Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={startParty} style={{ position: "relative" }}>
-            <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerPill}>
-              <Film size={12} color="#fff" />
-              <Text style={styles.headerPillText}>{translateUI("Party")}</Text>
-            </LinearGradient>
+            <View style={[styles.headerPill, styles.headerPillGold]}>
+              <Film size={12} color="#1a150c" />
+              <Text style={[styles.headerPillText, { color: "#1a150c" }]}>{translateUI("Party")}</Text>
+            </View>
             {/* CH3 — bu arkadaşla bekleyen/aktif bir oturum varken nabız atan bir nokta. */}
             {partyActive && <Animated.View style={[styles.partyPulseDot, { opacity: partyPulse }]} />}
           </TouchableOpacity>
@@ -1352,11 +1352,15 @@ function makeStyles(c, insets) {
     headerPill: {
       borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6,
       flexDirection: "row", alignItems: "center", gap: 4,
+      borderWidth: 1, borderColor: "rgba(201,164,76,0.45)", backgroundColor: c.surface,
     },
-    headerPillText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+    headerPillGold: { backgroundColor: c.accent, borderColor: c.accent },
+    headerPillText: { fontSize: 11, fontWeight: "800", color: c.accent },
+    // Paylaşım künyelerinin "mürekkep" zemini (ChatMessageRow): altın ve koyu balonda okunuyor.
+    salonInk: { backgroundColor: "rgba(20,18,16,0.88)" },
     partyPulseDot: {
       position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 999,
-      backgroundColor: "#4ADE80", borderWidth: 1.5, borderColor: c.bg,
+      backgroundColor: c.accent2, borderWidth: 1.5, borderColor: c.bg,
     },
     chatMenuOverlay: {
       position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
@@ -1448,7 +1452,7 @@ function makeStyles(c, insets) {
       flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
       paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
     },
-    movieBubblePillText: { fontSize: 9, fontWeight: "800", color: "#fff" },
+    movieBubblePillText: { fontSize: 8.5, fontFamily: FONTS.monoMedium, letterSpacing: 0.6, color: "#c9a44c" },
     movieBubbleTitle: { fontSize: 13, fontWeight: "700", marginTop: 5 },
     movieBubbleMeta: { fontSize: 10, opacity: 0.8, marginTop: 4 },
     // Tür/yıl bilgisinin altındaki boşluğu dolduran platform logoları (Netflix/Prime vb.).
@@ -1456,7 +1460,7 @@ function makeStyles(c, insets) {
     movieBubblePlatformLogo: { width: 16, height: 16, borderRadius: 4, backgroundColor: "#fff" },
     activityShareBubble: { width: 300, borderRadius: 16, overflow: "hidden", paddingBottom: 26 },
     activityShareHeader: { height: 32, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
-    activityShareHeaderText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+    activityShareHeaderText: { color: "#c9a44c", fontSize: 8.5, fontFamily: FONTS.monoMedium, letterSpacing: 1 },
     activityShareBody: { flexDirection: "row", gap: 11, padding: 11 },
     activitySharePoster: { width: 82, height: 120, borderRadius: 10 },
     storyReplyThumb: { width: 68, height: 120, borderRadius: 10, backgroundColor: "rgba(120,120,130,0.25)" },
@@ -1476,7 +1480,7 @@ function makeStyles(c, insets) {
     // yuvarlatılmasa da dış borderRadius'u takip ediyor.
     pollBubble: { borderRadius: 18, overflow: "hidden" },
     pollHeaderStrip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
-    pollQuestion: { flex: 1, fontSize: 14, fontWeight: "800", color: "#fff" },
+    pollQuestion: { flex: 1, fontSize: 14, fontWeight: "800", color: "#f3ead8" },
     // paddingBottom fazladan — köşeye sabitlenen saat (movieBubbleTimeCorner) içerikle çakışmasın.
     pollBody: { padding: 16, paddingBottom: 28 },
     // Filmler artık YAN YANA — her biri kendi sütununda (poster, başlık, çubuk, yüzde, checkbox
@@ -1486,7 +1490,7 @@ function makeStyles(c, insets) {
     pollOptionPoster: { width: 92, height: 132, borderRadius: 10 },
     // En çok oy alan seçenek altın bir çerçeve + taç rozetiyle öne çıkıyor — bir anketin sonucu
     // artık tek bakışta belli oluyor, sadece yüzdelere bakmak gerekmiyor.
-    pollOptionPosterLeading: { borderWidth: 2, borderColor: "#FFD700" },
+    pollOptionPosterLeading: { borderWidth: 2, borderColor: "#c9a44c" },
     pollLeaderBadge: {
       position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 999,
       backgroundColor: "#fff", alignItems: "center", justifyContent: "center",
@@ -1509,7 +1513,7 @@ function makeStyles(c, insets) {
     pollVoterAvatar: { width: 20, height: 20, borderRadius: 999, borderWidth: 1.5, borderColor: "#fff" },
     planBubble: { borderRadius: 18, overflow: "hidden" },
     planHeaderStrip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-    planHeaderStripText: { fontSize: 12.5, fontWeight: "800", color: "#fff" },
+    planHeaderStripText: { fontSize: 9.5, fontFamily: FONTS.monoMedium, letterSpacing: 1, color: "#c9a44c" },
     // paddingBottom fazladan — köşeye sabitlenen saat (movieBubbleTimeCorner) içerikle çakışmasın.
     planBody: { padding: 16, paddingTop: 12, paddingBottom: 26 },
     planNote: { fontSize: 15, fontWeight: "700", marginBottom: 12, lineHeight: 21 },
@@ -1518,9 +1522,9 @@ function makeStyles(c, insets) {
     planStatusText: { fontSize: 13, fontWeight: "700" },
     planAcceptBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-      borderRadius: 12, paddingVertical: 12,
+      borderRadius: 12, paddingVertical: 12, backgroundColor: "#c9a44c",
     },
-    planAcceptBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+    planAcceptBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 14 },
     photoLockedBubble: {
       maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 8,
       paddingHorizontal: 13, paddingVertical: 11, borderRadius: 16,

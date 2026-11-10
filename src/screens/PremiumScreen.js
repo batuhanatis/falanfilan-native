@@ -2,7 +2,8 @@ import { Alert } from "../i18n/native";
 import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator,  Linking } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { ChevronLeft, ChevronRight, Crown, Check, Sparkles, Users, Zap, Gift, Minus, Palette } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -156,8 +157,10 @@ export default function PremiumScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <LinearGradient colors={["#F59E0B", "#EA580C", "#DC2626"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
-          <Crown size={32} color="#fff" />
+        {/* Salon dili: turuncu-kırmızı gradyan yerine koyu kart, altın taç halkası ve ışık. */}
+        <View style={styles.heroCard}>
+          <GoldWash height={200} strength={0.2} />
+          <View style={styles.heroCrown}><Crown size={26} color={c.accent} /></View>
           <Text style={styles.heroTitle}>{isPremium ? translateUI("Premium Aktif") : (reasonCopy ? translateUI(reasonCopy.title) : translateUI("pellix Premium"))}</Text>
           {isPremium ? (
             <Text style={styles.heroSubtitle}>
@@ -165,7 +168,7 @@ export default function PremiumScreen({ navigation, route }) {
           ) : (
             <Text style={styles.heroSubtitle}>{reasonCopy ? translateUI(reasonCopy.subtitle) : translateUI("Sınırsız AI önerisi ve TasteMate — haftalık")}</Text>
           )}
-        </LinearGradient>
+        </View>
 
         {!isPremium && (
           <View style={styles.limitsCard}>
@@ -229,7 +232,7 @@ export default function PremiumScreen({ navigation, route }) {
             <View style={styles.compareHeaderRow}>
               <Text style={[styles.compareHeaderCell, { flex: 1.4, textAlign: "left" }]}> </Text>
               <Text style={styles.compareHeaderCell}>{translateUI("Ücretsiz")}</Text>
-              <Text style={[styles.compareHeaderCell, { color: "#F59E0B" }]}>{translateUI("Premium")}</Text>
+              <Text style={[styles.compareHeaderCell, { color: c.accent }]}>{translateUI("Premium")}</Text>
             </View>
             {COMPARISON_ROWS.map((row, i) => (
               <View key={i} style={[styles.compareRow, i === COMPARISON_ROWS.length - 1 && { borderBottomWidth: 0 }]}>
@@ -241,8 +244,8 @@ export default function PremiumScreen({ navigation, route }) {
                 </View>
                 <View style={styles.compareCell}>
                   {typeof row.premium === "boolean" ? (
-                    row.premium ? <Check size={14} color="#F59E0B" /> : <Minus size={14} color={c.dim} />
-                  ) : <Text style={[styles.compareCellText, { color: "#F59E0B", fontWeight: "800" }]}>{row.premium}</Text>}
+                    row.premium ? <Check size={14} color={c.accent} /> : <Minus size={14} color={c.dim} />
+                  ) : <Text style={[styles.compareCellText, { color: c.accent, fontWeight: "800" }]}>{row.premium}</Text>}
                 </View>
               </View>
             ))}
@@ -252,7 +255,7 @@ export default function PremiumScreen({ navigation, route }) {
         {!isPremium && (
           <TouchableOpacity style={styles.purchaseBtn} onPress={handlePurchase} disabled={purchasing || !offeringPkg}>
             {purchasing ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#1a150c" />
             ) : (
               <Text style={styles.purchaseBtnText}>
                 {offeringPkg ? translateUI("{0} — Premium'a Geç", {0: offeringPkg.product.priceString}) : offeringError ? translateUI("Şu an kullanılamıyor") : translateUI("Yükleniyor...")}
@@ -280,14 +283,14 @@ export default function PremiumScreen({ navigation, route }) {
         {/* PM3 — eskiden alt bilgide tek satırlık bir bağlantıydı, şimdi kendi kartı var. */}
         {!isPremium && (
           <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate("WeeklyQuests")} style={styles.questsCardShadow}>
-            <LinearGradient colors={["#0EA5E9", "#6366F1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.questsCard}>
-              <View style={styles.questsIconWrap}><Gift size={20} color="#fff" /></View>
+            <View style={styles.questsCard}>
+              <View style={styles.questsIconWrap}><Gift size={19} color={c.accent} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.questsCardTitle}>{translateUI("Ücretsiz de kazanabilirsin")}</Text>
                 <Text style={styles.questsCardSubtitle}>{translateUI("Haftalık görevleri tamamla, 3 günlük Premium kazan")}</Text>
               </View>
-              <ChevronRight size={18} color="rgba(255,255,255,0.85)" />
-            </LinearGradient>
+              <ChevronRight size={18} color={c.accent} />
+            </View>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -302,10 +305,11 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
-    heroCard: { borderRadius: 22, padding: 24, alignItems: "center" },
-    heroTitle: { fontFamily: "Baloo2_800ExtraBold", fontSize: 22, color: "#fff", marginTop: 10 },
-    heroSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.9)", marginTop: 6, textAlign: "center" },
+    headerTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text },
+    heroCard: { borderRadius: 18, padding: 24, alignItems: "center", overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },
+    heroCrown: { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    heroTitle: { fontFamily: FONTS.marquee, fontSize: 34, color: c.text, marginTop: 12, textAlign: "center" },
+    heroSubtitle: { fontSize: 12.5, color: c.dim, marginTop: 6, textAlign: "center", lineHeight: 18 },
     limitsCard: {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16,
       padding: 16, marginTop: 16,
@@ -323,7 +327,7 @@ function makeStyles(c) {
     benefitIconWrap: { width: 30, height: 30, borderRadius: 999, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     benefitText: { flex: 1, fontSize: 12.5, color: c.text },
     purchaseBtn: { backgroundColor: c.accent, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 22 },
-    purchaseBtnText: { color: c.bg, fontWeight: "800", fontSize: 15 },
+    purchaseBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 15 },
     restoreLink: { marginTop: 14, alignItems: "center" },
     restoreLinkText: { fontSize: 12.5, color: c.dim, fontWeight: "600" },
     legalLinksRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 10 },
@@ -343,11 +347,11 @@ function makeStyles(c) {
 
     questsCardShadow: {
       marginTop: 16, borderRadius: 16,
-      shadowColor: "#6366F1", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 3,
     },
-    questsCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, padding: 14 },
-    questsIconWrap: { width: 36, height: 36, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-    questsCardTitle: { fontSize: 13, fontWeight: "800", color: "#fff" },
-    questsCardSubtitle: { fontSize: 10.5, color: "rgba(255,255,255,0.9)", marginTop: 2, lineHeight: 14 },
+    questsCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, padding: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },
+    questsIconWrap: { width: 38, height: 38, borderRadius: 999, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    questsCardTitle: { fontFamily: FONTS.marquee, fontSize: 19, color: c.text },
+    questsCardSubtitle: { fontSize: 11, color: c.dim, marginTop: 1, lineHeight: 15 },
   });
 }

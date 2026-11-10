@@ -171,7 +171,7 @@ export default function AuthScreen() {
           style={styles.glowTop}
         />
         <LinearGradient
-          colors={["rgba(99,102,241,0.16)", "rgba(99,102,241,0)"]}
+          colors={["rgba(201,164,76,0.10)", "rgba(201,164,76,0)"]}
           style={styles.glowBottom}
         />
       </View>

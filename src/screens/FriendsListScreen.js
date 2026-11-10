@@ -1,8 +1,9 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Users, Sparkles, Film, Search, X, UserPlus } from "lucide-react-native";
+import { FONTS } from "../theme/fonts";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
+import { Users, Sparkles, Film, Search, X, UserPlus, ChevronRight } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -80,13 +81,15 @@ export default function FriendsListScreen({ navigation }) {
           ) : (
             <>
               <TouchableOpacity style={styles.leaderboardLink} onPress={() => navigation.navigate("BlendLeaderboard")} activeOpacity={0.85}>
-                <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.leaderboardLinkGradient}>
-                  <Sparkles size={14} color="#fff" />
+                <View style={styles.leaderboardLinkGradient}>
+                  <GoldWash height={70} strength={0.12} />
+                  <Sparkles size={15} color={c.accent} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.leaderboardLinkText}>{translateUI("Uyum Sıralaması")}</Text>
                     <Text style={styles.leaderboardLinkSub}>{translateUI("En çok kiminle aynı şeyleri seçiyorsun?")}</Text>
                   </View>
-                </LinearGradient>
+                  <ChevronRight size={16} color={c.accent} />
+                </View>
               </TouchableOpacity>
 
               {filteredFriends.length === 0 ? (
@@ -110,18 +113,18 @@ export default function FriendsListScreen({ navigation }) {
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       accessibilityLabel={translateUI("{0} ile Blend oluştur", {0: f.name})}
                     >
-                      <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniActionBtn}>
-                        <Sparkles size={14} color="#fff" />
-                      </LinearGradient>
+                      <View style={styles.miniActionBtn}>
+                        <Sparkles size={14} color={c.accent} />
+                      </View>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => navigation.navigate("MatchParty", { friend: { id: f.id, name: f.name, avatarUrl: f.avatar_url } })}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       accessibilityLabel={translateUI("{0} ile MatchParty başlat", {0: f.name})}
                     >
-                      <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniActionBtn}>
-                        <Film size={14} color="#fff" />
-                      </LinearGradient>
+                      <View style={[styles.miniActionBtn, styles.miniActionBtnGold]}>
+                        <Film size={14} color="#1a150c" />
+                      </View>
                     </TouchableOpacity>
                   </View>
                 ))
@@ -143,10 +146,10 @@ function makeStyles(c) {
       borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 12,
     },
     searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 10 },
-    leaderboardLink: { marginBottom: 14, borderRadius: 14, overflow: "hidden" },
-    leaderboardLinkGradient: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
-    leaderboardLinkText: { color: "#fff", fontWeight: "900", fontSize: 12.5 },
-    leaderboardLinkSub: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, marginTop: 2 },
+    leaderboardLink: { marginBottom: 14, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: SALON.goldLine, backgroundColor: c.surface },
+    leaderboardLinkGradient: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 14 },
+    leaderboardLinkText: { color: c.text, fontFamily: FONTS.marquee, fontSize: 19 },
+    leaderboardLinkSub: { color: c.dim, fontSize: 10.5, marginTop: 1 },
     emptySearchText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 20 },
     findFriendsCta: { marginTop: 12, marginHorizontal: 30, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13 },
     findFriendsCtaText: { color: c.bg, fontSize: 13, fontWeight: "900" },
@@ -158,6 +161,7 @@ function makeStyles(c) {
     avatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: c.surface2 },
     name: { fontSize: 13.5, fontWeight: "800", color: c.text },
     username: { fontSize: 11, color: c.dim, marginTop: 1 },
-    miniActionBtn: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center" },
+    miniActionBtn: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: SALON.goldLine, backgroundColor: c.surface },
+    miniActionBtnGold: { backgroundColor: c.accent, borderColor: c.accent },
   });
 }
