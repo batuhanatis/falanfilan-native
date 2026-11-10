@@ -7,10 +7,10 @@ import { MessageSquareText } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { AI_HEADER_GRADIENT, AI_CTA_GRADIENT, AI_CTA_TEXT } from "./aiTheme";
 import IslandModal from "./IslandModal";
 import LoadingLines from "./LoadingLines";
 
-const DESCRIBE_GRADIENT = ["#ff6b6b", "#f7b733"];
 const DESCRIBE_LOADING_LINES = ["Anlattığını çözümlüyorum…", "Kataloğu tarıyorum…", "Uygun olanları eliyorum…"];
 
 const MOODS = [
@@ -68,7 +68,7 @@ export default function DescribeModal({ onClose, onResults, onClear, hasResults,
       onClose={onClose}
       title={translateUI("Anlat, Bulalım")}
       icon={MessageSquareText}
-      gradientColors={DESCRIBE_GRADIENT}
+      gradientColors={AI_HEADER_GRADIENT}
       subtitle={translateUI("Ne tür bir şey istediğini kendi cümlelerinle anlat")}
     >
       <Text style={styles.moodLabel}>{translateUI("HIZLI SEÇİM")}</Text>
@@ -94,7 +94,7 @@ export default function DescribeModal({ onClose, onResults, onClear, hasResults,
       {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={() => runDescribe()} disabled={loading}>
-        <LinearGradient colors={DESCRIBE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
+        <LinearGradient colors={AI_CTA_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
           {loading ? (
             <LoadingLines lines={DESCRIBE_LOADING_LINES} style={styles.goBtnText} />
           ) : (
@@ -128,7 +128,7 @@ function makeStyles(c) {
     },
     errorText: { color: c.danger, fontSize: 11, marginTop: 10 },
     goBtn: { marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    goBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    goBtnText: { color: AI_CTA_TEXT, fontWeight: "800", fontSize: 13 },
     clearText: { color: c.dim, fontSize: 11, textDecorationLine: "underline" },
   });
 }

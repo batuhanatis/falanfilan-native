@@ -13,7 +13,7 @@ import { getCurrentOffering, purchasePackage, restorePurchases, hasActivePremium
 // içeriyor (altın çerçeve — bkz. ProfileScreen/OtherProfileScreen avatarPremiumRing).
 const BENEFITS = [
   { icon: Sparkles, text: "Bu Akşamı Planla: platformlarına ve ortak beğenilerinize göre öneri" },
-  { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Zevkine Göre Öner, Fotoğraftan Bul)" },
+  { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Bana Göre Öner, Fotoğraftan Bul)" },
   { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
   { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
   { icon: Palette, text: "Sana özel, AI ile üretilen profil arka planı" },
@@ -35,7 +35,7 @@ const COMPARISON_ROWS = [
 // duyarlı bir başlıkla karşılıyoruz.
 const REASON_COPY = {
   tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak beğenilerinize göre bir ana öneri ve iki alternatif bulalım." },
-  ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Zevkine Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
+  ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Bana Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
   tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp sana en çok uyan kişileri keşfetmeye devam et." },
 };
 

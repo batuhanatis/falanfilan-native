@@ -1,3 +1,4 @@
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
 import { Text } from "react-native";
 
@@ -15,5 +16,5 @@ export default function LoadingLines({ lines, interval = 1400, style }) {
   }, [lines, interval]);
 
   if (!lines || lines.length === 0) return null;
-  return <Text style={style}>{lines[i]}</Text>;
+  return <Text style={style}>{translateUI(lines[i])}</Text>;
 }

@@ -1,158 +1,178 @@
 import { t as translateUI } from "../i18n/core";
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated, LayoutAnimation, Platform, UIManager } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Moon, Sparkles, ChevronDown, MessageSquareText, Wand2, Image as ImageIcon } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Pressable, StyleSheet, Animated, Easing, AccessibilityInfo } from "react-native";
+import Svg, { Defs, LinearGradient as SvgGradient, Stop, Polygon } from "react-native-svg";
+import { MessageSquareText, Wand2, ScanSearch } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
+import { FONTS } from "../theme/fonts";
 import DescribeModal from "./DescribeModal";
 import TasteRecommendModal from "./TasteRecommendModal";
 import PhotoIdentifyModal from "./PhotoIdentifyModal";
 
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+// Yapay Zeka Köşesi — "Makine Dairesi". Salonun projeksiyon odası gibi: solda bir mercek,
+// mercekten kartın üstüne yayılan soluk bir ışık huzmesi, altta bir film şeridi. Şeridin üç
+// karesi üç araç; dokunulan kare ışığı alır (altın çerçeve) ve araç açık kaldıkça yanık durur.
+// Eskiden mor/mavi gradyanlı, açılıp kapanan bir paneldi ve araçlar ancak açınca görünüyordu.
+// "Bu Akşamı Planla" hemen üstteki bilet kartında olduğu için burada tekrar edilmiyor.
+const FRAMES = [
+  { key: "describe", no: "01", Icon: MessageSquareText, title: "Anlat, Bulalım", hint: "Ne istediğini yaz" },
+  { key: "taste", no: "02", Icon: Wand2, title: "Bana Göre Öner", hint: "Beğenilerinden seçer" },
+  { key: "photo", no: "03", Icon: ScanSearch, title: "Fotoğraftan Bul", hint: "Sahneden adını bulur" },
+];
+const HOLES = 16;
+
+function SprocketRow({ color }) {
+  return (
+    <View style={sprocket.row} pointerEvents="none">
+      {Array.from({ length: HOLES }, (_, i) => <View key={i} style={[sprocket.hole, { backgroundColor: color }]} />)}
+    </View>
+  );
 }
 
-const AI_GRADIENT = ["#6D28D9", "#4F46E5", "#2563EB"];
-
-export default function AIZone({ navigation, hasResults, onResults, onClear, defaultOpen = false }) {
+export default function AIZone({ navigation, hasResults, onResults, onClear }) {
   const { c } = useAppTheme();
   const styles = makeStyles(c);
+  const [open, setOpen] = useState(null); // "describe" | "taste" | "photo" | null
+  const [size, setSize] = useState({ w: 0, h: 0 });
 
-  const [aiOpen, setAiOpen] = useState(defaultOpen);
-  const [describeModalOpen, setDescribeModalOpen] = useState(false);
-  const [tasteModalOpen, setTasteModalOpen] = useState(false);
-  const [photoModalOpen, setPhotoModalOpen] = useState(false);
-
-  const sparkleOpacity = useRef(new Animated.Value(1)).current;
+  // Huzme yavaşça nefes alıyor (3 sn). "Hareketi azalt" açıksa sabit duruyor.
+  const glow = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sparkleOpacity, { toValue: 0.45, duration: 1000, useNativeDriver: true }),
-        Animated.timing(sparkleOpacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [sparkleOpacity]);
+    let loop;
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled?.()
+      .catch(() => false)
+      .then((reduce) => {
+        if (!alive || reduce) return;
+        loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(glow, { toValue: 0.55, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(glow, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ])
+        );
+        loop.start();
+      });
+    return () => { alive = false; loop?.stop(); };
+  }, [glow]);
 
-  function toggleAiOpen() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setAiOpen((v) => !v);
-  }
+  const { w, h } = size;
+  const lx = 33;
+  const ly = 33;
 
   return (
     <View>
-      <TouchableOpacity activeOpacity={0.9} onPress={toggleAiOpen}>
-        <LinearGradient
-          colors={AI_GRADIENT}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.aiZone}
-        >
-          <View style={styles.aiGlowOne} />
-          <View style={styles.aiGlowTwo} />
-          <View style={styles.aiZoneHeader}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
-              <View style={styles.headerIconWrap}>
-                <Animated.View style={{ opacity: sparkleOpacity }}>
-                  <Sparkles size={17} color="#fff" />
-                </Animated.View>
-              </View>
-              <View>
-                <Text style={styles.aiEyebrow}>{translateUI("PELLIX AI")}</Text>
-                <Text style={styles.aiZoneTitle}>{translateUI("Yapay Zeka Köşesi")}</Text>
-              </View>
-            </View>
-            <View style={styles.chevronWrap}>
-              <ChevronDown size={17} color="#fff" style={{ transform: [{ rotate: aiOpen ? "180deg" : "0deg" }] }} />
-            </View>
+      <View
+        style={styles.card}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          if (Math.abs(width - w) > 1 || Math.abs(height - h) > 1) setSize({ w: width, h: height });
+        }}
+      >
+        {w > 0 && (
+          <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: glow }]} pointerEvents="none">
+            <Svg width={w} height={h}>
+              <Defs>
+                <SvgGradient id="aiBeam" x1={lx} y1={ly} x2={w} y2={ly} gradientUnits="userSpaceOnUse">
+                  <Stop offset="0" stopColor={c.accent} stopOpacity={0.26} />
+                  <Stop offset="0.55" stopColor={c.accent} stopOpacity={0.06} />
+                  <Stop offset="1" stopColor={c.accent} stopOpacity={0} />
+                </SvgGradient>
+              </Defs>
+              <Polygon points={`${lx},${ly - 5} ${w},${-18} ${w},${ly + 44} ${lx},${ly + 5}`} fill="url(#aiBeam)" />
+            </Svg>
+          </Animated.View>
+        )}
+
+        <View style={styles.header}>
+          <View style={styles.lens}>
+            <Animated.View style={[styles.lensCore, { opacity: glow }]} />
+            <View style={styles.lensGlint} />
           </View>
-          <Text style={styles.aiZoneSubtitle}>{translateUI("Ne izleyeceğini birkaç saniyede daralt")}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {aiOpen && (
-        <View style={styles.aiPanel}>
-          <TouchableOpacity style={styles.aiRow} onPress={() => navigation.navigate("TonightPlanner")} activeOpacity={0.78} accessibilityRole="button">
-            <View style={[styles.aiRowIcon, { backgroundColor: c.surface2 }]}><Moon size={18} color={c.accent} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>{translateUI("Bu Akşamı Planla · Premium")}</Text>
-              <Text style={styles.aiRowSubtitle}>{translateUI("Platformlarına ve ortak beğenilerinize göre akşamın seçimi")}</Text>
-            </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.aiRow} onPress={() => setDescribeModalOpen(true)} activeOpacity={0.78}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "rgba(109,40,217,0.15)" }]}>
-              <MessageSquareText size={16} color="#8B5CF6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>{translateUI("Anlat, Bulalım")}</Text>
-              <Text style={styles.aiRowSubtitle}>{translateUI("Modunu ve ne istediğini kendi cümlelerinle anlat")}</Text>
-            </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.aiRow} onPress={() => setTasteModalOpen(true)} activeOpacity={0.78}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "rgba(79,70,229,0.15)" }]}>
-              <Wand2 size={16} color="#6366F1" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>{translateUI("Zevkime Göre Öner")}</Text>
-              <Text style={styles.aiRowSubtitle}>{translateUI("Beğenilerini okuyup sana özel bir seçim yapar")}</Text>
-            </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.aiRow, { borderBottomWidth: 0 }]} onPress={() => setPhotoModalOpen(true)} activeOpacity={0.78}>
-            <View style={[styles.aiRowIcon, { backgroundColor: "rgba(37,99,235,0.15)" }]}>
-              <ImageIcon size={16} color="#3B82F6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aiRowTitle}>{translateUI("Fotoğraftan Bul")}</Text>
-              <Text style={styles.aiRowSubtitle}>{translateUI("Bir sahne yükle, hangi film veya diziden olduğunu bul")}</Text>
-            </View>
-            <ChevronDown size={16} color={c.dim} style={{ transform: [{ rotate: "-90deg" }] }} />
-          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eyebrow}>{translateUI("PELLIX AI")}</Text>
+            <Text style={styles.title} numberOfLines={1}>{translateUI("Yapay Zeka Köşesi")}</Text>
+          </View>
         </View>
-      )}
 
-      {describeModalOpen && (
+        <View style={styles.strip}>
+          <SprocketRow color={c.surface2} />
+          <View style={styles.frames}>
+            {FRAMES.map(({ key, no, Icon, title, hint }) => {
+              const lit = open === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setOpen(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${translateUI(title)}. ${translateUI(hint)}`}
+                  style={({ pressed }) => [styles.frame, (pressed || lit) && styles.frameLit]}
+                >
+                  <View style={styles.frameTop}>
+                    <Icon size={17} color={c.accent} />
+                    <Text style={styles.frameNo}>{no}</Text>
+                  </View>
+                  <Text style={styles.frameTitle} numberOfLines={2}>{translateUI(title)}</Text>
+                  <Text style={styles.frameHint} numberOfLines={2}>{translateUI(hint)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <SprocketRow color={c.surface2} />
+        </View>
+      </View>
+
+      {open === "describe" && (
         <DescribeModal
-          onClose={() => setDescribeModalOpen(false)}
+          onClose={() => setOpen(null)}
           onResults={onResults}
           onClear={onClear}
           hasResults={hasResults}
           navigation={navigation}
         />
       )}
-      {tasteModalOpen && (
+      {open === "taste" && (
         <TasteRecommendModal
-          onClose={() => setTasteModalOpen(false)}
-          onResults={(results) => onResults(results, "Zevkine göre önerilerin")}
+          onClose={() => setOpen(null)}
+          onResults={(results) => onResults(results, "Sana göre önerilerin")}
           navigation={navigation}
         />
       )}
-      {photoModalOpen && <PhotoIdentifyModal onClose={() => setPhotoModalOpen(false)} navigation={navigation} />}
+      {open === "photo" && <PhotoIdentifyModal onClose={() => setOpen(null)} navigation={navigation} />}
     </View>
   );
 }
 
+const sprocket = StyleSheet.create({
+  row: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 5 },
+  hole: { width: 8, height: 5, borderRadius: 1.5 },
+});
+
 function makeStyles(c) {
   return StyleSheet.create({
-    aiZone: { marginTop: 14, borderRadius: 18, padding: 15, overflow: "hidden" },
-    aiGlowOne: { position: "absolute", width: 140, height: 140, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)", top: -92, right: 26 },
-    aiGlowTwo: { position: "absolute", width: 90, height: 90, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.06)", bottom: -52, left: 46 },
-    aiZoneHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    headerIconWrap: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-    aiEyebrow: { color: "rgba(255,255,255,0.66)", fontWeight: "900", fontSize: 8.5, letterSpacing: 0.8 },
-    aiZoneTitle: { color: "#fff", fontWeight: "900", fontSize: 14.5, marginTop: 1 },
-    aiZoneSubtitle: { color: "rgba(255,255,255,0.80)", fontSize: 10.8, marginTop: 8, marginLeft: 43 },
-    chevronWrap: { width: 30, height: 30, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },
+    card: {
+      marginTop: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14,
+      paddingHorizontal: 14, paddingTop: 14, paddingBottom: 13, overflow: "hidden",
+    },
+    header: { flexDirection: "row", alignItems: "center", gap: 12 },
+    lens: {
+      width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg,
+      alignItems: "center", justifyContent: "center",
+    },
+    lensCore: { width: 16, height: 16, borderRadius: 8, backgroundColor: c.accent },
+    lensGlint: { position: "absolute", top: 12, left: 13, width: 4, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.75)" },
+    eyebrow: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1, color: c.accent },
+    title: { fontFamily: FONTS.marquee, fontSize: 24, color: c.text, marginTop: 1 },
 
-    aiPanel: { marginTop: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 15, paddingHorizontal: 13 },
-    aiRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: c.border },
-    aiRowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-    aiRowTitle: { fontSize: 12.8, fontWeight: "800", color: c.text },
-    aiRowSubtitle: { fontSize: 10.5, color: c.dim, marginTop: 2, lineHeight: 14 },
+    strip: { marginTop: 13, backgroundColor: c.bg, borderRadius: 8, paddingVertical: 6, gap: 6 },
+    frames: { flexDirection: "row", gap: 5, paddingHorizontal: 5 },
+    frame: {
+      flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 5,
+      paddingHorizontal: 9, paddingTop: 9, paddingBottom: 10,
+    },
+    frameLit: { borderColor: c.accent, backgroundColor: c.surface2 },
+    frameTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    frameNo: { fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 0.6, color: c.dim },
+    frameTitle: { marginTop: 9, fontSize: 12.5, lineHeight: 15.5, fontWeight: "800", color: c.text },
+    frameHint: { marginTop: 3, fontSize: 10, lineHeight: 13, color: c.dim },
   });
 }
