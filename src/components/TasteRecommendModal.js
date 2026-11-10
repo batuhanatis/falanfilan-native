@@ -9,17 +9,16 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { YEAR_OPTIONS } from "../utils/filterYears";
 import { useCommonPlatforms } from "../hooks/useCommonPlatforms";
+import { AI_HEADER_GRADIENT, AI_CTA_GRADIENT, AI_CTA_TEXT } from "./aiTheme";
 import IslandModal from "./IslandModal";
 import FilterFields from "./FilterFields";
 import LoadingLines from "./LoadingLines";
 
 // AI2 — "Bana Bir Şey Öner" tıklanınca ne olduğunu hissettiren, dönen mikro-metin — sıradan bir
 // spinnerden farklı olsun diye (bkz. G2).
-const TASTE_LOADING_LINES = ["Zevkini analiz ediyorum…", "Kataloğu tarıyorum…", "Uygun olanları eliyorum…"];
+const TASTE_LOADING_LINES = ["Beğenilerine bakıyorum…", "Kataloğu tarıyorum…", "Uygun olanları eliyorum…"];
 
-// Hem başlık şeridinde hem alttaki CTA'da kullanılan AYNI gradyan — buton artık başlıktan
-// kopuk, düz altın bir renk değil, aynı "Zevkine Göre Öner" kimliğini taşıyor.
-const BRAND_GRADIENT = ["#8e2de2", "#4a00e0", "#00c9ff"];
+// Renkler Yapay Zeka Köşesi'nin ortak paletinden (aiTheme.js): karanlık başlık, altın düğme.
 
 // ÖNEMLİ: Eskiden bu kendi bottom-sheet'i olan, Ana Sayfa'nın filtre paneli ve MatchParty
 // davetiyle hiç ilgisi olmayan üçüncü bir filtre implementasyonuydu. Artık ikisiyle AYNI
@@ -82,9 +81,9 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
     <IslandModal
       visible
       onClose={onClose}
-      title={translateUI("Zevkine Göre Öner")}
+      title={translateUI("Bana Göre Öner")}
       icon={Wand2}
-      gradientColors={BRAND_GRADIENT}
+      gradientColors={AI_HEADER_GRADIENT}
       subtitle={translateUI("Geçmişte beğendiklerine bakıp sana özel bir liste buluruz")}
     >
       <FilterFields
@@ -110,7 +109,7 @@ export default function TasteRecommendModal({ onClose, onResults, navigation }) 
       {!!error && <Text style={styles.errorText}>{translateUI(error)}</Text>}
 
       <TouchableOpacity activeOpacity={0.88} onPress={getRecommendation} disabled={loading}>
-        <LinearGradient colors={BRAND_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
+        <LinearGradient colors={AI_CTA_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
           {loading ? (
             <LoadingLines lines={TASTE_LOADING_LINES} style={styles.goBtnText} />
           ) : (
@@ -127,6 +126,6 @@ function makeStyles(c) {
     helperText: { color: c.dim, fontSize: 11, marginTop: 16, fontStyle: "italic" },
     errorText: { color: c.danger, fontSize: 11, marginTop: 12 },
     goBtn: { marginTop: 20, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    goBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    goBtnText: { color: AI_CTA_TEXT, fontWeight: "800", fontSize: 13 },
   });
 }

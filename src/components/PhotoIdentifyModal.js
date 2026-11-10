@@ -9,10 +9,10 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { hapticSuccess } from "../utils/haptics";
+import { AI_HEADER_GRADIENT, AI_CTA_GRADIENT, AI_CTA_TEXT, AI_GOLD } from "./aiTheme";
 import IslandModal from "./IslandModal";
 import LoadingLines from "./LoadingLines";
 
-const PHOTO_GRADIENT = ["#f7971e", "#ffd200", "#f857a6"];
 
 // PH1 — "Bul"a basınca artık düz bir buton-içi spinner değil, fotoğrafın üzerinde yukarıdan
 // aşağıya süzülen bir tarama çizgisi + dönen mikro-metin var ("Shazam anı" — bu özelliğin
@@ -40,8 +40,8 @@ function ScanOverlay() {
 const scanStyles = StyleSheet.create({
   tint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.15)" },
   line: {
-    position: "absolute", left: 0, right: 0, height: 3, backgroundColor: "#ffd200",
-    shadowColor: "#ffd200", shadowOpacity: 0.9, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+    position: "absolute", left: 0, right: 0, height: 3, backgroundColor: AI_GOLD,
+    shadowColor: AI_GOLD, shadowOpacity: 0.9, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
   },
 });
 
@@ -157,7 +157,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
       onClose={onClose}
       title={translateUI("Fotoğraftan Bul")}
       icon={ImageIcon}
-      gradientColors={PHOTO_GRADIENT}
+      gradientColors={AI_HEADER_GRADIENT}
       subtitle={translateUI("Bir sahne/kare yükle, hangi film/diziden olduğunu bulalım. Fotoğraf kaydedilmiyor.")}
     >
       {imageUri ? (
@@ -189,7 +189,7 @@ export default function PhotoIdentifyModal({ onClose, navigation }) {
 
       {imageUri && !results && (
         <TouchableOpacity activeOpacity={0.88} onPress={identify} disabled={loading}>
-          <LinearGradient colors={PHOTO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
+          <LinearGradient colors={AI_CTA_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goBtn}>
             {loading ? (
               <LoadingLines lines={SCAN_LOADING_LINES} style={styles.goBtnText} />
             ) : (
@@ -225,21 +225,21 @@ function makeStyles(c) {
     preview: { width: "100%", aspectRatio: 4 / 3, borderRadius: 14, backgroundColor: c.surface2 },
     errorText: { color: c.danger, fontSize: 11, marginTop: 14, textAlign: "center" },
     goBtn: { marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-    goBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    goBtnText: { color: AI_CTA_TEXT, fontWeight: "800", fontSize: 13 },
     resultRow: { flexDirection: "row", gap: 12, alignItems: "center", backgroundColor: c.surface2, borderRadius: 14, padding: 10, marginTop: 12 },
     resultPoster: { width: 46, height: 66, borderRadius: 8 },
     resultTitle: { fontSize: 13, fontWeight: "700", color: c.text },
     resultMeta: { fontSize: 11, color: c.dim },
     confidenceText: { fontSize: 9.5, fontWeight: "800", color: c.accent2, marginTop: 5 },
     matchReason: { fontSize: 9.5, lineHeight: 12.5, color: c.dim, marginTop: 3 },
-    uncertainBox: { marginTop: 13, padding: 11, borderRadius: 12, backgroundColor: "rgba(248,87,166,0.10)", borderWidth: 1, borderColor: "rgba(248,87,166,0.28)" },
+    uncertainBox: { marginTop: 13, padding: 11, borderRadius: 12, backgroundColor: "rgba(201,164,76,0.10)", borderWidth: 1, borderColor: "rgba(201,164,76,0.30)" },
     uncertainTitle: { color: c.text, fontSize: 11.5, fontWeight: "800" },
     uncertainText: { color: c.dim, fontSize: 10.5, lineHeight: 14, marginTop: 3 },
     topMatchPill: {
-      flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#f857a6",
+      flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: AI_GOLD,
       alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4,
     },
-    topMatchPillText: { fontSize: 8.5, fontWeight: "800", color: "#fff" },
+    topMatchPillText: { fontSize: 8.5, fontWeight: "800", color: AI_CTA_TEXT },
     retryText: { fontSize: 12, fontWeight: "700", color: c.dim, textDecorationLine: "underline" },
   });
 }
