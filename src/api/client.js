@@ -138,6 +138,8 @@ export const api = {
   updateMe: (token, payload) => request("/api/me", { method: "PUT", token, body: payload }),
   updatePhoto: (token, payload) => request("/api/me/photo", { method: "PUT", token, body: payload, timeoutMs: UPLOAD_TIMEOUT_MS }),
   updateFavorite: (token, payload) => request("/api/me/favorite", { method: "PUT", token, body: payload }),
+  // Girişsiz: en bilinen yapımlar (tanıtım ekranının afişleri için)
+  publicMovies: (page = 1) => request(`/api/public/movies?page=${page}`),
   updatePreferredGenres: (token, preferredGenres) => request("/api/me/preferences", { method: "PUT", token, body: { preferredGenres } }),
   updatePassword: (token, payload) => request("/api/me/password", { method: "PUT", token, body: payload }),
   deleteAccount: (token) => request("/api/me", { method: "DELETE", token }),

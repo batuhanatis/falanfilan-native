@@ -1,17 +1,19 @@
 import { t as translateUI } from "../../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Heart, Ticket } from "lucide-react-native";
 import { FONTS } from "../../theme/fonts";
 import { Spotlight } from "../../components/salon/OneSheet";
+import { api } from "../../api/client";
 
 // "Fuaye": hesap açılmadan önceki ilk ekran. Sinema fuayesinde dönen üç sahnelik bir fragman
 // gibi: (1) kararsız bir afiş yığınından tek bir öneri yükselir, (2) iki kişinin ortak beğenisi
 // eşleşir, (3) uyum yüzdesi sayarak yükselir. Sahneler kendiliğinden ilerler (hikâye çubukları),
 // ekranın sağına/soluna dokununca ileri/geri gider. Altta "Bilet al" (kayıt) ve "Zaten üyeyim".
-// Afişler kurgu: koddan çizilen adlar, gerçek film yok.
+// Afişler gerçek: giriş gerektirmeyen /api/public/movies'in en bilinen yapımlarından rastgele
+// seçiliyor. Yüklenene kadar (ya da bağlantı yoksa) yerlerinde adsız, soyut kartlar duruyor.
 
 const GOLD = "#c9a44c";
 const CREAM = "#f3ead8";
@@ -25,21 +27,35 @@ const SCENES = [
   { eyebrow: "3 · UYUMUNUZ", title: "Kiminle aynı frekanstasın?", sub: "Blend, arkadaşlarınla izleme uyumunu yüzdeyle gösterir." },
 ];
 
-// Koddan çizilen kurgu afişler
-const POSTERS = [
-  { title: "MAVİ\nSİNYAL", colors: ["#1b2a4a", "#0d1424"], sun: "#7fb4ff" },
-  { title: "SON\nVAPUR", colors: ["#3b2a4e", "#16101f"], sun: "#ffcf7a" },
-  { title: "ALTIN\nAYVA", colors: ["#6b3d1a", "#24140a"], sun: "#ffe0a0" },
+// Afiş yüklenene kadar duran adsız kart renkleri
+const PLACEHOLDERS = [
+  { colors: ["#1b2a4a", "#0d1424"], sun: "#7fb4ff" },
+  { colors: ["#3b2a4e", "#16101f"], sun: "#ffcf7a" },
+  { colors: ["#6b3d1a", "#24140a"], sun: "#ffe0a0" },
 ];
 
-function MiniPoster({ poster, width = 92, style, glow }) {
+function shuffle(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// Gerçek afiş; yüklenince adsız kartın üstüne yumuşakça geliyor.
+function MiniPoster({ uri, slot = 0, width = 92, style, glow }) {
   const height = Math.round(width * 1.5);
+  const ph = PLACEHOLDERS[slot % PLACEHOLDERS.length];
+  const shown = useRef(new Animated.Value(0)).current;
   return (
-    <View style={[{ width, height, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: glow ? GOLD : "rgba(201,164,76,0.3)" }, style]}>
-      <LinearGradient colors={poster.colors} style={StyleSheet.absoluteFill} />
-      <View style={{ position: "absolute", top: height * 0.2, alignSelf: "center", width: width * 0.42, height: width * 0.42, borderRadius: width, backgroundColor: poster.sun, opacity: 0.85 }} />
-      <LinearGradient colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]} style={[StyleSheet.absoluteFill, { top: height * 0.45 }]} />
-      <Text style={{ position: "absolute", left: 8, right: 8, bottom: 8, color: CREAM, fontFamily: FONTS.marquee, fontSize: width * 0.17, lineHeight: width * 0.17, textAlign: "center" }}>{translateUI(poster.title)}</Text>
+    <View style={[{ width, height, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: glow ? GOLD : "rgba(201,164,76,0.3)", backgroundColor: INK }, style]}>
+      <LinearGradient colors={ph.colors} style={StyleSheet.absoluteFill} />
+      <View style={{ position: "absolute", top: height * 0.2, alignSelf: "center", width: width * 0.42, height: width * 0.42, borderRadius: width, backgroundColor: ph.sun, opacity: 0.35 }} />
+      {!!uri && (
+        <Animated.Image
+          source={{ uri }}
+          style={[StyleSheet.absoluteFill, { opacity: shown }]}
+          onLoad={() => Animated.timing(shown, { toValue: 1, duration: 260, useNativeDriver: true }).start()}
+        />
+      )}
     </View>
   );
 }
@@ -53,20 +69,20 @@ function Ring({ letter, size = 64 }) {
 }
 
 // Sahne 1: üç afiş yelpaze gibi duruyor; ortadaki öne çıkıp büyüyor, altın çerçeve ve rozet.
-function SceneOne({ t }) {
+function SceneOne({ t, posters }) {
   const lift = t.interpolate({ inputRange: [0.25, 0.6], outputRange: [0, 1], extrapolate: "clamp" });
   const side = t.interpolate({ inputRange: [0.25, 0.6], outputRange: [1, 0.45], extrapolate: "clamp" });
   const badge = t.interpolate({ inputRange: [0.6, 0.75], outputRange: [0, 1], extrapolate: "clamp" });
   return (
     <View style={styles.stageInner}>
       <Animated.View style={{ position: "absolute", opacity: side, transform: [{ translateX: -78 }, { rotate: "-12deg" }, { translateY: 12 }] }}>
-        <MiniPoster poster={POSTERS[0]} />
+        <MiniPoster uri={posters[0]} slot={0} />
       </Animated.View>
       <Animated.View style={{ position: "absolute", opacity: side, transform: [{ translateX: 78 }, { rotate: "12deg" }, { translateY: 12 }] }}>
-        <MiniPoster poster={POSTERS[2]} />
+        <MiniPoster uri={posters[2]} slot={2} />
       </Animated.View>
       <Animated.View style={{ transform: [{ translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }, { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] }) }] }}>
-        <MiniPoster poster={POSTERS[1]} width={104} glow />
+        <MiniPoster uri={posters[1]} slot={1} width={104} glow />
       </Animated.View>
       <Animated.View style={[styles.pill, { position: "absolute", bottom: 6, opacity: badge, transform: [{ scale: badge.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}>
         <Text style={styles.pillText}>{translateUI("BU AKŞAM BU")}</Text>
@@ -76,7 +92,7 @@ function SceneOne({ t }) {
 }
 
 // Sahne 2: iki koltuk (D ve E), ortadaki afiş sağa kayıyor, iki tarafta kalp, sonra "EŞLEŞME".
-function SceneTwo({ t }) {
+function SceneTwo({ t, posters }) {
   const swipe = t.interpolate({ inputRange: [0.15, 0.45], outputRange: [0, 1], extrapolate: "clamp" });
   const heartA = t.interpolate({ inputRange: [0.3, 0.42], outputRange: [0, 1], extrapolate: "clamp" });
   const heartB = t.interpolate({ inputRange: [0.48, 0.6], outputRange: [0, 1], extrapolate: "clamp" });
@@ -99,7 +115,7 @@ function SceneTwo({ t }) {
         { rotate: swipe.interpolate({ inputRange: [0, 0.5, 1], outputRange: ["0deg", "7deg", "0deg"] }) },
         { scale: match.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
       ] }}>
-        <MiniPoster poster={POSTERS[2]} width={100} glow={false} />
+        <MiniPoster uri={posters[3]} slot={2} width={100} glow={false} />
       </Animated.View>
       <Animated.View style={[styles.pill, { position: "absolute", bottom: 6, opacity: match, transform: [{ scale: match.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}>
         <Text style={styles.pillText}>{translateUI("EŞLEŞME")}</Text>
@@ -109,19 +125,24 @@ function SceneTwo({ t }) {
 }
 
 // Sahne 3: iki koltuk yaklaşıyor, ortada yüzde sayarak yükseliyor.
-function SceneThree({ t }) {
+function SceneThree({ t, posters }) {
   const [pct, setPct] = useState(0);
   useEffect(() => {
     const id = t.addListener(({ value }) => setPct(Math.round(87 * Math.min(1, Math.max(0, (value - 0.15) / 0.5)))));
     return () => t.removeListener(id);
   }, [t]);
   const close = t.interpolate({ inputRange: [0, 0.4], outputRange: [0, 1], extrapolate: "clamp" });
+  const shared = t.interpolate({ inputRange: [0.62, 0.85], outputRange: [0, 1], extrapolate: "clamp" });
   return (
     <View style={styles.stageInner}>
       <Animated.View style={{ position: "absolute", top: 18, transform: [{ translateX: close.interpolate({ inputRange: [0, 1], outputRange: [-120, -92] }) }] }}><Ring letter="D" size={58} /></Animated.View>
       <Animated.View style={{ position: "absolute", top: 18, transform: [{ translateX: close.interpolate({ inputRange: [0, 1], outputRange: [120, 92] }) }] }}><Ring letter="E" size={58} /></Animated.View>
       <Text style={styles.bigPct}>%{pct}</Text>
       <Text style={styles.bigPctLabel}>{translateUI("UYUM")}</Text>
+      {/* uyumu doğuran ortak beğeniler */}
+      <Animated.View style={{ flexDirection: "row", gap: 8, marginTop: 14, opacity: shared, transform: [{ translateY: shared.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+        {[4, 5, 0].map((i, k) => <MiniPoster key={i} uri={posters[i]} slot={k} width={42} />)}
+      </Animated.View>
     </View>
   );
 }
@@ -135,6 +156,21 @@ export default function Fuaye({ onSignup, onLogin, hasInvite }) {
   const fade = useRef(new Animated.Value(1)).current;
   const reduce = useRef(false);
   const timer = useRef(null);
+  const [posters, setPosters] = useState([]);
+
+  // En bilinen yapımlardan 6 afiş (her açılışta farklı karışım); küçük boy, önceden indiriliyor.
+  useEffect(() => {
+    let alive = true;
+    api.publicMovies()
+      .then((data) => {
+        const urls = shuffle((data?.results || []).map((m) => m?.poster).filter(Boolean)).slice(0, 6)
+          .map((u) => u.replace("/w500/", "/w342/"));
+        urls.forEach((u) => Image.prefetch(u).catch(() => {}));
+        if (alive) setPosters(urls);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.().then((r) => { reduce.current = !!r; }).catch(() => {});
@@ -181,7 +217,7 @@ export default function Fuaye({ onSignup, onLogin, hasInvite }) {
       {/* dokunma alanları: sol geri, sağ ileri */}
       <View style={styles.stage}>
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade, alignItems: "center", justifyContent: "center", transform: [{ scale: sceneScale }] }]}>
-          {scene === 0 ? <SceneOne t={t} /> : scene === 1 ? <SceneTwo t={t} /> : <SceneThree t={t} />}
+          {scene === 0 ? <SceneOne t={t} posters={posters} /> : scene === 1 ? <SceneTwo t={t} posters={posters} /> : <SceneThree t={t} posters={posters} />}
         </Animated.View>
         <View style={[StyleSheet.absoluteFill, { flexDirection: "row" }]}>
           <Pressable style={{ flex: 1 }} onPress={() => setScene((x) => (x + SCENES.length - 1) % SCENES.length)} accessibilityLabel={translateUI("Önceki sahne")} />
@@ -224,7 +260,7 @@ const styles = StyleSheet.create({
   stageInner: { width: 300, height: 260, alignItems: "center", justifyContent: "center" },
   pill: { backgroundColor: GOLD, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
   pillText: { color: "#1a150c", fontFamily: FONTS.monoMedium, fontSize: 11, letterSpacing: 1.6 },
-  bigPct: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 96, lineHeight: 100, marginTop: 64 },
+  bigPct: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 96, lineHeight: 100, marginTop: 58 },
   bigPctLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 12, letterSpacing: 4 },
   copy: { paddingHorizontal: 28, paddingTop: 6, paddingBottom: 22, minHeight: 190 },
   eyebrow: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 11, letterSpacing: 1.8 },
