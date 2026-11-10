@@ -4,8 +4,15 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Crown, Eye, Flame, Heart, ListVideo, Quote, Sparkles, Users } from "lucide-react-native";
 import { avatarOr } from "../utils/avatar";
+import { FONTS } from "../theme/fonts";
 import { verdictFor } from "../utils/blendVerdict";
 import RatingShareCard from "./RatingShareCard";
+
+// Pellix Play sonuç kartları Salon dilinde: koyu zemin, üstte soluk altın spot, Big Shoulders
+// ad/skor, DM Mono künye (Blend ve profil kartları kendi tasarımlarında kalıyor).
+const GOLD = "#c9a44c";
+const CREAM = "#f3ead8";
+const DIM = "#8c8579";
 
 function firstName(value) {
   return String(value || "").trim().split(/\s+/)[0] || "Pellix";
@@ -38,23 +45,23 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     const open = () => navigation.navigate("DailyPosterPuzzle");
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
-        <LinearGradient colors={["#0B0B12", "#17122A", "#2B1760"]} style={styles.card}>
-          <View style={styles.purpleGlow} />
+        <View style={[styles.card, styles.salonCard]}>
+          <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
           <View style={styles.cardTopRow}>
             <View>
-              <Text style={styles.brand}>{translateUI("pellix")}</Text>
-              <Text style={styles.cardType}>{translateUI("POSTER PUZZLE")}</Text>
+              <Text style={styles.salonBrand}>PELLIX</Text>
+              <Text style={styles.salonType}>{translateUI("POSTER PUZZLE")}</Text>
             </View>
-            <View style={styles.dailyBadge}><Text style={styles.dailyBadgeText}>{translateUI("GÜNÜN OYUNU")}</Text></View>
+            <View style={styles.salonBadge}><Text style={styles.salonBadgeText}>{translateUI("GÜNÜN OYUNU")}</Text></View>
           </View>
-          <View style={styles.puzzleIcon}><Eye size={22} color="#C4B5FD" /></View>
-          <Text style={styles.puzzleTitle}>{payload.correct ? translateUI("Posteri çözdü") : translateUI("Poster bugün kazandı")}</Text>
+          <View style={styles.salonIcon}><Eye size={20} color={GOLD} /></View>
+          <Text style={styles.salonTitle}>{payload.correct ? translateUI("Posteri çözdü") : translateUI("Poster bugün kazandı")}</Text>
           <Text style={styles.puzzleSquares}>{payload.squares || (payload.correct ? translateUI("🟩⬛⬛") : translateUI("🟥🟥🟥"))}</Text>
-          <Text style={styles.puzzleMeta}>
+          <Text style={styles.salonMeta}>
             {payload.correct ? translateUI("{0}. denemede bildi", {0: Math.max(1, Number(payload.attempts || 1))}) : translateUI("Bugün doğru cevabı bulamadı")}
           </Text>
-          <View style={styles.playCta}><Text style={styles.playCtaText}>{translateUI("Cevabı görmeden sen de oyna →")}</Text></View>
-        </LinearGradient>
+          <View style={styles.salonCta}><Text style={styles.salonCtaText}>{translateUI("Cevabı görmeden sen de oyna →")}</Text></View>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -129,16 +136,17 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     };
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
-        <LinearGradient colors={["#3B1B66", "#8B296F", "#C45A29"]} style={styles.card}>
-          <Text style={styles.eyebrow}>{translateUI("ARKADAŞINI TANIYOR MUSUN?")}</Text>
-          <Avatar uri={friend.avatarUrl} id={friend.id} large />
-          <Text style={styles.profileName}>{friend.name}</Text>
+        <View style={[styles.card, styles.salonCard]}>
+          <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
+          <Text style={styles.salonType}>{translateUI("ARKADAŞINI TANIYOR MUSUN?")}</Text>
+          <Avatar uri={friend.avatarUrl} id={friend.id} large gold />
+          <Text style={styles.salonName}>{friend.name}</Text>
           <View style={styles.centerScore}>
-            <Text style={styles.scoreNumber}>{translateUI("%")}{percent}</Text>
-            <Text style={styles.microLabel}>{translateUI("TANIMA SKORU")}</Text>
+            <Text style={styles.salonScore}>{translateUI("%")}{percent}</Text>
+            <Text style={styles.salonMicro}>{translateUI("TANIMA SKORU")}</Text>
           </View>
-          <Text style={styles.subtitle}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}{translateUI(" doğru cevap")}</Text>
-        </LinearGradient>
+          <Text style={styles.salonMeta}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}{translateUI(" doğru cevap")}</Text>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -147,14 +155,15 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     const open = () => navigation.navigate("PellixPlay", { initialGame: "who_said_it" });
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
-        <LinearGradient colors={["#3C1811", "#651D43", "#38205D"]} style={styles.card}>
-          <Text style={styles.eyebrow}>{translateUI("SAHNEYİ HATIRLA, KARAKTERİ BUL")}</Text>
-          <Quote size={24} color="rgba(255,255,255,0.82)" style={{ marginTop: 14 }} />
+        <View style={[styles.card, styles.salonCard]}>
+          <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
+          <Text style={styles.salonType}>{translateUI("SAHNEYİ HATIRLA, KARAKTERİ BUL")}</Text>
+          <View style={[styles.salonIcon, { marginTop: 14 }]}><Quote size={20} color={GOLD} /></View>
           <View style={styles.centerScore}>
-            <Text style={styles.scoreNumber}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}</Text>
-            <Text style={styles.microLabel}>{payload.isDaily ? translateUI("GÜNÜN CHALLENGE'I") : translateUI("DOĞRU CEVAP")}</Text>
+            <Text style={styles.salonScore}>{Number(payload.score || 0)}{translateUI("/")}{Number(payload.total || 0)}</Text>
+            <Text style={styles.salonMicro}>{payload.isDaily ? translateUI("GÜNÜN CHALLENGE'I") : translateUI("DOĞRU CEVAP")}</Text>
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -164,23 +173,24 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
     const open = () => navigation.navigate("PellixPlay", { initialGame: "character_quiz" });
     return (
       <TouchableOpacity onPress={open} activeOpacity={0.9}>
-        <LinearGradient colors={[character.color || "#4C1D95", "#711A5D", "#15121D"]} style={styles.card}>
-          <Text style={styles.eyebrow}>{translateUI("HANGİ KARAKTERSİN?")}</Text>
+        <View style={[styles.card, styles.salonCard]}>
+          <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.salonSpot} pointerEvents="none" />
+          <Text style={styles.salonType}>{translateUI("HANGİ KARAKTERSİN?")}</Text>
           {character.actorPhoto ? (
             <View style={{ marginTop: 13 }}>
-              <Image source={{ uri: character.actorPhoto }} style={styles.avatarLarge} />
-              <View style={styles.charEmojiBadge}><Text style={{ fontSize: 13 }}>{character.emoji}</Text></View>
+              <Image source={{ uri: character.actorPhoto }} style={[styles.avatarLarge, styles.salonAvatar]} />
+              <View style={[styles.charEmojiBadge, styles.salonEmoji]}><Text style={{ fontSize: 13 }}>{character.emoji}</Text></View>
             </View>
           ) : (
             <Text style={{ fontSize: 34, marginTop: 12 }}>{character.emoji}</Text>
           )}
-          <Text style={styles.profileName}>{character.name}</Text>
-          <Text style={styles.subtitle}>{character.title}</Text>
+          <Text style={styles.salonName}>{character.name}</Text>
+          <Text style={styles.salonMeta}>{character.title}</Text>
           <View style={[styles.centerScore, { marginTop: 10 }]}>
-            <Text style={styles.scoreNumber}>{translateUI("%")}{bounded(payload.matchPercent)}</Text>
-            <Text style={styles.microLabel}>{translateUI("UYUM")}</Text>
+            <Text style={styles.salonScore}>{translateUI("%")}{bounded(payload.matchPercent)}</Text>
+            <Text style={styles.salonMicro}>{translateUI("UYUM")}</Text>
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -270,8 +280,8 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
   );
 }
 
-function Avatar({ uri, id, large = false }) {
-  return <Image source={{ uri: uri || avatarOr(null, id) }} style={large ? styles.avatarLarge : styles.avatar} />;
+function Avatar({ uri, id, large = false, gold = false }) {
+  return <Image source={{ uri: uri || avatarOr(null, id) }} style={[large ? styles.avatarLarge : styles.avatar, gold && styles.salonAvatar]} />;
 }
 
 function Stat({ icon: Icon, value, label }) {
@@ -342,4 +352,21 @@ const styles = StyleSheet.create({
   statValue: { color: "#fff", fontSize: 13, fontWeight: "900", marginTop: 2 },
   statLabel: { color: "rgba(255,255,255,0.46)", fontSize: 7.5, marginTop: 1 },
   favorites: { color: "rgba(255,255,255,0.66)", fontSize: 9, fontWeight: "700", textAlign: "center", marginTop: 12 },
+
+  salonCard: { backgroundColor: "#14121a", borderColor: "rgba(201,164,76,0.28)", borderRadius: 16 },
+  salonSpot: { position: "absolute", left: 0, right: 0, top: 0, height: 150 },
+  salonBrand: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 13, letterSpacing: 2.6 },
+  salonType: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1.2, marginTop: 1, textAlign: "center" },
+  salonBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+  salonBadgeText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 7.5, letterSpacing: 0.8 },
+  salonIcon: { width: 44, height: 44, borderRadius: 22, marginTop: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#100e10", borderWidth: 1.5, borderColor: GOLD },
+  salonTitle: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 27, marginTop: 8 },
+  salonName: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 23, marginTop: 8, textAlign: "center" },
+  salonScore: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 40, lineHeight: 43 },
+  salonMicro: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 7.5, letterSpacing: 1, textAlign: "center" },
+  salonMeta: { color: DIM, fontSize: 10, fontWeight: "700", marginTop: 4, textAlign: "center" },
+  salonCta: { marginTop: 15, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: "rgba(201,164,76,0.40)" },
+  salonCtaText: { color: GOLD, fontSize: 9.5, fontWeight: "800" },
+  salonAvatar: { borderColor: GOLD, borderWidth: 2 },
+  salonEmoji: { backgroundColor: "#100e10", borderColor: GOLD, borderWidth: 1.5 },
 });

@@ -1,7 +1,8 @@
 import { t as translateUI, getLocale, getLanguage } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView, Animated, Easing, AccessibilityInfo } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { FONTS } from "../theme/fonts";
 import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
@@ -23,45 +24,44 @@ function todaysPuzzleResultKey() {
   return `pellix_daily_poster_result_v2_${date}`;
 }
 
+// Salon dili: her oyun lobideki bir salon. Renkli gradyanlar yerine koyu yüzey, altın vurgu,
+// Big Shoulders başlık ve DM Mono künye; oyunları renk değil salon numarası ve simge ayırıyor.
+const ON_GOLD = "#1a150c";
+
 const GAME_META = {
   taste_battle: {
     title: "Taste Battle",
     subtitle: "İki içerikten hangisini seçersin?",
     icon: Swords,
-    colors: ["#7C3AED", "#2563EB"],
-    accent: "#A78BFA",
+    hall: "SALON 1",
     tag: "HIZLI SEÇİM",
   },
   friend_quiz: {
     title: "Arkadaşını Tanıyor musun?",
-    subtitle: "Arkadaşının zevkini ne kadar biliyorsun?",
+    subtitle: "Arkadaşının ne izlediğini ne kadar biliyorsun?",
     icon: Users,
-    colors: ["#EC4899", "#F97316"],
-    accent: "#FB7185",
+    hall: "SALON 2",
     tag: "SOSYAL",
   },
   blind_pick: {
     title: "Blind Pick",
     subtitle: "İsim ve poster yok. Sadece ipuçları.",
     icon: EyeOff,
-    colors: ["#111827", "#475569"],
-    accent: "#F59E0B",
+    hall: "SALON 3",
     tag: "GİZEM",
   },
   who_said_it: {
     title: "Who Said It?",
     subtitle: "İkonik anın hangi karaktere ait olduğunu tahmin et.",
     icon: Quote,
-    colors: ["#7F1D1D", "#6D28D9"],
-    accent: "#C084FC",
+    hall: "SALON 4",
     tag: "SİNEMA QUIZ",
   },
   character_quiz: {
     title: "Hangi Karaktersin?",
     subtitle: "Kısa bir testle hangi film/dizi karakterine benzediğini keşfet.",
     icon: Wand2,
-    colors: ["#9333EA", "#DB2777"],
-    accent: "#F0ABFC",
+    hall: "SALON 5",
     tag: "KİŞİLİK TESTİ",
   },
 };
@@ -112,7 +112,7 @@ export default function PellixPlayScreen({ navigation, route }) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{activeGame ? GAME_META[activeGame]?.title : translateUI("pellix play")}</Text>
-          <Text style={styles.headerSub}>{activeGame ? translateUI(GAME_META[activeGame]?.subtitle) : translateUI("Zevkini oynayarak keşfet")}</Text>
+          <Text style={styles.headerSub}>{activeGame ? translateUI(GAME_META[activeGame]?.subtitle) : translateUI("Oynayarak keşfet")}</Text>
         </View>
       </View>
 
@@ -130,56 +130,39 @@ export default function PellixPlayScreen({ navigation, route }) {
         <CharacterQuiz token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : (
         <ScrollView contentContainerStyle={styles.hubContent} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={["#6D28D9", "#2563EB", "#0891B2"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hubHero}>
-            <View style={styles.hubGlowOne} />
-            <View style={styles.hubGlowTwo} />
-            <Sparkles size={23} color="rgba(255,255,255,0.30)" style={{ position: "absolute", right: 22, top: 20 }} />
-            <Text style={styles.hubEyebrow}>{translateUI("PELLIX PLAY")}</Text>
-            <Text style={styles.hubHeroTitle}>{translateUI("Bugün ne oynayalım?")}</Text>
-            <Text style={styles.hubHeroSub}>{translateUI("Kısa turlar, hızlı kararlar ve arkadaşlarınla paylaşabileceğin sonuçlar.")}</Text>
-          </LinearGradient>
+          <MarqueeHero styles={styles} c={c} />
 
           <Text style={styles.sectionLabel}>{translateUI("GÜNÜN OYUNU")}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("DailyPosterPuzzle")} activeOpacity={0.86} style={styles.gameCardTouch}>
-            <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameCard}>
-              <View style={styles.gameCardGlow} />
-              <View style={styles.gameIcon}><Puzzle size={22} color="#fff" /></View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.gameTitleRow}>
-                  <Text style={styles.gameTitle}>{translateUI("Poster Puzzle")}</Text>
-                  <View style={styles.gameTag}><Text style={styles.gameTagText}>{puzzleResult ? translateUI("✓ BUGÜN ÇÖZÜLDÜ") : translateUI("HERKESE AYNI POSTER")}</Text></View>
-                </View>
-                <Text style={styles.gameSub}>
-                  {puzzleResult
-                    ? (puzzleResult.correct ? translateUI("Bugünkü posteri bildin. Sonucunu paylaş, arkadaşların kaçta bulacak?") : translateUI("Bugün olmadı. Yarın yeni bir poster geliyor."))
-                    : translateUI("Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı.")}
-                </Text>
-              </View>
-              <View style={styles.gameArrow}><ArrowRight size={18} color="#fff" /></View>
-            </LinearGradient>
-          </TouchableOpacity>
+          <PlayCard
+            styles={styles}
+            c={c}
+            highlight
+            icon={Puzzle}
+            eyebrow={translateUI("ÖZEL GÖSTERİM")}
+            title={translateUI("Poster Puzzle")}
+            badge={puzzleResult ? translateUI("✓ BUGÜN ÇÖZÜLDÜ") : translateUI("HERKESE AYNI POSTER")}
+            sub={puzzleResult
+              ? (puzzleResult.correct ? translateUI("Bugünkü posteri bildin. Sonucunu paylaş, arkadaşların kaçta bulacak?") : translateUI("Bugün olmadı. Yarın yeni bir poster geliyor."))
+              : translateUI("Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı.")}
+            onPress={() => navigation.navigate("DailyPosterPuzzle")}
+          />
 
           <Text style={styles.sectionLabel}>{translateUI("MİNİ OYUNLAR")}</Text>
           {enabledKeys.length === 0 ? (
             <View style={styles.emptyCard}><Text style={styles.emptyText}>{translateUI("Şu anda açık bir mini oyun yok.")}</Text></View>
           ) : enabledKeys.map((key) => {
             const meta = GAME_META[key];
-            const Icon = meta.icon;
             return (
-              <TouchableOpacity key={key} onPress={() => setActiveGame(key)} activeOpacity={0.86} style={styles.gameCardTouch}>
-                <LinearGradient colors={meta.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameCard}>
-                  <View style={styles.gameCardGlow} />
-                  <View style={styles.gameIcon}><Icon size={22} color="#fff" /></View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.gameTitleRow}>
-                      <Text style={styles.gameTitle}>{translateUI(meta.title)}</Text>
-                      <View style={styles.gameTag}><Text style={styles.gameTagText}>{translateUI(meta.tag)}</Text></View>
-                    </View>
-                    <Text style={styles.gameSub}>{translateUI(meta.subtitle)}</Text>
-                  </View>
-                  <View style={styles.gameArrow}><ArrowRight size={18} color="#fff" /></View>
-                </LinearGradient>
-              </TouchableOpacity>
+              <PlayCard
+                key={key}
+                styles={styles}
+                c={c}
+                icon={meta.icon}
+                eyebrow={`${translateUI(meta.hall)} · ${translateUI(meta.tag)}`}
+                title={translateUI(meta.title)}
+                sub={translateUI(meta.subtitle)}
+                onPress={() => setActiveGame(key)}
+              />
             );
           })}
         </ScrollView>
@@ -223,19 +206,19 @@ function TasteBattle({ token, styles, c, onDisabled }) {
     else setIndex((v) => v + 1);
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color="#8B5CF6" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
   if (done) {
     const result = buildTasteResult(selections);
     return (
       <>
         <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={GAME_META.taste_battle.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
-            <Sparkles size={24} color="rgba(255,255,255,0.26)" style={{ position: "absolute", top: 20, right: 22 }} />
-            <View style={styles.resultIcon}><Swords size={28} color="#fff" /></View>
+          <View style={styles.resultHero}>
+            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
+            <View style={styles.resultIcon}><Swords size={26} color={c.accent} /></View>
             <Text style={styles.resultEyebrow}>{translateUI("TASTE BATTLE SONUCUN")}</Text>
-            <Text style={styles.resultTitle}>{result.topGenre || translateUI("Karışık Zevk")}</Text>
-            <Text style={styles.resultSummary}>{result.summary}</Text>
-          </LinearGradient>
+            <Text style={styles.resultTitle}>{translateUI(result.topGenre || "Karışık")}</Text>
+            <Text style={styles.resultSummary}>{translateUI(result.summary)}</Text>
+          </View>
 
           <View style={styles.resultStatsRow}>
             <ResultStat value={String(selections.length)} label={translateUI("SEÇİM")} styles={styles} />
@@ -253,11 +236,11 @@ function TasteBattle({ token, styles, c, onDisabled }) {
           )}
 
           <ShareFan
-            style={[styles.shareResultBtn, { backgroundColor: "#7C3AED" }]}
+            style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: translateUI("Taste Battle sonucum: {0}. Seninki ne? 🎮", { 0: translateUI(result.topGenre || "Karışık") }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
-            <Share2 size={17} color="#fff" />
+            <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
@@ -289,13 +272,13 @@ function TasteBattle({ token, styles, c, onDisabled }) {
 
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title={translateUI("Hızlı düşün, içinden geleni seç")} subtitle={translateUI("Doğru cevap yok. Her seçim zevk profilini biraz daha netleştiriyor.")} />
+      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title={translateUI("Hızlı düşün, içinden geleni seç")} subtitle={translateUI("Doğru cevap yok. Her seçim önerilerini biraz daha netleştiriyor.")} />
       <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{pairs.length}</Text>
       <Text style={styles.questionTitle}>{translateUI("Hangisini seçersin?")}</Text>
       <View style={styles.battleRow}>
-        <MovieChoice movie={pair.left} styles={styles} onPress={() => choose(pair.left, pair.right)} accent="#8B5CF6" />
-        <View style={[styles.vsBadge, { backgroundColor: "#8B5CF6" }]}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
-        <MovieChoice movie={pair.right} styles={styles} onPress={() => choose(pair.right, pair.left)} accent="#8B5CF6" />
+        <MovieChoice movie={pair.left} styles={styles} onPress={() => choose(pair.left, pair.right)} accent={c.accent} />
+        <View style={styles.vsBadge}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
+        <MovieChoice movie={pair.right} styles={styles} onPress={() => choose(pair.right, pair.left)} accent={c.accent} />
       </View>
     </ScrollView>
   );
@@ -364,12 +347,12 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
     else { setIndex((v) => v + 1); setFeedback(null); }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color="#FB7185" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
 
   if (!started) {
     return (
       <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-        <GameHero meta={GAME_META.friend_quiz} styles={styles} icon={Users} title={translateUI("Kimi ne kadar iyi tanıyorsun?")} subtitle={translateUI("Önce arkadaşını seç, sonra onun film ve dizi zevkini tahmin et.")} />
+        <GameHero meta={GAME_META.friend_quiz} styles={styles} icon={Users} title={translateUI("Kimi ne kadar iyi tanıyorsun?")} subtitle={translateUI("Önce arkadaşını seç, sonra onun neleri beğendiğini tahmin et.")} />
         <Text style={styles.friendPickerTitle}>{translateUI("Arkadaşını seç")}</Text>
         <Text style={styles.friendPickerSub}>{translateUI("En az 10 beğenisi olan arkadaşlarınla hemen oynayabilirsin.")}</Text>
 
@@ -385,11 +368,11 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
             <RetryImage source={{ uri: avatarOr(friend.avatarUrl, friend.id) }} style={styles.friendPickerAvatar} />
             <View style={{ flex: 1 }}>
               <Text style={styles.friendPickerName}>{friend.name}</Text>
-              <Text style={[styles.friendPickerStatus, friend.ready && { color: "#FB7185" }]}>
+              <Text style={[styles.friendPickerStatus, friend.ready && { color: c.accent }]}>
                 {friend.ready ? translateUI("{0} soruluk tur hazır", {0: friend.questionCount}) : translateUI("{0}/10 beğeni · biraz daha gerekiyor", {0: friend.likeCount || 0})}
               </Text>
             </View>
-            {friend.ready ? <ArrowRight size={18} color="#FB7185" /> : <LockKeyhole size={16} color={c.dim} />}
+            {friend.ready ? <ArrowRight size={18} color={c.accent} /> : <LockKeyhole size={16} color={c.dim} />}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -405,25 +388,26 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
     return (
       <>
         <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={GAME_META.friend_quiz.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
+          <View style={styles.resultHero}>
+            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
             <RetryImage source={{ uri: avatarOr(data.friend.avatarUrl, data.friend.id) }} style={styles.resultFriendAvatar} />
             <Text style={styles.resultEyebrow}>{translateUI("ARKADAŞINI TANIYOR MUSUN?")}</Text>
             <Text style={styles.resultBigPercent}>{translateUI("%")}{percent}</Text>
             <Text style={styles.resultFriendName}>{data.friend.name}</Text>
-            <Text style={styles.resultSummary}>{friendResultCopy(percent)}</Text>
-          </LinearGradient>
+            <Text style={styles.resultSummary}>{translateUI(friendResultCopy(percent))}</Text>
+          </View>
 
           <View style={styles.resultPanel}>
-            <View style={styles.scoreInline}><Trophy size={19} color="#F59E0B" /><Text style={styles.scoreInlineText}>{score}{translateUI("/")}{data.questions.length}{translateUI(" doğru cevap")}</Text></View>
+            <View style={styles.scoreInline}><Trophy size={19} color={c.accent} /><Text style={styles.scoreInlineText}>{score}{translateUI("/")}{data.questions.length}{translateUI(" doğru cevap")}</Text></View>
             <Text style={styles.doneText}>{translateUI("Bu skoru paylaş; bakalım arkadaşın itiraz edecek mi.")}</Text>
           </View>
 
           <ShareFan
-            style={[styles.shareResultBtn, { backgroundColor: "#EC4899" }]}
+            style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: getLanguage() === "en" ? translateUI("{0}'i ne kadar iyi tanıyorum? Skorum %{1} 😄 Sen de dene.", { 0: data.friend.name, 1: percent }) : `${accusativeTR(data.friend.name) || data.friend.name} ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
-            <Share2 size={17} color="#fff" />
+            <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={loadFriends}>
@@ -454,23 +438,23 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
   const q = data.questions[index];
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={GAME_META.friend_quiz.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.friendHeaderGradient}>
+      <View style={styles.friendHeader}>
         <RetryImage source={{ uri: avatarOr(data.friend.avatarUrl, data.friend.id) }} style={styles.friendAvatar} />
         <View style={{ flex: 1 }}><Text style={styles.friendName}>{data.friend.name}</Text><Text style={styles.friendSub}>{translateUI("Hangisini beğenmiş?")}</Text></View>
-        <Users size={20} color="rgba(255,255,255,0.80)" />
-      </LinearGradient>
+        <Users size={20} color={c.accent} />
+      </View>
       <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{data.questions.length}{translateUI(" · Skor ")}{score}</Text>
       <View style={styles.battleRow}>
         {[q.left, q.right].map((movie) => {
           const isCorrect = feedback && movie.id === q.correctMovieId;
           const isWrongChosen = feedback && feedback.chosenId === movie.id && !isCorrect;
-          return <MovieChoice key={movie.id} movie={movie} styles={styles} onPress={() => answer(movie)} state={isCorrect ? "correct" : isWrongChosen ? "wrong" : null} accent="#FB7185" />;
+          return <MovieChoice key={movie.id} movie={movie} styles={styles} onPress={() => answer(movie)} state={isCorrect ? "correct" : isWrongChosen ? "wrong" : null} accent={c.accent} />;
         })}
       </View>
       {feedback && (
-        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: feedback.correct ? "#22C55E" : "#EC4899" }]} onPress={next}>
-          {feedback.correct ? <Check size={17} color="#fff" /> : <X size={17} color="#fff" />}
-          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{feedback.correct ? translateUI("Bildin! Devam") : translateUI("Olmadı, devam et")}</Text>
+        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: feedback.correct ? c.accent2 : c.danger }]} onPress={next}>
+          {feedback.correct ? <Check size={17} color={ON_GOLD} /> : <X size={17} color={ON_GOLD} />}
+          <Text style={styles.primaryBtnText}>{feedback.correct ? translateUI("Bildin! Devam") : translateUI("Olmadı, devam et")}</Text>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -552,32 +536,32 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
     minHeight: 40,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: active ? "#C084FC" : c.border,
-    backgroundColor: active ? "rgba(192,132,252,0.13)" : c.surface,
+    borderColor: active ? c.accent : c.border,
+    backgroundColor: active ? "rgba(201,164,76,0.13)" : c.surface,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 8,
   });
-  const pillText = (active) => ({ color: active ? "#C084FC" : c.dim, fontWeight: "800", fontSize: 12 });
+  const pillText = (active) => ({ color: active ? c.accent : c.dim, fontWeight: "800", fontSize: 12 });
 
   if (!started) {
     return (
       <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
         <GameHero meta={GAME_META.who_said_it} styles={styles} icon={Quote} title={translateUI("Sahneyi hatırla, karakteri bul")} subtitle={translateUI("Film ve dizi hafızanı kolaydan zora test et.")} />
 
-        <TouchableOpacity activeOpacity={0.88} onPress={() => startRound("daily")} style={{ borderRadius: 18, overflow: "hidden" }}>
-          <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dailyCard}>
-            <View style={styles.gameIcon}><Quote size={21} color="#fff" /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.dailyTitle}>{translateUI("Günün Challenge'ı")}</Text>
-              <Text style={styles.dailySub}>{translateUI("Her gün herkes için aynı 5 soru. Bugünkü skoru kap.")}</Text>
-            </View>
-            <ArrowRight size={18} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
+        <PlayCard
+          styles={styles}
+          c={c}
+          highlight
+          icon={Quote}
+          eyebrow={translateUI("ÖZEL GÖSTERİM · 5 SORU")}
+          title={translateUI("Günün Challenge'ı")}
+          sub={translateUI("Her gün herkes için aynı 5 soru. Bugünkü skoru kap.")}
+          onPress={() => startRound("daily")}
+        />
 
         <View style={{ marginTop: 24, gap: 8 }}>
-          <Text style={{ color: c.text, fontSize: 18, fontWeight: "900" }}>{translateUI("Klasik Tur")}</Text>
+          <Text style={styles.blockTitle}>{translateUI("Klasik Tur")}</Text>
           <Text style={{ color: c.dim, fontSize: 12.5, lineHeight: 18 }}>{translateUI("10 soruluk turunu içerik türüne ve zorluğa göre ayarla.")}</Text>
         </View>
 
@@ -599,36 +583,36 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
           ))}
         </View>
 
-        <TouchableOpacity style={[styles.primaryBtn, { marginTop: 22, backgroundColor: "#7C3AED" }]} onPress={() => startRound("classic")}>
-          <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{translateUI("10 Soruluk Turu Başlat")}</Text>
-          <ArrowRight size={17} color="#fff" />
+        <TouchableOpacity style={[styles.primaryBtn, { marginTop: 22 }]} onPress={() => startRound("classic")}>
+          <Text style={styles.primaryBtnText}>{translateUI("10 Soruluk Turu Başlat")}</Text>
+          <ArrowRight size={17} color={ON_GOLD} />
         </TouchableOpacity>
       </ScrollView>
     );
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color="#C084FC" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
 
   if (index >= questions.length) {
     const isDaily = round?.mode === "daily";
     return (
       <View style={styles.centerPad}>
-        <LinearGradient colors={GAME_META.who_said_it.colors} style={styles.compactResultCircle}>
+        <View style={styles.compactResultCircle}>
           <Text style={styles.compactResultScore}>{score}{translateUI("/")}{questions.length}</Text>
-        </LinearGradient>
+        </View>
         <Text style={[styles.doneTitle, { marginTop: 18 }]}>{translateUI("Tur tamamlandı")}</Text>
         <Text style={styles.doneText}>{isDaily ? translateUI("Bugünün challenge'ını tamamladın.") : translateUI("Bu turdaki sinema hafızanı test ettin.")}</Text>
         {stats?.promptVariants ? <Text style={{ color: c.dim, fontSize: 11, marginTop: 4 }}>{stats.promptVariants}{translateUI("+ soru varyasyonu içinden oynadın.")}</Text> : null}
         <ShareFan
-          style={[styles.shareResultBtn, { backgroundColor: "#DB2777" }]}
+          style={styles.shareResultBtn}
           accessibilityLabel={translateUI("Sonucu paylaş")}
           options={shareOptions({ message: translateUI("Sahneyi Hatırla, Karakteri Bul'da {0}/{1} yaptım 🎬 Sen de dene.", { 0: score, 1: questions.length }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
         >
-          <Share2 size={17} color="#fff" />
+          <Share2 size={17} color={ON_GOLD} />
           <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
         </ShareFan>
-        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#7C3AED" }]} onPress={() => startRound(round?.mode || "classic")}>
-          <RotateCcw size={16} color="#fff" /><Text style={[styles.retryText, { color: "#fff" }]}>{translateUI("Tekrar Oyna")}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => startRound(round?.mode || "classic")}>
+          <RotateCcw size={16} color={ON_GOLD} /><Text style={styles.retryText}>{translateUI("Tekrar Oyna")}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={backToSetup} style={{ marginTop: 14, padding: 10 }}>
           <Text style={{ color: c.dim, fontSize: 12.5, fontWeight: "800" }}>{translateUI("Mod / Filtre Değiştir")}</Text>
@@ -662,14 +646,15 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
       <View style={styles.quizMetaRow}>
         <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{questions.length}{translateUI(" · Skor ")}{score}</Text>
-        <Text style={{ color: "#C084FC", fontSize: 11, fontWeight: "800" }}>{round?.mode === "daily" ? translateUI("Günlük") : kindLabel + " · " + difficultyLabel}</Text>
+        <Text style={{ color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.6 }}>{round?.mode === "daily" ? translateUI("Günlük") : kindLabel + " · " + difficultyLabel}</Text>
       </View>
 
-      <LinearGradient colors={GAME_META.who_said_it.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quoteGradient}>
-        <Quote size={34} color="rgba(255,255,255,0.92)" />
+      <View style={styles.quoteCard}>
+        <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
+        <Quote size={30} color={c.accent} />
         <Text style={styles.quotePrompt}>{translateUI("“")}{q.prompt}{translateUI("”")}</Text>
         <Text style={styles.quoteSub}>{translateUI("Bu ikonik an kime ait?")}</Text>
-      </LinearGradient>
+      </View>
 
       <View style={{ gap: 10, marginTop: 18 }}>
         {q.options.map((option) => {
@@ -696,13 +681,13 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
 
       {feedback && (
         <View style={{ marginTop: 18, gap: 10 }}>
-          <Text style={{ color: feedback.correct ? "#22c55e" : "#ef4444", fontSize: 14, fontWeight: "900", textAlign: "center" }}>
+          <Text style={{ color: feedback.correct ? c.accent2 : c.danger, fontSize: 14, fontWeight: "900", textAlign: "center" }}>
             {feedback.correct ? translateUI("Doğru!") : "Doğru cevap: " + feedback.answer}
           </Text>
           <Text style={{ color: c.dim, fontSize: 12, textAlign: "center" }}>{feedback.movie}</Text>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#7C3AED" }]} onPress={next}>
-            <Text style={[styles.primaryBtnText, { color: "#fff" }]}>{index >= questions.length - 1 ? translateUI("Sonucu Gör") : translateUI("Sonraki")}</Text>
-            <ArrowRight size={17} color="#fff" />
+          <TouchableOpacity style={styles.primaryBtn} onPress={next}>
+            <Text style={styles.primaryBtnText}>{index >= questions.length - 1 ? translateUI("Sonucu Gör") : translateUI("Sonraki")}</Text>
+            <ArrowRight size={17} color={ON_GOLD} />
           </TouchableOpacity>
         </View>
       )}
@@ -733,7 +718,7 @@ function BlindPick({ token, styles, c, onDisabled }) {
     if (index >= items.length - 1) setIndex(items.length); else { setIndex((v) => v + 1); setRevealed(false); }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color="#F59E0B" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
   if (index >= items.length) return <GameDone styles={styles} title={translateUI("Blind tur tamamlandı")} text={translateUI("{0} içerik gördün.", {0: items.length})} onAgain={load} />;
   const item = items[index];
   if (!item) return <GameDone styles={styles} title={translateUI("İçerik bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
@@ -745,26 +730,27 @@ function BlindPick({ token, styles, c, onDisabled }) {
       <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{items.length}</Text>
       {!revealed ? (
         <>
-          <LinearGradient colors={["#111827", "#1F2937", "#334155"]} style={styles.blindCardGradient}>
-            <EyeOff size={36} color="#F59E0B" />
+          <View style={styles.blindCard}>
+            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
+            <EyeOff size={34} color={c.accent} />
             <Text style={styles.blindTitle}>{translateUI("Bu ne olabilir?")}</Text>
             <View style={styles.clueChip}><Text style={styles.clueChipText}>{clue.year || translateUI("?")}{translateUI(" · ")}{clue.type === "tv" ? translateUI("Dizi") : translateUI("Film")}</Text></View>
             <View style={styles.clueChip}><Text style={styles.clueChipText}>{(clue.genres || []).join(" · ") || translateUI("Tür gizli")}</Text></View>
             <View style={styles.clueChip}><Text style={styles.clueChipText}>{translateUI("IMDb ")}{clue.imdb || translateUI("?")}{clue.runtime ? translateUI(" · {0} dk", {0: clue.runtime}) : ""}</Text></View>
-          </LinearGradient>
+          </View>
           <View style={styles.choiceButtons}>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => decide(false)}><Text style={styles.secondaryBtnText}>{translateUI("Geç")}</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtnFlex, { backgroundColor: "#F59E0B" }]} onPress={() => decide(true)}><Text style={styles.primaryBtnText}>{translateUI("İzlerim")}</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.primaryBtnFlex} onPress={() => decide(true)}><Text style={styles.primaryBtnText}>{translateUI("İzlerim")}</Text></TouchableOpacity>
           </View>
         </>
       ) : (
         <>
-          <View style={[styles.revealCard, { borderColor: "rgba(245,158,11,0.35)" }]}>
+          <View style={[styles.revealCard, { borderColor: "rgba(201,164,76,0.35)" }]}>
             {!!item.reveal?.poster && <Image source={{ uri: item.reveal.poster }} style={styles.revealPoster} />}
             <Text style={styles.revealTitle}>{item.reveal?.title}</Text>
             <Text style={styles.revealMeta}>{item.reveal?.year}{translateUI(" · ")}{item.reveal?.type === "tv" ? translateUI("Dizi") : translateUI("Film")}{translateUI(" · IMDb ")}{item.reveal?.imdb}</Text>
           </View>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: "#F59E0B" }]} onPress={next}><Text style={styles.primaryBtnText}>{translateUI("Sonraki")}</Text><ArrowRight size={17} color={c.bg} /></TouchableOpacity>
+          <TouchableOpacity style={styles.primaryBtn} onPress={next}><Text style={styles.primaryBtnText}>{translateUI("Sonraki")}</Text><ArrowRight size={17} color={ON_GOLD} /></TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -819,12 +805,12 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
     }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color="#DB2777" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
 
   if (resolving) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#DB2777" />
+        <ActivityIndicator color={c.accent} />
         <Text style={{ color: c.dim, fontSize: 12, marginTop: 12 }}>{translateUI("Karakterin belirleniyor...")}</Text>
       </View>
     );
@@ -835,8 +821,8 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
     return (
       <>
         <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={[character.color || "#9333EA", "#111827"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.resultHero}>
-            <Sparkles size={24} color="rgba(255,255,255,0.24)" style={{ position: "absolute", top: 20, right: 22 }} />
+          <View style={styles.resultHero}>
+            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
             {character.actorPhoto ? (
               <View style={{ marginTop: 4 }}>
                 <RetryImage source={{ uri: character.actorPhoto }} style={styles.resultFriendAvatar} />
@@ -847,24 +833,24 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
             )}
             <Text style={styles.resultEyebrow}>{translateUI("HANGİ KARAKTERSİN?")}</Text>
             <Text style={styles.resultTitle}>{character.name}</Text>
-            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11.5, fontWeight: "800", marginTop: 2 }}>{character.title}</Text>
+            <Text style={styles.resultMeta}>{character.title}</Text>
             {!!character.actor && (
-              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 2 }}>{character.actor}{translateUI(" canlandırdı")}</Text>
+              <Text style={[styles.resultMeta, { opacity: 0.75 }]}>{character.actor}{translateUI(" canlandırdı")}</Text>
             )}
             <Text style={styles.resultSummary}>{character.blurb}</Text>
-          </LinearGradient>
+          </View>
 
           <View style={styles.resultPanel}>
-            <View style={styles.scoreInline}><Sparkles size={18} color="#DB2777" /><Text style={styles.scoreInlineText}>{translateUI("%")}{result.matchPercent}{translateUI(" uyum")}</Text></View>
+            <View style={styles.scoreInline}><Sparkles size={18} color={c.accent} /><Text style={styles.scoreInlineText}>{translateUI("%")}{result.matchPercent}{translateUI(" uyum")}</Text></View>
             <Text style={[styles.doneText, { fontStyle: "italic" }]}>{translateUI("\"")}{character.quote}{translateUI("\"")}</Text>
           </View>
 
           <ShareFan
-            style={[styles.shareResultBtn, { backgroundColor: "#9333EA" }]}
+            style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
             options={shareOptions({ message: translateUI("Hangi Karaktersin testinde {0} çıktım (%{1} uyum) 🎭 Sen de dene.", { 0: character.name, 1: result.matchPercent }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
           >
-            <Share2 size={17} color="#fff" />
+            <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
           </ShareFan>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
@@ -905,17 +891,71 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
   );
 }
 
-function GameHero({ meta, styles, icon: Icon, title, subtitle }) {
+// Lobi tabelası: üst ve alt kenarda sırayla yanıp sönen ampuller (sinema girişlerindeki gibi).
+// "Hareketi azalt" açıksa ampuller sabit yanıyor.
+const BULBS = 15;
+function MarqueeHero({ styles, c }) {
+  const chase = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop;
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled?.().catch(() => false).then((reduce) => {
+      if (!alive || reduce) return;
+      loop = Animated.loop(Animated.timing(chase, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }));
+      loop.start();
+    });
+    return () => { alive = false; loop?.stop(); };
+  }, [chase]);
+  const even = chase.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.3, 1] });
+  const odd = chase.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 1, 0.3] });
+  const row = (key) => (
+    <View style={styles.bulbRow} pointerEvents="none" key={key}>
+      {Array.from({ length: BULBS }, (_, i) => (
+        <Animated.View key={i} style={[styles.bulb, { backgroundColor: c.accent, opacity: i % 2 ? odd : even }]} />
+      ))}
+    </View>
+  );
   return (
-    <LinearGradient colors={meta.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gameHero}>
-      <View style={styles.gameHeroGlow} />
-      <View style={styles.gameHeroIcon}><Icon size={23} color="#fff" /></View>
+    <View style={styles.hubHero}>
+      {row("top")}
+      <View style={styles.hubHeroBody}>
+        <Text style={styles.hubEyebrow}>{translateUI("PELLIX PLAY")}</Text>
+        <Text style={styles.hubHeroTitle}>{translateUI("Bugün ne oynayalım?")}</Text>
+        <Text style={styles.hubHeroSub}>{translateUI("Kısa turlar, hızlı kararlar ve arkadaşlarınla paylaşabileceğin sonuçlar.")}</Text>
+      </View>
+      {row("bottom")}
+    </View>
+  );
+}
+
+// Lobideki salon kapısı: simge altın halkada, künye DM Mono, ad Big Shoulders. Öne çıkan
+// (günlük) oyunlarda çerçeve altın ve sağ üstte küçük bir rozet.
+function PlayCard({ styles, c, icon: Icon, eyebrow, title, sub, badge, highlight, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.86} style={[styles.playCard, highlight && styles.playCardHighlight]} accessibilityRole="button" accessibilityLabel={title}>
+      <View style={styles.playIcon}><Icon size={21} color={c.accent} /></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.playEyebrow} numberOfLines={1}>{eyebrow}</Text>
+        <Text style={styles.playTitle} numberOfLines={1}>{title}</Text>
+        {!!sub && <Text style={styles.playSub}>{sub}</Text>}
+        {!!badge && <View style={styles.playBadge}><Text style={styles.playBadgeText}>{badge}</Text></View>}
+      </View>
+      <ArrowRight size={18} color={c.accent} />
+    </TouchableOpacity>
+  );
+}
+
+function GameHero({ meta, styles, icon: Icon, title, subtitle }) {
+  const { c } = useAppTheme();
+  return (
+    <View style={styles.gameHero}>
+      <View style={styles.gameHeroIcon}><Icon size={22} color={c.accent} /></View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.gameHeroTag}>{translateUI(meta.tag)}</Text>
+        <Text style={styles.gameHeroTag}>{translateUI(meta.hall)}{" · "}{translateUI(meta.tag)}</Text>
         <Text style={styles.gameHeroTitle}>{translateUI(title)}</Text>
         <Text style={styles.gameHeroSub}>{translateUI(subtitle)}</Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -950,7 +990,7 @@ function tasteCopy(topGenre) {
   if (g.includes("komedi") || g.includes("comedy")) return "İyi hissettiren ve akıcı seçimlere gidiyorsun.";
   if (g.includes("korku") || g.includes("horror")) return "Karanlık ve tekinsiz hikâyeler seni kaçırmıyor.";
   if (g.includes("suç") || g.includes("crime")) return "Gri karakterler ve suç dünyası radarında.";
-  return "Bu turda tek bir kalıba sığmayan, karışık bir zevk çizdin.";
+  return "Bu turda tek bir kalıba sığmayan, karışık bir seçki çizdin.";
 }
 
 function buildTasteResult(selections) {
@@ -958,7 +998,7 @@ function buildTasteResult(selections) {
   selections.forEach((movie) => {
     movieGenres(movie).forEach((genre) => genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1));
   });
-  const topGenre = [...genreCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Karışık Zevk";
+  const topGenre = [...genreCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Karışık";
   const tvCount = selections.filter(isTv).length;
   const moviePercent = selections.length ? Math.round(((selections.length - tvCount) / selections.length) * 100) : 0;
   return {
@@ -970,10 +1010,10 @@ function buildTasteResult(selections) {
 }
 
 function friendResultCopy(percent) {
-  if (percent >= 90) return "Zevkini ezbere biliyorsun. Bu skor kolay kolay gelmez.";
+  if (percent >= 90) return "Neleri sevdiğini ezbere biliyorsun. Bu skor kolay kolay gelmez.";
   if (percent >= 70) return "Aynı frekanstasınız. Tercihlerinin çoğunu doğru okudun.";
   if (percent >= 50) return "Fena değil. Birkaç film gecesi daha işi çözer.";
-  return "Sürprizlerle dolu bir arkadaşlık. Zevkini yeniden keşfetme zamanı.";
+  return "Sürprizlerle dolu bir arkadaşlık. Birlikte birkaç film gecesi daha lazım.";
 }
 
 function MovieChoice({ movie, styles, onPress, state, accent }) {
@@ -1000,7 +1040,7 @@ function GameDone({ styles, title, text, onAgain }) {
     <View style={styles.centerPad}>
       <Text style={styles.doneTitle}>{translateUI(title)}</Text>
       <Text style={styles.doneText}>{translateUI(text)}</Text>
-      <TouchableOpacity style={styles.retryBtn} onPress={onAgain}><RotateCcw size={16} color="#0d0d10" /><Text style={styles.retryText}>{translateUI("Tekrar Oyna")}</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.retryBtn} onPress={onAgain}><RotateCcw size={16} color={ON_GOLD} /><Text style={styles.retryText}>{translateUI("Tekrar Oyna")}</Text></TouchableOpacity>
     </View>
   );
 }
@@ -1015,109 +1055,115 @@ function makeStyles(c) {
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     centerPad: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 },
     hubContent: { padding: 18, paddingBottom: 40 },
-    hubHero: { borderRadius: 24, padding: 22, minHeight: 178, justifyContent: "flex-end", overflow: "hidden", marginBottom: 24 },
-    hubGlowOne: { position: "absolute", width: 190, height: 190, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)", right: -70, top: -90 },
-    hubGlowTwo: { position: "absolute", width: 130, height: 130, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", left: -50, bottom: -70 },
-    hubEyebrow: { color: "rgba(255,255,255,0.72)", fontSize: 10, fontWeight: "900", letterSpacing: 1.4 },
-    hubHeroTitle: { color: "#fff", fontSize: 27, lineHeight: 32, fontWeight: "900", marginTop: 6 },
-    hubHeroSub: { color: "rgba(255,255,255,0.82)", fontSize: 12.5, lineHeight: 18, marginTop: 7, maxWidth: 300 },
-    sectionLabel: { color: c.dim, fontSize: 10, fontWeight: "900", letterSpacing: 1.2, marginBottom: 10, marginLeft: 2 },
-    gameCardTouch: { borderRadius: 19, overflow: "hidden", marginBottom: 12 },
-    gameCard: { minHeight: 94, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 15, paddingVertical: 14, overflow: "hidden" },
-    gameCardGlow: { position: "absolute", width: 110, height: 110, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.09)", right: -35, top: -40 },
-    gameIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: "rgba(8,9,20,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
-    gameTitleRow: { flexDirection: "row", alignItems: "center", gap: 7, flexWrap: "wrap" },
-    gameTitle: { fontSize: 14, fontWeight: "900", color: "#fff" },
-    gameTag: { backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5 },
-    gameTagText: { color: "rgba(255,255,255,0.88)", fontSize: 7.5, fontWeight: "900", letterSpacing: 0.5 },
-    gameSub: { fontSize: 11, color: "rgba(255,255,255,0.78)", marginTop: 4, lineHeight: 15 },
-    gameArrow: { width: 32, height: 32, borderRadius: 999, backgroundColor: "rgba(8,9,20,0.18)", alignItems: "center", justifyContent: "center" },
+
+    // Lobi tabelası
+    hubHero: { borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.32)", paddingVertical: 10, marginBottom: 24, overflow: "hidden" },
+    bulbRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 14 },
+    bulb: { width: 6, height: 6, borderRadius: 3 },
+    hubHeroBody: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 },
+    hubEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1.6 },
+    hubHeroTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 36, lineHeight: 39, marginTop: 6 },
+    hubHeroSub: { color: c.dim, fontSize: 12.5, lineHeight: 18, marginTop: 6, maxWidth: 310 },
+    sectionLabel: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.4, marginBottom: 10, marginLeft: 2 },
+
+    // Salon kapıları (oyun kartları)
+    playCard: { flexDirection: "row", alignItems: "center", gap: 13, minHeight: 92, paddingHorizontal: 15, paddingVertical: 14, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
+    playCardHighlight: { borderColor: c.accent, backgroundColor: c.surface2 },
+    playIcon: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    playEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1 },
+    playTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 22, lineHeight: 25, marginTop: 2 },
+    playSub: { color: c.dim, fontSize: 11.5, lineHeight: 16, marginTop: 2 },
+    playBadge: { alignSelf: "flex-start", marginTop: 7, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+    playBadgeText: { color: ON_GOLD, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 0.6 },
     emptyCard: { padding: 20, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
     emptyText: { color: c.dim, textAlign: "center", fontSize: 12 },
+
+    // Oyun içi
     gameContent: { padding: 18, paddingBottom: 40 },
-    gameHero: { minHeight: 112, borderRadius: 20, padding: 16, flexDirection: "row", alignItems: "center", gap: 13, overflow: "hidden", marginBottom: 18 },
-    gameHeroGlow: { position: "absolute", width: 120, height: 120, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)", right: -35, top: -48 },
-    gameHeroIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(8,9,20,0.22)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
-    gameHeroTag: { color: "rgba(255,255,255,0.70)", fontSize: 8.5, fontWeight: "900", letterSpacing: 1.0 },
-    gameHeroTitle: { color: "#fff", fontSize: 16, fontWeight: "900", marginTop: 3 },
-    gameHeroSub: { color: "rgba(255,255,255,0.80)", fontSize: 10.5, lineHeight: 15, marginTop: 3 },
-    progressText: { color: c.dim, fontSize: 11, fontWeight: "700", textAlign: "center", marginBottom: 10 },
-    questionTitle: { color: c.text, fontSize: 20, fontWeight: "900", textAlign: "center", marginBottom: 18 },
+    gameHero: { minHeight: 104, borderRadius: 16, padding: 15, flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    gameHeroIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    gameHeroTag: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1 },
+    gameHeroTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 21, lineHeight: 24, marginTop: 3 },
+    gameHeroSub: { color: c.dim, fontSize: 11, lineHeight: 15.5, marginTop: 3 },
+    progressText: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.8, textAlign: "center", marginBottom: 10 },
+    questionTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 26, lineHeight: 30, textAlign: "center", marginBottom: 18 },
     battleRow: { flexDirection: "row", gap: 10, alignItems: "stretch" },
-    movieChoice: { flex: 1, backgroundColor: c.surface, borderWidth: 1.2, borderColor: c.border, borderRadius: 18, padding: 8, overflow: "hidden" },
-    correctChoice: { borderColor: "#22c55e", borderWidth: 2 },
-    wrongChoice: { borderColor: "#ef4444", borderWidth: 2 },
-    choicePoster: { width: "100%", aspectRatio: 2 / 3, borderRadius: 12, backgroundColor: c.surface2 },
+    movieChoice: { flex: 1, backgroundColor: c.surface, borderWidth: 1.2, borderColor: c.border, borderRadius: 14, padding: 8, overflow: "hidden" },
+    correctChoice: { borderColor: c.accent2, borderWidth: 2 },
+    wrongChoice: { borderColor: c.danger, borderWidth: 2 },
+    choicePoster: { width: "100%", aspectRatio: 2 / 3, borderRadius: 9, backgroundColor: c.surface2 },
     choiceTitle: { color: c.text, fontWeight: "800", fontSize: 13, marginTop: 8 },
     choiceMeta: { color: c.dim, fontSize: 10.5, marginTop: 3 },
-    vsBadge: { position: "absolute", zIndex: 2, left: "50%", top: 115, marginLeft: -18, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg },
-    vsText: { color: "#fff", fontWeight: "900", fontSize: 11 },
-    friendPickerTitle: { color: c.text, fontSize: 18, fontWeight: "900", marginTop: 4 },
-    friendPickerSub: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 5, marginBottom: 14 },
-    friendPickerRow: { flexDirection: "row", alignItems: "center", gap: 11, minHeight: 70, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(251,113,133,0.30)", marginBottom: 9 },
+    vsBadge: { position: "absolute", zIndex: 2, left: "50%", top: 115, marginLeft: -19, width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg, backgroundColor: c.accent },
+    vsText: { color: ON_GOLD, fontFamily: FONTS.marquee, fontSize: 15 },
+    friendPickerTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24, marginTop: 4 },
+    friendPickerSub: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 4, marginBottom: 14 },
+    friendPickerRow: { flexDirection: "row", alignItems: "center", gap: 11, minHeight: 70, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.30)", marginBottom: 9 },
     friendPickerRowDisabled: { opacity: 0.52, borderColor: c.border },
     friendPickerAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.surface2 },
     friendPickerName: { color: c.text, fontSize: 13.5, fontWeight: "900" },
     friendPickerStatus: { color: c.dim, fontSize: 10.5, marginTop: 3 },
-    friendHeaderGradient: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, borderRadius: 18, padding: 13, overflow: "hidden" },
-    friendAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.surface2, borderWidth: 2, borderColor: "rgba(255,255,255,0.45)" },
-    friendName: { color: "#fff", fontSize: 14.5, fontWeight: "900" },
-    friendSub: { color: "rgba(255,255,255,0.78)", fontSize: 11, marginTop: 2 },
-    primaryBtn: { marginTop: 16, minHeight: 46, borderRadius: 13, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7, paddingHorizontal: 16 },
-    primaryBtnFlex: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
-    primaryBtnText: { color: c.bg, fontSize: 13, fontWeight: "900" },
-    secondaryBtn: { flex: 1, minHeight: 46, borderRadius: 13, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+    friendHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, borderRadius: 14, padding: 13, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    friendAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.surface2, borderWidth: 1.5, borderColor: c.accent },
+    friendName: { color: c.text, fontFamily: FONTS.marquee, fontSize: 19 },
+    friendSub: { color: c.dim, fontSize: 11, marginTop: 1 },
+    primaryBtn: { marginTop: 16, minHeight: 48, borderRadius: 13, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7, paddingHorizontal: 16 },
+    primaryBtnFlex: { flex: 1, minHeight: 48, borderRadius: 13, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
+    primaryBtnText: { color: ON_GOLD, fontSize: 13.5, fontWeight: "900" },
+    secondaryBtn: { flex: 1, minHeight: 48, borderRadius: 13, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     secondaryBtnText: { color: c.text, fontSize: 13, fontWeight: "800" },
     choiceButtons: { flexDirection: "row", gap: 10, marginTop: 14 },
-    blindCardGradient: { minHeight: 276, borderRadius: 22, alignItems: "center", justifyContent: "center", padding: 24, borderWidth: 1, borderColor: "rgba(245,158,11,0.28)" },
-    blindTitle: { color: "#fff", fontSize: 20, fontWeight: "900", marginTop: 14, marginBottom: 18 },
-    clueChip: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginTop: 7, borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
-    clueChipText: { color: "rgba(255,255,255,0.83)", fontSize: 12.5, fontWeight: "700", textAlign: "center" },
-    revealCard: { alignItems: "center", padding: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 18 },
-    revealPoster: { width: 160, aspectRatio: 2 / 3, borderRadius: 14, backgroundColor: c.surface2 },
-    revealTitle: { color: c.text, fontSize: 18, fontWeight: "900", marginTop: 14, textAlign: "center" },
-    revealMeta: { color: c.dim, fontSize: 11.5, marginTop: 5 },
-    dailyCard: { minHeight: 86, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 11, padding: 14, overflow: "hidden" },
-    dailyTitle: { color: "#fff", fontSize: 15, fontWeight: "900" },
-    dailySub: { color: "rgba(255,255,255,0.78)", fontSize: 10.5, lineHeight: 14, marginTop: 3 },
-    filterLabel: { color: c.dim, fontSize: 10.5, fontWeight: "900", marginTop: 18, marginBottom: 8, letterSpacing: 0.7 },
+    blindCard: { minHeight: 276, borderRadius: 18, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.30)", overflow: "hidden" },
+    blindTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 30, marginTop: 12, marginBottom: 16 },
+    clueChip: { backgroundColor: c.bg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginTop: 7, borderWidth: 1, borderColor: c.border },
+    clueChipText: { color: c.text, fontFamily: FONTS.monoMedium, fontSize: 11.5, letterSpacing: 0.4, textAlign: "center" },
+    revealCard: { alignItems: "center", padding: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16 },
+    revealPoster: { width: 160, aspectRatio: 2 / 3, borderRadius: 10, backgroundColor: c.surface2 },
+    revealTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 26, marginTop: 14, textAlign: "center" },
+    revealMeta: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.5, marginTop: 5 },
+    blockTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24 },
+    filterLabel: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
     quizMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 },
-    quoteGradient: { minHeight: 260, borderRadius: 22, gap: 13, alignItems: "center", justifyContent: "center", padding: 24, overflow: "hidden" },
-    quotePrompt: { color: "#fff", fontSize: 19, lineHeight: 27, fontWeight: "900", textAlign: "center" },
-    quoteSub: { color: "rgba(255,255,255,0.72)", fontSize: 12, textAlign: "center" },
-    quizOption: { minHeight: 54, borderRadius: 15, borderWidth: 1, borderColor: "rgba(192,132,252,0.26)", backgroundColor: c.surface, paddingHorizontal: 15, alignItems: "center", justifyContent: "center" },
-    quizOptionCorrect: { borderColor: "#22C55E", backgroundColor: "rgba(34,197,94,0.12)" },
-    quizOptionWrong: { borderColor: "#EF4444", backgroundColor: "rgba(239,68,68,0.12)" },
+    quoteCard: { minHeight: 250, borderRadius: 18, gap: 13, alignItems: "center", justifyContent: "center", padding: 24, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    quotePrompt: { color: c.text, fontSize: 19, lineHeight: 27, fontWeight: "800", fontStyle: "italic", textAlign: "center" },
+    quoteSub: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.8, textAlign: "center" },
+    quizOption: { minHeight: 54, borderRadius: 13, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 15, alignItems: "center", justifyContent: "center" },
+    quizOptionCorrect: { borderColor: c.accent2, backgroundColor: "rgba(95,179,163,0.14)" },
+    quizOptionWrong: { borderColor: c.danger, backgroundColor: "rgba(217,99,111,0.14)" },
     quizOptionText: { color: c.text, fontWeight: "800", fontSize: 14, textAlign: "center" },
-    compactResultCircle: { width: 112, height: 112, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-    compactResultScore: { color: "#fff", fontSize: 28, fontWeight: "900" },
+    compactResultCircle: { width: 124, height: 124, borderRadius: 62, alignItems: "center", justifyContent: "center", backgroundColor: c.surface, borderWidth: 2, borderColor: c.accent },
+    compactResultScore: { color: c.accent, fontFamily: FONTS.marquee, fontSize: 40 },
+
+    // Sonuçlar: koyu kart, üstte soluk bir altın spot
     resultContent: { padding: 18, paddingBottom: 44 },
-    resultHero: { borderRadius: 24, minHeight: 280, alignItems: "center", justifyContent: "center", padding: 24, overflow: "hidden" },
-    resultIcon: { width: 58, height: 58, borderRadius: 19, backgroundColor: "rgba(8,9,20,0.20)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
-    resultEyebrow: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, fontWeight: "900", letterSpacing: 1.1, marginTop: 14 },
-    resultTitle: { color: "#fff", fontSize: 30, lineHeight: 36, fontWeight: "900", textAlign: "center", marginTop: 8 },
-    resultSummary: { color: "rgba(255,255,255,0.84)", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 9, maxWidth: 290 },
-    resultBigPercent: { color: "#fff", fontSize: 62, lineHeight: 68, fontWeight: "900", marginTop: 10 },
-    resultFriendName: { color: "#fff", fontSize: 19, fontWeight: "900", marginTop: 4 },
-    resultFriendAvatar: { width: 74, height: 74, borderRadius: 999, borderWidth: 3, borderColor: "rgba(255,255,255,0.5)" },
-    charEmojiBadge: { position: "absolute", right: -4, bottom: -4, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.65)" },
+    resultHero: { borderRadius: 20, minHeight: 280, alignItems: "center", justifyContent: "center", padding: 24, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.32)" },
+    resultSpot: { position: "absolute", left: 0, right: 0, top: 0, height: 170 },
+    resultIcon: { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    resultEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.4, marginTop: 14, textAlign: "center" },
+    resultTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 40, lineHeight: 43, textAlign: "center", marginTop: 6 },
+    resultMeta: { color: c.dim, fontSize: 11.5, fontWeight: "700", marginTop: 2, textAlign: "center" },
+    resultSummary: { color: c.text, opacity: 0.86, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 9, maxWidth: 290 },
+    resultBigPercent: { color: c.accent, fontFamily: FONTS.marquee, fontSize: 76, lineHeight: 80, marginTop: 6 },
+    resultFriendName: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24, marginTop: 2 },
+    resultFriendAvatar: { width: 74, height: 74, borderRadius: 37, borderWidth: 2, borderColor: c.accent },
+    charEmojiBadge: { position: "absolute", right: -4, bottom: -4, width: 28, height: 28, borderRadius: 14, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: c.accent },
     resultStatsRow: { flexDirection: "row", gap: 9, marginTop: 14 },
-    resultStatBox: { flex: 1, minHeight: 76, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
-    resultStatValue: { color: c.text, fontSize: 20, fontWeight: "900" },
-    resultStatLabel: { color: c.dim, fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8, marginTop: 3 },
-    resultPanel: { marginTop: 14, borderRadius: 18, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: 16 },
+    resultStatBox: { flex: 1, minHeight: 76, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+    resultStatValue: { color: c.text, fontFamily: FONTS.marquee, fontSize: 26 },
+    resultStatLabel: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1, marginTop: 2 },
+    resultPanel: { marginTop: 14, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: 16 },
     resultPanelTitle: { color: c.text, fontSize: 12.5, fontWeight: "900", marginBottom: 12 },
     resultPosterRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
-    resultPoster: { width: 61, height: 91, borderRadius: 9, backgroundColor: c.surface2 },
-    shareResultBtn: { minHeight: 48, borderRadius: 14, marginTop: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-    shareResultText: { color: "#fff", fontSize: 13, fontWeight: "900" },
-    ghostBtn: { minHeight: 46, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    resultPoster: { width: 61, height: 91, borderRadius: 7, backgroundColor: c.surface2 },
+    shareResultBtn: { minHeight: 48, borderRadius: 13, marginTop: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.accent },
+    shareResultText: { color: ON_GOLD, fontSize: 13.5, fontWeight: "900" },
+    ghostBtn: { minHeight: 46, borderRadius: 13, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
     ghostBtnText: { color: c.text, fontSize: 12.5, fontWeight: "800" },
     scoreInline: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
     scoreInlineText: { color: c.text, fontSize: 14, fontWeight: "900" },
-    doneTitle: { color: c.text, fontSize: 24, fontWeight: "900", textAlign: "center" },
+    doneTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 30, textAlign: "center" },
     doneText: { color: c.dim, fontSize: 12.5, lineHeight: 18, textAlign: "center", marginTop: 8 },
-    retryBtn: { marginTop: 20, backgroundColor: c.accent, borderRadius: 13, minHeight: 44, paddingHorizontal: 18, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" },
-    retryText: { color: c.bg, fontSize: 12.5, fontWeight: "900" },
+    retryBtn: { marginTop: 20, backgroundColor: c.accent, borderRadius: 13, minHeight: 46, paddingHorizontal: 18, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" },
+    retryText: { color: ON_GOLD, fontSize: 13, fontWeight: "900" },
   });
 }

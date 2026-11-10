@@ -1,8 +1,15 @@
 import { t as translateUI } from "../i18n/core";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Eye, Trophy } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Eye, Sparkles, Trophy } from "lucide-react-native";
+import { FONTS } from "../theme/fonts";
+
+// Salon dili (Günün Seansı story kartıyla aynı aile): koyu zemin, üstte soluk altın spot,
+// Big Shoulders başlık, DM Mono künye. Paylaşılan görsel olduğu için renkler temadan bağımsız.
+const CREAM = "#f3ead8";
+const DIM = "#8c8579";
+const GOLD = "#c9a44c";
 
 const MAX_WRONG = 3;
 
@@ -23,26 +30,18 @@ export default function PosterPuzzleShareCard({ date, number = null, correct, wr
   const resultText = correct ? "Posteri çözdüm" : "Poster bugün beni yendi";
 
   return (
-    <LinearGradient
-      colors={["#0B0B12", "#17122A", "#2B1760"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.card}
-    >
-      <View style={styles.glowOne} />
-      <View style={styles.glowTwo} />
-      <Sparkles size={22} color="rgba(255,215,106,0.28)" style={styles.sparkleOne} />
-      <Eye size={100} color="rgba(167,139,250,0.07)" style={styles.eyeMark} />
+    <View style={styles.card}>
+      <LinearGradient colors={["rgba(201,164,76,0.18)", "rgba(201,164,76,0)"]} style={styles.glowOne} pointerEvents="none" />
 
       <View style={styles.brandRow}>
-        <Text style={styles.logo}>{translateUI("pellix")}</Text>
+        <Text style={styles.logo}>PELLIX</Text>
         <View style={styles.dailyBadge}>
           <Text style={styles.dailyBadgeText}>{translateUI("GÜNÜN OYUNU")}</Text>
         </View>
       </View>
 
       <View style={styles.iconBubble}>
-        {correct ? <Trophy size={26} color="#FFD76A" /> : <Eye size={26} color="#C4B5FD" />}
+        {correct ? <Trophy size={24} color={GOLD} /> : <Eye size={24} color={CREAM} />}
       </View>
       <Text style={styles.eyebrow}>{translateUI("POSTER PUZZLE")}{number ? ` #${number}` : ""}{translateUI(" · ")}{translateUI(dayLabel(date))}</Text>
       <Text style={styles.title}>{resultText}</Text>
@@ -59,58 +58,31 @@ export default function PosterPuzzleShareCard({ date, number = null, correct, wr
         <Text style={styles.footerDot}>{translateUI("•")}</Text>
         <Text style={styles.footer}>{translateUI("Her gün yeni poster")}</Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 320,
-    minHeight: 458,
-    borderRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 25,
-    paddingBottom: 24,
-    alignItems: "center",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    width: 320, minHeight: 458, borderRadius: 20, paddingHorizontal: 24, paddingTop: 25, paddingBottom: 24,
+    alignItems: "center", overflow: "hidden", backgroundColor: "#14121a", borderWidth: 1, borderColor: "rgba(201,164,76,0.28)",
   },
-  glowOne: {
-    position: "absolute", width: 230, height: 230, borderRadius: 999,
-    backgroundColor: "rgba(124,58,237,0.22)", top: -145, right: -70,
-  },
-  glowTwo: {
-    position: "absolute", width: 190, height: 190, borderRadius: 999,
-    backgroundColor: "rgba(37,99,235,0.13)", bottom: -120, left: -85,
-  },
-  sparkleOne: { position: "absolute", top: 86, left: 28 },
-  eyeMark: { position: "absolute", right: -25, bottom: 48 },
-  brandRow: {
-    width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-  },
-  logo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 19, color: "#fff" },
-  dailyBadge: {
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: "rgba(255,215,106,0.12)", borderWidth: 1, borderColor: "rgba(255,215,106,0.24)",
-  },
-  dailyBadgeText: { color: "#FFD76A", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8 },
-  iconBubble: {
-    width: 58, height: 58, borderRadius: 20, marginTop: 45,
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
-  },
-  eyebrow: { color: "#A78BFA", fontSize: 9.5, fontWeight: "900", letterSpacing: 1.1, marginTop: 14 },
-  title: { color: "#fff", fontSize: 28, lineHeight: 33, fontWeight: "900", textAlign: "center", marginTop: 7 },
+  glowOne: { position: "absolute", left: 0, right: 0, top: 0, height: 200 },
+  brandRow: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  logo: { fontFamily: FONTS.marquee, fontSize: 15, letterSpacing: 3, color: GOLD },
+  dailyBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+  dailyBadgeText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1 },
+  iconBubble: { width: 58, height: 58, borderRadius: 29, marginTop: 45, alignItems: "center", justifyContent: "center", backgroundColor: "#100e10", borderWidth: 1.5, borderColor: GOLD },
+  eyebrow: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3, marginTop: 14 },
+  title: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 38, lineHeight: 41, textAlign: "center", marginTop: 6 },
   resultPanel: {
-    width: "100%", marginTop: 24, paddingVertical: 20, paddingHorizontal: 15,
-    alignItems: "center", borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    width: "100%", marginTop: 22, paddingVertical: 20, paddingHorizontal: 15, alignItems: "center", borderRadius: 14,
+    backgroundColor: "rgba(243,234,216,0.05)", borderWidth: 1, borderColor: "rgba(243,234,216,0.10)",
   },
   squares: { fontSize: 34, letterSpacing: 6, textAlign: "center" },
-  attemptLabel: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, fontWeight: "900", letterSpacing: 1, marginTop: 12 },
-  challenge: { color: "rgba(255,255,255,0.86)", fontSize: 12, lineHeight: 18, fontWeight: "700", textAlign: "center", marginTop: 22, maxWidth: 240 },
+  attemptLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.2, marginTop: 12 },
+  challenge: { color: CREAM, opacity: 0.88, fontSize: 12.5, lineHeight: 18, fontWeight: "700", textAlign: "center", marginTop: 22, maxWidth: 250 },
   footerRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 28 },
-  footer: { color: "rgba(255,255,255,0.58)", fontSize: 10.5, fontWeight: "700" },
-  footerDot: { color: "rgba(255,255,255,0.30)", fontSize: 10 },
+  footer: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1 },
+  footerDot: { color: DIM, fontSize: 10, opacity: 0.6 },
 });
