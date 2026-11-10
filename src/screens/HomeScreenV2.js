@@ -1006,6 +1006,15 @@ export default function HomeScreenV2({ navigation }) {
       {/* Arama sonuçları: satırın hemen altında, akışın üstünde yüzen kart. Ekran kökünde
           çiziliyor; satırın içinde olsaydı Android satır sınırı dışındaki dokunuşları iletmezdi. */}
       {searchOpen && !!query.trim() && (
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.searchScrim, { top: tabsBottom }]}
+          onPress={closeSearch}
+          accessible={false}
+          importantForAccessibility="no"
+        />
+      )}
+      {searchOpen && !!query.trim() && (
         <View style={[styles.searchDrop, { top: tabsBottom + 8 }]}>
           <ScrollView keyboardShouldPersistTaps="handled" style={styles.searchDropScroll} nestedScrollEnabled>
             {searchLoading ? (
@@ -1148,6 +1157,7 @@ function makeStyles(c) {
     filterBtn: { width: SLIT_BUTTON, height: SLIT_BUTTON, borderRadius: SLIT_BUTTON / 2, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     filterBtnActive: { backgroundColor: c.accent, borderColor: c.accent },
     filterDot: { position: "absolute", top: 3, right: 3, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2, borderWidth: 1, borderColor: c.bg },
+    searchScrim: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 25, backgroundColor: "rgba(8,7,10,0.55)" },
     searchDrop: {
       position: "absolute", left: 16, right: 16, zIndex: 30, elevation: 12,
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden",

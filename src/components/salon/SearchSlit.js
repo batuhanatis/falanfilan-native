@@ -27,6 +27,13 @@ export default function SearchSlit({ open, onOpen, onClose, value, onChangeText,
   const [mounted, setMounted] = useState(open);
   const reduce = useRef(false);
   const first = useRef(true);
+  // Boş alan odağı kaybedince kendini kapatıyor, ama kısa bir gecikmeyle: odağı kaybettiren
+  // şey düğmeye basmaksa (web'de dokunuştan önce blur geliyor) kapanmayı düğme yapsın, yoksa
+  // alan kapanıp düğme "Ara"ya dönünce aynı dokunuş aramayı yeniden açıyordu.
+  const blurTimer = useRef(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.().then((r) => { reduce.current = !!r; }).catch(() => {});
@@ -98,7 +105,12 @@ export default function SearchSlit({ open, onOpen, onClose, value, onChangeText,
               returnKeyType="search"
               autoCorrect={false}
               onSubmitEditing={onSubmit}
-              onBlur={() => { if (!String(value || "").trim()) onBlurEmpty?.(); }}
+              onBlur={() => {
+                clearTimeout(blurTimer.current);
+                blurTimer.current = setTimeout(() => {
+                  if (!String(valueRef.current || "").trim()) onBlurEmpty?.();
+                }, 180);
+              }}
               accessibilityLabel={placeholder}
             />
           </Animated.View>
@@ -106,7 +118,8 @@ export default function SearchSlit({ open, onOpen, onClose, value, onChangeText,
       )}
 
       <Pressable
-        onPress={open ? onClose : onOpen}
+        onPressIn={() => clearTimeout(blurTimer.current)}
+        onPress={() => { clearTimeout(blurTimer.current); if (open) onClose(); else onOpen(); }}
         hitSlop={6}
         accessibilityRole="button"
         accessibilityLabel={open ? translateUI("Aramayı kapat") : translateUI("Ara")}
