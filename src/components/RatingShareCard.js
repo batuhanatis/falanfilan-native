@@ -17,7 +17,7 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
       <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.goldGlow} pointerEvents="none" />
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.brand}>{translateUI("pellix")}</Text>
+          <Text style={styles.brand}>PELLIX</Text>
           <Text style={styles.type}>{translateUI("DIARY RATING")}</Text>
         </View>
         <View style={styles.badge}>

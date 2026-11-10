@@ -39,7 +39,7 @@ export default function BlendShareCard({
 
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.logo}>{translateUI("pellix")}</Text>
+          <Text style={styles.logo}>PELLIX</Text>
           <Text style={styles.cardType}>{translateUI("TASTE BLEND")}</Text>
         </View>
         <View style={styles.liveBadge}>

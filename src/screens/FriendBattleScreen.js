@@ -13,6 +13,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import RetryImage from "../components/RetryImage";
 import { avatarOr } from "../utils/avatar";
+import { getStoreLink } from "../utils/appLinks";
 import { hapticSuccess, hapticLight } from "../utils/haptics";
 
 export default function FriendBattleScreen({ navigation, route }) {
@@ -247,8 +248,8 @@ function BattleResult({ battle, styles, onAgain }) {
   const result = battle.result;
   const message = result.percent >= 80 ? "Aynı rafın insanısınız 🔥" : result.percent >= 60 ? "Beğenileriniz oldukça yakın" : result.percent >= 40 ? "Bazı filmlerde buluşuyorsunuz 🎬" : "Film gecesi pazarlığı zor geçecek 😄";
   const shareFanOptions = shareOptions({
-    message: translateUI("{0} Friend Battle sonucumuz: %{1} beğeni uyumu. Pellix: {2}", { 0: battle.opponent?.name || translateUI("Arkadaşımla"), 1: result.percent, 2: "https://www.pellix.app" }),
-    url: "https://www.pellix.app",
+    message: translateUI("{0} Friend Battle sonucumuz: %{1} beğeni uyumu. Pellix: {2}", { 0: battle.opponent?.name || translateUI("Arkadaşımla"), 1: result.percent, 2: getStoreLink("friend_battle") }),
+    url: getStoreLink("friend_battle"),
     copy: false,
   });
   return (

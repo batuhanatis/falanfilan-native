@@ -13,7 +13,8 @@ import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 
-const PLAY_URL = "https://www.pellix.app";
+// Oyun linkleri: open.pellix.app/u/oyun/<oyun> — önizlemede oyunun kartı, dokununca uygulamada oyun açılıyor.
+const playUrl = (slug) => `https://open.pellix.app/u/oyun/${slug}`;
 import PlayResultShareCard from "../components/PlayResultShareCard";
 import { accusativeTR } from "../utils/turkishSuffix";
 
@@ -238,7 +239,7 @@ function TasteBattle({ token, styles, c, onDisabled }) {
           <ShareFan
             style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: translateUI("Taste Battle sonucum: {0}. Seninki ne? 🎮", { 0: translateUI(result.topGenre || "Karışık") }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: translateUI("Taste Battle sonucum: {0}. Seninki ne? 🎮", { 0: translateUI(result.topGenre || "Karışık") }), url: playUrl("taste-battle"), copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -253,6 +254,7 @@ function TasteBattle({ token, styles, c, onDisabled }) {
           <ShareCardModal
             onClose={() => setShowShare(false)}
             shareMessage={`Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`}
+            shareUrl={playUrl("taste-battle")}
           >
             <PlayResultShareCard
               mode="taste"
@@ -405,7 +407,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
           <ShareFan
             style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: getLanguage() === "en" ? translateUI("{0}'i ne kadar iyi tanıyorum? Skorum %{1} 😄 Sen de dene.", { 0: data.friend.name, 1: percent }) : `${accusativeTR(data.friend.name) || data.friend.name} ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: getLanguage() === "en" ? translateUI("{0}'i ne kadar iyi tanıyorum? Skorum %{1} 😄 Sen de dene.", { 0: data.friend.name, 1: percent }) : `${accusativeTR(data.friend.name) || data.friend.name} ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`, url: playUrl("arkadasini-taniyor-musun"), copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -420,6 +422,7 @@ function FriendQuiz({ token, styles, c, onDisabled }) {
           <ShareCardModal
             onClose={() => setShowShare(false)}
             shareMessage={`${data.friend.name}'i ne kadar iyi tanıyorum? Skorum %${percent} 😄 Sen de dene.`}
+            shareUrl={playUrl("arkadasini-taniyor-musun")}
             socialCard={{
               kind: "friend_quiz",
               friend: { id: data.friend.id, name: data.friend.name, avatarUrl: data.friend.avatarUrl },
@@ -606,7 +609,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
         <ShareFan
           style={styles.shareResultBtn}
           accessibilityLabel={translateUI("Sonucu paylaş")}
-          options={shareOptions({ message: translateUI("Sahneyi Hatırla, Karakteri Bul'da {0}/{1} yaptım 🎬 Sen de dene.", { 0: score, 1: questions.length }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+          options={shareOptions({ message: translateUI("Sahneyi Hatırla, Karakteri Bul'da {0}/{1} yaptım 🎬 Sen de dene.", { 0: score, 1: questions.length }), url: playUrl("replik"), copy: false, card: () => setShowShare(true) })}
         >
           <Share2 size={17} color={ON_GOLD} />
           <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -622,6 +625,7 @@ function WhoSaidIt({ token, styles, c, onDisabled }) {
           <ShareCardModal
             onClose={() => setShowShare(false)}
             shareMessage={`Sahneyi Hatırla, Karakteri Bul'da ${score}/${questions.length} yaptım 🎬 Sen de dene.`}
+            shareUrl={playUrl("replik")}
             socialCard={{
               kind: "who_said_it",
               score,
@@ -848,7 +852,7 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
           <ShareFan
             style={styles.shareResultBtn}
             accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: translateUI("Hangi Karaktersin testinde {0} çıktım (%{1} uyum) 🎭 Sen de dene.", { 0: character.name, 1: result.matchPercent }), url: PLAY_URL, copy: false, card: () => setShowShare(true) })}
+            options={shareOptions({ message: translateUI("Hangi Karaktersin testinde {0} çıktım (%{1} uyum) 🎭 Sen de dene.", { 0: character.name, 1: result.matchPercent }), url: playUrl("karakter"), copy: false, card: () => setShowShare(true) })}
           >
             <Share2 size={17} color={ON_GOLD} />
             <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
@@ -863,6 +867,7 @@ function CharacterQuiz({ token, styles, c, onDisabled }) {
           <ShareCardModal
             onClose={() => setShowShare(false)}
             shareMessage={`Hangi Karaktersin testinde ${character.name} çıktım (%${result.matchPercent} uyum) 🎭 Sen de dene.`}
+            shareUrl={playUrl("karakter")}
             socialCard={{ kind: "character_quiz", character, matchPercent: result.matchPercent }}
           >
             <PlayResultShareCard mode="character" character={character} matchPercent={result.matchPercent} />

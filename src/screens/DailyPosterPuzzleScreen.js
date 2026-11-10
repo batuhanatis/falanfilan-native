@@ -42,7 +42,7 @@ function resultStorageKey() {
 }
 
 // Paylaşılan linkten gelen ziyaretleri admin'deki Trafik Kaynakları'nda ayrı görebilmek için.
-const PUZZLE_SHARE_URL = "https://www.pellix.app/?utm_source=app_share&utm_medium=share&utm_campaign=poster_puzzle";
+const PUZZLE_SHARE_URL = "https://open.pellix.app/u/oyun/afis-bulmacasi";
 
 function shareText(puzzle, result) {
   const title = puzzle?.number ? `Pellix Poster Puzzle #${puzzle.number} 🧩` : "Pellix Poster Puzzle 🧩";

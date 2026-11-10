@@ -2,46 +2,29 @@ import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Platform, TouchableWithoutFeedback, Share, Animated, useWindowDimensions } from "react-native";
 import ViewShot from "react-native-view-shot";
-import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Rect, Circle } from "react-native-svg";
-import { X, Share2, Download, Check, Radio, Image as ImageIcon } from "lucide-react-native";
+import { X, Share2, Check, Radio } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import DismissableSheet from "./DismissableSheet";
 import { canShareToStoryDirect, shareToStoryDirect } from "../utils/instagramStories";
+import { getStoreLink } from "../utils/appLinks";
+import InstagramGlyph from "./salon/InstagramGlyph";
 
-const APP_LINK = "https://www.pellix.app";
+const APP_LINK = getStoreLink("share_card");
 const IG_COACH_KEY = "pellix_ig_story_coach_v1";
 
-// Instagram düğmesindeki sade kamera simgesi (lucide'da marka simgeleri yok).
-function InstagramGlyph({ size = 17, color }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2}>
-      <Rect x={3} y={3} width={18} height={18} rx={5.5} />
-      <Circle cx={12} cy={12} r={4.2} />
-      <Circle cx={17.4} cy={6.6} r={1.1} fill={color} stroke="none" />
-    </Svg>
-  );
-}
-
-// Herhangi bir kartı (children olarak verilen görsel içerik) ekran görüntüsüne çevirip
-// paylaşan/kaydeden genel amaçlı modal. Blend, MatchParty ve Profil kartları bunu kullanıyor.
-//
-// NOT: "Instagram Story'de Paylaş" butonu (doğrudan Instagram Stories'e geçiş) kaldırıldı —
-// güvenilir şekilde çalıştırılamadı (Expo'nun sunduğu araçlarla Instagram'ın panosuna gerekli
-// özel formatta yazmak/algılatmak tutarlı sonuç vermedi). "Diğer Uygulamalarla Paylaş" (gerçek
-// link+metin paylaşımı) hâlâ duruyor, WhatsApp/Mesajlar/Instagram'ın kendi genel paylaşım
-// menüsü üzerinden çalışıyor.
+// Kartın (children) Instagram Story penceresi. Profil, Blend, MatchParty, oyun sonuçları ve içerik
+// detayındaki Story kartı bunu kullanıyor; ShareFan'deki "Instagram" seçeneği buraya açılıyor.
 //
 // PR6 — `pages` (opsiyonel, React node dizisi): Profil kartı gibi BİRDEN FAZLA görsel varyantı
 // olan durumlar için — ör. Premium'un AI temalı kartı VE varsayılan (temasız) kartı. Verilirse,
 // karta HER DOKUNUŞ bir sonraki varyanta geçiyor (baştan sona döngü) — o an EKRANDA GÖRÜNEN
-// varyant hangisiyse Kaydet/Paylaş onu yakalıyor. ÖNEMLİ (geçmiş): Bu ÖNCE yatay bir kaydırma
+// varyant hangisiyse Story'ye o gidiyor. ÖNEMLİ (geçmiş): Bu ÖNCE yatay bir kaydırma
 // jestiydi (PanResponder) — ama DismissableSheet'in "aşağı çekince kapat" jestiyle SÜREKLİ
 // çakıştı (handleOnly ve hatta DismissableSheet'i tamamen devre dışı bırakmak bile yetmedi,
 // muhtemelen üstteki TouchableWithoutFeedback katmanlarıyla ilişkiliydi). Basit bir dokunuş,
@@ -52,6 +35,11 @@ function InstagramGlyph({ size = 17, color }) {
 // kullanıcı Instagram'ın Bağlantı çıkartmasına yapıştırıyor (ilk seferde üç adımlık kısa anlatım).
 // Yerel modül olan sürümlerde (bkz. utils/instagramStories.js) Instagram story düzenleyicisi
 // doğrudan kartla açılıyor; diğerlerinde görsel sistemin paylaşım menüsüne gidiyor.
+// Paylaşımlar artık link (open.pellix.app/...): link WhatsApp/iMessage'da afişli önizlemeyle gidiyor,
+// dokununca uygulama açılıyor. Telefonda görsel YALNIZCA Instagram Story için üretiliyor, çünkü
+// Instagram story'ye yalnızca görsel kabul ediyor; link panoya kopyalanıyor ve kişi Bağlantı
+// çıkartmasıyla ekliyor. Bu pencere o Story akışı; "Linki paylaş" aynı linki metinle gönderiyor.
+// Görseli galeriye kaydetme ve görseli diğer uygulamalara gönderme kaldırıldı.
 export default function ShareCardModal({ onClose, children, pages, shareMessage, shareUrl = APP_LINK, socialCard, onSocialShared, previewHeight, instagramStory }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
@@ -60,7 +48,8 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
   const styles = makeStyles(c);
   // Büyük, dışa aktarılacak kartın gerçek çözünürlüğünü değiştirmeden yalnızca ekrandaki
   // önizlemesini Android'in kullanılabilir yüksekliğine sığdır.
-  const igMode = !!instagramStory?.link;
+  const storyLink = instagramStory?.link || shareUrl;
+  const igMode = !!storyLink;
   const [igCoach, setIgCoach] = useState(false);
   // Kartın altındaki düğmeler (ya da Instagram anlatımı) için ayrılan yükseklik.
   const reserved = igMode ? (igCoach ? 340 : 236) : 150;
@@ -70,8 +59,6 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
   const previewMargin = previewHeight ? -((previewHeight * (1 - previewScale)) / 2) : 0;
   const shotRef = useRef(null);
   const [sharing, setSharing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [socialSharing, setSocialSharing] = useState(false);
   const [socialShared, setSocialShared] = useState(false);
 
@@ -104,28 +91,10 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
     setSharing(true);
     try {
       const base = shareMessage || "pellix'te profilime göz at 🎬";
-      const message = base.includes("pellix.app") ? base : `${base}\n${shareUrl}`;
+      const message = base.includes(shareUrl) ? base : `${base}\n${shareUrl}`;
       await Share.share({ message });
     } catch { /* kullanıcı paylaşımı iptal etmiş olabilir, sorun değil */ }
     setSharing(false);
-  }
-
-  // Kartın GÖRSELİNİ paylaşım menüsüne veriyor — Instagram burada "Hikaye" seçeneğini gösteriyor,
-  // WhatsApp/Telegram vb. de resim olarak alıyor. (Instagram'a doğrudan geçiş güvenilir değildi,
-  // bkz. dosya başındaki not; sistemin kendi menüsü her iki platformda da çalışıyor.)
-  const [imageSharing, setImageSharing] = useState(false);
-  async function handleImageShare() {
-    if (imageSharing) return;
-    setImageSharing(true);
-    try {
-      const uri = await shotRef.current.capture();
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: "image/png", UTI: "public.png", dialogTitle: "Görseli paylaş" });
-      } else {
-        await Share.share({ url: uri });
-      }
-    } catch { /* iptal edilmiş olabilir */ }
-    setImageSharing(false);
   }
 
   const [igBusy, setIgBusy] = useState(false);
@@ -153,7 +122,7 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
     AsyncStorage.setItem(IG_COACH_KEY, "1").catch(() => {});
     setIgBusy(true);
     try {
-      await Clipboard.setStringAsync(instagramStory.link);
+      await Clipboard.setStringAsync(storyLink);
       setIgHint(true);
       const uri = await shotRef.current.capture();
       if (igDirect && await shareToStoryDirect(uri)) return;
@@ -176,21 +145,6 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
       onSocialShared?.();
     } catch { /* modal açık kalır; kullanıcı yeniden deneyebilir */ }
     setSocialSharing(false);
-  }
-
-  async function handleSave() {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const uri = await shotRef.current.capture();
-      const perm = Platform.OS === "ios" ? await MediaLibrary.requestPermissionsAsync(true) : { granted: true };
-      if (perm.granted) {
-        await MediaLibrary.saveToLibraryAsync(uri);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-    } catch { /* sessizce geç */ }
-    setSaving(false);
   }
 
   return (
@@ -230,9 +184,9 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
 
               {!!socialCard && (
                 <TouchableOpacity style={styles.socialBtn} onPress={handleSocialShare} disabled={socialSharing || socialShared}>
-                  {socialSharing ? <ActivityIndicator color="#1a150c" /> : (
+                  {socialSharing ? <ActivityIndicator color={c.accent} /> : (
                     <>
-                      {socialShared ? <Check size={17} color="#1a150c" /> : <Radio size={17} color="#1a150c" />}
+                      {socialShared ? <Check size={17} color={c.accent} /> : <Radio size={17} color={c.accent} />}
                       <Text style={styles.socialBtnText}>{socialShared ? translateUI("Sosyal akışta paylaşıldı") : translateUI("Sosyal Akışta Paylaş")}</Text>
                     </>
                   )}
@@ -274,28 +228,11 @@ export default function ShareCardModal({ onClose, children, pages, shareMessage,
               )}
 
               {!igCoach && (
-              <View style={styles.btnRow}>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} accessibilityLabel={translateUI("Galeriye kaydet")}>
-                  {saving ? <ActivityIndicator color="#fff" /> : saved ? <Check size={20} color="#fff" /> : <Download size={20} color="#fff" />}
-                </TouchableOpacity>
-                <TouchableOpacity style={igMode ? styles.shareBtnQuiet : styles.shareBtn} onPress={handleImageShare} disabled={imageSharing}>
-                  {imageSharing ? (
-                    <ActivityIndicator color={igMode ? "#fff" : c.bg} />
-                  ) : (
-                    <>
-                      <ImageIcon size={16} color={igMode ? "#fff" : c.bg} />
-                      <Text style={igMode ? styles.shareBtnQuietText : styles.shareBtnText}>{igMode ? translateUI("Görseli paylaş (WhatsApp…)") : translateUI("Görseli Paylaş (Story, WhatsApp…)")}</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-              )}
-              {!igCoach && (
               <TouchableOpacity style={[styles.linkBtn, { marginBottom: insets.bottom }]} onPress={handleShare} disabled={sharing}>
                 {sharing ? <ActivityIndicator color="#fff" /> : (
                   <>
                     <Share2 size={15} color="#fff" />
-                    <Text style={styles.linkBtnText}>{translateUI("Metin ve link olarak paylaş")}</Text>
+                    <Text style={styles.linkBtnText}>{translateUI("Linki paylaş (WhatsApp, Mesajlar…)")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -321,23 +258,8 @@ function makeStyles(c) {
     dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.3)" },
     dotActive: { backgroundColor: "#fff", width: 16 },
     swipeHint: { color: "rgba(255,255,255,0.55)", fontSize: 11, textAlign: "center", marginTop: 8 },
-    socialBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, borderRadius: 999, paddingVertical: 12, backgroundColor: "#c9a44c" },
-    socialBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 13 },
-    btnRow: { flexDirection: "row", gap: 14, marginTop: 10, alignItems: "center" },
-    saveBtn: {
-      width: 46, height: 46, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)",
-      alignItems: "center", justifyContent: "center",
-    },
-    shareBtn: {
-      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.accent,
-      borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13,
-    },
-    shareBtnText: { color: c.bg, fontWeight: "800", fontSize: 13 },
-    shareBtnQuiet: {
-      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-      borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, backgroundColor: "rgba(255,255,255,0.15)",
-    },
-    shareBtnQuietText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    socialBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, borderRadius: 999, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(201,164,76,0.5)" },
+    socialBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
     igBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 16,
       borderRadius: 999, paddingVertical: 14, backgroundColor: c.accent,

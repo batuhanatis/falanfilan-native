@@ -4,7 +4,8 @@ import {
   Modal, View, Text, Pressable, Animated, Easing, StyleSheet, AccessibilityInfo, Linking, Share, useWindowDimensions,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { X, MessageCircle, Link2, Share2, Send, Image as ImageIcon, Users } from "lucide-react-native";
+import { X, MessageCircle, Link2, Share2, Send, Users } from "lucide-react-native";
+import InstagramGlyph from "./InstagramGlyph";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../../context/ThemeContext";
 import { hapticSelection, hapticLight } from "../../utils/haptics";
@@ -176,7 +177,9 @@ export function shareOptions({ message, url, prepare, copyText, card, cardLabel,
   }
   const run = (fn) => () => { payload().then((p) => p && fn(p)).catch(() => {}); };
   return [
-    card && { key: "card", label: cardLabel || translateUI("Görsel kart"), Icon: ImageIcon, onPress: card },
+    // Görsel yalnızca Instagram Story için üretiliyor (Instagram story'ye link kabul etmiyor); öbür
+    // seçeneklerin hepsi link paylaşıyor, link tıklanınca uygulama açılıyor.
+    card && { key: "card", label: cardLabel || translateUI("Instagram"), a11y: "Instagram Story'de paylaş", Icon: InstagramGlyph, onPress: card },
     sendToFriend && { key: "friend", label: translateUI("Arkadaşına"), a11y: "Arkadaşına gönder", Icon: Send, onPress: sendToFriend },
     feed && { key: "feed", label: translateUI("Akışta"), a11y: "Sosyal akışta paylaş", Icon: Users, onPress: feed },
     {
