@@ -13,6 +13,8 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
+  Animated,
+  BackHandler,
 } from "react-native";
 import {
   Search,
@@ -49,6 +51,7 @@ import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 import RecommendationWhyModal from "../components/RecommendationWhyModal";
 import SeansBoard from "../components/salon/SeansBoard";
 import TicketCard from "../components/salon/TicketCard";
+import SearchSlit, { SLIT_BUTTON } from "../components/salon/SearchSlit";
 import { FONTS } from "../theme/fonts";
 
 function dedupe(items) {
@@ -115,7 +118,12 @@ export default function HomeScreenV2({ navigation }) {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
+  // Arama artık sekme satırında: yuvarlak düğme dokununca satır boyunca açılıyor (SearchSlit).
+  // rowFade satırdaki sekmeleri ve filtre düğmesini söndürüyor; tabsBottom sonuç kartının
+  // satırın hemen altında yüzmesi için ölçülüyor.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [tabsBottom, setTabsBottom] = useState(0);
+  const rowFade = useRef(new Animated.Value(1)).current;
   const searchSeqRef = useRef(0);
 
   const [showFilters, setShowFilters] = useState(false);
@@ -344,6 +352,12 @@ export default function HomeScreenV2({ navigation }) {
     });
     return unsub;
   }, [navigation, activeTab]);
+
+  useEffect(() => {
+    if (!searchOpen) return undefined;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => { closeSearch(); return true; });
+    return () => sub.remove();
+  }, [searchOpen]);
 
   function handleAiResults(results, label) {
     setDescribeResults(results || []);
@@ -709,9 +723,15 @@ export default function HomeScreenV2({ navigation }) {
     if (pick) navigation.navigate("Detail", { movie: pick });
   }
 
+  function closeSearch() {
+    setSearchOpen(false);
+    setQuery("");
+    Keyboard.dismiss();
+  }
+
   function selectSearchResult(item) {
     setQuery("");
-    setSearchFocused(false);
+    setSearchOpen(false);
     Keyboard.dismiss();
     if (item.kind === "person") {
       navigation.navigate("Person", {
@@ -795,73 +815,7 @@ export default function HomeScreenV2({ navigation }) {
   const forYouHeader = (
     <View>
       <View style={styles.searchBlock}>
-        <View style={styles.searchRow}>
-          <View style={[styles.searchBox, searchFocused && styles.searchBoxFocused]}>
-            <Search size={16} color={searchFocused ? c.accent : c.dim} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={translateUI("Film, dizi, oyuncu veya yönetmen ara")}
-              placeholderTextColor={c.dim}
-              value={query}
-              onChangeText={setQuery}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            {!!query && (
-              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={15} color={c.dim} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity style={[styles.filterBtn, anyFilterActive && styles.filterBtnActive]} onPress={() => setShowFilters(true)}>
-            <Filter size={16} color={anyFilterActive ? c.bg : c.text} />
-            {anyFilterActive && <View style={styles.filterDot} />}
-          </TouchableOpacity>
-        </View>
-
-        {!!query.trim() && (
-          <View style={styles.searchResultsCard}>
-            {searchLoading ? (
-              <ActivityIndicator color={c.accent} style={{ paddingVertical: 18 }} />
-            ) : searchResults.length === 0 ? (
-              <Text style={styles.searchEmpty}>{translateUI("“")}{query}{translateUI("” için sonuç bulunamadı.")}</Text>
-            ) : (
-              searchResults.map((item, index) => {
-                const person = item.kind === "person";
-                const image = person ? item.photo : item.poster;
-                return (
-                  <TouchableOpacity
-                    key={`${item.kind || item.type}-${item.id}-${index}`}
-                    style={styles.searchResultRow}
-                    onPress={() => selectSearchResult(item)}
-                    activeOpacity={0.78}
-                  >
-                    {image ? (
-                      <Image source={{ uri: image }} style={[styles.searchThumb, person && styles.searchPersonThumb]} />
-                    ) : (
-                      <View style={[styles.searchThumb, person && styles.searchPersonThumb, { backgroundColor: c.surface2 }]} />
-                    )}
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.searchResultTitle} numberOfLines={1}>{person ? item.name : item.title}</Text>
-                      <Text style={styles.searchResultMeta} numberOfLines={1}>
-                        {person ? item.roleLabel : `${item.year || ""} · ${item.type || ""}`}
-                      </Text>
-                    </View>
-                    {!person && (
-                      <View style={styles.searchRating}>
-                        <Star size={10} color={c.accent} fill={c.accent} />
-                        <Text style={styles.searchRatingText}>{item.imdb}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
-        )}
-
         <TicketCard
-          style={{ marginTop: 14 }}
           eyebrow="PREMIUM"
           title={translateUI("Bu Akşamı Planla")}
           subtitle={translateUI("Senin platformların, ortak beğenileriniz, tek bir seçim.")}
@@ -948,13 +902,51 @@ export default function HomeScreenV2({ navigation }) {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <TopBar />
 
-      <View style={styles.tabsRow}>
-        <TouchableOpacity style={[styles.tabBtn, activeTab === "forYou" && styles.tabBtnActive]} onPress={() => setActiveTab("forYou")}>
-          <Text style={[styles.tabText, activeTab === "forYou" && styles.tabTextActive]}>{translateUI("Sana Özel")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabBtn, activeTab === "upcoming" && styles.tabBtnActive]} onPress={() => setActiveTab("upcoming")}>
-          <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>{translateUI("Yakında")}</Text>
-        </TouchableOpacity>
+      <View
+        style={styles.tabsRow}
+        onLayout={(e) => { const { y, height } = e.nativeEvent.layout; setTabsBottom(y + height); }}
+      >
+        <Animated.View
+          style={[styles.tabsGroup, { opacity: rowFade, transform: [{ translateX: rowFade.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] }]}
+          pointerEvents={searchOpen ? "none" : "auto"}
+        >
+          <TouchableOpacity style={[styles.tabBtn, activeTab === "forYou" && styles.tabBtnActive]} onPress={() => setActiveTab("forYou")}>
+            <Text style={[styles.tabText, activeTab === "forYou" && styles.tabTextActive]}>{translateUI("Sana Özel")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn, activeTab === "upcoming" && styles.tabBtnActive]} onPress={() => setActiveTab("upcoming")}>
+            <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>{translateUI("Yakında")}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Filtre yalnızca Sana Özel akışını daraltıyor; Yakında'da işlevsiz olacağı için gizli. */}
+        {activeTab === "forYou" && (
+          <Animated.View
+            style={[styles.filterSlot, { opacity: rowFade, transform: [{ scale: rowFade.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}
+            pointerEvents={searchOpen ? "none" : "auto"}
+          >
+            <TouchableOpacity
+              style={[styles.filterBtn, anyFilterActive && styles.filterBtnActive]}
+              onPress={() => setShowFilters(true)}
+              accessibilityRole="button"
+              accessibilityLabel={translateUI("Filtrele")}
+            >
+              <Filter size={16} color={anyFilterActive ? c.bg : c.text} />
+              {anyFilterActive && <View style={styles.filterDot} />}
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        <SearchSlit
+          open={searchOpen}
+          onOpen={() => setSearchOpen(true)}
+          onClose={closeSearch}
+          onBlurEmpty={closeSearch}
+          onSubmit={() => Keyboard.dismiss()}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={translateUI("Film, dizi, oyuncu veya yönetmen ara")}
+          fade={rowFade}
+        />
       </View>
 
       {activeTab === "forYou" ? (
@@ -1009,6 +1001,51 @@ export default function HomeScreenV2({ navigation }) {
             />
           }
         />
+      )}
+
+      {/* Arama sonuçları: satırın hemen altında, akışın üstünde yüzen kart. Ekran kökünde
+          çiziliyor; satırın içinde olsaydı Android satır sınırı dışındaki dokunuşları iletmezdi. */}
+      {searchOpen && !!query.trim() && (
+        <View style={[styles.searchDrop, { top: tabsBottom + 8 }]}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={styles.searchDropScroll} nestedScrollEnabled>
+            {searchLoading ? (
+              <ActivityIndicator color={c.accent} style={{ paddingVertical: 18 }} />
+            ) : searchResults.length === 0 ? (
+              <Text style={styles.searchEmpty}>{translateUI("“")}{query}{translateUI("” için sonuç bulunamadı.")}</Text>
+            ) : (
+              searchResults.map((item, index) => {
+                const person = item.kind === "person";
+                const image = person ? item.photo : item.poster;
+                return (
+                  <TouchableOpacity
+                    key={`${item.kind || item.type}-${item.id}-${index}`}
+                    style={styles.searchResultRow}
+                    onPress={() => selectSearchResult(item)}
+                    activeOpacity={0.78}
+                  >
+                    {image ? (
+                      <Image source={{ uri: image }} style={[styles.searchThumb, person && styles.searchPersonThumb]} />
+                    ) : (
+                      <View style={[styles.searchThumb, person && styles.searchPersonThumb, { backgroundColor: c.surface2 }]} />
+                    )}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.searchResultTitle} numberOfLines={1}>{person ? item.name : item.title}</Text>
+                      <Text style={styles.searchResultMeta} numberOfLines={1}>
+                        {person ? item.roleLabel : `${item.year || ""} · ${item.type || ""}`}
+                      </Text>
+                    </View>
+                    {!person && (
+                      <View style={styles.searchRating}>
+                        <Star size={10} color={c.accent} fill={c.accent} />
+                        <Text style={styles.searchRatingText}>{item.imdb}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
       )}
 
       <IslandModal
@@ -1083,7 +1120,9 @@ const quickStyles = StyleSheet.create({
 
 function makeStyles(c) {
   return StyleSheet.create({
-    tabsRow: { flexDirection: "row", marginHorizontal: 16, marginTop: 4, gap: 22, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg },
+    tabsRow: { flexDirection: "row", alignItems: "flex-end", marginHorizontal: 16, marginTop: 4, borderBottomWidth: 1, borderBottomColor: c.border, backgroundColor: c.bg, zIndex: 5 },
+    tabsGroup: { flexDirection: "row", gap: 22 },
+    filterSlot: { marginLeft: "auto", marginRight: SLIT_BUTTON + 8, marginBottom: 4 },
     tabBtn: { minHeight: 44, justifyContent: "flex-end", paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
     tabBtnActive: { borderBottomColor: c.accent },
     tabText: { color: c.dim, fontSize: 21, fontFamily: FONTS.marqueeBold },
@@ -1106,14 +1145,15 @@ function makeStyles(c) {
     popularNowSection: { marginTop: 22 },
 
     searchBlock: { marginTop: 14, marginBottom: 10 },
-    searchRow: { flexDirection: "row", gap: 8 },
-    searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 13, paddingHorizontal: 12 },
-    searchBoxFocused: { borderColor: c.accent },
-    searchInput: { flex: 1, color: c.text, fontSize: 13, paddingVertical: 11 },
-    filterBtn: { width: 44, borderRadius: 13, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+    filterBtn: { width: SLIT_BUTTON, height: SLIT_BUTTON, borderRadius: SLIT_BUTTON / 2, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     filterBtnActive: { backgroundColor: c.accent, borderColor: c.accent },
-    filterDot: { position: "absolute", top: 5, right: 5, width: 6, height: 6, borderRadius: 999, backgroundColor: c.accent2 },
-    searchResultsCard: { marginTop: 8, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden" },
+    filterDot: { position: "absolute", top: 3, right: 3, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2, borderWidth: 1, borderColor: c.bg },
+    searchDrop: {
+      position: "absolute", left: 16, right: 16, zIndex: 30, elevation: 12,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, overflow: "hidden",
+      shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 10 },
+    },
+    searchDropScroll: { maxHeight: 440 },
     searchResultRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 9, borderBottomWidth: 1, borderBottomColor: c.border },
     searchThumb: { width: 34, height: 49, borderRadius: 7 },
     searchPersonThumb: { width: 40, height: 40, borderRadius: 999 },
