@@ -12,7 +12,7 @@ const PENDING_KEY = "pellix_pending_link_v1";
 // İşaret open.pellix.app'teki sayfadan düşüyor; soruyu da aynı adrese soruyoruz ki telefon iki
 // istekte de aynı yoldan (aynı IP sürümüyle) gelsin. Hazırlık/yerel API'de o API'ye soruluyor.
 const CLAIM_BASE = /^https:\/\/api\.pellix\.app$/.test(API_BASE) ? "https://open.pellix.app" : API_BASE;
-const TARGET_RE = /^(film\/\d{1,9}|party\/[A-Za-z0-9_-]{4,64}|u\/[A-Za-z0-9_.-]{1,40}|blend\/[A-Za-z0-9_.-]{1,40}\/[A-Za-z0-9_.-]{1,40})$/;
+const TARGET_RE = /^(film\/\d{1,9}|party\/[A-Za-z0-9_-]{4,64}|u\/[A-Za-z0-9_.-]{1,40}|blend\/[A-Za-z0-9_.-]{1,40}\/[A-Za-z0-9_.-]{1,40}|oyun\/[a-z0-9-]{2,40})$/;
 
 export async function markDeferredChecked() {
   try { await AsyncStorage.setItem(CHECKED_KEY, String(Date.now())); } catch { /* kritik değil */ }

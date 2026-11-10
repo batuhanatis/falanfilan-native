@@ -49,6 +49,13 @@ export function appStateFromPath(path, options) {
   if (filmMatch) return { routes: [{ name: "MainTabs" }, { name: "Detail", params: { movie: { id: Number(filmMatch[1]) } } }] };
   // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
   // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
+  // Oyun linkleri: open.pellix.app/u/oyun/<oyun> (paylaşılan oyun sonuçları) → o oyun.
+  const gameMatch = path.match(/^\/?(?:u\/)?oyun\/([a-z0-9-]+)/);
+  if (gameMatch) {
+    if (gameMatch[1] === "afis-bulmacasi") return { routes: [{ name: "MainTabs" }, { name: "DailyPosterPuzzle" }] };
+    const initialGame = { karakter: "character_quiz", replik: "who_said_it", "arkadasini-taniyor-musun": "friend_quiz", "taste-battle": "taste_battle" }[gameMatch[1]];
+    return { routes: [{ name: "MainTabs" }, { name: "PellixPlay", params: initialGame ? { initialGame } : {} }] };
+  }
   const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
   if (partyAliasMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyAliasMatch[1]) } }] };
   const userMatch = path.match(/^\/?u\/([^/?]+)/);

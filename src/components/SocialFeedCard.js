@@ -543,8 +543,8 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
             accessibilityLabel={translateUI("Paylaş")}
             options={primaryMovie?.id
               ? shareOptions({
-                message: translateUI("{0} Pellix'te \"{1}\" paylaştı: {2}", { 0: user.name || translateUI("Bir arkadaşım"), 1: primaryMovie.title, 2: `https://www.pellix.app/film/${primaryMovie.id}` }),
-                url: `https://www.pellix.app/film/${primaryMovie.id}`,
+                message: translateUI("{0} Pellix'te \"{1}\" paylaştı: {2}", { 0: user.name || translateUI("Bir arkadaşım"), 1: primaryMovie.title, 2: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share` }),
+                url: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share`,
                 sendToFriend: () => setSendOpen(true),
               })
               : [{ key: "friend", label: translateUI("Arkadaşına"), onPress: () => setSendOpen(true) }]}

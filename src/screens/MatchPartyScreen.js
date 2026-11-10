@@ -24,6 +24,7 @@ import ShareCardModal from "../components/ShareCardModal";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import MatchShareCard from "../components/MatchShareCard";
 import MatchCelebration from "../components/MatchCelebration";
+import { getStoreLink } from "../utils/appLinks";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const MATCH_SHARE_CARD_HEIGHT = 320 * 1.72;
@@ -279,6 +280,11 @@ export default function MatchPartyScreen({ route, navigation }) {
 
   const current = queue[cursor];
   const displayName = members[0]?.name || friend?.name || "Arkadaşın";
+  // Paylaşılan link ilk ortak içeriğin sayfası (önizlemede afişi görünüyor, dokununca uygulamada
+  // açılıyor); eşleşme yoksa uygulamayı indirme linki.
+  const matchShareUrl = matches[0]?.id
+    ? `https://open.pellix.app/u/film/${matches[0].id}?c=film_share`
+    : getStoreLink("matchparty_share");
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -490,8 +496,8 @@ export default function MatchPartyScreen({ route, navigation }) {
                 style={styles.shareResultBtn}
                 accessibilityLabel={translateUI("Eşleşmeyi paylaş")}
                 options={shareOptions({
-                  message: translateUI("{0} ile Pellix'te {1} ortak içerikte eşleştik. Sen de arkadaşınla dene: {2}", { 0: displayName, 1: matches.length, 2: "https://www.pellix.app" }),
-                  url: "https://www.pellix.app",
+                  message: translateUI("{0} ile Pellix'te {1} ortak içerikte eşleştik. Sen de arkadaşınla dene: {2}", { 0: displayName, 1: matches.length, 2: matchShareUrl }),
+                  url: matchShareUrl,
                   copy: false,
                   card: () => setShowShareCard(true),
                 })}
@@ -536,7 +542,12 @@ export default function MatchPartyScreen({ route, navigation }) {
       )}
 
       {showShareCard && matches.length > 0 && (
-        <ShareCardModal onClose={() => setShowShareCard(false)} previewHeight={MATCH_SHARE_CARD_HEIGHT}>
+        <ShareCardModal
+          onClose={() => setShowShareCard(false)}
+          previewHeight={MATCH_SHARE_CARD_HEIGHT}
+          shareUrl={matchShareUrl}
+          shareMessage={translateUI("{0} ile Pellix'te {1} ortak içerikte eşleştik. Sen de arkadaşınla dene: {2}", { 0: displayName, 1: matches.length, 2: matchShareUrl })}
+        >
           <MatchShareCard
             myAvatar={myAvatarUrl}
             myId={auth.id}

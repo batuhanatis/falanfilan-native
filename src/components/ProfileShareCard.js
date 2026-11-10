@@ -47,7 +47,7 @@ export default function ProfileShareCard({
 
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.logo}>{translateUI("pellix")}</Text>
+          <Text style={styles.logo}>PELLIX</Text>
           <Text style={styles.cardType}>{translateUI("TASTE ID")}</Text>
         </View>
         <View style={styles.badgeRow}>
@@ -133,7 +133,7 @@ export default function ProfileShareCard({
       )}
 
       <View style={styles.footerRow}>
-        <Text style={styles.footer}>{username ? translateUI("pellix.app/@{0}", {0: username}) : translateUI("pellix.app")}</Text>
+        <Text style={styles.footer}>{username ? `open.pellix.app/u/${username}` : "pellix.app"}</Text>
         <Text style={styles.footerAccent}>{translateUI("Kendini keşfet")}</Text>
       </View>
     </>

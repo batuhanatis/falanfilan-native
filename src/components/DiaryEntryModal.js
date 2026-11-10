@@ -93,7 +93,8 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
     setSaving(false);
   }
 
-  const ratingShareUrl = `https://www.pellix.app/film/${movie?.id}?utm_source=app_share&utm_medium=share&utm_campaign=diary_rating`;
+  // open.pellix.app/u/film/<id> uygulama yüklüyse doğrudan içeriği açıyor (www.pellix.app/film açmıyordu).
+  const ratingShareUrl = `https://open.pellix.app/u/film/${movie?.id}?c=diary_rating`;
   const ratingShareMessage = shareDraft
     ? `"${movie?.title || "Bu yapım"}" için puanım: ${shareDraft.rating}/10 ⭐ ${RATING_LABELS[shareDraft.rating] || ""}\nSen kaç verirsin? 👉 ${ratingShareUrl}`
     : "";
@@ -197,6 +198,7 @@ export default function DiaryEntryModal({ visible, movie, entry, onClose, onSave
                 <ShareCardModal
                   onClose={() => setOutsideShareOpen(false)}
                   shareMessage={ratingShareMessage}
+                  shareUrl={ratingShareUrl}
                 >
                   <RatingShareCard movie={movie} rating={shareDraft.rating} note={shareDraft.note} />
                 </ShareCardModal>
