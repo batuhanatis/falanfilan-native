@@ -185,7 +185,7 @@ export default function SocialPostComposer({ visible, initialMovie = null, initi
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>{translateUI("Taste Post")}</Text>
-                <Text style={styles.subtitle}>{translateUI("Zevkini paylaş, sohbeti başlat.")}</Text>
+                <Text style={styles.subtitle}>{translateUI("Ne izlediğini paylaş, sohbeti başlat.")}</Text>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}><X size={18} color={c.text} /></TouchableOpacity>
             </View>

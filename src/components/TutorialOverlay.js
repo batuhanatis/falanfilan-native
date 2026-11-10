@@ -19,7 +19,7 @@ const STEPS = [
   { icon: Compass, title: "Discover", desc: "Film ve dizileri kaydırarak keşfet — sağa kaydır beğen, sola kaydır geç." },
   { icon: Activity, title: "Aktivite", desc: "Arkadaşlarının beğenilerini ve Taste Post’larını gör, yorum yap ve hızlı reaksiyon bırak." },
   { icon: MessageCircle, title: "Sohbet", desc: "Arkadaşlarınla sohbet et, film önerileri paylaş, MatchParty başlatıp birlikte karar verin." },
-  { icon: User, title: "Profil", desc: "Profilini düzenle, Blend ile arkadaşlarınla zevk uyumunu gör, Premium'a geç." },
+  { icon: User, title: "Profil", desc: "Profilini düzenle, Blend ile arkadaşlarınla uyumunu gör, Premium'a geç." },
 ];
 
 export default function TutorialOverlay({ onFinish }) {

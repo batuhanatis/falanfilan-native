@@ -12,7 +12,7 @@ import Slider from "./Slider";
 const BRAND_GRADIENT = ["#8e2de2", "#4a00e0", "#00c9ff"];
 const PROFILE_BG_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
-// ÖNEMLİ: "Zevkine Özel Arka Plan" (AI profil teması) eskiden Ayarlar'daydı — kullanıcı bunun
+// ÖNEMLİ: "Sana Özel Arka Plan" (AI profil teması) eskiden Ayarlar'daydı — kullanıcı bunun
 // "profili düzenleme" akışının bir parçası olarak daha mantıklı olduğunu, oraya taşınmasını
 // istedi. Ayarlar'daki "Premium Üye" durum kartı YERİNDE kalıyor, sadece bu tema bölümü taşındı.
 export default function EditProfileModal({ profile, isPremium, navigation, onClose, onSaved }) {
@@ -130,7 +130,7 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
               <Lock size={13} color={c.dim} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bgTitle}>{translateUI("Zevkine Özel Arka Plan")}</Text>
+              <Text style={styles.bgTitle}>{translateUI("Sana Özel Arka Plan")}</Text>
               <Text style={styles.bgSubtitle}>
                 {showLockedInfo
                   ? translateUI("Bu özellik Premium'a özel — beğendiğin türlere ve favori yapımlarına göre AI ile sana özel bir profil teması üretiliyor.")
@@ -157,12 +157,12 @@ export default function EditProfileModal({ profile, isPremium, navigation, onClo
           <View style={styles.bgHeaderRow}>
             <View style={styles.bgIconWrap}><Sparkles size={14} color="#fff" /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bgTitle}>{translateUI("Zevkine Özel Arka Plan")}</Text>
+              <Text style={styles.bgTitle}>{translateUI("Sana Özel Arka Plan")}</Text>
               <Text style={styles.bgSubtitle}>
                 {!bgUrl
                   ? translateUI("Beğendiğin türlere ve favori yapımlarına göre AI ile senin için bir profil teması oluşturalım.")
                   : canGenerateBackground
-                  ? translateUI("Zevkin değiştiyse yenileyebilirsin.")
+                  ? translateUI("Beğenilerin değiştiyse yenileyebilirsin.")
                   : translateUI("Bir sonraki yenileme: {0}", {0: bgNextAvailableAt.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })})}
               </Text>
             </View>

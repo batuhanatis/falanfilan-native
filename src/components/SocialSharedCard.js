@@ -97,7 +97,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
             <Avatar uri={me.avatarUrl} id={me.id} />
             <View style={styles.blendScoreWrap}>
               <Text style={styles.blendPercent}>{translateUI("%")}{percent}</Text>
-              <Text style={styles.microLabel}>{translateUI("ZEVK UYUMU")}</Text>
+              <Text style={styles.microLabel}>{translateUI("UYUM")}</Text>
             </View>
             <Avatar uri={friend.avatarUrl} id={friend.id} />
           </View>
@@ -237,7 +237,7 @@ export default function SocialSharedCard({ payload, navigation, currentUserId })
             <Text style={[styles.profileName, { textAlign: "left", marginTop: 0 }]} numberOfLines={1}>{payload.name}</Text>
             {!!payload.username && <Text style={styles.username}>{translateUI("@")}{payload.username}</Text>}
             <Text style={styles.profileSignal}>
-              {hasTasteDNA ? translateUI("{0} zevk sinyali", {0: Number(payload.tasteDNA?.signalCount || 0)}) : translateUI("Pellix profil kartı")}
+              {hasTasteDNA ? translateUI("{0} beğeni sinyali", {0: Number(payload.tasteDNA?.signalCount || 0)}) : translateUI("Pellix profil kartı")}
             </Text>
           </View>
         </View>

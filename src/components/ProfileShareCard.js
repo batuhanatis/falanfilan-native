@@ -69,7 +69,7 @@ export default function ProfileShareCard({
           <Text style={styles.name} numberOfLines={1}>{name || translateUI("Pellix kullanıcısı")}</Text>
           {!!username && <Text style={styles.username}>{translateUI("@")}{username}</Text>}
           <Text style={styles.signalText}>
-            {signalCount > 0 ? translateUI("{0} zevk sinyalinden oluşuyor", {0: signalCount}) : translateUI("Zevk profili oluşuyor")}
+            {signalCount > 0 ? translateUI("{0} beğeni sinyalinden oluşuyor", {0: signalCount}) : translateUI("İzleyici profilin oluşuyor")}
           </Text>
         </View>
       </View>
@@ -77,7 +77,7 @@ export default function ProfileShareCard({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Sparkles size={12} color="#A78BFA" />
-          <Text style={styles.sectionTitle}>{translateUI("ZEVK DNA")}</Text>
+          <Text style={styles.sectionTitle}>{translateUI("İZLEME DNA'SI")}</Text>
         </View>
         <Text style={styles.sectionHint}>{translateUI("Pellix seni böyle tanıyor")}</Text>
       </View>
@@ -104,7 +104,7 @@ export default function ProfileShareCard({
         </View>
       ) : (
         <View style={styles.emptyTaste}>
-          <Text style={styles.emptyTasteText}>{translateUI("Birkaç seçim daha yaptıkça zevk imzan burada belirginleşecek.")}</Text>
+          <Text style={styles.emptyTasteText}>{translateUI("Birkaç seçim daha yaptıkça izleyici imzan burada belirginleşecek.")}</Text>
         </View>
       )}
 
@@ -136,7 +136,7 @@ export default function ProfileShareCard({
 
       <View style={styles.footerRow}>
         <Text style={styles.footer}>{username ? translateUI("pellix.app/@{0}", {0: username}) : translateUI("pellix.app")}</Text>
-        <Text style={styles.footerAccent}>{translateUI("Zevkini keşfet")}</Text>
+        <Text style={styles.footerAccent}>{translateUI("Kendini keşfet")}</Text>
       </View>
     </>
   );

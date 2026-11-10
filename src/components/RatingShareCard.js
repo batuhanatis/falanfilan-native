@@ -50,7 +50,7 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>{translateUI("İzledim. Puanladım. Zevkim biraz daha netleşti.")}</Text>
+        <Text style={styles.footerText}>{translateUI("İzledim. Puanladım. Önerilerim biraz daha netleşti.")}</Text>
         {!!onPress && <Text style={styles.openText}>{translateUI("İçeriği aç →")}</Text>}
       </View>
     </LinearGradient>

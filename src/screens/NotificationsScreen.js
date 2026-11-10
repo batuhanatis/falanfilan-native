@@ -51,7 +51,7 @@ function notificationText(n) {
     case "friend_quiz_shared": return `${p.by?.name}, "Arkadaşını Tanıyor musun?" oyununda seni %${p.percent} tahmin etti 🎮`;
     case "friend_battle_invite": return `${p.from?.name || "Bir arkadaşın"} seni Friend Battle'a çağırdı 🎮`;
     case "friend_battle_turn": return `${p.by?.name || "Arkadaşın"} Friend Battle turunu tamamladı — sıra sende`;
-    case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} zevk senkronu 🔥`;
+    case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} uyum 🔥`;
     case "rating_nudge": return p?.pendingCount
       ? `${p.pendingCount} beğendiğin içerik puanını bekliyor ⭐`
       : "Beğendiklerini puanlamak ister misin? ⭐";

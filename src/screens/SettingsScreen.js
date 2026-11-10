@@ -1,4 +1,5 @@
 import { useLanguage } from "../i18n/LanguageContext";
+import TmdbAttribution from "../components/TmdbAttribution";
 import { Alert } from "../i18n/native";
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useState } from "react";
@@ -191,9 +192,9 @@ export default function SettingsScreen({ navigation, route }) {
             <LinkRow icon={Mail} label={translateUI("Destek — {0}", {0: SUPPORT_EMAIL})} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} styles={styles} c={c} />
             <LinkRow icon={Shield} label={translateUI("Gizlilik Politikası")} onPress={() => Linking.openURL(`${API_BASE}/privacy`)} styles={styles} c={c} border />
             <LinkRow icon={FileText} label={translateUI("Kullanım Şartları")} onPress={() => Linking.openURL(`${API_BASE}/terms`)} styles={styles} c={c} border />
-            {/* TMDB'nin API kullanım şartları, veri/görsellerini kullanan uygulamalarda görünür bir
-                atıf bulunmasını zorunlu kılıyor — bu satır o yükümlülüğü karşılıyor. */}
-            <LinkRow icon={Info} label={translateUI("Film/dizi verileri TMDB API ile sağlanmaktadır")} onPress={() => Linking.openURL("https://www.themoviedb.org/")} styles={styles} c={c} border />
+            {/* TMDB'nin API kullanım şartları, veri/görsellerini kullanan uygulamalarda TMDB logosu
+                ve resmî ibareyle görünür bir atıf istiyor — bu blok o yükümlülüğü karşılıyor. */}
+            <TmdbAttribution />
           </View>
         </Group>
         <Text style={styles.version}>{translateUI("pellix · Sürüm ")}{APP_VERSION}</Text>

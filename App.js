@@ -28,10 +28,11 @@ import NotificationPrimerModal from "./src/components/NotificationPrimerModal";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { api } from "./src/api/client";
 import { setAnalyticsToken, startSession, endSession } from "./src/utils/analytics";
-import { registerForPushNotifications, getPushPermissionStatus, clearDeliveredNotifications, setupNotificationTapHandling } from "./src/utils/pushNotifications";
+import { registerForPushNotifications, getPushPermissionStatus, clearDeliveredNotifications, setupNotificationTapHandling, registerNotificationCategories } from "./src/utils/pushNotifications";
+import { claimDeferredLinkOnce, markDeferredChecked, takePendingLink } from "./src/utils/deferredLink";
 import { configurePurchases } from "./src/utils/purchases";
 import { emitLocalEvent } from "./src/utils/localEvents";
-import { navigationRef } from "./src/navigation/RootNavigator";
+import { navigationRef, appStateFromPath } from "./src/navigation/RootNavigator";
 import { installCrashReporter } from "./src/utils/crashReporter";
 
 // React render'ının DIŞINDA kalan JS hataları (event handler'daki hata, yakalanmamış Promise
@@ -57,9 +58,31 @@ function Gate() {
 
   // Analitik: hangi kullanıcıya ait olduğunu bilelim, uygulama ön plana/arka plana
   // geçtiğinde oturum başlasın/bitsin (bitişte son ekran + oturum süresi kaydediliyor).
+  // Ertelenmiş link: girişsiz ilk açılışta (yeni kurulum) bir kez sor; oturumu olan mevcut
+  // kullanıcılarda hiç sorma. Eşleşme varsa hedef saklanıyor, giriş ve tanışma bitince açılıyor.
+  useEffect(() => {
+    if (checking) return;
+    if (auth) markDeferredChecked();
+    else claimDeferredLinkOnce();
+  }, [checking, !!auth]);
+
+  useEffect(() => {
+    if (!auth?.token || !auth?.onboardingCompleted) return undefined;
+    let cancelled = false;
+    (async () => {
+      const target = await takePendingLink();
+      if (!target || cancelled) return;
+      for (let i = 0; i < 80 && !navigationRef.isReady(); i++) await new Promise((r) => setTimeout(r, 100));
+      if (cancelled || !navigationRef.isReady()) return;
+      try { navigationRef.resetRoot(appStateFromPath(target)); } catch { /* hedef artık geçersizse ana sayfada kal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [auth?.token, auth?.onboardingCompleted]);
+
   useEffect(() => {
     setAnalyticsToken(auth?.token || null);
     if (auth?.token) {
+      registerNotificationCategories();
       clearDeliveredNotifications();
       configurePurchases(auth.id); // RevenueCat'in appUserID'sini bizim kullanıcı ID'mize eşitliyor
 
@@ -200,7 +223,29 @@ function Gate() {
       navigateWhenReady(data.screen, data.params || {});
     }
 
-    return setupNotificationTapHandling(handleNavTarget);
+    // Bildirimdeki "Beğen" / "Listeme ekle" düğmeleri: işlemi yap, kısa bir onay göster ve
+    // filmin sayfasını aç (düğme uygulamayı öne getirdiği için kullanıcı sonucu görüyor).
+    async function handleQuickAction(action, data) {
+      const movieId = Number(data?.movieId || data?.params?.movieId || data?.movie?.id);
+      if (!auth?.token || !Number.isInteger(movieId) || movieId <= 0) return;
+      if (!(await waitForNavReady())) return;
+      const title = data?.title || data?.movie?.title || data?.movieTitle || "";
+      try {
+        if (action === "like") {
+          await api.recordInteraction(auth.token, movieId, "like");
+          emitLocalEvent({ type: "toast", title: translateUI("❤️ Beğendin"), message: title });
+        } else if (action === "add_list") {
+          const lists = (await api.watchlists(auth.token))?.results || [];
+          let list = lists.find((l) => l.name === "İzlenecekler") || lists[0];
+          if (!list) list = await api.createWatchlist(auth.token, "İzlenecekler");
+          await api.addToWatchlist(auth.token, list.id, movieId);
+          emitLocalEvent({ type: "toast", title: translateUI("✅ Listeye eklendi"), message: title ? `${title} · ${list.name}` : list.name });
+        }
+      } catch { /* zaten ekliyse ya da bağlantı yoksa sessizce geç; sayfa yine açılıyor */ }
+      handleNavTarget({ screen: "Detail", params: { movieId } });
+    }
+
+    return setupNotificationTapHandling(handleNavTarget, handleQuickAction);
   }, [auth?.token]);
 
   const appReady = !checking;

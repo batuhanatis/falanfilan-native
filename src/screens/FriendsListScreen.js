@@ -83,7 +83,7 @@ export default function FriendsListScreen({ navigation }) {
                 <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.leaderboardLinkGradient}>
                   <Sparkles size={14} color="#fff" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.leaderboardLinkText}>{translateUI("Zevk Uyumu Sıralaması")}</Text>
+                    <Text style={styles.leaderboardLinkText}>{translateUI("Uyum Sıralaması")}</Text>
                     <Text style={styles.leaderboardLinkSub}>{translateUI("En çok kiminle aynı şeyleri seçiyorsun?")}</Text>
                   </View>
                 </LinearGradient>
