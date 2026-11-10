@@ -1,4 +1,5 @@
 import { t as translateUI } from "../i18n/core";
+import { FONTS } from "../theme/fonts";
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Animated, PanResponder, Dimensions, ActivityIndicator, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -370,7 +371,7 @@ export default function MatchPartyScreen({ route, navigation }) {
             return (
               <View style={styles.progressBlock}>
                 <View style={styles.progressBarRow}>
-                  {iAmLeading && <Trophy size={11} color="#FFD700" />}
+                  {iAmLeading && <Trophy size={11} color={c.accent} />}
                   <Text style={styles.progressLabel} numberOfLines={1}>{translateUI("Sen")}</Text>
                   <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${Math.min(100, (cursor / maxProgress) * 100)}%`, backgroundColor: c.accent }]} />
@@ -381,7 +382,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                   const memberLeading = !isTie && leadValue > 0 && (m.progress || 0) === leadValue;
                   return (
                     <View key={m.id} style={styles.progressBarRow}>
-                      {memberLeading && <Trophy size={11} color="#FFD700" />}
+                      {memberLeading && <Trophy size={11} color={c.accent} />}
                       <RetryImage source={{ uri: avatarOr(m.avatarUrl, m.id) }} style={styles.progressAvatar} />
                       <View style={styles.progressTrack}>
                         <View style={[styles.progressFill, { width: `${Math.min(100, ((m.progress || 0) / maxProgress) * 100)}%`, backgroundColor: c.accent2 }]} />
@@ -495,7 +496,7 @@ export default function MatchPartyScreen({ route, navigation }) {
                   card: () => setShowShareCard(true),
                 })}
               >
-                <Share2 size={13} color="#fff" />
+                <Share2 size={13} color="#1a150c" />
                 <Text style={styles.shareResultBtnText}>{translateUI("Eşleşmeyi Paylaş")}</Text>
               </ShareFan>
               <TouchableOpacity
@@ -594,7 +595,7 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 14, fontWeight: "800", color: c.text },
+    headerTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text },
     headerSubtitle: { fontSize: 11, color: c.dim, marginTop: 1 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
     label: { fontSize: 11, fontWeight: "700", color: c.dim, marginBottom: 8, marginTop: 14 },
@@ -642,9 +643,9 @@ function makeStyles(c) {
     },
     shareResultBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-      backgroundColor: "#DB2777", borderRadius: 14, paddingVertical: 13, marginBottom: 16,
+      backgroundColor: c.accent, borderRadius: 14, paddingVertical: 13, marginBottom: 16,
     },
-    shareResultBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+    shareResultBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 13 },
     watchlistBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginBottom: 16,

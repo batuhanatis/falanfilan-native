@@ -2,7 +2,8 @@ import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { Swords, Users, Trophy, Clock3, ChevronRight, Share2, RotateCcw, AlertCircle } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -127,7 +128,7 @@ export default function FriendBattleScreen({ navigation, route }) {
   }
 
   if (loading) {
-    return <View style={[styles.root, styles.center]}><ActivityIndicator color="#FB7185" /></View>;
+    return <View style={[styles.root, styles.center]}><ActivityIndicator color={c.accent} /></View>;
   }
 
   if (unavailable) {
@@ -135,7 +136,7 @@ export default function FriendBattleScreen({ navigation, route }) {
       <View style={styles.root}>
         <ScreenHeader title={translateUI("Friend Battle")} onBack={() => navigation.goBack()} />
         <View style={styles.centerContent}>
-          <View style={styles.bigIcon}><Swords size={28} color="#FB7185" /></View>
+          <View style={styles.bigIcon}><Swords size={28} color={c.accent} /></View>
           <Text style={styles.emptyTitle}>{translateUI("Friend Battle hazırlanıyor")}</Text>
           <Text style={styles.emptyText}>{translateUI("Bu özellik backend yayını tamamlandığında burada açılacak.")}</Text>
         </View>
@@ -162,12 +163,13 @@ export default function FriendBattleScreen({ navigation, route }) {
     <View style={styles.root}>
       <ScreenHeader title={translateUI("Friend Battle")} subtitle={translateUI("Aynı sorular, ayrı zamanlar")} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-          <View style={styles.heroIcon}><Swords size={25} color="#fff" /></View>
+        <View style={styles.hero}>
+          <GoldWash height={170} />
+          <View style={styles.heroIcon}><Swords size={22} color={c.accent} /></View>
           <Text style={styles.heroEyebrow}>{translateUI("ASENKRON MEYDAN OKUMA")}</Text>
           <Text style={styles.heroTitle}>{translateUI("Aynı 8 seçimi yapın.")}</Text>
           <Text style={styles.heroSub}>{translateUI("Aynı anda online olmanız gerekmiyor. İkiniz de tamamlayınca beğeni uyumunuz ortaya çıkıyor.")}</Text>
-        </LinearGradient>
+        </View>
 
         {!!actionError && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{actionError}</Text></View>}
 
@@ -192,7 +194,7 @@ export default function FriendBattleScreen({ navigation, route }) {
           <TouchableOpacity key={friend.id} style={styles.friendRow} onPress={() => create(friend)} activeOpacity={0.82} disabled={!!creatingId}>
             <RetryImage source={{ uri: avatarOr(friend.avatar_url || friend.avatarUrl, friend.id) }} style={styles.avatar} />
             <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{friend.name}</Text><Text style={styles.rowSub}>{translateUI("8 seçimlik meydan okuma gönder")}</Text></View>
-            {creatingId === friend.id ? <ActivityIndicator size="small" color="#FB7185" /> : <View style={styles.challengeBtn}><Swords size={14} color="#fff" /></View>}
+            {creatingId === friend.id ? <ActivityIndicator size="small" color={c.accent} /> : <View style={styles.challengeBtn}><Swords size={14} color="#1a150c" /></View>}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -214,7 +216,7 @@ function BattlePlay({ battle, index, styles, onChoose, submitting, error }) {
         <View style={styles.vs}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
         <Choice movie={q.right} styles={styles} onPress={() => onChoose(q.right.id)} disabled={submitting} />
       </View>
-      {submitting && <ActivityIndicator style={{ marginTop: 20 }} color="#FB7185" />}
+      {submitting && <ActivityIndicator style={{ marginTop: 20 }} color={c.accent} />}
       {!!error && <Text style={styles.playError}>{translateUI(error)}</Text>}
     </ScrollView>
   );
@@ -233,7 +235,7 @@ function Choice({ movie, styles, onPress, disabled }) {
 function Waiting({ battle, styles, onBack }) {
   return (
     <View style={styles.centerContent}>
-      <View style={styles.bigIcon}><Clock3 size={28} color="#FB7185" /></View>
+      <View style={styles.bigIcon}><Clock3 size={28} color={c.accent} /></View>
       <Text style={styles.emptyTitle}>{translateUI("Sen tamamladın ✓")}</Text>
       <Text style={styles.emptyText}>{battle.opponent?.name || translateUI("Arkadaşın")}{translateUI(" turunu bitirince ortak skorunuz burada açılacak.")}</Text>
       <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}><Text style={styles.secondaryBtnText}>{translateUI("Meydan Okumalara Dön")}</Text></TouchableOpacity>
@@ -251,18 +253,19 @@ function BattleResult({ battle, styles, onAgain }) {
   });
   return (
     <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={["#7C3AED", "#DB2777", "#F97316"]} style={styles.resultHero}>
-        <Trophy size={30} color="#fff" />
+      <View style={styles.resultHero}>
+        <GoldWash height={180} />
+        <Trophy size={28} color={c.accent} />
         <Text style={styles.resultPercent}>{translateUI("%")}{result.percent}</Text>
-        <Text style={styles.resultTitle}>{translateUI("Beğeni uyumu")}</Text>
+        <Text style={styles.resultTitle}>{translateUI("BEĞENİ UYUMU")}</Text>
         <Text style={styles.resultSub}>{translateUI(message)}</Text>
-      </LinearGradient>
+      </View>
       <View style={styles.resultStats}>
         <View style={styles.stat}><Text style={styles.statValue}>{result.agreements}</Text><Text style={styles.statLabel}>{translateUI("AYNI SEÇİM")}</Text></View>
         <View style={styles.stat}><Text style={styles.statValue}>{result.total}</Text><Text style={styles.statLabel}>{translateUI("TOPLAM")}</Text></View>
       </View>
-      <ShareFan style={styles.shareBtn} options={shareFanOptions} accessibilityLabel={translateUI("Sonucu paylaş")}><Share2 size={16} color="#fff" /><Text style={styles.shareText}>{translateUI("Sonucu Paylaş")}</Text></ShareFan>
-      <TouchableOpacity style={styles.secondaryBtn} onPress={onAgain}><RotateCcw size={15} color="#fff" /><Text style={styles.secondaryBtnText}>{translateUI("Başka Battle Başlat")}</Text></TouchableOpacity>
+      <ShareFan style={styles.shareBtn} options={shareFanOptions} accessibilityLabel={translateUI("Sonucu paylaş")}><Share2 size={16} color="#1a150c" /><Text style={styles.shareText}>{translateUI("Sonucu Paylaş")}</Text></ShareFan>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={onAgain}><RotateCcw size={15} color={c.text} /><Text style={styles.secondaryBtnText}>{translateUI("Başka Battle Başlat")}</Text></TouchableOpacity>
     </ScrollView>
   );
 }
@@ -280,11 +283,11 @@ function makeStyles(c, insets) {
     root: { flex: 1, backgroundColor: c.bg },
     center: { alignItems: "center", justifyContent: "center" },
     content: { padding: 16, paddingBottom: safeBottom },
-    hero: { borderRadius: 24, padding: 20, overflow: "hidden" },
-    heroIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", marginBottom: 18 },
-    heroEyebrow: { color: "rgba(255,255,255,0.72)", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
-    heroTitle: { color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 5 },
-    heroSub: { color: "rgba(255,255,255,0.82)", fontSize: 12, lineHeight: 18, marginTop: 7 },
+    hero: { borderRadius: 18, padding: 20, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },
+    heroIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center", marginBottom: 16 },
+    heroEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3 },
+    heroTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 32, marginTop: 4 },
+    heroSub: { color: c.dim, fontSize: 12.5, lineHeight: 18, marginTop: 6 },
     errorBox: { marginTop: 12, flexDirection: "row", alignItems: "flex-start", gap: 7, backgroundColor: `${c.danger}12`, borderWidth: 1, borderColor: `${c.danger}35`, borderRadius: 12, padding: 10 },
     errorText: { flex: 1, color: c.danger, fontSize: 10.5, lineHeight: 15 },
     sectionLabel: { color: c.dim, fontSize: 9.5, fontWeight: "900", letterSpacing: 1, marginTop: 22, marginBottom: 9 },
@@ -293,17 +296,17 @@ function makeStyles(c, insets) {
     avatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: c.surface2 },
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     rowSub: { color: c.dim, fontSize: 10.5, marginTop: 2 },
-    scorePill: { color: "#fff", fontSize: 11, fontWeight: "900", backgroundColor: "#DB2777", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
-    challengeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: "#DB2777", alignItems: "center", justifyContent: "center" },
+    scorePill: { color: "#1a150c", fontSize: 11, fontWeight: "900", backgroundColor: c.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, overflow: "hidden" },
+    challengeBtn: { width: 34, height: 34, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
     emptyCard: { alignItems: "center", gap: 8, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.border, padding: 22 },
     centerContent: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingTop: 28, paddingBottom: safeBottom },
     bigIcon: { width: 64, height: 64, borderRadius: 22, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center", marginBottom: 14 },
     emptyTitle: { color: c.text, fontSize: 18, fontWeight: "900", textAlign: "center" },
     emptyText: { color: c.dim, fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: 6 },
     playContent: { padding: 18, paddingBottom: safeBottom },
-    progress: { color: "#FB7185", fontSize: 11, fontWeight: "900", textAlign: "center" },
+    progress: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.8, textAlign: "center" },
     progressTrack: { height: 5, backgroundColor: c.surface2, borderRadius: 999, marginTop: 8, overflow: "hidden" },
-    progressFill: { height: 5, backgroundColor: "#FB7185", borderRadius: 999 },
+    progressFill: { height: 5, backgroundColor: c.accent, borderRadius: 999 },
     question: { color: c.text, fontSize: 22, fontWeight: "900", textAlign: "center", marginTop: 28 },
     questionSub: { color: c.dim, fontSize: 11.5, textAlign: "center", lineHeight: 17, marginTop: 5 },
     choiceRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 24 },
@@ -311,20 +314,20 @@ function makeStyles(c, insets) {
     choicePoster: { width: "100%", aspectRatio: 2 / 3, backgroundColor: c.surface2 },
     choiceTitle: { color: c.text, fontSize: 12.5, fontWeight: "800", paddingHorizontal: 9, marginTop: 8 },
     choiceMeta: { color: c.dim, fontSize: 9.5, paddingHorizontal: 9, marginTop: 2 },
-    vs: { position: "absolute", zIndex: 5, left: "50%", marginLeft: -19, width: 38, height: 38, borderRadius: 999, backgroundColor: "#DB2777", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg },
-    vsText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+    vs: { position: "absolute", zIndex: 5, left: "50%", marginLeft: -19, width: 38, height: 38, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg },
+    vsText: { color: "#1a150c", fontFamily: FONTS.marquee, fontSize: 14 },
     playError: { color: c.danger, fontSize: 11, textAlign: "center", lineHeight: 16, marginTop: 14 },
     resultContent: { padding: 18, paddingBottom: safeBottom },
-    resultHero: { borderRadius: 24, padding: 26, alignItems: "center" },
-    resultPercent: { color: "#fff", fontSize: 52, fontWeight: "900", marginTop: 8 },
-    resultTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
-    resultSub: { color: "rgba(255,255,255,0.82)", fontSize: 12, marginTop: 5, textAlign: "center" },
+    resultHero: { borderRadius: 18, padding: 26, alignItems: "center", overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },
+    resultPercent: { color: c.accent, fontFamily: FONTS.marquee, fontSize: 76, lineHeight: 80, marginTop: 6 },
+    resultTitle: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1.3 },
+    resultSub: { color: c.text, opacity: 0.86, fontSize: 12.5, marginTop: 6, textAlign: "center" },
     resultStats: { flexDirection: "row", gap: 10, marginTop: 12 },
     stat: { flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, alignItems: "center" },
-    statValue: { color: c.text, fontSize: 22, fontWeight: "900" },
+    statValue: { color: c.text, fontFamily: FONTS.marquee, fontSize: 28 },
     statLabel: { color: c.dim, fontSize: 8.5, fontWeight: "900", marginTop: 3, letterSpacing: 0.7 },
-    shareBtn: { minHeight: 46, marginTop: 14, borderRadius: 14, backgroundColor: "#DB2777", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-    shareText: { color: "#fff", fontSize: 12.5, fontWeight: "900" },
+    shareBtn: { minHeight: 46, marginTop: 14, borderRadius: 14, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+    shareText: { color: "#1a150c", fontSize: 12.5, fontWeight: "900" },
     secondaryBtn: { minHeight: 44, marginTop: 10, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 14 },
     secondaryBtnText: { color: c.text, fontSize: 12, fontWeight: "800" },
   });

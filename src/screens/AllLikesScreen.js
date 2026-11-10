@@ -1,4 +1,5 @@
 import { t as translateUI } from "../i18n/core";
+import { FONTS } from "../theme/fonts";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react-native";
@@ -110,7 +111,7 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    headerTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text },
     poster: { flex: 1, aspectRatio: 2 / 3, borderRadius: 8 },
     eyeBtn: { position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.68)", alignItems: "center", justifyContent: "center" },
     emptyText: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 40 },

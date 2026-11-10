@@ -1,10 +1,12 @@
 import { t as translateUI } from "../i18n/core";
+import { FONTS } from "../theme/fonts";
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import { ChevronLeft, Star, Clapperboard } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
 
 // Detay sayfasındaki "OYUNCULAR" satırında bir isme dokununca açılıyor — o kişinin oynadığı
 // film/dizileri, IMDB oy sayısına göre en tanınandan başlayarak, poster ızgarası olarak gösterir.
@@ -61,7 +63,7 @@ export default function PersonScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{person.name || initialName}</Text>
+        <Text style={styles.headerEyebrow} numberOfLines={1}>{translateUI("KÜNYE")}</Text>
       </View>
 
       <FlatList
@@ -71,21 +73,30 @@ export default function PersonScreen({ route, navigation }) {
         columnWrapperStyle={{ gap: 10 }}
         contentContainerStyle={{ padding: 16 }}
         ListHeaderComponent={
-          <View style={styles.profileRow}>
-            {(person.photo || initialPhoto) ? (
-              <Image source={{ uri: person.photo || initialPhoto }} style={styles.profilePhoto} />
-            ) : (
-              <View style={[styles.profilePhoto, styles.profilePhotoFallback]} />
-            )}
-            <Text style={styles.profileName}>{person.name || initialName}</Text>
-            {!loading && (
-              <View style={styles.profileMetaRow}>
-                <Clapperboard size={12} color={c.dim} />
-                <Text style={styles.profileMeta}>
-                  {totalCount > 0 ? translateUI("{0} yapım {1}", {0: totalCount,1: isDirector ? "yönetti" : "oynadı"}) : translateUI("Bilinen bir yapım bulunamadı")}
-                </Text>
+          // Salon künyesi: afiş gibi bir kahraman kartı — altın halkalı portre, rol künyesi,
+          // Big Shoulders isim; altında filmografi başlığı.
+          <View>
+            <View style={styles.hero}>
+              <GoldWash height={190} strength={0.18} />
+              <View style={styles.photoRing}>
+                {(person.photo || initialPhoto) ? (
+                  <Image source={{ uri: person.photo || initialPhoto }} style={styles.profilePhoto} />
+                ) : (
+                  <View style={[styles.profilePhoto, styles.profilePhotoFallback]} />
+                )}
               </View>
-            )}
+              <Text style={styles.roleEyebrow}>{isDirector ? translateUI("YÖNETMEN") : translateUI("OYUNCU")}</Text>
+              <Text style={styles.profileName}>{person.name || initialName}</Text>
+              {!loading && (
+                <View style={styles.profileMetaRow}>
+                  <Clapperboard size={12} color={c.accent} />
+                  <Text style={styles.profileMeta}>
+                    {totalCount > 0 ? translateUI("{0} yapım {1}", {0: totalCount,1: isDirector ? "yönetti" : "oynadı"}) : translateUI("Bilinen bir yapım bulunamadı")}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {results.length > 0 && <Text style={styles.sectionLabel}>{translateUI("FİLMOGRAFİ")}</Text>}
           </View>
         }
         renderItem={({ item }) => (
@@ -139,29 +150,38 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 14, fontWeight: "800", color: c.text, flex: 1 },
-    profileRow: { alignItems: "center", paddingVertical: 20 },
-    profilePhoto: { width: 96, height: 96, borderRadius: 999, borderWidth: 2, borderColor: c.accent },
+    headerEyebrow: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1.6, color: c.accent, flex: 1 },
+    hero: {
+      alignItems: "center", paddingTop: 26, paddingBottom: 22, paddingHorizontal: 18, marginBottom: 20,
+      borderRadius: 18, borderWidth: 1, borderColor: SALON.goldLine, backgroundColor: c.surface, overflow: "hidden",
+    },
+    photoRing: { padding: 4, borderRadius: 999, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg },
+    profilePhoto: { width: 104, height: 104, borderRadius: 999 },
     profilePhotoFallback: { backgroundColor: c.surface2 },
-    profileName: { fontSize: 17, fontWeight: "800", color: c.text, marginTop: 12, textAlign: "center" },
-    profileMetaRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
-    profileMeta: { fontSize: 11.5, color: c.dim },
+    roleEyebrow: { fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.8, color: c.accent, marginTop: 16 },
+    profileName: { fontFamily: FONTS.marquee, fontSize: 40, lineHeight: 42, color: c.text, marginTop: 4, textAlign: "center" },
+    profileMetaRow: {
+      flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12,
+      borderWidth: 1, borderColor: "rgba(201,164,76,0.4)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    },
+    profileMeta: { fontFamily: FONTS.monoMedium, fontSize: 10.5, color: c.accent, letterSpacing: 0.4 },
+    sectionLabel: { fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.6, color: c.dim, marginBottom: 12 },
     card: { flex: 1, marginBottom: 18 },
-    posterWrap: { width: "100%", aspectRatio: 2 / 3, borderRadius: 12, overflow: "hidden", backgroundColor: c.surface2 },
+    posterWrap: { width: "100%", aspectRatio: 2 / 3, borderRadius: 8, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: "rgba(201,164,76,0.22)" },
     posterFallback: { backgroundColor: c.surface2 },
     ratingBadge: {
       position: "absolute", top: 6, left: 6,
       flexDirection: "row", alignItems: "center", gap: 3,
-      backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 999,
+      backgroundColor: "rgba(20,18,26,0.82)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 999,
     },
-    ratingText: { fontSize: 9, fontWeight: "800", color: "#fff" },
-    cardTitle: { fontSize: 11.5, fontWeight: "700", color: c.text, marginTop: 6 },
-    cardMeta: { fontSize: 10, color: c.dim, marginTop: 1 },
+    ratingText: { fontSize: 9, fontFamily: FONTS.monoMedium, color: SALON.cream },
+    cardTitle: { fontFamily: FONTS.marquee, fontSize: 15, lineHeight: 16, color: c.text, marginTop: 7 },
+    cardMeta: { fontFamily: FONTS.monoMedium, fontSize: 9, color: c.dim, marginTop: 2 },
     cardCharacter: { fontSize: 9.5, color: c.accent, marginTop: 1, fontStyle: "italic" },
     emptyText: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 20, paddingHorizontal: 30 },
     seeAllBtn: {
       alignItems: "center", justifyContent: "center", paddingVertical: 14, marginTop: 4,
-      borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.surface,
+      borderWidth: 1, borderColor: "rgba(201,164,76,0.4)", borderRadius: 12, backgroundColor: "transparent",
     },
     seeAllBtnText: { color: c.accent, fontWeight: "800", fontSize: 13 },
   });

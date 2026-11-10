@@ -1,7 +1,7 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Animated } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { FONTS } from "../theme/fonts";
 import { Dices, X, Star } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { hapticLight, hapticSuccess } from "../utils/haptics";
@@ -61,10 +61,10 @@ export default function WatchlistRouletteModal({ items, onClose, onOpenMovie, on
           <X size={20} color="#fff" />
         </TouchableOpacity>
 
-        <LinearGradient colors={["#F97316", "#DB2777", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerPill}>
-          <Dices size={14} color="#fff" />
+        <View style={styles.headerPill}>
+          <Dices size={14} color="#1a150c" />
           <Text style={styles.headerPillText}>{spinning ? translateUI("Seçiliyor…") : translateUI("Bu Gece Bu!")}</Text>
-        </LinearGradient>
+        </View>
 
         <Animated.View style={{ transform: [{ scale: spinning ? 1 : winnerScale }], opacity: spinning ? 1 : winnerOpacity }}>
           {current?.poster ? (
@@ -105,11 +105,11 @@ function makeStyles(c) {
     closeBtn: { position: "absolute", top: 54, right: 20, zIndex: 5 },
     headerPill: {
       flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999,
-      paddingHorizontal: 14, paddingVertical: 7,
+      paddingHorizontal: 14, paddingVertical: 7, backgroundColor: "#c9a44c",
     },
-    headerPillText: { color: "#fff", fontWeight: "800", fontSize: 12.5 },
+    headerPillText: { color: "#1a150c", fontWeight: "800", fontSize: 12.5 },
     poster: { width: 190, height: 276, borderRadius: 16 },
-    winnerTitle: { color: "#fff", fontSize: 19, fontWeight: "800", textAlign: "center", marginTop: 4 },
+    winnerTitle: { color: "#f3ead8", fontFamily: FONTS.marquee, fontSize: 30, textAlign: "center", marginTop: 4 },
     winnerMetaRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 },
     winnerMeta: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
     btnRow: { flexDirection: "row", gap: 10, marginTop: 18 },

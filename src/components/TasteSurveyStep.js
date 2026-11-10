@@ -8,7 +8,6 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { hapticLight } from "../utils/haptics";
 import { GENRE_FILTERS } from "../theme/theme";
-import { GENRE_COLORS } from "../utils/genreColors";
 import FavoritePicker from "./FavoritePicker";
 
 export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel = "Atla", continueLabel = "Devam Et", onSkip, onContinue }) {
@@ -85,16 +84,15 @@ export default function TasteSurveyStep({ title, subtitle, topExtra, skipLabel =
         <View style={styles.genreGrid}>
           {GENRE_FILTERS.map((genre) => {
             const on = selectedGenres.has(genre);
-            const color = GENRE_COLORS[genre] || c.accent;
             return (
               <TouchableOpacity
                 key={translateUI(genre)}
-                style={[styles.genreChip, on && { backgroundColor: color, borderColor: color }]}
+                style={[styles.genreChip, on && { backgroundColor: c.accent, borderColor: c.accent }]}
                 onPress={() => toggleGenre(genre)}
                 activeOpacity={0.8}
               >
-                {on && <Check size={12} color="#fff" style={{ marginRight: 5 }} />}
-                <Text style={[styles.genreChipText, on && { color: "#fff" }]}>{translateUI(genre)}</Text>
+                {on && <Check size={12} color="#1a150c" style={{ marginRight: 5 }} />}
+                <Text style={[styles.genreChipText, on && { color: "#1a150c" }]}>{translateUI(genre)}</Text>
               </TouchableOpacity>
             );
           })}

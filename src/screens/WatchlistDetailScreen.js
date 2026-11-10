@@ -2,7 +2,6 @@ import { Alert } from "../i18n/native";
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Switch,  TextInput } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, X, Share2, Lock, Globe, Wand2, Pencil, Check, ListChecks, Dices, Search, UserPlus, LogOut } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -272,21 +271,20 @@ export default function WatchlistDetailScreen({ route, navigation }) {
 
       <View style={styles.actionBtnsRow}>
         <TouchableOpacity onPress={getAiRecommendations} disabled={aiLoading} activeOpacity={0.85} style={{ flex: 1 }}>
-          <LinearGradient colors={["#8e2de2", "#4a00e0", "#00c9ff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiBtn}>
-            {aiLoading ? <ActivityIndicator color="#fff" /> : (
+          <View style={styles.aiBtn}>
+            {aiLoading ? <ActivityIndicator color="#1a150c" /> : (
               <>
-                <Wand2 size={19} color="#fff" />
+                <Wand2 size={19} color="#1a150c" />
                 <Text style={styles.aiBtnText}>{translateUI("Buna Benzer Öner")}</Text>
               </>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
         {/* WL5 — Film Gecesi Ruleti: en az 2 içerik varken anlamlı. */}
         {items.length >= 2 && (
-          <TouchableOpacity onPress={() => setShowRoulette(true)} activeOpacity={0.85}>
-            <LinearGradient colors={["#F97316", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.rouletteBtn}>
-              <Dices size={19} color="#fff" />
-            </LinearGradient>
+          // Düğme satır yüksekliğini doldursun diye stil doğrudan dokunma alanında.
+          <TouchableOpacity onPress={() => setShowRoulette(true)} activeOpacity={0.85} style={styles.rouletteBtn} accessibilityLabel={translateUI("Film Gecesi Ruleti")}>
+            <Dices size={19} color={c.accent} />
           </TouchableOpacity>
         )}
       </View>
@@ -560,13 +558,12 @@ function makeStyles(c) {
     actionBtnsRow: { flexDirection: "row", gap: 8 },
     aiBtn: {
       flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-      borderRadius: 16, paddingVertical: 16, marginBottom: 6,
-      shadowColor: "#8e2de2", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+      borderRadius: 14, paddingVertical: 16, marginBottom: 6, backgroundColor: c.accent,
     },
-    aiBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+    aiBtnText: { color: "#1a150c", fontWeight: "800", fontSize: 15 },
     rouletteBtn: {
-      width: 54, alignSelf: "stretch", borderRadius: 16, alignItems: "center", justifyContent: "center",
-      shadowColor: "#DB2777", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+      width: 54, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 6,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.4)",
     },
     aiResultsBox: { marginTop: 14, marginBottom: 6 },
     aiResultsTitle: { fontSize: 12.5, fontWeight: "800", color: c.text, marginBottom: 10 },

@@ -1,7 +1,8 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "./salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { X } from "lucide-react-native";
 import Confetti from "./Confetti";
 import { hapticSuccess } from "../utils/haptics";
@@ -33,8 +34,9 @@ export default function BadgeCelebrationOverlay({ badge, onClose, onViewBadges }
     <Animated.View style={[styles.backdrop, { opacity }]}>
       <Confetti count={46} spread={700} />
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+        <GoldWash height={170} strength={0.2} />
         <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <X size={16} color="rgba(255,255,255,0.7)" />
+          <X size={16} color={SALON.dim} />
         </TouchableOpacity>
         <Text style={styles.eyebrow}>{translateUI("YENİ ROZET")}</Text>
         <Animated.View style={[styles.iconRing, { transform: [{ rotate: spin }] }]}>
@@ -43,9 +45,9 @@ export default function BadgeCelebrationOverlay({ badge, onClose, onViewBadges }
         <Text style={styles.name}>{badge.name}</Text>
         <Text style={styles.desc}>{badge.desc}</Text>
         <TouchableOpacity style={styles.viewBtn} onPress={onViewBadges} activeOpacity={0.85}>
-          <LinearGradient colors={["#F59E0B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.viewBtnGradient}>
+          <View style={styles.viewBtnGradient}>
             <Text style={styles.viewBtnText}>{translateUI("Rozetlerimi Gör")}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>
@@ -58,21 +60,20 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center", padding: 30,
   },
   card: {
-    width: "100%", maxWidth: 320, backgroundColor: "#1A1625", borderRadius: 26, padding: 26,
-    alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
-    shadowColor: "#F59E0B", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 24, elevation: 14,
+    width: "100%", maxWidth: 320, backgroundColor: "#1c1a24", borderRadius: 22, padding: 26,
+    alignItems: "center", borderWidth: 1, borderColor: SALON.goldLine, overflow: "hidden",
   },
   closeBtn: { position: "absolute", top: 14, right: 14, padding: 4, zIndex: 2 },
-  eyebrow: { color: "#F59E0B", fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
+  eyebrow: { color: SALON.gold, fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 1.6 },
   iconRing: {
     width: 92, height: 92, borderRadius: 999, marginTop: 16, marginBottom: 14,
-    backgroundColor: "rgba(245,158,11,0.14)", borderWidth: 2, borderColor: "#F59E0B",
+    backgroundColor: SALON.ink, borderWidth: 1.5, borderColor: SALON.gold,
     alignItems: "center", justifyContent: "center",
   },
   icon: { fontSize: 42 },
-  name: { color: "#fff", fontSize: 20, fontWeight: "800", textAlign: "center" },
-  desc: { color: "rgba(255,255,255,0.65)", fontSize: 12.5, marginTop: 6, textAlign: "center", lineHeight: 18 },
+  name: { color: SALON.cream, fontFamily: FONTS.marquee, fontSize: 30, lineHeight: 32, textAlign: "center" },
+  desc: { color: SALON.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", lineHeight: 18 },
   viewBtn: { marginTop: 20, borderRadius: 14, overflow: "hidden", alignSelf: "stretch" },
-  viewBtnGradient: { paddingVertical: 13, alignItems: "center" },
-  viewBtnText: { color: "#fff", fontWeight: "800", fontSize: 13.5 },
+  viewBtnGradient: { paddingVertical: 13, alignItems: "center", backgroundColor: SALON.gold },
+  viewBtnText: { color: SALON.onGold, fontWeight: "800", fontSize: 13.5 },
 });

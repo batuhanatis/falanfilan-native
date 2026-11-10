@@ -224,9 +224,9 @@ export default function SplashIntroAnim({ onFinish }) {
         <Svg width={GLOW_SIZE} height={GLOW_SIZE} viewBox="0 0 300 300">
           <Defs>
             <RadialGradient id="purpleAmbient" cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor="#7C3AED" stopOpacity="0.30" />
-              <Stop offset="0.42" stopColor="#5B21B6" stopOpacity="0.14" />
-              <Stop offset="0.78" stopColor="#2E1065" stopOpacity="0.06" />
+              <Stop offset="0" stopColor="#c9a44c" stopOpacity="0.16" />
+              <Stop offset="0.42" stopColor="#7a5f24" stopOpacity="0.08" />
+              <Stop offset="0.78" stopColor="#2a2114" stopOpacity="0.04" />
               <Stop offset="1" stopColor="#14121A" stopOpacity="0" />
             </RadialGradient>
           </Defs>
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     height: LOGO_SIZE,
     borderRadius: 43,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
+    shadowColor: "#c9a44c",
     shadowOpacity: 0.22,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },

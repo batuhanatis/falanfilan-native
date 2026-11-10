@@ -18,6 +18,10 @@ import { decodePoll, decodePlan, formatPlanTime } from "../utils/richMessage";
 import { decodeStoryReply } from "../utils/storyReplyShare";
 import RetryImage from "./RetryImage";
 
+// Salon dili: paylaşım künyeleri (film/liste/aktivite/story/anket/plan) renkli gradyan yerine
+// "mürekkep" zemin üstünde altın; benim (altın) balonumda da karşı tarafın koyu balonunda da okunuyor.
+const SALON_GOLD = "#c9a44c";
+
 // Düz metni bağlantı ve metin parçalarına ayırıyor (cümle sonundaki nokta, virgül linke dahil değil).
 function splitLinks(body) {
   const text = String(body ?? "");
@@ -192,7 +196,6 @@ function ChatMessageRow({
       );
     }
   } else if (shared) {
-    const movieGradient = shared.type === "Dizi" ? ["#0EA5E9", "#6366F1"] : ["#8B5CF6", "#EC4899"];
     bubbleContent = (
       <TouchableOpacity
         style={[styles.movieBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
@@ -214,10 +217,10 @@ function ChatMessageRow({
           )}
         </View>
         <View style={styles.movieBubbleInfo}>
-          <LinearGradient colors={movieGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.movieBubblePill}>
-            <Film size={10} color="#fff" />
+          <View style={[styles.movieBubblePill, styles.salonInk]}>
+            <Film size={10} color={SALON_GOLD} />
             <Text style={styles.movieBubblePillText} numberOfLines={1}>{shared.type === "Dizi" ? translateUI("Dizi Önerisi") : translateUI("Film Önerisi")}</Text>
-          </LinearGradient>
+          </View>
           <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{shared.title}</Text>
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
             {shared.year}{shared.genre ? ` · ${shared.genre}` : ""}
@@ -246,15 +249,15 @@ function ChatMessageRow({
         {listShared.previewPoster ? (
           <Image source={{ uri: listShared.previewPoster }} style={styles.movieBubblePoster} />
         ) : (
-          <LinearGradient colors={["#14B8A6", "#0EA5E9"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.movieBubblePoster, { alignItems: "center", justifyContent: "center" }]}>
-            <ListVideo size={26} color="#fff" />
-          </LinearGradient>
+          <View style={[styles.movieBubblePoster, styles.salonInk, { alignItems: "center", justifyContent: "center" }]}>
+            <ListVideo size={26} color={SALON_GOLD} />
+          </View>
         )}
         <View style={styles.movieBubbleInfo}>
-          <LinearGradient colors={["#14B8A6", "#0EA5E9"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.movieBubblePill}>
-            <ListVideo size={10} color="#fff" />
+          <View style={[styles.movieBubblePill, styles.salonInk]}>
+            <ListVideo size={10} color={SALON_GOLD} />
             <Text style={styles.movieBubblePillText} numberOfLines={1}>{translateUI("Liste")}</Text>
-          </LinearGradient>
+          </View>
           <Text style={[styles.movieBubbleTitle, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={2}>{listShared.name}</Text>
           <Text style={[styles.movieBubbleMeta, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]} numberOfLines={1}>
             {listShared.ownerName}{translateUI(" · ")}{listShared.count}{translateUI(" içerik ")}</Text>
@@ -272,17 +275,17 @@ function ChatMessageRow({
         onPress={() => (selectionMode ? actions.toggleSelected(id) : actions.navigateActivity())}
         onLongPress={handleLongPress}
       >
-        <LinearGradient colors={["#EC4899", "#8B5CF6", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
-          <Sparkles size={12} color="#fff" />
+        <View style={[styles.activityShareHeader, styles.salonInk]}>
+          <Sparkles size={12} color={SALON_GOLD} />
           <Text style={styles.activityShareHeaderText}>{translateUI("AKTİVİTE PAYLAŞIMI")}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.activityShareBody}>
           {activityMovie?.poster ? (
             <Image source={{ uri: activityMovie.poster }} style={styles.activitySharePoster} />
           ) : (
-            <LinearGradient colors={["#EC4899", "#6366F1"]} style={[styles.activitySharePoster, { alignItems: "center", justifyContent: "center" }]}>
-              <Sparkles size={24} color="#fff" />
-            </LinearGradient>
+            <View style={[styles.activitySharePoster, styles.salonInk, { alignItems: "center", justifyContent: "center" }]}>
+              <Sparkles size={24} color={SALON_GOLD} />
+            </View>
           )}
           <View style={styles.activityShareInfo}>
             <View style={styles.activityShareUserRow}>
@@ -308,10 +311,10 @@ function ChatMessageRow({
     const storyMovie = storyReplyShared.movie;
     bubbleContent = (
       <View style={[styles.activityShareBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        <LinearGradient colors={["#F59E0B", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.activityShareHeader}>
-          <MessageCircle size={12} color="#fff" />
+        <View style={[styles.activityShareHeader, styles.salonInk]}>
+          <MessageCircle size={12} color={SALON_GOLD} />
           <Text style={styles.activityShareHeaderText}>{isMine ? translateUI("STORY'YE YANIT VERDİN") : translateUI("STORY'NE YANIT VERDİ")}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.activityShareBody}>
           {storyActive ? (
             <TouchableOpacity
@@ -327,9 +330,9 @@ function ChatMessageRow({
               ) : !storyReplyShared.photo && storyMovie?.poster ? (
                 <Image source={{ uri: storyMovie.poster }} style={styles.activitySharePoster} />
               ) : (
-                <LinearGradient colors={["#F59E0B", "#EC4899"]} style={[styles.storyReplyThumb, { alignItems: "center", justifyContent: "center" }]}>
-                  <Camera size={22} color="#fff" />
-                </LinearGradient>
+                <View style={[styles.storyReplyThumb, styles.salonInk, { alignItems: "center", justifyContent: "center" }]}>
+                  <Camera size={22} color={SALON_GOLD} />
+                </View>
               )}
             </TouchableOpacity>
           ) : (
@@ -374,10 +377,10 @@ function ChatMessageRow({
     const maxVoteCount = Math.max(0, ...voteCounts);
     bubbleContent = (
       <View style={[styles.pollBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        <LinearGradient colors={["#F97316", "#DB2777", "#7C3AED"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pollHeaderStrip}>
-          <BarChart2 size={13} color="#fff" />
+        <View style={[styles.pollHeaderStrip, styles.salonInk]}>
+          <BarChart2 size={13} color={SALON_GOLD} />
           <Text style={styles.pollQuestion} numberOfLines={2}>{poll.question}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.pollBody}>
           <View style={styles.pollOptionsRow}>
             {poll.options.map((opt, i) => {
@@ -395,7 +398,7 @@ function ChatMessageRow({
                       : <View style={[styles.pollOptionPoster, { backgroundColor: c.surface2 }]} />}
                     {isLeader && (
                       <View style={styles.pollLeaderBadge}>
-                        <Crown size={11} color="#1a1a1a" fill="#FFD700" />
+                        <Crown size={11} color="#1a150c" fill={SALON_GOLD} />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -404,11 +407,7 @@ function ChatMessageRow({
                   </Text>
                   <View style={styles.pollOptionBarTrack}>
                     {pct > 0 && (
-                      <LinearGradient
-                        colors={["#F97316", "#DB2777"]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={[styles.pollOptionBarFill, { width: `${pct}%` }]}
-                      />
+                      <View style={[styles.pollOptionBarFill, { width: `${pct}%`, backgroundColor: isMine ? "#14121a" : SALON_GOLD }]} />
                     )}
                   </View>
                   <Text style={[styles.pollOptionPct, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
@@ -437,10 +436,10 @@ function ChatMessageRow({
   } else if (plan) {
     bubbleContent = (
       <View style={[styles.planBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-        <LinearGradient colors={["#06B6D4", "#6366F1"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.planHeaderStrip}>
-          <CalendarClock size={14} color="#fff" />
+        <View style={[styles.planHeaderStrip, styles.salonInk]}>
+          <CalendarClock size={14} color={SALON_GOLD} />
           <Text style={styles.planHeaderStripText}>{translateUI("İzleme Planı")}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.planBody}>
           <Text style={[styles.planNote, isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
             {formatPlanTime(plan.scheduledAt)}
@@ -457,10 +456,10 @@ function ChatMessageRow({
             <Text style={[styles.planStatusText, styles.bubbleTextMine, { opacity: 0.8 }]}>{translateUI("Yanıt bekleniyor...")}</Text>
           ) : (
             <TouchableOpacity onPress={() => actions.acceptPlan(id)} activeOpacity={0.85}>
-              <LinearGradient colors={["#22C55E", "#06B6D4"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.planAcceptBtn}>
-                <Check size={14} color="#fff" />
+              <View style={styles.planAcceptBtn}>
+                <Check size={14} color="#1a150c" />
                 <Text style={styles.planAcceptBtnText}>{translateUI("Kabul Et")}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
         </View>

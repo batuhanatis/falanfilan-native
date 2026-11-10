@@ -130,7 +130,7 @@ export default function GroupPartyScreen({ navigation }) {
         {linkAvailable !== false && (
           <>
             <ShareFan style={styles.linkInviteCard} options={partyShareOptions} disabled={sharingLink} accessibilityLabel={translateUI("Party linkini paylaş")}>
-              <View style={styles.linkIconWrap}><Link2 size={18} color="#DB2777" /></View>
+              <View style={styles.linkIconWrap}><Link2 size={18} color={c.accent} /></View>
               <View style={{ flex: 1 }}>
                 <View style={styles.linkTitleRow}>
                   <Text style={styles.linkTitle}>{createdLinkSession ? translateUI("Party Link Hazır") : translateUI("Party Link Oluştur")}</Text>
@@ -142,7 +142,7 @@ export default function GroupPartyScreen({ navigation }) {
                     : translateUI("Arkadaş ekli olmasa bile linki açan Pellix kullanıcısı Party'ye katılabilir.")}
                 </Text>
               </View>
-              {sharingLink ? <ActivityIndicator size="small" color="#DB2777" /> : <Share2 size={17} color={c.dim} />}
+              {sharingLink ? <ActivityIndicator size="small" color={c.accent} /> : <Share2 size={17} color={c.dim} />}
             </ShareFan>
 
             {!!createdLinkSession?.sessionId && (
@@ -255,13 +255,13 @@ export default function GroupPartyScreen({ navigation }) {
 function makeStyles(c) {
   return StyleSheet.create({
     subtitle: { fontSize: 12, color: c.dim, marginBottom: 12, lineHeight: 17 },
-    linkInviteCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(219,39,119,0.08)", borderWidth: 1, borderColor: "rgba(219,39,119,0.24)", borderRadius: 16, padding: 13, marginBottom: 10 },
-    linkIconWrap: { width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(219,39,119,0.14)", alignItems: "center", justifyContent: "center" },
+    linkInviteCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.38)", borderRadius: 14, padding: 13, marginBottom: 10 },
+    linkIconWrap: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: c.accent, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
     linkTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     linkTitle: { color: c.text, fontSize: 12.5, fontWeight: "900" },
     linkSub: { color: c.dim, fontSize: 10.2, lineHeight: 14, marginTop: 2 },
-    newBadge: { backgroundColor: "#DB2777", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
-    newBadgeText: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: 0.4 },
+    newBadge: { backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+    newBadgeText: { color: "#1a150c", fontSize: 7, fontWeight: "900", letterSpacing: 0.4 },
     linkLobbyBtn: { minHeight: 42, marginBottom: 16, borderRadius: 13, backgroundColor: c.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     linkLobbyText: { color: c.bg, fontSize: 12, fontWeight: "900" },
     squadRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, paddingLeft: 10 },

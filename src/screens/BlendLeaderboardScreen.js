@@ -1,7 +1,7 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { FONTS } from "../theme/fonts";
 import { ChevronLeft, Crown, Users } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -25,7 +25,8 @@ export default function BlendLeaderboardScreen({ navigation }) {
     api.friendMatchRanking(auth.token).then((data) => setResults(data.results || [])).catch(() => setResults([])).finally(() => setLoading(false));
   }, []);
 
-  const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
+  // Salon: madalyalar altın, gümüş, bronz tonlarında ama paletin sıcaklığında.
+  const medalColors = ["#c9a44c", "#a8a39a", "#a0703c"];
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -56,7 +57,7 @@ export default function BlendLeaderboardScreen({ navigation }) {
               >
                 {i < 3 ? (
                   <View style={[styles.medal, { backgroundColor: medalColors[i] }]}>
-                    <Crown size={12} color="#1a1a1a" fill="#1a1a1a" />
+                    <Crown size={12} color="#1a150c" fill="#1a150c" />
                   </View>
                 ) : (
                   <Text style={styles.rank}>{i + 1}</Text>
@@ -66,9 +67,7 @@ export default function BlendLeaderboardScreen({ navigation }) {
                   <Text style={styles.name} numberOfLines={1}>{r.name}</Text>
                   <Text style={styles.verdict} numberOfLines={1}>{verdictFor(r.matchPercent)}</Text>
                 </View>
-                <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pctPill}>
-                  <Text style={styles.pctText}>{translateUI("%")}{r.matchPercent}</Text>
-                </LinearGradient>
+                <Text style={styles.pctText}>{translateUI("%")}{r.matchPercent}</Text>
               </TouchableOpacity>
             ))
           )}
@@ -84,7 +83,7 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 14, fontWeight: "700", color: c.text },
+    headerTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text },
     row: {
       flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface,
       borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 10, marginBottom: 8,
@@ -95,6 +94,6 @@ function makeStyles(c) {
     name: { fontSize: 13, fontWeight: "700", color: c.text },
     verdict: { fontSize: 11, color: c.dim, marginTop: 1 },
     pctPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-    pctText: { fontSize: 12, fontWeight: "800", color: "#fff" },
+    pctText: { fontFamily: FONTS.marquee, fontSize: 24, color: c.accent },
   });
 }

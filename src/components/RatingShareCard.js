@@ -3,20 +3,25 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Star } from "lucide-react-native";
+import { FONTS } from "../theme/fonts";
+
+const GOLD = "#c9a44c";
+const CREAM = "#f3ead8";
+const DIM = "#8c8579";
 
 export default function RatingShareCard({ movie, rating, note, onPress }) {
   const score = Number(rating);
   const safeScore = Number.isFinite(score) ? Math.max(1, Math.min(10, Math.round(score))) : null;
   const card = (
-    <LinearGradient colors={["#0A0A0F", "#1A1410", "#32230D"]} style={styles.card}>
-      <View style={styles.goldGlow} />
+    <View style={styles.card}>
+      <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.goldGlow} pointerEvents="none" />
       <View style={styles.topRow}>
         <View>
           <Text style={styles.brand}>{translateUI("pellix")}</Text>
           <Text style={styles.type}>{translateUI("DIARY RATING")}</Text>
         </View>
         <View style={styles.badge}>
-          <Star size={10} color="#FFD76A" fill="#FFD76A" />
+          <Star size={10} color={GOLD} fill={GOLD} />
           <Text style={styles.badgeText}>{translateUI("İZLEDİM")}</Text>
         </View>
       </View>
@@ -53,7 +58,7 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
         <Text style={styles.footerText}>{translateUI("İzledim. Puanladım. Önerilerim biraz daha netleşti.")}</Text>
         {!!onPress && <Text style={styles.openText}>{translateUI("İçeriği aç →")}</Text>}
       </View>
-    </LinearGradient>
+    </View>
   );
 
   if (!onPress) return card;
@@ -61,27 +66,27 @@ export default function RatingShareCard({ movie, rating, note, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: 12, borderRadius: 22, padding: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,215,106,0.16)" },
-  goldGlow: { position: "absolute", width: 190, height: 190, borderRadius: 999, right: -90, top: -110, backgroundColor: "rgba(240,180,41,0.12)" },
+  card: { marginTop: 12, borderRadius: 20, padding: 16, overflow: "hidden", backgroundColor: "#14121a", borderWidth: 1, borderColor: "rgba(201,164,76,0.3)" },
+  goldGlow: { position: "absolute", left: 0, right: 0, top: 0, height: 120 },
   topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  brand: { color: "#fff", fontSize: 15, lineHeight: 17, fontWeight: "900" },
-  type: { color: "rgba(255,255,255,0.42)", fontSize: 7.2, fontWeight: "900", letterSpacing: 1.1, marginTop: 1 },
-  badge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "rgba(255,215,106,0.08)", borderWidth: 1, borderColor: "rgba(255,215,106,0.18)" },
-  badgeText: { color: "#FFD76A", fontSize: 7, fontWeight: "900", letterSpacing: 0.55 },
+  brand: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 15, lineHeight: 17, letterSpacing: 3 },
+  type: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 7.5, letterSpacing: 1.1, marginTop: 2 },
+  badge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+  badgeText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 7.5, letterSpacing: 0.8 },
   movieRow: { flexDirection: "row", gap: 14, alignItems: "center", marginTop: 16 },
-  poster: { width: 74, height: 108, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.06)" },
+  poster: { width: 74, height: 108, borderRadius: 10, backgroundColor: "rgba(243,234,216,0.06)" },
   posterEmpty: { borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
   copy: { flex: 1, minWidth: 0 },
-  title: { color: "#fff", fontSize: 18, lineHeight: 22, fontWeight: "900" },
-  meta: { color: "rgba(255,255,255,0.48)", fontSize: 9.5, fontWeight: "700", marginTop: 4 },
+  title: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 24, lineHeight: 26 },
+  meta: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9, marginTop: 4 },
   scoreRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, marginTop: 12 },
-  score: { color: "#FFD76A", fontSize: 42, lineHeight: 44, fontWeight: "900", fontVariant: ["tabular-nums"] },
-  outOf: { color: "rgba(255,255,255,0.78)", fontSize: 13, fontWeight: "900", marginBottom: 2 },
-  scoreLabel: { color: "rgba(255,255,255,0.34)", fontSize: 6.8, fontWeight: "900", letterSpacing: 0.8, marginBottom: 5 },
-  noteBox: { marginTop: 14, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", flexDirection: "row", gap: 7 },
-  quote: { color: "#FFD76A", fontSize: 22, lineHeight: 22, fontWeight: "900" },
-  note: { flex: 1, color: "rgba(255,255,255,0.74)", fontSize: 10.5, lineHeight: 15, fontWeight: "600" },
-  footer: { marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  footerText: { flex: 1, color: "rgba(255,255,255,0.38)", fontSize: 8.5, fontWeight: "700" },
-  openText: { color: "#FFD76A", fontSize: 8.5, fontWeight: "900" },
+  score: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 48, lineHeight: 48 },
+  outOf: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 16, marginBottom: 2 },
+  scoreLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 7, letterSpacing: 0.8, marginBottom: 5 },
+  noteBox: { marginTop: 14, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: "rgba(243,234,216,0.04)", borderWidth: 1, borderColor: "rgba(243,234,216,0.08)", flexDirection: "row", gap: 7 },
+  quote: { color: GOLD, fontSize: 22, lineHeight: 22, fontWeight: "900" },
+  note: { flex: 1, color: CREAM, fontSize: 10.5, lineHeight: 15, fontWeight: "600" },
+  footer: { marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: "rgba(201,164,76,0.18)", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  footerText: { flex: 1, color: DIM, fontSize: 8.5, fontWeight: "700" },
+  openText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 8.5 },
 });

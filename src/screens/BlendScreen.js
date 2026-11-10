@@ -1,7 +1,8 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Animated } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "../components/salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { ChevronLeft, Sparkles, Star, Share2 } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -78,9 +79,10 @@ export default function BlendScreen({ route, navigation }) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* BL3 — canlı ekranın hero'su eskiden düz c.surface'ti, oysa dışa aktarılan paylaşım
-              kartı çok daha güzeldi. Artık aynı gradyan ailesini kullanıyor. */}
-          <LinearGradient colors={["#0EA5E9", "#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBox}>
+          {/* Salon dili: renkli gradyan yerine koyu kart, üstten altın ışık; uyum yüzdesi büyük
+              Big Shoulders altınla (paylaşım kartıyla aynı aile). */}
+          <View style={styles.heroBox}>
+            <GoldWash height={200} />
             <View style={styles.avatarPair}>
               <RetryImage source={{ uri: avatarOr(myAvatarUrl, auth.id) }} style={[styles.heroAvatar, { marginRight: -14, zIndex: 2 }]} />
               <RetryImage source={{ uri: avatarOr(friendAvatar, friendId) }} style={styles.heroAvatar} />
@@ -92,7 +94,7 @@ export default function BlendScreen({ route, navigation }) {
                 {/* BL2 — paylaşım kartındaki eğlenceli yorum metni artık canlı ekranda da var,
                     "paylaş"a basmadan da bu kişilik payoff'unu görüyorsun. */}
                 <Text style={styles.heroVerdict}>{verdictFor(data.matchPercent)}</Text>
-                <Text style={styles.heroSubtitle}>{translateUI("beğeni uyumu")}</Text>
+                <Text style={styles.heroSubtitle}>{translateUI("BEĞENİ UYUMU")}</Text>
                 <ShareFan
                   style={styles.shareTriggerBtn}
                   accessibilityLabel={translateUI("Sonucu paylaş")}
@@ -102,14 +104,14 @@ export default function BlendScreen({ route, navigation }) {
                     card: () => setShowShareCard(true),
                   })}
                 >
-                  <Share2 size={13} color="#fff" />
+                  <Share2 size={13} color="#1a150c" />
                   <Text style={styles.shareTriggerText}>{translateUI("Sonucu Paylaş")}</Text>
                 </ShareFan>
               </>
             ) : (
               <Text style={styles.heroSubtitle}>{translateUI("Uyumu görmek için ikiniz de biraz daha film/dizi beğenin.")}</Text>
             )}
-          </LinearGradient>
+          </View>
 
           {data?.common?.length > 0 && (
             <View style={{ marginTop: 10 }}>
@@ -216,20 +218,23 @@ function makeStyles(c) {
       flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 54, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: c.border,
     },
-    headerTitle: { fontSize: 15, fontWeight: "700", color: c.text },
-    heroBox: { alignItems: "center", paddingVertical: 30, paddingHorizontal: 20 },
-    avatarPair: { flexDirection: "row", marginBottom: 14 },
-    heroAvatar: { width: 60, height: 60, borderRadius: 999, borderWidth: 3, borderColor: "rgba(255,255,255,0.5)" },
-    heroTitle: { fontSize: 15, fontWeight: "700", color: "#fff" },
-    heroPercent: { fontSize: 40, fontWeight: "800", color: "#fff", marginTop: 10 },
-    heroVerdict: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.95)", marginTop: 2 },
-    heroSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2, textAlign: "center" },
-    shareTriggerBtn: {
-      flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.22)",
-      borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, marginTop: 16,
+    headerTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text },
+    heroBox: {
+      alignItems: "center", paddingVertical: 28, paddingHorizontal: 20, margin: 16, marginBottom: 6, borderRadius: 18,
+      backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine, overflow: "hidden",
     },
-    shareTriggerText: { fontSize: 12, fontWeight: "800", color: "#fff" },
-    sectionTitle: { fontSize: 14, fontWeight: "700", color: c.text, paddingHorizontal: 16, marginBottom: 10 },
+    avatarPair: { flexDirection: "row", marginBottom: 14 },
+    heroAvatar: { width: 60, height: 60, borderRadius: 999, borderWidth: 2, borderColor: c.accent },
+    heroTitle: { fontFamily: FONTS.marquee, fontSize: 24, color: c.text },
+    heroPercent: { fontFamily: FONTS.marquee, fontSize: 76, lineHeight: 80, color: c.accent, marginTop: 4 },
+    heroVerdict: { fontSize: 13.5, fontWeight: "700", color: c.text, marginTop: 2, textAlign: "center" },
+    heroSubtitle: { fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.3, color: c.dim, marginTop: 4, textAlign: "center" },
+    shareTriggerBtn: {
+      flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.accent,
+      borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10, marginTop: 16,
+    },
+    shareTriggerText: { fontSize: 12.5, fontWeight: "800", color: "#1a150c" },
+    sectionTitle: { fontFamily: FONTS.marquee, fontSize: 22, color: c.text, paddingHorizontal: 16, marginBottom: 10 },
     recTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, marginBottom: 0 },
     recSubtitle: { fontSize: 11, color: c.dim, paddingHorizontal: 16, marginTop: 2 },
     posterMed: { width: 100, aspectRatio: 2 / 3, borderRadius: 10, backgroundColor: c.surface2 },

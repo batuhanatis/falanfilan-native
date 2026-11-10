@@ -1,7 +1,8 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { GoldWash, SALON } from "./salon/SalonKit";
+import { FONTS } from "../theme/fonts";
 import { Bell, MessageCircle, Sparkles, Clock } from "lucide-react-native";
 import { hapticSuccess } from "../utils/haptics";
 
@@ -25,31 +26,33 @@ export default function NotificationPrimerModal({ onEnable, onDismiss }) {
   return (
     <Animated.View style={[styles.backdrop, { opacity }]}>
       <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
-        <LinearGradient colors={["#6366F1", "#8B5CF6", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconRing}>
-          <Bell size={30} color="#fff" />
-        </LinearGradient>
+        <GoldWash height={150} strength={0.18} />
+        <View style={styles.iconRing}>
+          <Bell size={28} color={SALON.gold} />
+        </View>
+        <Text style={styles.eyebrow}>{translateUI("PERDE ARALANIRKEN")}</Text>
         <Text style={styles.title}>{translateUI("Hiçbir şeyi kaçırma")}</Text>
         <Text style={styles.subtitle}>{translateUI(" Bildirimleri açarsan, önemli anları anında haber veririz: ")}</Text>
 
         <View style={styles.reasonList}>
           <View style={styles.reasonRow}>
-            <View style={styles.reasonIconWrap}><MessageCircle size={15} color="#8B5CF6" /></View>
+            <View style={styles.reasonIconWrap}><MessageCircle size={15} color={SALON.gold} /></View>
             <Text style={styles.reasonText}>{translateUI("Bir arkadaşın sana mesaj attığında")}</Text>
           </View>
           <View style={styles.reasonRow}>
-            <View style={styles.reasonIconWrap}><Sparkles size={15} color="#DB2777" /></View>
+            <View style={styles.reasonIconWrap}><Sparkles size={15} color={SALON.gold} /></View>
             <Text style={styles.reasonText}>{translateUI("Biriyle uyumun yüksek çıktığında ya da MatchParty'de kazandığında")}</Text>
           </View>
           <View style={styles.reasonRow}>
-            <View style={styles.reasonIconWrap}><Clock size={15} color="#6366F1" /></View>
+            <View style={styles.reasonIconWrap}><Clock size={15} color={SALON.gold} /></View>
             <Text style={styles.reasonText}>{translateUI("Beklediğin film/dizi çıktığında")}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.enableBtn} onPress={onEnable} activeOpacity={0.85}>
-          <LinearGradient colors={["#6366F1", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.enableBtnGradient}>
+          <View style={styles.enableBtnGradient}>
             <Text style={styles.enableBtnText}>{translateUI("Bildirimleri Aç")}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss}>
           <Text style={styles.dismissText}>{translateUI("Şimdi Değil")}</Text>
@@ -65,25 +68,26 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.72)", alignItems: "center", justifyContent: "center", padding: 30,
   },
   card: {
-    width: "100%", maxWidth: 320, backgroundColor: "#1A1625", borderRadius: 26, padding: 26,
-    alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
-    shadowColor: "#8B5CF6", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 24, elevation: 14,
+    width: "100%", maxWidth: 320, backgroundColor: "#1c1a24", borderRadius: 22, padding: 26,
+    alignItems: "center", borderWidth: 1, borderColor: SALON.goldLine, overflow: "hidden",
   },
   iconRing: {
-    width: 76, height: 76, borderRadius: 999, alignItems: "center", justifyContent: "center",
+    width: 72, height: 72, borderRadius: 999, alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: SALON.gold, backgroundColor: SALON.ink,
   },
-  title: { color: "#fff", fontSize: 19, fontWeight: "800", textAlign: "center", marginTop: 16 },
-  subtitle: { color: "rgba(255,255,255,0.65)", fontSize: 12.5, marginTop: 6, textAlign: "center", lineHeight: 18 },
+  eyebrow: { color: SALON.gold, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.4, marginTop: 16 },
+  title: { color: SALON.cream, fontFamily: FONTS.marquee, fontSize: 30, lineHeight: 32, textAlign: "center", marginTop: 4 },
+  subtitle: { color: SALON.dim, fontSize: 12.5, marginTop: 6, textAlign: "center", lineHeight: 18 },
   reasonList: { alignSelf: "stretch", marginTop: 18, gap: 12 },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   reasonIconWrap: {
     width: 30, height: 30, borderRadius: 999, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: SALON.goldTint, borderWidth: 1, borderColor: SALON.goldLine,
   },
-  reasonText: { flex: 1, color: "rgba(255,255,255,0.85)", fontSize: 12.5, lineHeight: 17 },
+  reasonText: { flex: 1, color: SALON.cream, fontSize: 12.5, lineHeight: 17 },
   enableBtn: { marginTop: 22, borderRadius: 14, overflow: "hidden", alignSelf: "stretch" },
-  enableBtnGradient: { paddingVertical: 14, alignItems: "center" },
-  enableBtnText: { color: "#fff", fontWeight: "800", fontSize: 14.5 },
+  enableBtnGradient: { paddingVertical: 14, alignItems: "center", backgroundColor: SALON.gold },
+  enableBtnText: { color: SALON.onGold, fontWeight: "800", fontSize: 14.5 },
   dismissBtn: { marginTop: 12, paddingVertical: 4 },
-  dismissText: { color: "rgba(255,255,255,0.5)", fontSize: 12.5, fontWeight: "600" },
+  dismissText: { color: SALON.dim, fontSize: 12.5, fontWeight: "600" },
 });

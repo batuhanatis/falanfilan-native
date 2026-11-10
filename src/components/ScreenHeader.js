@@ -1,4 +1,5 @@
 import { t as translateUI } from "../i18n/core";
+import { FONTS } from "../theme/fonts";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
@@ -63,7 +64,8 @@ function makeStyles(c) {
       alignItems: "center",
       justifyContent: "center",
     },
-    title: { color: c.text, fontSize: 15, fontWeight: "800", textAlign: "center" },
-    subtitle: { color: c.dim, fontSize: 10, marginTop: 1, textAlign: "center" },
+    // Salon dili: başlık Big Shoulders, alt başlık DM Mono künye (Sosyal, Sohbetler ile aynı aile).
+    title: { color: c.text, fontFamily: FONTS.marquee, fontSize: 22, lineHeight: 25, textAlign: "center" },
+    subtitle: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8, marginTop: 1, textAlign: "center" },
   });
 }
