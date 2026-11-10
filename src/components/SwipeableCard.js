@@ -21,7 +21,7 @@ const SWIPE_THRESHOLD = 110;
 // küçülerek (squash) hızlanan bir eğriyle fırlıyor.
 //
 // rightExitTarget (isteğe bağlı): sağa atılan kartın ekrandan çıkmak yerine uçacağı noktayı
-// ({ x, y }, kartın merkezine göre) döndüren fonksiyon. Keşfet'te beğenilen kart sol üstteki
+// ({ x, y, scale? }, kartın merkezine göre) döndüren fonksiyon. Keşfet'te beğenilen kart sol üstteki
 // "duvar"a küçülerek uçuyor; vermeyen ekranlar (MatchParty, TasteMate) eskisi gibi çalışır.
 const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRight, rightExitTarget, style, children }, ref) {
   const pan = useRef(new Animated.ValueXY()).current;
@@ -31,9 +31,10 @@ const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRi
   function animateOff(direction) {
     const target = direction === "right" ? rightExitTarget?.() : null;
     if (target) {
+      const { scale: endScale = 0.08, ...to } = target;
       Animated.parallel([
-        Animated.timing(pan, { toValue: target, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
-        Animated.timing(scale, { toValue: 0.08, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
+        Animated.timing(pan, { toValue: to, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
+        Animated.timing(scale, { toValue: endScale, duration: 520, easing: Easing.bezier(0.5, 0, 0.75, 0), useNativeDriver: false }),
       ]).start(() => onSwipeRight());
       return;
     }

@@ -47,6 +47,16 @@ export async function claimDeferredLinkOnce() {
   return null;
 }
 
+// Bekleyen link var mı (silmeden bakar). Tanışma, linkle gelen kişiyi oyalamamak için kullanıyor.
+export async function peekPendingLink() {
+  try {
+    const target = await AsyncStorage.getItem(PENDING_KEY);
+    return target && TARGET_RE.test(target) ? target : null;
+  } catch {
+    return null;
+  }
+}
+
 // Giriş ve tanışma bittikten sonra bir kez okunup siliniyor.
 export async function takePendingLink() {
   try {
