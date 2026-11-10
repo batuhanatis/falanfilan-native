@@ -19,7 +19,7 @@ function activityText(item) {
       : `${userName} favorisini güncelledi`;
   }
   if (item?.activityType === "list_created") return `${userName} yeni bir liste oluşturdu`;
-  return `${userName} zevk profilini güncelledi`;
+  return `${userName} izleyici profilini güncelledi`;
 }
 
 export function encodeActivityShare(item) {

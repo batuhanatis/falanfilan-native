@@ -18,8 +18,8 @@ export function verdictFor(pct) {
   if (pct >= 65) return "Ortak bir zemininiz var 🎬";
   if (pct >= 60) return "Fena değilsiniz 🙂";
   if (pct >= 55) return "Az da olsa ortak noktanız var 🤏";
-  if (pct >= 45) return "Zevkleriniz farklı ama olur böyle 🤷";
+  if (pct >= 45) return "Beğenileriniz farklı ama olur böyle 🤷";
   if (pct >= 35) return "Zıtlar birbirini çeker 😏";
   if (pct >= 25) return "Tam bir tezatsınız 🎭";
-  return "Zevkleriniz maceraperest 🎢";
+  return "İkiniz de maceraperestsiniz 🎢";
 }

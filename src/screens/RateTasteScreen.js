@@ -145,13 +145,13 @@ export default function RateTasteScreen({ navigation }) {
       <View style={styles.intro}>
         <View style={styles.introIcon}><Sparkles size={18} color="#8B5CF6" /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.introTitle}>{translateUI("Zevk profilini derinleştir")}</Text>
-          <Text style={styles.introText}>{translateUI("“Zevkime göre” işaretlediklerinden gerçekten izlediklerine puan ver. Puanladıkların bu listeden çıkar; sıradaki içerikler onların yerini alır.")}</Text>
+          <Text style={styles.introTitle}>{translateUI("Profilini derinleştir")}</Text>
+          <Text style={styles.introText}>{translateUI("Beğendiklerinden gerçekten izlediklerine puan ver. Puanladıkların bu listeden çıkar; sıradaki içerikler onların yerini alır.")}</Text>
         </View>
       </View>
       <View style={styles.progressRow}>
         <Text style={styles.progressText}>{rows.length}{translateUI(" yeni içerik hazır")}</Text>
-        <Text style={styles.progressHint}>{ratedTotal ? translateUI("Şimdiye kadar {0} içeriği puanladın.", {0: ratedTotal}) : translateUI("İzledim ve zevk sinyali birbirinden ayrı kalır.")}</Text>
+        <Text style={styles.progressHint}>{ratedTotal ? translateUI("Şimdiye kadar {0} içeriği puanladın.", {0: ratedTotal}) : translateUI("İzledim ve beğeni sinyali birbirinden ayrı kalır.")}</Text>
       </View>
 
       {loading ? (
@@ -182,11 +182,11 @@ export default function RateTasteScreen({ navigation }) {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>{hadLikes ? translateUI("Puanlanacak yeni içerik kalmadı") : translateUI("Henüz hızlı zevk sinyalin yok")}</Text>
+              <Text style={styles.emptyTitle}>{hadLikes ? translateUI("Puanlanacak yeni içerik kalmadı") : translateUI("Henüz hızlı beğeni sinyalin yok")}</Text>
               <Text style={styles.emptyText}>
                 {hadLikes
-                  ? translateUI("Yeni içeriklere “Zevkime göre” dedikçe burada sadece henüz puanlamadıkların görünecek.")
-                  : translateUI("Keşfet’te “Zevkime göre” dediklerin burada görünür.")}
+                  ? translateUI("Yeni içerikleri beğendikçe burada sadece henüz puanlamadıkların görünecek.")
+                  : translateUI("Keşfet’te beğendiklerin burada görünür.")}
               </Text>
             </View>
           }

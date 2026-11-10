@@ -45,7 +45,7 @@ export default function BlendShareCard({
         </View>
         <View style={styles.liveBadge}>
           <HeartHandshake size={11} color="#C4B5FD" />
-          <Text style={styles.liveBadgeText}>{translateUI("İKİ ZEVK · TEK SKOR")}</Text>
+          <Text style={styles.liveBadgeText}>{translateUI("İKİ İZLEYİCİ · TEK SKOR")}</Text>
         </View>
       </View>
 
@@ -60,11 +60,11 @@ export default function BlendShareCard({
       </View>
 
       <Text style={styles.names} numberOfLines={1}>{firstName(myName)}{translateUI(" × ")}{firstName(friendName)}</Text>
-      <Text style={styles.subline}>{translateUI("Pellix zevklerinizin kesişimini ölçtü")}</Text>
+      <Text style={styles.subline}>{translateUI("Pellix ortak beğenilerinizi ölçtü")}</Text>
 
       <View style={styles.scoreBlock}>
         <Text style={styles.percent}>{translateUI("%")}{percent}</Text>
-        <Text style={styles.percentLabel}>{translateUI("ZEVK UYUMU")}</Text>
+        <Text style={styles.percentLabel}>{translateUI("UYUM")}</Text>
         <View style={styles.scoreTrack}>
           <LinearGradient
             colors={["#38BDF8", "#8B5CF6", "#F472B6"]}

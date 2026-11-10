@@ -39,6 +39,35 @@ import GlobalPopups from "../components/GlobalPopups";
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
 
+// Uygulama linklerinin (open.pellix.app/..., pellix://...) hangi ekrana açılacağı. Modül
+// düzeyinde, çünkü ertelenmiş link (utils/deferredLink.js) de aynı yolu kullanıyor.
+export function appStateFromPath(path, options) {
+  // Story kartı linki: open.pellix.app/u/film/<id> (mağazadaki sürümler /u yolunu zaten
+  // uygulama linki olarak tanıyor) ya da sayfanın denediği pellix://film/<id>. Elde yalnızca
+  // kimlik var; Detail ekranı içeriği kendisi çekiyor (DetailScreenV2).
+  const filmMatch = path.match(/^\/?(?:u\/)?film\/(\d+)/);
+  if (filmMatch) return { routes: [{ name: "MainTabs" }, { name: "Detail", params: { movie: { id: Number(filmMatch[1]) } } }] };
+  // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
+  // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
+  const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
+  if (partyAliasMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyAliasMatch[1]) } }] };
+  const userMatch = path.match(/^\/?u\/([^/?]+)/);
+  if (userMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(userMatch[1]) } }] };
+  const blendMatch = path.match(/^\/?blend\/([^/]+)\/([^/?]+)/);
+  if (blendMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }] };
+  const battleMatch = path.match(/^\/?battle\/([^/?]+)/);
+  if (battleMatch) return { routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }] };
+  // Canlı sohbet odası linki: open.pellix.app/oda/<kod> ya da pellix://oda/<kod>.
+  const roomMatch = path.match(/^\/?oda\/([^/?]+)/);
+  if (roomMatch) return { routes: [{ name: "MainTabs" }, { name: "LiveRoom", params: { code: decodeURIComponent(roomMatch[1]) } }] };
+  // TV eşleştirme: TV'deki QR open.pellix.app/tv/<kod> açıyor, sayfa pellix://tv/<kod>'a yönlendiriyor.
+  const tvMatch = path.match(/^\/?tv\/([^/?]+)/);
+  if (tvMatch) return { routes: [{ name: "MainTabs" }, { name: "TvPair", params: { code: decodeURIComponent(tvMatch[1]) } }] };
+  const partyMatch = path.match(/^\/?party\/([^/?]+)/);
+  if (partyMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyMatch[1]) } }] };
+  return defaultGetStateFromPath(path, options);
+}
+
 export default function RootNavigator() {
   const { c, mode } = useAppTheme();
   const navTheme = {
@@ -49,32 +78,7 @@ export default function RootNavigator() {
   const linking = {
     prefixes: ["pellix://", "https://www.pellix.app", "https://pellix.app", "https://open.pellix.app"],
     config: { screens: { OtherProfile: "u/:userId", FriendBattle: "battle/:battleId", PartyJoin: "party/:token", LiveRoom: "oda/:code", TvPair: "tv/:code" } },
-    getStateFromPath: (path, options) => {
-      // Story kartı linki: open.pellix.app/u/film/<id> (mağazadaki sürümler /u yolunu zaten
-      // uygulama linki olarak tanıyor) ya da sayfanın denediği pellix://film/<id>. Elde yalnızca
-      // kimlik var; Detail ekranı içeriği kendisi çekiyor (DetailScreenV2).
-      const filmMatch = path.match(/^\/?(?:u\/)?film\/(\d+)/);
-      if (filmMatch) return { routes: [{ name: "MainTabs" }, { name: "Detail", params: { movie: { id: Number(filmMatch[1]) } } }] };
-      // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
-      // Bu özel alt yolu normal profil eşleşmesinden ÖNCE yakalıyoruz.
-      const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
-      if (partyAliasMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyAliasMatch[1]) } }] };
-      const userMatch = path.match(/^\/?u\/([^/?]+)/);
-      if (userMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(userMatch[1]) } }] };
-      const blendMatch = path.match(/^\/?blend\/([^/]+)\/([^/?]+)/);
-      if (blendMatch) return { routes: [{ name: "MainTabs" }, { name: "OtherProfile", params: { username: decodeURIComponent(blendMatch[2]) } }] };
-      const battleMatch = path.match(/^\/?battle\/([^/?]+)/);
-      if (battleMatch) return { routes: [{ name: "MainTabs" }, { name: "FriendBattle", params: { battleId: decodeURIComponent(battleMatch[1]) } }] };
-      // Canlı sohbet odası linki: open.pellix.app/oda/<kod> ya da pellix://oda/<kod>.
-      const roomMatch = path.match(/^\/?oda\/([^/?]+)/);
-      if (roomMatch) return { routes: [{ name: "MainTabs" }, { name: "LiveRoom", params: { code: decodeURIComponent(roomMatch[1]) } }] };
-      // TV eşleştirme: TV'deki QR open.pellix.app/tv/<kod> açıyor, sayfa pellix://tv/<kod>'a yönlendiriyor.
-      const tvMatch = path.match(/^\/?tv\/([^/?]+)/);
-      if (tvMatch) return { routes: [{ name: "MainTabs" }, { name: "TvPair", params: { code: decodeURIComponent(tvMatch[1]) } }] };
-      const partyMatch = path.match(/^\/?party\/([^/?]+)/);
-      if (partyMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyMatch[1]) } }] };
-      return defaultGetStateFromPath(path, options);
-    },
+    getStateFromPath: appStateFromPath,
   };
 
   return (

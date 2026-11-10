@@ -3,6 +3,7 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { api } from "../api/client";
+import { t as translateUI } from "../i18n/core";
 
 // Uygulama açıkken sistem banner'ı göstermiyoruz; aynı olay normalde WebSocket üzerinden
 // uygulama-içi UI'a düşüyor. WebSocket kısa süreli kopuksa verinin tamamen kaçmaması için
@@ -81,16 +82,40 @@ export function setupForegroundNotificationHandling(onNotification) {
   return () => subscription.remove();
 }
 
-export function setupNotificationTapHandling(onNavTarget) {
-  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+// Bildirimdeki hızlı eylem düğmeleri. Sunucu tek filmle ilgili bildirimlere (yayına giren
+// içerik, MatchParty eşleşmesi) bu kategoriyi ekliyor; düğmeler kategori kayıtlı olduğu sürece
+// görünüyor. Düğme uygulamayı öne getiriyor: uygulama tamamen kapalıyken de işlem kaybolmasın
+// diye (arka planda çalışan eylem kapalı uygulamada iletilmiyor). İşlem yapılıp filmin sayfası
+// açılıyor ve kısa bir onay gösteriliyor.
+export const TITLE_ACTIONS_CATEGORY = "pellix_title";
+export async function registerNotificationCategories() {
+  try {
+    await Notifications.setNotificationCategoryAsync(TITLE_ACTIONS_CATEGORY, [
+      { identifier: "like", buttonTitle: translateUI("Beğen ❤️"), options: { opensAppToForeground: true } },
+      { identifier: "add_list", buttonTitle: translateUI("Listeme ekle"), options: { opensAppToForeground: true } },
+    ]);
+  } catch { /* desteklenmeyen ortam (web/simülatör) */ }
+}
+
+// Aynı bildirim yanıtı hem dinleyiciden hem "son yanıt"tan gelebiliyor (ve oturum yenilenince
+// tekrar okunuyor); bir kez işlensin.
+const handledResponses = new Set();
+
+export function setupNotificationTapHandling(onNavTarget, onQuickAction) {
+  const handle = (response) => {
+    if (!response) return;
     const data = response.notification?.request?.content?.data;
+    const action = response.actionIdentifier;
+    const key = `${response.notification?.request?.identifier || ""}:${action || ""}`;
+    if (handledResponses.has(key)) return;
+    handledResponses.add(key);
+    if (action && action !== Notifications.DEFAULT_ACTION_IDENTIFIER && onQuickAction) {
+      onQuickAction(action, data || {});
+      return;
+    }
     if (data?.screen) onNavTarget(data);
-  });
-
-  Notifications.getLastNotificationResponseAsync().then((response) => {
-    const data = response?.notification?.request?.content?.data;
-    if (data?.screen) onNavTarget(data);
-  }).catch(() => {});
-
+  };
+  const subscription = Notifications.addNotificationResponseReceivedListener(handle);
+  Notifications.getLastNotificationResponseAsync().then(handle).catch(() => {});
   return () => subscription.remove();
 }

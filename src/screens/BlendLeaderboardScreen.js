@@ -33,7 +33,7 @@ export default function BlendLeaderboardScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 2 }}>
           <ChevronLeft size={20} color={c.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{translateUI("Zevk Uyumu Sıralaması")}</Text>
+        <Text style={styles.headerTitle}>{translateUI("Uyum Sıralaması")}</Text>
       </View>
 
       {loading ? (
