@@ -8,7 +8,7 @@ import { requireOptionalNativeModule } from "expo";
 //
 // Instagram bu paylaşım için bir Meta (Facebook) App ID istiyor; gizli bir değer değil.
 // Boşken doğrudan paylaşım kapalı (Instagram ID'siz isteği hata ile reddediyor).
-export const FACEBOOK_APP_ID = "";
+export const FACEBOOK_APP_ID = "2384410689040251";
 
 let cached;
 function nativeModule() {
