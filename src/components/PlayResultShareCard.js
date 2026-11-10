@@ -1,13 +1,20 @@
 import { t as translateUI, getLocale } from "../i18n/core";
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Sparkles, Swords, Users, Trophy, Quote, Wand2 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Sparkles, Swords, Users, Trophy, Film, Quote, Wand2 } from "lucide-react-native";
+import { FONTS } from "../theme/fonts";
 import RetryImage from "./RetryImage";
 import { avatarOr } from "../utils/avatar";
 
+// Salon dili (Günün Seansı story kartıyla aynı aile): koyu zemin, üstte soluk altın spot,
+// Big Shoulders başlık, DM Mono künye. Paylaşılan görsel olduğu için renkler temadan bağımsız.
+const CREAM = "#f3ead8";
+const DIM = "#8c8579";
+const GOLD = "#c9a44c";
+
 function friendVerdict(percent) {
-  if (percent >= 90) return "Zevkini ezbere biliyorsun 🏆";
+  if (percent >= 90) return "Neleri sevdiğini ezbere biliyorsun 🏆";
   if (percent >= 70) return "Aynı frekanstasınız ✨";
   if (percent >= 50) return "Fena değil, biraz daha keşif 🎬";
   return "Sürprizlerle dolu bir arkadaşlık 👀";
@@ -29,7 +36,7 @@ function tasteVerdict(topGenre) {
   if (g.includes("komedi") || g.includes("comedy")) return "İyi hissettiren seçimler baskın";
   if (g.includes("korku") || g.includes("horror")) return "Karanlık tarafa göz kırpıyorsun";
   if (g.includes("suç") || g.includes("crime")) return "Gri karakterler tam senlik";
-  return "Zevkin tek bir kutuya sığmıyor";
+  return "Tek bir kutuya sığmıyorsun";
 }
 
 export default function PlayResultShareCard({
@@ -49,27 +56,16 @@ export default function PlayResultShareCard({
   const isQuote = mode === "quote";
   const isCharacter = mode === "character";
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
-  const colors = isFriend
-    ? ["#EC4899", "#F97316", "#F59E0B"]
-    : isQuote
-    ? ["#F97316", "#DB2777", "#7C3AED"]
-    : isCharacter
-    ? [character?.color || "#9333EA", "#DB2777", "#111827"]
-    : ["#7C3AED", "#2563EB", "#0891B2"];
   const Icon = isFriend ? Users : isQuote ? Quote : isCharacter ? Wand2 : Swords;
 
   return (
-    <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
-      <View style={styles.glowOne} />
-      <View style={styles.glowTwo} />
-      <Sparkles size={24} color="rgba(255,255,255,0.24)" style={styles.sparkleOne} />
-      <Sparkles size={16} color="rgba(255,255,255,0.20)" style={styles.sparkleTwo} />
-      <Film size={84} color="rgba(255,255,255,0.07)" style={styles.filmMark} />
+    <View style={styles.card}>
+      <LinearGradient colors={["rgba(201,164,76,0.18)", "rgba(201,164,76,0)"]} style={styles.glowOne} pointerEvents="none" />
 
-      <Text style={styles.logo}>{translateUI("pellix play")}</Text>
+      <Text style={styles.logo}>PELLIX PLAY</Text>
 
       <View style={styles.iconBubble}>
-        <Icon size={26} color="#fff" />
+        <Icon size={24} color={GOLD} />
       </View>
       <Text style={styles.eyebrow}>{isFriend ? translateUI("ARKADAŞINI TANIYOR MUSUN?") : isQuote ? translateUI("SAHNEYİ HATIRLA") : isCharacter ? translateUI("HANGİ KARAKTERSİN?") : translateUI("TASTE BATTLE")}</Text>
 
@@ -84,8 +80,8 @@ export default function PlayResultShareCard({
             <Text style={{ fontSize: 44, marginTop: 16 }}>{character?.emoji}</Text>
           )}
           <Text style={styles.resultTitle}>{character?.name}</Text>
-          <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, fontWeight: "800", marginTop: 3 }}>{character?.title}</Text>
-          <View style={styles.chip}><Sparkles size={12} color="#fff" /><Text style={styles.chipText}>{translateUI("%")}{matchPercent}{translateUI(" UYUM")}</Text></View>
+          <Text style={styles.meta}>{character?.title}</Text>
+          <View style={styles.chip}><Sparkles size={12} color={GOLD} /><Text style={styles.chipText}>{translateUI("%")}{matchPercent}{translateUI(" UYUM")}</Text></View>
           <Text style={styles.verdict}>{character?.blurb}</Text>
         </>
       ) : isFriend ? (
@@ -96,8 +92,8 @@ export default function PlayResultShareCard({
             <Text style={styles.bigNumber}>{translateUI("%")}{percent}</Text>
             <Text style={styles.bigLabel}>{translateUI("TANIMA SKORU")}</Text>
           </View>
-          <Text style={styles.verdict}>{friendVerdict(percent)}</Text>
-          <View style={styles.chip}><Trophy size={12} color="#fff" /><Text style={styles.chipText}>{score}{translateUI("/")}{total}{translateUI(" DOĞRU")}</Text></View>
+          <Text style={styles.verdict}>{translateUI(friendVerdict(percent))}</Text>
+          <View style={styles.chip}><Trophy size={12} color={GOLD} /><Text style={styles.chipText}>{score}{translateUI("/")}{total}{translateUI(" DOĞRU")}</Text></View>
         </>
       ) : isQuote ? (
         <>
@@ -105,12 +101,12 @@ export default function PlayResultShareCard({
             <Text style={styles.bigNumber}>{score}{translateUI("/")}{total}</Text>
             <Text style={styles.bigLabel}>{isDaily ? translateUI("GÜNÜN CHALLENGE'I") : translateUI("DOĞRU CEVAP")}</Text>
           </View>
-          <Text style={styles.verdict}>{quoteVerdict(percent)}</Text>
+          <Text style={styles.verdict}>{translateUI(quoteVerdict(percent))}</Text>
         </>
       ) : (
         <>
-          <Text style={styles.resultTitle}>{topGenre || translateUI("Karışık Zevk")}</Text>
-          <Text style={styles.verdict}>{tasteVerdict(topGenre)}</Text>
+          <Text style={styles.resultTitle}>{translateUI(topGenre || "Karışık")}</Text>
+          <Text style={styles.verdict}>{translateUI(tasteVerdict(topGenre))}</Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
@@ -138,38 +134,35 @@ export default function PlayResultShareCard({
       )}
 
       <Text style={styles.footer}>{translateUI("Seninki ne? · pellix.app")}</Text>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 320, borderRadius: 28, alignItems: "center", overflow: "hidden",
-    paddingHorizontal: 22, paddingTop: 28, paddingBottom: 24,
+    width: 320, borderRadius: 20, alignItems: "center", overflow: "hidden", paddingHorizontal: 22, paddingTop: 26, paddingBottom: 24,
+    backgroundColor: "#14121a", borderWidth: 1, borderColor: "rgba(201,164,76,0.28)",
   },
-  glowOne: { position: "absolute", width: 210, height: 210, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)", top: -130, right: -45 },
-  glowTwo: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", bottom: -90, left: -50 },
-  sparkleOne: { position: "absolute", top: 28, left: 22 },
-  sparkleTwo: { position: "absolute", top: 90, right: 30 },
-  filmMark: { position: "absolute", right: -14, bottom: 24 },
-  logo: { fontFamily: "Baloo2_800ExtraBold", fontSize: 17, color: "#fff", marginBottom: 22 },
-  iconBubble: { width: 52, height: 52, borderRadius: 18, backgroundColor: "rgba(8,9,20,0.20)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
-  eyebrow: { color: "rgba(255,255,255,0.82)", fontSize: 10, fontWeight: "900", letterSpacing: 1.2, marginTop: 12 },
-  resultTitle: { color: "#fff", fontSize: 30, lineHeight: 36, fontWeight: "900", textAlign: "center", marginTop: 18 },
-  verdict: { color: "#fff", fontSize: 14, lineHeight: 20, fontWeight: "800", textAlign: "center", marginTop: 9, maxWidth: 250 },
-  statsRow: { flexDirection: "row", gap: 8, marginTop: 22 },
-  statBox: { minWidth: 76, backgroundColor: "rgba(8,9,20,0.18)", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
-  statValue: { color: "#fff", fontSize: 19, fontWeight: "900" },
-  statLabel: { color: "rgba(255,255,255,0.70)", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.8, marginTop: 3 },
-  postersRow: { flexDirection: "row", gap: 7, marginTop: 20 },
-  poster: { width: 55, height: 82, borderRadius: 9, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
-  avatar: { width: 82, height: 82, borderRadius: 999, borderWidth: 3, borderColor: "rgba(255,255,255,0.52)", marginTop: 19 },
-  charEmojiBadge: { position: "absolute", right: -4, bottom: 4, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.7)" },
-  friendName: { color: "#fff", fontSize: 20, fontWeight: "900", marginTop: 10, textAlign: "center" },
-  bigNumberWrap: { alignItems: "center", marginTop: 18 },
-  bigNumber: { color: "#fff", fontSize: 58, lineHeight: 64, fontWeight: "900" },
-  bigLabel: { color: "rgba(255,255,255,0.78)", fontSize: 9.5, fontWeight: "900", letterSpacing: 1.2 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14, backgroundColor: "rgba(8,9,20,0.18)", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
-  chipText: { color: "#fff", fontSize: 9.5, fontWeight: "900", letterSpacing: 0.6 },
-  footer: { fontFamily: "Baloo2_700Bold", color: "rgba(255,255,255,0.78)", fontSize: 12, marginTop: 22 },
+  glowOne: { position: "absolute", left: 0, right: 0, top: 0, height: 200 },
+  logo: { fontFamily: FONTS.marquee, fontSize: 14, letterSpacing: 3, color: GOLD, marginBottom: 20 },
+  iconBubble: { width: 54, height: 54, borderRadius: 27, backgroundColor: "#100e10", borderWidth: 1.5, borderColor: GOLD, alignItems: "center", justifyContent: "center" },
+  eyebrow: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3, marginTop: 12, textAlign: "center" },
+  resultTitle: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 40, lineHeight: 43, textAlign: "center", marginTop: 14 },
+  meta: { color: DIM, fontSize: 12, fontWeight: "700", marginTop: 3, textAlign: "center" },
+  verdict: { color: CREAM, opacity: 0.9, fontSize: 13.5, lineHeight: 19, fontWeight: "700", textAlign: "center", marginTop: 9, maxWidth: 255 },
+  statsRow: { flexDirection: "row", gap: 8, marginTop: 20 },
+  statBox: { minWidth: 78, backgroundColor: "rgba(243,234,216,0.05)", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 11, alignItems: "center", borderWidth: 1, borderColor: "rgba(243,234,216,0.10)" },
+  statValue: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 24 },
+  statLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1, marginTop: 2 },
+  postersRow: { flexDirection: "row", gap: 7, marginTop: 18 },
+  poster: { width: 55, height: 82, borderRadius: 6, borderWidth: 1, borderColor: "rgba(243,234,216,0.16)" },
+  avatar: { width: 82, height: 82, borderRadius: 41, borderWidth: 2, borderColor: GOLD, marginTop: 18 },
+  charEmojiBadge: { position: "absolute", right: -4, bottom: 4, width: 30, height: 30, borderRadius: 15, backgroundColor: "#100e10", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: GOLD },
+  friendName: { color: CREAM, fontFamily: FONTS.marquee, fontSize: 26, marginTop: 8, textAlign: "center" },
+  bigNumberWrap: { alignItems: "center", marginTop: 14 },
+  bigNumber: { color: GOLD, fontFamily: FONTS.marquee, fontSize: 72, lineHeight: 76 },
+  bigLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+  chipText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8 },
+  footer: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1, marginTop: 22 },
 });

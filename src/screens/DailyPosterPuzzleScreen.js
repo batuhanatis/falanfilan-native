@@ -4,7 +4,8 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Scr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { Eye, Gamepad2, Share2, Sparkles, X } from "lucide-react-native";
+import { Eye, Gamepad2, Share2, X } from "lucide-react-native";
+import { FONTS } from "../theme/fonts";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
@@ -210,9 +211,9 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={["#6D28D9", "#4F46E5", "#2563EB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-            <View style={styles.heroGlow} />
-            <Sparkles size={19} color="rgba(255,255,255,0.30)" style={styles.heroSparkle} />
+          {/* Salon dili: mor gradyan yerine koyu kart, üstte soluk altın spot (Pellix Play ile aynı). */}
+          <View style={styles.hero}>
+            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.heroGlow} pointerEvents="none" />
             <Text style={styles.heroEyebrow}>{puzzle.number ? translateUI("#{0} · HERKESE AYNI POSTER", {0: puzzle.number}) : translateUI("HER GÜN TEK POSTER")}</Text>
             <Text style={styles.heroTitle}>{result ? (result.correct ? translateUI("Bildin! 🎉") : translateUI("Bugün olmadı")) : translateUI("Bulanıklık açılmadan filmi bul")}</Text>
             <Text style={styles.heroSubtitle}>
@@ -220,7 +221,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
                 ? (result.correct ? translateUI("{0}. denemede doğru cevabı buldun.", {0: wrongCount + 1}) : translateUI("Doğru cevap {0} idi.", {0: puzzle.target.title}))
                 : translateUI("Yanlış yaptıkça poster biraz daha netleşir. {0} hata hakkın var.", {0: MAX_WRONG})}
             </Text>
-          </LinearGradient>
+          </View>
 
           <View style={styles.posterCard}>
             <Image source={{ uri: puzzle.target.poster }} style={styles.poster} blurRadius={blur} resizeMode="cover" />
@@ -263,8 +264,8 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
                       disabled={wrong}
                       activeOpacity={0.8}
                     >
-                      <View style={[styles.optionIcon, wrong && { backgroundColor: "rgba(239,68,68,0.14)" }]}>
-                        {wrong ? <X size={14} color="#EF4444" /> : <Gamepad2 size={14} color={c.accent} />}
+                      <View style={[styles.optionIcon, wrong && { backgroundColor: "rgba(217,99,111,0.14)" }]}>
+                        {wrong ? <X size={14} color={c.danger} /> : <Gamepad2 size={14} color={c.accent} />}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionTitle, wrong && { color: c.dim }]}>{option.title}</Text>
@@ -285,7 +286,7 @@ export default function DailyPosterPuzzleScreen({ navigation }) {
                 accessibilityLabel={translateUI("Sonucumu paylaş")}
                 options={shareOptions({ message: shareText(puzzle, result), url: PUZZLE_SHARE_URL, copy: false, card: shareResult })}
               >
-                <Share2 size={16} color={c.bg} />
+                <Share2 size={16} color="#1a150c" />
                 <Text style={styles.shareBtnText}>{translateUI("Sonucumu Paylaş")}</Text>
               </ShareFan>
               <TouchableOpacity style={styles.playMoreBtn} onPress={() => navigation.replace("PellixPlay")} activeOpacity={0.84}>
@@ -333,12 +334,11 @@ function makeStyles(c, insets) {
     emptyTitle: { fontSize: 15, fontWeight: "800", color: c.text, marginTop: 10 },
     emptyText: { fontSize: 11.5, color: c.dim, textAlign: "center", marginTop: 5, lineHeight: 17 },
     content: { padding: 18, paddingBottom: Math.max(34, insets.bottom + 24) },
-    hero: { borderRadius: 20, padding: 19, overflow: "hidden" },
-    heroGlow: { position: "absolute", width: 150, height: 150, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.09)", right: -35, top: -90 },
-    heroSparkle: { position: "absolute", top: 15, right: 18 },
-    heroEyebrow: { color: "rgba(255,255,255,0.68)", fontSize: 8.5, fontWeight: "900", letterSpacing: 0.9 },
-    heroTitle: { color: "#fff", fontSize: 19, fontWeight: "900", marginTop: 5, maxWidth: "88%" },
-    heroSubtitle: { color: "rgba(255,255,255,0.80)", fontSize: 11.2, lineHeight: 16, marginTop: 6, maxWidth: "92%" },
+    hero: { borderRadius: 16, padding: 18, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.32)" },
+    heroGlow: { position: "absolute", left: 0, right: 0, top: 0, height: 120 },
+    heroEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1.2 },
+    heroTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 28, lineHeight: 31, marginTop: 5, maxWidth: "92%" },
+    heroSubtitle: { color: c.dim, fontSize: 11.8, lineHeight: 17, marginTop: 5, maxWidth: "94%" },
     posterCard: { marginTop: 16, aspectRatio: 2 / 3, borderRadius: 22, overflow: "hidden", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
     poster: { width: "100%", height: "100%" },
     blurBadge: { position: "absolute", top: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.58)", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
@@ -348,13 +348,13 @@ function makeStyles(c, insets) {
     revealMeta: { color: "rgba(255,255,255,0.74)", fontSize: 11, marginTop: 2 },
     attemptRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14 },
     attemptDot: { width: 25, height: 25, borderRadius: 999, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
-    attemptDotWrong: { backgroundColor: "#EF4444", borderColor: "#EF4444" },
+    attemptDotWrong: { backgroundColor: c.danger, borderColor: c.danger },
     attemptDotText: { color: c.dim, fontSize: 9.5, fontWeight: "800" },
     attemptLabel: { color: c.dim, fontSize: 10.5, fontWeight: "700", marginLeft: 3 },
-    question: { color: c.text, fontSize: 15, fontWeight: "900", marginTop: 18, marginBottom: 10 },
+    question: { color: c.text, fontFamily: FONTS.marquee, fontSize: 22, marginTop: 18, marginBottom: 10 },
     options: { gap: 8 },
     option: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 13, padding: 11 },
-    optionWrong: { opacity: 0.55, borderColor: "rgba(239,68,68,0.45)" },
+    optionWrong: { opacity: 0.55, borderColor: "rgba(217,99,111,0.45)" },
     optionIcon: { width: 31, height: 31, borderRadius: 10, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
     optionTitle: { color: c.text, fontSize: 12.5, fontWeight: "800" },
     optionMeta: { color: c.dim, fontSize: 9.5, marginTop: 1 },
@@ -362,7 +362,7 @@ function makeStyles(c, insets) {
     squares: { fontSize: 28, letterSpacing: 5 },
     resultLabel: { fontSize: 11.5, color: c.dim, fontWeight: "700", marginTop: 7 },
     shareBtn: { width: "100%", marginTop: 17, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.accent, borderRadius: 14, paddingVertical: 14 },
-    shareBtnText: { color: c.bg, fontWeight: "900", fontSize: 13 },
+    shareBtnText: { color: "#1a150c", fontWeight: "900", fontSize: 13 },
     playMoreBtn: { marginTop: 9, width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13 },
     playMoreText: { color: c.text, fontWeight: "800", fontSize: 12.5 },
   });
