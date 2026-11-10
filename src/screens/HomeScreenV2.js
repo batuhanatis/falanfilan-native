@@ -18,7 +18,6 @@ import {
 } from "react-native";
 import {
   Search,
-  Filter,
   Clock,
   X,
   Star,
@@ -46,13 +45,12 @@ import AIZone from "../components/AIZone";
 import EmptyState from "../components/EmptyState";
 import FilterFields from "../components/FilterFields";
 import { matchesOrigin } from "../utils/origin";
-import IslandModal from "../components/IslandModal";
-import { AI_HEADER_GRADIENT } from "../components/aiTheme";
 import HomeSkeleton from "../components/skeletons/HomeSkeleton";
 import RecommendationWhyModal from "../components/RecommendationWhyModal";
 import SeansBoard from "../components/salon/SeansBoard";
 import TicketCard from "../components/salon/TicketCard";
 import SearchSlit, { SLIT_BUTTON } from "../components/salon/SearchSlit";
+import Fener from "../components/salon/Fener";
 import { FONTS } from "../theme/fonts";
 
 function dedupe(items) {
@@ -127,7 +125,6 @@ export default function HomeScreenV2({ navigation }) {
   const rowFade = useRef(new Animated.Value(1)).current;
   const searchSeqRef = useRef(0);
 
-  const [showFilters, setShowFilters] = useState(false);
   const [typeFilter, setTypeFilter] = useState("Hepsi");
   const [genreFilter, setGenreFilter] = useState(null);
   const [platformFilters, setPlatformFilters] = useState(new Set());
@@ -925,15 +922,38 @@ export default function HomeScreenV2({ navigation }) {
             style={[styles.filterSlot, { opacity: rowFade, transform: [{ scale: rowFade.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}
             pointerEvents={searchOpen ? "none" : "auto"}
           >
-            <TouchableOpacity
+            {/* Fener: huni dönüp el fenerine dönüşüyor, ışığın ucunda filtre panosu açılıyor. */}
+            <Fener
               style={[styles.filterBtn, anyFilterActive && styles.filterBtnActive]}
-              onPress={() => setShowFilters(true)}
-              accessibilityRole="button"
+              active={anyFilterActive}
               accessibilityLabel={translateUI("Filtrele")}
+              title={translateUI("Akışını Daralt")}
+              subtitle={translateUI("Ne izleyeceğini daha hızlı bul")}
             >
-              <Filter size={16} color={anyFilterActive ? c.bg : c.text} />
-              {anyFilterActive && <View style={styles.filterDot} />}
-            </TouchableOpacity>
+              <FilterFields
+                typeValue={typeFilter}
+                onTypeChange={setTypeFilter}
+                genreValue={genreFilter}
+                onGenreChange={setGenreFilter}
+                yearSet={yearFilters}
+                onToggleYear={toggleYear}
+                originValue={originFilter}
+                onOriginChange={setOriginFilter}
+                platformSet={platformFilters}
+                onTogglePlatform={togglePlatform}
+                platforms={availablePlatformObjs}
+                onShuffleGenre={() => setGenreFilter(GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)])}
+                anyActive={anyFilterActive}
+                onClear={clearFilters}
+              />
+              <TouchableOpacity style={[styles.shortFilterRow, shortOnly && styles.shortFilterRowActive]} onPress={() => setShortOnly((v) => !v)}>
+                <Timer size={16} color={shortOnly ? c.bg : c.text} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.shortFilterTitle, shortOnly && { color: c.bg }]}>{translateUI("Kısa bir şey göster")}</Text>
+                  <Text style={[styles.shortFilterSub, shortOnly && { color: "rgba(20,18,26,0.72)" }]}>{translateUI("105 dakika ve altındaki içerikler")}</Text>
+                </View>
+              </TouchableOpacity>
+            </Fener>
           </Animated.View>
         )}
 
@@ -1058,38 +1078,6 @@ export default function HomeScreenV2({ navigation }) {
         </View>
       )}
 
-      <IslandModal
-        visible={showFilters}
-        onClose={() => setShowFilters(false)}
-        title={translateUI("Akışını Daralt")}
-        icon={Filter}
-        gradientColors={AI_HEADER_GRADIENT}
-        subtitle={translateUI("Ne izleyeceğini daha hızlı bul")}
-      >
-        <FilterFields
-          typeValue={typeFilter}
-          onTypeChange={setTypeFilter}
-          genreValue={genreFilter}
-          onGenreChange={setGenreFilter}
-          yearSet={yearFilters}
-          onToggleYear={toggleYear}
-          originValue={originFilter}
-          onOriginChange={setOriginFilter}
-          platformSet={platformFilters}
-          onTogglePlatform={togglePlatform}
-          platforms={availablePlatformObjs}
-          onShuffleGenre={() => setGenreFilter(GENRE_FILTERS[Math.floor(Math.random() * GENRE_FILTERS.length)])}
-          anyActive={anyFilterActive}
-          onClear={clearFilters}
-        />
-        <TouchableOpacity style={[styles.shortFilterRow, shortOnly && styles.shortFilterRowActive]} onPress={() => setShortOnly((v) => !v)}>
-          <Timer size={16} color={shortOnly ? c.bg : c.text} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.shortFilterTitle, shortOnly && { color: c.bg }]}>{translateUI("Kısa bir şey göster")}</Text>
-            <Text style={[styles.shortFilterSub, shortOnly && { color: "rgba(20,18,26,0.72)" }]}>{translateUI("105 dakika ve altındaki içerikler")}</Text>
-          </View>
-        </TouchableOpacity>
-      </IslandModal>
 
       <RecommendationWhyModal
         visible={showHeroReasons}
@@ -1157,7 +1145,6 @@ function makeStyles(c) {
     searchBlock: { marginTop: 14, marginBottom: 10 },
     filterBtn: { width: SLIT_BUTTON, height: SLIT_BUTTON, borderRadius: SLIT_BUTTON / 2, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
     filterBtnActive: { backgroundColor: c.accent, borderColor: c.accent },
-    filterDot: { position: "absolute", top: 3, right: 3, width: 7, height: 7, borderRadius: 999, backgroundColor: c.accent2, borderWidth: 1, borderColor: c.bg },
     searchScrim: { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 25, backgroundColor: "rgba(8,7,10,0.55)" },
     searchDrop: {
       position: "absolute", left: 16, right: 16, zIndex: 30, elevation: 12,
