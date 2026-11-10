@@ -10,6 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.batuhanatis.pellix",
+      "appleTeamId": "DJMW4M7K54",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.batuhanatis.pellix"]
+      },
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "associatedDomains": ["applinks:open.pellix.app"],
@@ -90,7 +94,49 @@
         }
       ],
       "@react-native-google-signin/google-signin",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./assets/fonts/widget/BigShoulders_800ExtraBold.ttf",
+            "./assets/fonts/widget/BigShoulders_700Bold.ttf",
+            "./assets/fonts/widget/DMMono_400Regular.ttf",
+            "./assets/fonts/widget/DMMono_500Medium.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "Seans",
+              "label": "Bu akşamın seansı",
+              "description": "Günün seçkisi ana ekranında; Sıradaki ile panoyu çevir.",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "480dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widget-preview/seans.png",
+              "updatePeriodMillis": 10800000
+            },
+            {
+              "name": "Blend",
+              "label": "Blend",
+              "description": "Arkadaşınla beğeni uyumunuz ve birlikte izleyebilecekleriniz.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "260dp",
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widget-preview/blend.png",
+              "updatePeriodMillis": 21600000
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {

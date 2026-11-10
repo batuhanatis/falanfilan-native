@@ -52,6 +52,7 @@ import TicketCard from "../components/salon/TicketCard";
 import SearchSlit, { SLIT_BUTTON } from "../components/salon/SearchSlit";
 import Fener from "../components/salon/Fener";
 import { FONTS } from "../theme/fonts";
+import { publishSeans, refreshBlendWidget } from "../widgets/homeWidgets";
 
 function dedupe(items) {
   const byId = new Map();
@@ -536,6 +537,13 @@ export default function HomeScreenV2({ navigation }) {
     }, 1500);
     return () => clearTimeout(timer);
   }, [isDefaultHeroContext, dailyHeroHydrated, dailyHeroSelections, heroDayKey, auth.token]);
+
+  // Ana ekran widget'ı (Bu akşamın seansı) aynı 10'luyu gösteriyor; son Blend de buradan tazeleniyor.
+  useEffect(() => {
+    if (!isDefaultHeroContext || !dailyHeroHydrated || !dailyHeroSelections.length) return;
+    publishSeans(dailyHeroSelections, heroDayKey);
+  }, [isDefaultHeroContext, dailyHeroHydrated, dailyHeroSelections, heroDayKey]);
+  useEffect(() => { refreshBlendWidget(auth.token, auth.name); }, [auth.token]);
 
   const heroSelections = isDefaultHeroContext && dailyHeroHydrated && dailyHeroSelections.length
     ? dailyHeroSelections

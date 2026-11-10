@@ -1,0 +1,68 @@
+name: Widget derleme kontrolü
+
+# Ana ekran widget'larının (iOS WidgetKit eklentisi + Android widget) derlendiğini doğrular.
+# İmzasız simülatör / debug derlemesi: mağazaya bir şey göndermez, sürüm numarası artırmaz.
+on:
+  push:
+    branches: [claude/home-widgets]
+    paths:
+      - 'targets/**'
+      - 'src/widgets/**'
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'index.js'
+      - '.github/workflows/widgets-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Prebuild (iOS)
+        run: npx expo prebuild --platform ios --non-interactive
+      - name: Widget hedefi (Swift)
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/pellix.xcodeproj -target PellixWidget -configuration Debug -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -n 80
+      - name: Uygulama + gömülü widget (simülatör)
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/pellix.xcworkspace -scheme pellix -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -n 80
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      - name: Android SDK ve NDK
+        shell: bash
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+      - name: Prebuild (Android)
+        run: npx expo prebuild --platform android --no-install --non-interactive
+      - name: Debug APK
+        run: cd android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon

@@ -8,6 +8,7 @@ import { clearLocalChatList } from "../utils/chatListDb";
 import { logoutPurchases } from "../utils/purchases";
 import { clearPushSession } from "../utils/pushSessionFinal";
 import { subscribeLocalEvents } from "../utils/localEvents";
+import { clearWidgets } from "../widgets/homeWidgets";
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = "ff_token";
@@ -169,6 +170,7 @@ export function AuthProvider({ children }) {
         // bunu Google'a doğrulatınca "Geçersiz Google jetonu" hatasıyla reddediyor. Google ile
         // hiç giriş yapılmamışsa bu çağrı zaten sessizce no-op.
         GoogleSignin.signOut().catch(() => {}),
+        clearWidgets(),
       ]);
       await AsyncStorage.multiRemove([TOKEN_KEY, USER_CACHE_KEY]);
     })();

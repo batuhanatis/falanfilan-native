@@ -14,6 +14,7 @@ import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import BlendShareCard from "../components/BlendShareCard";
+import { publishBlend } from "../widgets/homeWidgets";
 
 export default function BlendScreen({ route, navigation }) {
   const { friendId, friendName, friendAvatar } = route.params;
@@ -37,7 +38,10 @@ export default function BlendScreen({ route, navigation }) {
     setLoading(true);
     setError("");
     api.blend(auth.token, friendId)
-      .then(setData)
+      .then((result) => {
+        setData(result);
+        publishBlend({ friendId, friendName, myName: auth.name, data: result });
+      })
       .catch((e) => setError(e.message || "Blend oluşturulamadı."))
       .finally(() => setLoading(false));
   }, [friendId]);

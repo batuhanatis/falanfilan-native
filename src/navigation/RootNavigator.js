@@ -45,6 +45,15 @@ export function appStateFromPath(path, options) {
   // Story kartı linki: open.pellix.app/u/film/<id> (mağazadaki sürümler /u yolunu zaten
   // uygulama linki olarak tanıyor) ya da sayfanın denediği pellix://film/<id>. Elde yalnızca
   // kimlik var; Detail ekranı içeriği kendisi çekiyor (DetailScreenV2).
+  // Ana ekran widget'ları: pellix://kesfet, pellix://widget/blend/<id>?ad=<isim>, pellix://widget/blendler.
+  if (/^\/?kesfet(?:[/?]|$)/.test(path)) return { routes: [{ name: "MainTabs", state: { routes: [{ name: "Discover" }] } }] };
+  const widgetBlendMatch = path.match(/^\/?widget\/blend\/(\d+)/);
+  if (widgetBlendMatch) {
+    const nameMatch = path.match(/[?&]ad=([^&]*)/);
+    const friendName = nameMatch ? decodeURIComponent(nameMatch[1].replace(/\+/g, " ")) : "";
+    return { routes: [{ name: "MainTabs" }, { name: "Blend", params: { friendId: Number(widgetBlendMatch[1]), friendName } }] };
+  }
+  if (/^\/?widget\/blendler/.test(path)) return { routes: [{ name: "MainTabs" }, { name: "BlendLeaderboard" }] };
   const filmMatch = path.match(/^\/?(?:u\/)?film\/(\d+)/);
   if (filmMatch) return { routes: [{ name: "MainTabs" }, { name: "Detail", params: { movie: { id: Number(filmMatch[1]) } } }] };
   // OTA uyumlu Party Link: mevcut binary zaten Android/iOS'ta /u app-link yolunu biliyor.
