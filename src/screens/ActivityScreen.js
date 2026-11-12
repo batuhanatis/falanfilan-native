@@ -458,7 +458,7 @@ export default function ActivityScreen({ navigation }) {
             if (item.kind === "activity-group") {
               return <SocialActivityGroup items={item.items} navigation={navigation} />;
             }
-            return <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} />;
+            return <SocialFeedCard item={item} navigation={navigation} onChanged={handleFeedChanged} onAnswerQuestion={(question) => openComposer("thought", question)} />;
           }}
           ListEmptyComponent={
             scope === "friends" ? (

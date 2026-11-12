@@ -1,143 +1,66 @@
 import { Alert } from "../i18n/native";
-import { t as translateUI, getLocale } from "../i18n/core";
+import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useMemo, useState } from "react";
-import {  ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { MapPin, MessageCircle, MoreHorizontal, Send, Sparkles, Star, Ticket } from "lucide-react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { StyleSheet, Text, View } from "react-native";
+import { Send } from "lucide-react-native";
 import { FONTS } from "../theme/fonts";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/client";
 import { diaryApi } from "../api/diary";
-import { avatarOr } from "../utils/avatar";
-import RetryImage from "./RetryImage";
 import SocialCommentsModal from "./SocialCommentsModal";
 import SocialSharedCard from "./SocialSharedCard";
-import RatingStars from "./RatingStars";
+import ListPickerModal from "./ListPickerModal";
 import { reportSocialContent } from "../utils/socialReporting";
 import SendToFriendModal from "./SendToFriendModal";
 import ShareFan, { shareOptions } from "./salon/ShareFan";
+import { parseDailyQuestion, relativeTime, totalReactions } from "./social/feedKit";
+import { ApplauseSheet, CommentLine, PostFooter, PostHeader } from "./social/PostChrome";
+import {
+  ActivityLine,
+  CheckinTicket,
+  DailyQuestionSlate,
+  MovieChip,
+  OpinionVote,
+  PollSalons,
+  RatePicker,
+  RecommendObject,
+} from "./social/PostObjects";
 
-function relativeTime(value) {
-  const diff = Math.max(0, Date.now() - new Date(value).getTime());
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "az önce";
-  if (min < 60) return `${min} dk`;
-  const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour} sa`;
-  const day = Math.floor(hour / 24);
-  if (day < 7) return `${day} gün`;
-  return new Date(value).toLocaleDateString(getLocale(), { day: "numeric", month: "short" });
-}
+// Sosyal akış (Fuaye): her paylaşım kutusuz bir satır. Üstte kim / ne yaptı / ne zaman, ortada
+// paylaşılan nesne (klaket, afiş, salon kapıları, bilet, koltuk, pano), altta Alkışla · Yorum ·
+// Gönder. Profilde (compact) aynı nesneler kişi satırı olmadan gösteriliyor.
+//
+// Tepki: tek tepki "Alkış" (verideki "fire"). Eski 🤝/👎 tepkileri de alkış sayılır; fikir
+// paylaşımlarında aynı kayıt "Katılıyorum/Katılmıyorum" oyu olduğu için orada alkış yok.
 
-function activityCopy(item) {
-  if (item.activityType === "like") {
-    const count = item.activityCount || item.movies?.length || 1;
-    return count > 1 ? `${count} içerik beğendi` : "bir içeriği beğendi";
+function postVerb(post, dq) {
+  if (!post) return translateUI("paylaştı");
+  if (dq) return translateUI("günün sorusunu cevapladı");
+  if (post.type === "recommend") return translateUI("öneriyor");
+  if (post.type === "poll") return translateUI("soruyor");
+  if (post.type === "checkin") return translateUI("sinemada");
+  if (post.type === "thought") return translateUI("bir fikir yazdı");
+  if (post.type === "card") {
+    const kind = post.cardPayload?.kind;
+    if (kind === "diary_rating") return translateUI("izledi ve puanladı");
+    if (kind === "blend") return translateUI("Blend sonucunu paylaştı");
+    if (kind === "profile") return translateUI("profilini paylaştı");
+    if (kind === "poster_puzzle") return translateUI("günün oyununu oynadı");
+    return translateUI("oyun sonucunu paylaştı");
   }
-  if (item.activityType === "favorite_set") {
-    return item.payload?.liked
-      ? "bir içeriği beğendi ve favorisi yaptı"
-      : "favorisini güncelledi";
-  }
-  if (item.activityType === "list_created") return `“${item.payload?.list_name || "Yeni liste"}” listesini oluşturdu`;
-  return "beğenilerini güncelledi";
+  return translateUI("paylaştı");
 }
 
-// Aktivite türü artık emoji ve degrade rozetle değil, tek renkli kısa bir etiketle anlatılıyor.
-// Renkler iki temada da okunan orta tonlar.
-function activityMood(item) {
-  if (item.activityType === "like") return { label: translateUI("BEĞENDİ"), tone: "#c9a44c" };
-  if (item.activityType === "favorite_set") return { label: translateUI("FAVORİSİ YAPTI"), tone: "#c2604f" };
-  if (item.activityType === "list_created") return { label: translateUI("YENİ LİSTE"), tone: "#6f9fb0" };
-  return { label: translateUI("GÜNCELLEDİ"), tone: "#7fa27a" };
-}
-
-function postLabel(type, cardPayload) {
-  if (type === "recommend") return "öneriyor";
-  if (type === "poll") return "soruyor";
-  if (type === "checkin") return "sinemada";
-  if (type === "card" && cardPayload?.kind === "diary_rating") return "puanını paylaştı";
-  if (type === "card") return "bir kart paylaştı";
-  return "paylaştı";
-}
-
-const QUICK_REACTIONS = [
-  ["fire", "🔥"],
-  ["agree", "🤝"],
-  ["nope", "👎"],
-];
-const REACTION_EMOJI = { fire: "🔥", agree: "🤝", nope: "👎" };
-
-// ÖNEMLİ DÜZELTME: Eskiden her kartın altında SABİT, her zaman görünen üç ayrı emoji pill'i
-// vardı ("beğen"in bu uygulamada karşılığı olmadığı için aktivite kartlarında hiç kalp yoktu,
-// post kartlarında ise hem kalp HEM üç pill birden vardı — dört ayrı etkileşim satırı üst üste
-// biniyordu). Artık tek bir buton: hızlı dokunuş varsayılan (🔥) tepkiyi açıp kapatıyor, basılı
-// tutmak (iMessage/Instagram'daki gibi) üç seçenekli küçük bir seçici açıyor. Aynı buton hem
-// post hem aktivite kartlarında kullanılıyor, "kalp" kavramı tamamen bunun içinde eridi.
-function ReactionButton({ myReaction, counts, onReact, c, styles }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const total = QUICK_REACTIONS.reduce((sum, [id]) => sum + Number(counts?.[id] || 0), 0);
-  const emoji = myReaction ? REACTION_EMOJI[myReaction] : null;
-
-  function handlePress() {
-    if (pickerOpen) { setPickerOpen(false); return; }
-    onReact(myReaction || "fire");
-  }
-
-  return (
-    <View style={styles.reactionWrap}>
-      <Pressable
-        style={styles.action}
-        onPress={handlePress}
-        onLongPress={() => setPickerOpen(true)}
-        delayLongPress={380}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Text style={styles.reactionIcon}>{emoji || translateUI("✦")}</Text>
-        {total > 0 && <Text style={[styles.actionText, myReaction && { color: c.accent }]}>{total}</Text>}
-      </Pressable>
-      {pickerOpen && (
-        <View style={styles.reactionPicker}>
-          {QUICK_REACTIONS.map(([id, emj]) => (
-            <TouchableOpacity
-              key={id}
-              style={styles.reactionOption}
-              onPress={() => { onReact(id); setPickerOpen(false); }}
-              accessibilityRole="button"
-              accessibilityLabel={id}
-            >
-              <Text style={styles.reactionOptionEmoji}>{emj}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-// Instagram'daki "kullanıcıadı: yorum" deseni — en son yorumu (varsa) bir sayı yerine doğrudan
-// gösteriyor. Görünen bir konuşma, boş bir rakamdan çok daha güçlü bir katılım daveti.
-function CommentPreview({ comment, count, onPress, styles }) {
-  if (!comment) return null;
-  return (
-    <TouchableOpacity style={styles.commentPreview} onPress={onPress} activeOpacity={0.75}>
-      <Text style={styles.commentPreviewText} numberOfLines={2}>
-        <Text style={styles.commentPreviewName}>{comment.name} </Text>
-        {comment.body}
-      </Text>
-      {count > 1 && <Text style={styles.commentPreviewMore}>{count}{translateUI(" yorumun tümünü gör")}</Text>}
-    </TouchableOpacity>
-  );
-}
-
-export default function SocialFeedCard({ item, navigation, compact = false, onChanged }) {
+export default function SocialFeedCard({ item, navigation, compact = false, onChanged, onAnswerQuestion }) {
   const { c } = useAppTheme();
   const { auth } = useAuth();
   const styles = useMemo(() => makeStyles(c), [c]);
   const [state, setState] = useState(item);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [applauseOpen, setApplauseOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [listMovie, setListMovie] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [removed, setRemoved] = useState(false);
   const [viewerDiaryEntry, setViewerDiaryEntry] = useState(null);
@@ -150,12 +73,15 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   const user = state.user || {};
   const post = state.post;
+  const isOwnPost = Number(user.id) === Number(auth.id);
   const ratingMovie = post?.type === "card" && post?.cardPayload?.kind === "diary_rating"
     ? post.cardPayload.movie
     : null;
+  // Kendi puan paylaşımında "Sen kaç verirsin?" sorulmuyor.
+  const askViewerRating = !!ratingMovie?.id && !isOwnPost && !compact;
 
   useEffect(() => {
-    if (!ratingMovie?.id) {
+    if (!askViewerRating) {
       setViewerDiaryEntry(null);
       setViewerDiaryLoaded(false);
       return;
@@ -176,11 +102,11 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
         }
       });
     return () => { active = false; };
-  }, [auth.token, ratingMovie?.id]);
+  }, [auth.token, ratingMovie?.id, askViewerRating]);
 
-  function openProfile() {
-    if (Number(user.id) === Number(auth.id)) navigation.navigate("MainTabs", { screen: "Profile" });
-    else navigation.navigate("OtherProfile", { userId: user.id });
+  function openProfile(userId = user.id) {
+    if (Number(userId) === Number(auth.id)) navigation.navigate("MainTabs", { screen: "Profile" });
+    else navigation.navigate("OtherProfile", { userId });
   }
 
   function openMovie(movie) {
@@ -289,273 +215,153 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
 
   const body = post?.body?.trim();
   const primaryMovie = post?.movie || state.movies?.[0];
-  const mood = state.kind === "activity" ? activityMood(state) : null;
-  const isOwnPost = Number(user.id) === Number(auth.id);
-  const isDailyQuestionPost = state.kind === "post" && body?.startsWith("🔥 Günün Sorusu:");
-  const isOpinionPost = state.kind === "post" && post?.type === "thought" && !!body && !isDailyQuestionPost;
-  const isDiaryRatingPost = !!ratingMovie?.id;
-  // Ana kartın "yıldızı" bir poster olduğunda (aktivitede beğendi/favori, ya da bir öneri
-  // postunda) kişi bilgisini ve menüyü AYRI bir başlık satırında değil, doğrudan posterin
-  // içinde (sol üst kişi, sağ üst menü) gösteriyoruz — bkz. tasarım incelemesi.
+  const dq = state.kind === "post" && post?.type === "thought" ? parseDailyQuestion(body) : null;
+  const isOpinionPost = state.kind === "post" && post?.type === "thought" && !!body && !dq;
   const isCheckin = state.kind === "post" && post?.type === "checkin" && !!post?.checkin;
-  const isHeroMovie = !!primaryMovie && !isCheckin && !(state.kind === "post" && post?.type === "poll");
+  const reactionKind = state.kind === "post" ? "post" : "activity";
   const reactionTargetId = state.kind === "post" ? post?.id : state.activityId;
   const myReaction = post?.myReaction ?? state.myReaction;
   const reactionCounts = post?.reactionCounts || state.reactionCounts || {};
   const commentCount = state.kind === "post" ? post?.commentCount : state.commentCount;
   const latestComment = state.kind === "post" ? post?.latestComment : state.latestComment;
+  const time = relativeTime(state.created_at);
 
   if (removed) return null;
 
-  function PersonMenuRow({ hero }) {
-    return (
+  const applause = reactionTargetId && !isOpinionPost
+    ? {
+      mine: !!myReaction,
+      total: totalReactions(reactionCounts),
+      onPress: () => react(myReaction || "fire"),
+      onLongPress: () => setApplauseOpen(true),
+    }
+    : null;
+
+  const share = !compact && reactionTargetId ? (
+    <ShareFan
+      style={styles.share}
+      accessibilityLabel={translateUI("Gönder")}
+      options={primaryMovie?.id
+        ? shareOptions({
+          message: translateUI("{0} Pellix'te \"{1}\" paylaştı: {2}", { 0: user.name || translateUI("Bir arkadaşım"), 1: primaryMovie.title, 2: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share` }),
+          url: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share`,
+          sendToFriend: () => setSendOpen(true),
+        })
+        : [{ key: "friend", label: translateUI("Arkadaşına"), onPress: () => setSendOpen(true) }]}
+    >
+      <Send size={18} color={c.dim} />
+    </ShareFan>
+  ) : null;
+
+  let object = null;
+  if (state.kind === "activity") {
+    object = (
+      <ActivityLine
+        c={c}
+        item={state}
+        time={time}
+        onOpenProfile={() => openProfile(state.user?.id)}
+        onOpen={() => {
+          if (primaryMovie) openMovie(primaryMovie);
+          else if (state.activityType === "list_created" && state.payload?.list_id) {
+            navigation.navigate("WatchlistDetail", { watchlistId: state.payload.list_id, name: state.payload.list_name });
+          }
+        }}
+      />
+    );
+  } else if (isCheckin) {
+    object = <CheckinTicket c={c} checkin={post.checkin} movie={primaryMovie} createdAt={state.created_at} onOpenMovie={openMovie} />;
+  } else if (post?.type === "card" && post.cardPayload) {
+    object = <SocialSharedCard payload={post.cardPayload} navigation={navigation} currentUserId={auth.id} compact={compact} />;
+  } else if (post?.type === "poll" && post.pollMovies?.length === 2) {
+    object = (
+      <PollSalons
+        c={c}
+        question={body}
+        movies={post.pollMovies}
+        counts={post.pollCounts}
+        voters={post.pollVoters}
+        myVote={post.myVote}
+        onVote={vote}
+        onOpen={openMovie}
+      />
+    );
+  } else if (post?.type === "recommend" && primaryMovie) {
+    object = (
+      <RecommendObject
+        c={c}
+        movie={primaryMovie}
+        note={body}
+        authorName={user.name}
+        compact={compact}
+        onOpen={() => openMovie(primaryMovie)}
+        onAddToList={() => setListMovie(primaryMovie)}
+      />
+    );
+  } else if (dq) {
+    object = (
+      <DailyQuestionSlate
+        c={c}
+        question={dq.question}
+        answer={dq.answer}
+        createdAt={state.created_at}
+        compact={compact}
+        onAnswer={!compact && !isOwnPost && onAnswerQuestion ? () => onAnswerQuestion(dq.question) : null}
+      />
+    );
+  } else {
+    object = (
       <>
-        <TouchableOpacity style={hero ? styles.heroPerson : { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }} onPress={openProfile} activeOpacity={0.8}>
-          <RetryImage source={{ uri: avatarOr(user.avatar_url, user.id) }} style={hero ? styles.heroAvatar : styles.avatar} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={styles.nameRow}>
-              <Text style={hero ? styles.heroName : styles.name}>{user.name}</Text>
-              {!!user.username && <Text style={hero ? styles.heroUsername : styles.username}>{translateUI("@")}{user.username}</Text>}
-            </View>
-            <Text style={hero ? styles.heroMeta : styles.meta}>
-              {state.kind === "post" ? `${postLabel(post?.type, post?.cardPayload)} · ` : ""}{relativeTime(state.created_at)}
-            </Text>
-          </View>
-        </TouchableOpacity>
-        {post?.type === "recommend" && !hero && (
-          <View style={styles.typeChip}><Sparkles size={11} color={c.accent} /><Text style={styles.typeChipText}>{translateUI("ÖNERİ")}</Text></View>
-        )}
-        <TouchableOpacity
-          style={hero ? styles.heroMenuBtn : styles.postMenuButton}
-          onPress={isOwnPost ? requestDeletePost : requestReportContent}
-          disabled={deleting}
-          accessibilityRole="button"
-          accessibilityLabel={translateUI("Paylaşım seçenekleri")}
-        >
-          {deleting
-            ? <ActivityIndicator size="small" color={hero ? "#fff" : c.dim} />
-            : <MoreHorizontal size={hero ? 18 : 19} color={hero ? "#fff" : c.dim} />}
-        </TouchableOpacity>
+        {!!body && <Text style={[styles.thought, compact && styles.thoughtCompact]}>{body}</Text>}
+        {!!primaryMovie && <MovieChip c={c} movie={primaryMovie} onOpen={() => openMovie(primaryMovie)} />}
+        {isOpinionPost && !!reactionTargetId && <OpinionVote c={c} myReaction={myReaction} counts={reactionCounts} onVote={react} />}
       </>
     );
   }
 
   return (
-    <View style={[styles.card, state.kind === "activity" && !isHeroMovie && styles.activityCard, compact && styles.cardCompact]}>
-
-      {!isHeroMovie && (
-        <View style={styles.header}>
-          <PersonMenuRow hero={false} />
-        </View>
+    <View style={[styles.post, compact && styles.postCompact]}>
+      {state.kind !== "activity" && (
+        <PostHeader
+          c={c}
+          user={user}
+          verb={postVerb(post, dq)}
+          time={time}
+          compact={compact}
+          onProfile={() => openProfile()}
+          onMenu={isOwnPost ? requestDeletePost : requestReportContent}
+          menuBusy={deleting}
+        />
       )}
 
-      {mood && !isHeroMovie && (
-        <View style={styles.activityHeadline}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.activityLabel, { color: mood.tone }]}>{translateUI(mood.label)}</Text>
-            <Text style={styles.activityTitle}>{activityCopy(state)}</Text>
-          </View>
-        </View>
-      )}
+      {object}
 
-      {!isHeroMovie && post?.type !== "poll" && !!body && <Text style={styles.body}>{body}</Text>}
-
-      {isCheckin ? (
-        <View style={styles.checkinWrap}>
-          {!!post.checkin.photoUrl && (
-            <RetryImage source={{ uri: post.checkin.photoUrl }} style={styles.checkinPhoto} resizeMode="cover" />
-          )}
-          {/* Bilet koçanı: solda sinema, kesik çizginin sağında (varsa) izlenen film. */}
-          <View style={styles.ticket}>
-            <View style={styles.ticketMain}>
-              <View style={styles.ticketEyebrowRow}>
-                <Ticket size={11} color={c.accent} />
-                <Text style={styles.ticketEyebrow}>{translateUI("SİNEMADA")}</Text>
-              </View>
-              <Text style={styles.ticketCinema} numberOfLines={2}>{post.checkin.name}</Text>
-              {!!post.checkin.place && (
-                <View style={styles.ticketPlaceRow}>
-                  <MapPin size={10} color={c.dim} />
-                  <Text style={styles.ticketPlace} numberOfLines={1}>{post.checkin.place}</Text>
-                </View>
-              )}
-            </View>
-            {!!primaryMovie && (
-              <TouchableOpacity style={styles.ticketStub} onPress={() => openMovie(primaryMovie)} activeOpacity={0.85}>
-                {primaryMovie.poster
-                  ? <Image source={{ uri: primaryMovie.poster }} style={styles.ticketPoster} />
-                  : <View style={[styles.ticketPoster, { backgroundColor: c.surface2 }]} />}
-                <Text style={styles.ticketMovie} numberOfLines={2}>{primaryMovie.title}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      ) : state.kind === "post" && post?.type === "card" && post.cardPayload ? (
-        <SocialSharedCard payload={post.cardPayload} navigation={navigation} currentUserId={auth.id} />
-      ) : state.kind === "post" && post?.type === "poll" && post.pollMovies?.length === 2 ? (
-        <>
-          <View style={styles.pollHeading}>
-            <Text style={styles.pollEyebrow}>{translateUI("BİRİNİ SEÇ")}</Text>
-            {!!body && <Text style={styles.pollQuestion}>{body}</Text>}
-          </View>
-          <View style={styles.pollVsRow}>
-            {post.pollMovies.map((movie, index) => {
-              const count = Number(post.pollCounts?.[movie.id] || 0);
-              const total = post.pollMovies.reduce((sum, m) => sum + Number(post.pollCounts?.[m.id] || 0), 0);
-              const pct = total ? Math.round((count / total) * 100) : 0;
-              const selected = Number(post.myVote) === Number(movie.id);
-              return (
-                <View key={movie.id} style={[styles.pollVsOpt, index === 0 && styles.pollVsOptBorder, selected && styles.pollVsOptSelected]}>
-                  <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => openMovie(movie)} activeOpacity={0.9}>
-                    {movie.poster ? <Image source={{ uri: movie.poster }} style={styles.pollVsPoster} /> : <View style={[styles.pollVsPoster, { backgroundColor: c.surface2 }]} />}
-                    <LinearGradient colors={["transparent", "rgba(8,6,12,0.95)"]} style={styles.pollVsShade} />
-                  </TouchableOpacity>
-                  <View style={styles.pollVsCopy} pointerEvents="box-none">
-                    {!!post.myVote && <Text style={[styles.pollVsPct, selected && { color: c.accent }]}>{pct}{translateUI("%")}</Text>}
-                    <Text style={styles.pollVsTitle} numberOfLines={2}>{movie.title}</Text>
-                    {!!post.myVote && <Text style={styles.pollVsVotes}>{count}{translateUI(" oy")}</Text>}
-                    {!!post.myVote && !!(post.pollVoters?.[movie.id]?.length) && (
-                      <View style={styles.pollVoters}>
-                        {post.pollVoters[movie.id].slice(0, 4).map((voter, i) => (
-                          <RetryImage
-                            key={voter.id}
-                            source={{ uri: avatarOr(voter.avatarUrl) }}
-                            style={[styles.pollVoterAvatar, i > 0 && { marginLeft: -8 }]}
-                          />
-                        ))}
-                        {post.pollVoters[movie.id].length > 4 && (
-                          <View style={[styles.pollVoterAvatar, styles.pollVoterMore, { marginLeft: -8 }]}>
-                            <Text style={styles.pollVoterMoreText}>{translateUI("+")}{post.pollVoters[movie.id].length - 4}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                    <TouchableOpacity style={[styles.pollVsVote, selected && styles.pollVsVoteSelected]} onPress={() => vote(movie.id)}>
-                      <Text style={[styles.pollVsVoteText, selected && styles.pollVsVoteTextSelected]}>{selected ? translateUI("✓ Seçtin") : translateUI("Seç")}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })}
-            <View style={styles.pollVsDivider}><Text style={styles.pollVsDividerText}>{translateUI("VS")}</Text></View>
-          </View>
-        </>
-      ) : isHeroMovie ? (
-        <View style={[styles.heroMedia, { marginHorizontal: -(compact ? 12 : 14), marginTop: -(compact ? 12 : 14) }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => openMovie(primaryMovie)} activeOpacity={0.92}>
-            {primaryMovie.poster ? <Image source={{ uri: primaryMovie.poster }} style={styles.heroPoster} resizeMode="cover" /> : <View style={[styles.heroPoster, { backgroundColor: c.surface2 }]} />}
-            <LinearGradient colors={["rgba(8,6,12,0.88)", "rgba(8,6,12,0.3)", "transparent"]} style={styles.heroShadeTop} pointerEvents="none" />
-            <LinearGradient colors={["transparent", "rgba(8,6,12,0.94)"]} style={styles.heroShadeBottom} pointerEvents="none" />
-            <View style={styles.heroCopy} pointerEvents="none">
-              {mood ? (
-                <View style={styles.heroTag}><Text style={[styles.heroTagText, { color: mood.tone }]}>{translateUI(mood.label)}</Text></View>
-              ) : isDailyQuestionPost ? (
-                <View style={styles.heroTag}><Text style={styles.heroTagText}>{translateUI("GÜNÜN SORUSU")}</Text></View>
-              ) : null}
-              <Text style={styles.heroTitle} numberOfLines={2}>{primaryMovie.title}</Text>
-              <View style={styles.heroMetaRow}>
-                {!!primaryMovie.imdb && <><Star size={12} color="#FFD166" fill="#FFD166" /><Text style={styles.heroMetaText}>{primaryMovie.imdb}</Text></>}
-                {!!primaryMovie.year && <Text style={styles.heroMetaText}>{translateUI("· ")}{primaryMovie.year}</Text>}
-                {!!primaryMovie.type && <Text style={styles.heroMetaText}>{translateUI("· ")}{translateUI(primaryMovie.type)}</Text>}
-              </View>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.heroTopRow} pointerEvents="box-none">
-            <PersonMenuRow hero />
-          </View>
-        </View>
-      ) : null}
-
-      {isHeroMovie && !!body && (
-        // Instagram'daki "kullanıcıadı: caption" deseni — posterin üstüne bindirmek yerine
-        // (uzun bir metin değişken parlaklıktaki bir görselde erir) yorumların başladığı yerde
-        // kısa bir önizleme. İki satırdan uzunsa kırpılır, dokununca yorumlar açılır (tam metin
-        // orada görünür) — RN'in kendi numberOfLines'ı ile, gerçek bir "genişlet" state'i yok.
-        <TouchableOpacity style={styles.heroCaption} onPress={() => setCommentsOpen(true)} activeOpacity={0.75}>
-          <Text style={styles.heroCaptionText} numberOfLines={2}>
-            <Text style={styles.heroCaptionName}>{user.name} </Text>
-            {body}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {isDiaryRatingPost && (
-        <View style={styles.ratingEngagement}>
-          <View style={styles.ratingEngagementTop}>
-            <View>
-              <Text style={styles.ratingPrompt}>{translateUI("Sen kaç verirsin?")}</Text>
-              <Text style={styles.ratingHint}>{translateUI("Puanın aynı anda Diary’ne kaydolur.")}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.watchedMini, !!viewerDiaryEntry && styles.watchedMiniDone]}
-              onPress={markWatchedFromFeed}
-              disabled={!viewerDiaryLoaded || ratingSaving || !!viewerDiaryEntry}
-            >
-              {ratingSaving && !viewerDiaryEntry ? <ActivityIndicator size="small" color={c.accent} /> : (
-                <Text style={[styles.watchedMiniText, !!viewerDiaryEntry && styles.watchedMiniTextDone]}>
-                  {viewerDiaryEntry ? translateUI("✓ İzledin") : translateUI("Ben de izledim")}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          {viewerDiaryLoaded ? (
-            <RatingStars compact value={viewerDiaryEntry?.rating} onChange={rateFromFeed} disabled={ratingSaving} />
-          ) : (
-            <View style={styles.inlineRatingLoading}><ActivityIndicator size="small" color={c.dim} /></View>
-          )}
-        </View>
-      )}
-
-      {isOpinionPost && !!reactionTargetId && (
-        <View style={styles.opinionPrompt}>
-          <Text style={styles.opinionQuestion}>{translateUI("Katılıyor musun?")}</Text>
-          <View style={styles.opinionChoices}>
-            <TouchableOpacity
-              style={[styles.opinionChoice, myReaction === "agree" && styles.opinionChoiceActive]}
-              onPress={() => react("agree")}
-            >
-              <Text style={styles.opinionChoiceEmoji}>{translateUI("🤝")}</Text>
-              <Text style={[styles.opinionChoiceText, myReaction === "agree" && styles.opinionChoiceTextActive]}>{translateUI("Katılıyorum")}</Text>
-              {Number(reactionCounts?.agree || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.agree}</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.opinionChoice, myReaction === "nope" && styles.opinionChoiceActive]}
-              onPress={() => react("nope")}
-            >
-              <Text style={styles.opinionChoiceEmoji}>{translateUI("👎")}</Text>
-              <Text style={[styles.opinionChoiceText, myReaction === "nope" && styles.opinionChoiceTextActive]}>{translateUI("Katılmıyorum")}</Text>
-              {Number(reactionCounts?.nope || 0) > 0 && <Text style={styles.opinionCount}>{reactionCounts.nope}</Text>}
-            </TouchableOpacity>
-          </View>
-        </View>
+      {askViewerRating && (
+        <RatePicker
+          c={c}
+          value={viewerDiaryEntry?.rating || null}
+          onChange={rateFromFeed}
+          disabled={!viewerDiaryLoaded || ratingSaving}
+          loading={!viewerDiaryLoaded}
+          watched={!!viewerDiaryEntry}
+          onWatched={markWatchedFromFeed}
+          saving={ratingSaving}
+        />
       )}
 
       {!!reactionTargetId && (
-        <View style={styles.actions}>
-          <ReactionButton myReaction={myReaction} counts={reactionCounts} onReact={react} c={c} styles={styles} />
-          <TouchableOpacity style={styles.action} onPress={() => setCommentsOpen(true)}>
-            <MessageCircle size={17} color={c.dim} />
-            <Text style={styles.actionText}>{commentCount || 0}</Text>
-          </TouchableOpacity>
-          {/* Filmli paylaşımda Yelpaze dışarıya filmin sayfasını da veriyor; filmsizde doğrudan arkadaşına. */}
-          <ShareFan
-            style={[styles.action, styles.actionShare]}
-            accessibilityLabel={translateUI("Paylaş")}
-            options={primaryMovie?.id
-              ? shareOptions({
-                message: translateUI("{0} Pellix'te \"{1}\" paylaştı: {2}", { 0: user.name || translateUI("Bir arkadaşım"), 1: primaryMovie.title, 2: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share` }),
-                url: `https://open.pellix.app/u/film/${primaryMovie.id}?c=social_share`,
-                sendToFriend: () => setSendOpen(true),
-              })
-              : [{ key: "friend", label: translateUI("Arkadaşına"), onPress: () => setSendOpen(true) }]}
-          >
-            <Send size={17} color={c.dim} />
-          </ShareFan>
-        </View>
+        <PostFooter
+          c={c}
+          compact={compact || state.kind === "activity"}
+          applause={applause}
+          commentCount={commentCount}
+          onComments={() => setCommentsOpen(true)}
+          share={share}
+        />
       )}
 
-      {!!reactionTargetId && Number(commentCount) > 0 && (
-        <CommentPreview comment={latestComment} count={commentCount} onPress={() => setCommentsOpen(true)} styles={styles} />
+      {!!reactionTargetId && !compact && Number(commentCount) > 0 && (
+        <CommentLine c={c} comment={latestComment} count={Number(commentCount)} onPress={() => setCommentsOpen(true)} />
       )}
 
       {(!!post?.id || !!state.activityId) && (
@@ -563,7 +369,7 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           visible={commentsOpen}
           postId={post?.id}
           activityId={state.activityId}
-          originalNote={state.kind === "post" && !!body ? { authorId: user.id, authorName: user.name, authorAvatar: user.avatar_url, text: body } : null}
+          originalNote={state.kind === "post" && !!body ? { authorId: user.id, authorName: user.name, authorAvatar: user.avatar_url, text: dq ? [dq.question, dq.answer].filter(Boolean).join("\n\n") : body } : null}
           canModerate={Number(user.id) === Number(auth.id)}
           navigation={navigation}
           onClose={() => setCommentsOpen(false)}
@@ -581,146 +387,29 @@ export default function SocialFeedCard({ item, navigation, compact = false, onCh
           }}
         />
       )}
+      {!!reactionTargetId && (
+        <ApplauseSheet
+          c={c}
+          visible={applauseOpen}
+          kind={reactionKind}
+          targetId={reactionTargetId}
+          onClose={() => setApplauseOpen(false)}
+          onOpenProfile={(id) => openProfile(id)}
+        />
+      )}
       {sendOpen && <SendToFriendModal activity={state} onClose={() => setSendOpen(false)} />}
+      {listMovie && <ListPickerModal movie={listMovie} onClose={() => setListMovie(null)} />}
     </View>
   );
 }
 
 function makeStyles(c) {
   return StyleSheet.create({
-    checkinWrap: { marginTop: 4, gap: 8 },
-    checkinPhoto: { width: "100%", aspectRatio: 4 / 5, borderRadius: 14, backgroundColor: c.surface2 },
-    ticket: { flexDirection: "row", borderWidth: 1, borderColor: c.border, borderRadius: 14, backgroundColor: c.surface2, overflow: "hidden" },
-    ticketMain: { flex: 1, padding: 12, minWidth: 0 },
-    ticketEyebrowRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-    ticketEyebrow: { color: c.accent, fontSize: 9.5, fontWeight: "900", letterSpacing: 0.8 },
-    ticketCinema: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 5, lineHeight: 18 },
-    ticketPlaceRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-    ticketPlace: { color: c.dim, fontSize: 10.5, flex: 1 },
-    // Kesik çizgili sol kenar: biletin yırtılan koçanı.
-    ticketStub: { width: 86, padding: 10, alignItems: "center", borderLeftWidth: 1.5, borderStyle: "dashed", borderLeftColor: c.border },
-    ticketPoster: { width: 44, height: 64, borderRadius: 6 },
-    ticketMovie: { color: c.text, fontSize: 9.5, fontWeight: "800", textAlign: "center", marginTop: 5 },
-    card: { backgroundColor: c.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, borderRadius: 16, padding: 14, marginBottom: 12, overflow: "hidden" },
-    activityCard: { backgroundColor: c.surface, borderColor: c.border, paddingLeft: 16 },
-    cardCompact: { marginBottom: 10, padding: 12 },
-    header: { flexDirection: "row", alignItems: "center", gap: 10 },
-    avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: c.surface2 },
-    nameRow: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0, flexWrap: "wrap" },
-    name: { color: c.text, fontWeight: "800", fontSize: 13 },
-    username: { color: c.dim, fontSize: 10, flexShrink: 1 },
-    meta: { color: c.dim, fontSize: 10.5, marginTop: 2 },
-    typeChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surface2, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 },
-    typeChipText: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
-    postMenuButton: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border },
-    body: { color: c.text, fontSize: 14, lineHeight: 20, marginTop: 12 },
-    activityHeadline: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
-    activityLabel: { fontSize: 10.5, fontFamily: FONTS.monoMedium, letterSpacing: 0.8 },
-    activityTitle: { color: c.text, fontSize: 14, fontWeight: "900", marginTop: 2 },
-
-    // ---- hero: poster kartı büyütülüp kişi bilgisi + menü doğrudan görselin içinde ----
-    // width YOK: sabit "100%" kullanılırsa ebeveynin padding'li kutusuna göre sabitlenir ve
-    // aşağıdaki negatif marginHorizontal'ı genişliği büyütmeden sadece sola kaydırır — sonuç
-    // sağda padding kadar boşluk. Genişliksiz bırakınca View'in varsayılan alignItems:"stretch"
-    // davranışı devreye giriyor, negatif margin de genişliği doğru şekilde büyütüyor.
-    heroMedia: { position: "relative", aspectRatio: 2 / 3 },
-    heroPoster: { width: "100%", height: "100%" },
-    heroShadeTop: { position: "absolute", left: 0, right: 0, top: 0, height: 90 },
-    heroShadeBottom: { position: "absolute", left: 0, right: 0, bottom: 0, height: 150 },
-    heroTopRow: {
-      position: "absolute", top: 0, left: 0, right: 0,
-      flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between",
-      padding: 13,
-    },
-    heroPerson: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
-    heroAvatar: { width: 33, height: 33, borderRadius: 999, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.55)" },
-    heroName: { color: "#fff", fontWeight: "800", fontSize: 13 },
-    heroUsername: { color: "rgba(255,255,255,0.68)", fontSize: 10 },
-    heroMeta: { color: "rgba(255,255,255,0.72)", fontSize: 10.5, marginTop: 2 },
-    heroMenuBtn: {
-      width: 29, height: 29, borderRadius: 999, alignItems: "center", justifyContent: "center",
-      backgroundColor: "rgba(10,8,14,0.4)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
-    },
-    heroCopy: { position: "absolute", left: 15, right: 15, bottom: 13 },
-    heroTag: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, marginBottom: 7, backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
-    heroTagText: { color: "#efe4cc", fontSize: 10.5, fontFamily: FONTS.monoMedium, letterSpacing: 0.8 },
-    heroTitle: { color: "#fff", fontWeight: "900", fontSize: 19, lineHeight: 23 },
-    heroMetaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5 },
-    heroMetaText: { color: "rgba(255,255,255,0.82)", fontSize: 11.5, fontWeight: "700" },
-    heroCaption: { paddingHorizontal: 15, paddingTop: 12 },
-    heroCaptionName: { fontWeight: "800", color: c.text },
-    heroCaptionText: { color: c.text, fontSize: 13, lineHeight: 19 },
-
-    // ---- anket: mevcut Taste Post anketi, daha net bir "birini seç" kartı ----
-    pollHeading: { marginTop: 12, marginBottom: 8 },
-    pollEyebrow: { color: c.accent, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
-    pollQuestion: { color: c.text, fontSize: 15, lineHeight: 20, fontWeight: "900", marginTop: 4 },
-    pollVsRow: { flexDirection: "row", height: 238, borderRadius: 16, overflow: "hidden", position: "relative" },
-    pollVsOpt: { flex: 1, position: "relative", backgroundColor: c.surface2 },
-    pollVsOptBorder: { borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.14)" },
-    pollVsOptSelected: { borderWidth: 2, borderColor: c.accent },
-    pollVsPoster: { width: "100%", height: "100%" },
-    pollVsShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
-    pollVsCopy: { position: "absolute", left: 10, right: 10, bottom: 11 },
-    pollVsTitle: { color: "#fff", fontWeight: "900", fontSize: 13, lineHeight: 16 },
-    pollVsPct: { color: "rgba(255,255,255,0.88)", fontWeight: "950", fontSize: 20, lineHeight: 22, marginBottom: 3 },
-    pollVsVotes: { color: "rgba(255,255,255,0.58)", fontWeight: "700", fontSize: 9, marginTop: 3 },
-    pollVoters: { flexDirection: "row", alignItems: "center", marginTop: 5 },
-    pollVoterAvatar: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: "rgba(8,6,12,0.9)" },
-    pollVoterMore: { backgroundColor: "rgba(10,8,14,0.85)", alignItems: "center", justifyContent: "center" },
-    pollVoterMoreText: { color: "#fff", fontSize: 7.5, fontWeight: "800" },
-    pollVsVote: {
-      marginTop: 8, paddingVertical: 6, borderRadius: 999, alignItems: "center",
-      borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", backgroundColor: "rgba(10,8,14,0.4)",
-    },
-    pollVsVoteSelected: { backgroundColor: c.accent, borderColor: c.accent },
-    pollVsVoteText: { color: "#fff", fontSize: 9.5, fontWeight: "800" },
-    pollVsVoteTextSelected: { color: c.bg },
-    pollVsDivider: {
-      position: "absolute", top: "50%", left: "50%", marginTop: -14, marginLeft: -14, zIndex: 5,
-      width: 28, height: 28, borderRadius: 999, backgroundColor: c.bg, borderWidth: 1.5, borderColor: c.border,
-      alignItems: "center", justifyContent: "center",
-    },
-    pollVsDividerText: { color: c.dim, fontSize: 8.5, fontWeight: "900" },
-
-    // ---- sosyal mikro-etkileşimler ----
-    ratingEngagement: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
-    ratingEngagementTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-    ratingPrompt: { color: c.text, fontSize: 12.5, fontWeight: "900" },
-    ratingHint: { color: c.dim, fontSize: 9.5, marginTop: 2 },
-    watchedMini: { minHeight: 30, paddingHorizontal: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, alignItems: "center", justifyContent: "center" },
-    watchedMiniDone: { backgroundColor: "rgba(111,196,179,0.08)", borderColor: "rgba(111,196,179,0.28)" },
-    watchedMiniText: { color: c.text, fontSize: 9.5, fontWeight: "800" },
-    watchedMiniTextDone: { color: c.accent2 || c.accent },
-    inlineRatingLoading: { height: 42, alignItems: "center", justifyContent: "center" },
-    opinionPrompt: { marginTop: 12, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
-    opinionQuestion: { color: c.dim, fontSize: 9.5, fontWeight: "800", marginBottom: 8 },
-    opinionChoices: { flexDirection: "row", gap: 8 },
-    opinionChoice: { flex: 1, minHeight: 36, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border, backgroundColor: c.surface2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 8 },
-    opinionChoiceActive: { borderColor: c.accent, backgroundColor: "rgba(240,180,41,0.08)" },
-    opinionChoiceEmoji: { fontSize: 13 },
-    opinionChoiceText: { color: c.text, fontSize: 9.5, fontWeight: "800" },
-    opinionChoiceTextActive: { color: c.accent },
-    opinionCount: { color: c.dim, fontSize: 9, fontWeight: "800" },
-
-    // ---- tepki/yorum/paylaş + yorum önizlemesi ----
-    actions: { flexDirection: "row", alignItems: "center", gap: 18, borderTopWidth: 1, borderTopColor: c.border, marginTop: 10, paddingTop: 11, paddingHorizontal: 0, marginHorizontal: 0 },
-    action: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 },
-    actionShare: { marginLeft: "auto" },
-    actionText: { color: c.dim, fontSize: 11.5, fontWeight: "700" },
-    reactionWrap: { position: "relative" },
-    reactionIcon: { fontSize: 16 },
-    reactionPicker: {
-      position: "absolute", bottom: 34, left: -6, zIndex: 40,
-      flexDirection: "row", gap: 2, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
-      borderRadius: 999, padding: 4,
-      shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8,
-    },
-    reactionOption: { width: 34, height: 34, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-    reactionOptionEmoji: { fontSize: 17 },
-    commentPreview: { marginTop: 10, padding: 10, backgroundColor: c.surface2, borderRadius: 12 },
-    commentPreviewName: { fontWeight: "800", color: c.text },
-    commentPreviewText: { color: c.text, fontSize: 12, lineHeight: 17 },
-    commentPreviewMore: { color: c.dim, fontSize: 10.5, fontWeight: "700", marginTop: 4 },
+    post: { paddingVertical: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+    postCompact: { paddingVertical: 14 },
+    thought: { color: c.text, fontSize: 18, lineHeight: 26, marginTop: 12 },
+    thoughtCompact: { fontSize: 16, lineHeight: 23, marginTop: 6 },
+    share: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+    mono: { fontFamily: FONTS.monoMedium },
   });
 }
