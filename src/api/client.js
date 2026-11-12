@@ -288,6 +288,8 @@ export const api = {
   socialDeletePost: (token, id) => request(`/api/social/posts/${id}`, { method: "DELETE", token }),
   socialToggleLike: (token, id) => request(`/api/social/posts/${id}/like`, { method: "POST", token }),
   socialReact: (token, kind, id, reaction) => request(`/api/social/reactions/${kind}/${id}`, { method: "POST", token, body: { reaction } }),
+  // Bir paylaşımı kimlerin alkışladığı ("Alkışla"ya basılı tutunca açılan liste).
+  socialReactors: (token, kind, id) => request(`/api/social/reactions/${kind}/${id}`, { token }),
   socialComments: (token, id) => request(`/api/social/posts/${id}/comments`, { token }),
   socialAddComment: (token, id, body) => request(`/api/social/posts/${id}/comments`, { method: "POST", token, body: { body } }),
   socialDeleteComment: (token, postId, commentId) => request(`/api/social/posts/${postId}/comments/${commentId}`, { method: "DELETE", token }),
