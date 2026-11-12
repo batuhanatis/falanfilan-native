@@ -40,6 +40,12 @@ const POSTER_MIN_SCALE = 0.62;
 const FADE_H = 90;
 const HANDLE_AREA_H = 100;
 
+// Liste ve kartlardan gelen içerik nesnesi tam kayıt değilse (IMDb puanı, konu ya da tür alanı hiç
+// yoksa) özet sayılıyor. Sunucunun döndürdüğü kayıtta bu alanlar boş olsa bile anahtar olarak var.
+function isPartialMovie(m) {
+  return !!m?.id && (m.imdb === undefined || m.overview === undefined || m.genre === undefined);
+}
+
 export default function DetailScreen({ route, navigation }) {
   const { movie } = route.params;
   const { c } = useAppTheme();
@@ -53,13 +59,20 @@ export default function DetailScreen({ route, navigation }) {
   // Kiralık / satın alınabilir seçenekler (Apple TV, Google Play...); eski önbellekten gelen
   // içerikte yoksa aynı tazelemeyle geliyor.
   const [stores, setStores] = useState(movie.stores);
+  // Paylaşım kartları (ör. sosyal akıştaki "İzledim + puan" kartı) içeriğin yalnızca özetini
+  // taşıyor: ad, afiş, tür, yıl. Ekran bu özetle hemen açılıyor; IMDb puanı, konu, tür, süre gibi
+  // alanlar aynı tazelemeyle tamamlanıp ekranın parametresine yazılıyor.
   useEffect(() => {
-    if ((Array.isArray(movie.watchLinks) && Array.isArray(movie.stores)) || !movie.id) return;
+    const partial = isPartialMovie(movie);
+    if (!movie.id || (!partial && Array.isArray(movie.watchLinks) && Array.isArray(movie.stores))) return;
     api.movieById(auth.token, movie.id)
       .then((fresh) => {
         setWatchLinks(Array.isArray(fresh?.watchLinks) ? fresh.watchLinks : []);
         if (Array.isArray(fresh?.platforms)) setPlatforms(fresh.platforms);
         setStores(Array.isArray(fresh?.stores) ? fresh.stores : []);
+        if (partial && fresh?.id && Number(fresh.id) === Number(movie.id)) {
+          navigation.setParams({ movie: { ...movie, ...fresh } });
+        }
       })
       .catch(() => {});
   }, [movie.id]);
@@ -339,9 +352,12 @@ export default function DetailScreen({ route, navigation }) {
             <View style={styles.peek}>
               <Text style={styles.title} numberOfLines={1}>{movie.title}</Text>
               <View style={styles.ratingRow}>
-                <Star size={15} color={c.accent} fill={c.accent} />
-                <Text style={styles.ratingNum}>{movie.imdb}</Text>
-                <Text style={styles.metaText}>{translateUI("· ")}{movie.year}{translateUI(" · ")}{translateUI(movie.genre)}</Text>
+                {Number(movie.imdb) > 0 && <Star size={15} color={c.accent} fill={c.accent} />}
+                {Number(movie.imdb) > 0 && <Text style={styles.ratingNum}>{movie.imdb}</Text>}
+                <Text style={styles.metaText}>
+                  {Number(movie.imdb) > 0 ? translateUI("· ") : ""}
+                  {[movie.year, movie.genre ? translateUI(movie.genre) : null].filter(Boolean).join(translateUI(" · "))}
+                </Text>
               </View>
             </View>
           </View>
@@ -363,7 +379,9 @@ export default function DetailScreen({ route, navigation }) {
                 <Text style={styles.metaText}>{movie.runtime}</Text>
               </View>
             )}
-            <Text style={styles.metaText}>{Number(movie.votes || 0).toLocaleString(getLocale())}{translateUI(" oy · IMDB")}</Text>
+            {Number(movie.votes) > 0 && (
+              <Text style={styles.metaText}>{Number(movie.votes).toLocaleString(getLocale())}{translateUI(" oy · IMDB")}</Text>
+            )}
           </View>
 
           {!!movie.overview && <Text style={styles.overview}>{movie.overview}</Text>}
