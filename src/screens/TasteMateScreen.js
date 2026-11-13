@@ -8,7 +8,7 @@ import { usePrefetch } from "../context/PrefetchContext";
 import { api } from "../api/client";
 import { avatarOr } from "../utils/avatar";
 import { emitLocalEvent } from "../utils/localEvents";
-import { hapticSuccess } from "../utils/haptics";
+import { hapticSuccess, hapticWarning } from "../utils/haptics";
 import { dativeTR, alsoTR } from "../utils/turkishSuffix";
 import SwipeableCard from "../components/SwipeableCard";
 import KnotHeart from "../components/salon/KnotHeart";
@@ -23,9 +23,14 @@ export default function TasteMateScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [mates, setMates] = useState([]);
   // Ücretsiz kullanıcının bugünkü kalan TasteMate hakkı (null = bilinmiyor); Premium'da sınırsız.
+  // Hak yalnızca sağa kaydırınca (TANIŞ) düşer; sola kaydırmak (GEÇ) her zaman ücretsiz.
   const [allowance, setAllowance] = useState({ remaining: null, premium: false });
   const applyAllowance = (data) => setAllowance({ remaining: data?.remainingSwipes ?? null, premium: !!data?.isPremium });
-  const [limitReached, setLimitReached] = useState(false);
+  const outOfRight = !allowance.premium && allowance.remaining === 0;
+  const outOfRightRef = useRef(false);
+  outOfRightRef.current = outOfRight;
+  // Sağa kaydırma reddedilince kart ortaya geri gelsin diye anahtarını yeniliyoruz.
+  const [cardNonce, setCardNonce] = useState(0);
   const [index, setIndex] = useState(0);
   const cardRef = useRef(null);
   const [mutualMatch, setMutualMatch] = useState(null);
@@ -48,20 +53,18 @@ export default function TasteMateScreen({ navigation }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Hak bittiyse (ör. Premium ekranından dönülünce) yalnızca hakkı tazele; kartlar yerinde kalsın.
   useEffect(() => {
     const unsub = navigation.addListener("focus", () => {
-      if (!limitReached) return;
-      api.tastemates(auth.token)
-        .then((data) => {
-          setMates(data.results || []);
-          applyAllowance(data);
-          setIndex(0);
-          setLimitReached(false);
-        })
-        .catch(() => {});
+      if (!outOfRightRef.current) return;
+      api.tastemates(auth.token).then(applyAllowance).catch(() => {});
     });
     return unsub;
-  }, [navigation, limitReached, auth.token]);
+  }, [navigation, auth.token]);
+
+  function onRightBlocked() {
+    hapticWarning();
+  }
 
   function advance() {
     setIndex((i) => i + 1);
@@ -81,7 +84,12 @@ export default function TasteMateScreen({ navigation }) {
 
     try {
       const data = await api.tastemateSwipeV2(auth.token, swiped.id, direction);
-      setAllowance((a) => (a.premium || a.remaining == null ? a : { ...a, remaining: Math.max(0, a.remaining - 1) }));
+      setAllowance((a) => {
+        if (a.premium) return a;
+        if (typeof data?.remainingSwipes === "number") return { ...a, remaining: data.remainingSwipes };
+        if (direction !== "right" || a.remaining == null) return a;
+        return { ...a, remaining: Math.max(0, a.remaining - 1) };
+      });
       if (direction === "right") {
         if (data.mutualMatch) {
           hapticSuccess();
@@ -94,8 +102,10 @@ export default function TasteMateScreen({ navigation }) {
       advance();
     } catch (e) {
       if (e.limitReached) {
-        setLimitReached(true);
+        // Sunucu sağa kaydırmayı reddetti: kart geri gelir, sola kaydırmaya devam edilebilir.
         setAllowance((a) => ({ ...a, remaining: 0 }));
+        setCardNonce((n) => n + 1);
+        hapticWarning();
         return;
       }
       emitLocalEvent({
@@ -106,8 +116,9 @@ export default function TasteMateScreen({ navigation }) {
     }
   }
 
-  const current = limitReached ? null : mates[index];
-  const resetLabel = useMidnightCountdown(limitReached);
+  const current = mates[index];
+  const resetLabel = useMidnightCountdown(outOfRight);
+  const goPremium = () => navigation.navigate("Premium", { autoPurchase: true, reason: "tastemate_limit" });
 
   if (loading) {
     return (
@@ -143,24 +154,17 @@ export default function TasteMateScreen({ navigation }) {
         )}
       </View>
       <Text style={styles.header}>{translateUI("Beğendiğin içeriklere göre sana en çok uyan kullanıcılar")}</Text>
+      {!allowance.premium && allowance.remaining != null && (
+        <Text style={styles.rule}>{translateUI("GEÇMEK ÜCRETSİZ · HAK YALNIZCA TANIŞ'TA DÜŞER")}</Text>
+      )}
 
       <View style={styles.stage}>
         {!current ? (
           <View style={styles.center}>
             <Text style={styles.emptyTitle}>{translateUI("Hepsine baktın")}</Text>
-            {limitReached ? (
-              <>
-                <Text style={styles.emptySubtitle}>{translateUI("Bugünkü ücretsiz TasteMate hakkın doldu. Premium ile sınırsız kaydırabilirsin.")}</Text>
-                {!!resetLabel && <Text style={styles.resetLabel}>{resetLabel}</Text>}
-                <TouchableOpacity onPress={() => navigation.navigate("Premium", { autoPurchase: true, reason: "tastemate_limit" })} style={styles.premiumBtn}>
-                  <Text style={styles.premiumBtnText}>{translateUI("Premium'a Geç")}</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity onPress={restart} style={styles.restartBtn}>
-                <Text style={styles.restartText}>{translateUI("Baştan Göster")}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={restart} style={styles.restartBtn}>
+              <Text style={styles.restartText}>{translateUI("Baştan Göster")}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <>
@@ -173,11 +177,13 @@ export default function TasteMateScreen({ navigation }) {
               </View>
             )}
             <SwipeableCard
-              key={current.id}
+              key={`${current.id}-${cardNonce}`}
               ref={cardRef}
               style={styles.card}
               onSwipeLeft={() => handleSwipe("left")}
               onSwipeRight={() => handleSwipe("right")}
+              canSwipe={(direction) => direction === "left" || !outOfRightRef.current}
+              onBlocked={onRightBlocked}
             >
               {(pan) => (
                 <SeatTicket
@@ -198,12 +204,32 @@ export default function TasteMateScreen({ navigation }) {
         )}
       </View>
 
+      {outOfRight && (
+        <View style={styles.outBar}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.outTitle}>{translateUI("Bugünkü tanışma hakların bitti")}</Text>
+            <Text style={styles.outSub} numberOfLines={2}>
+              {translateUI("Geçmeye devam edebilirsin.")}{resetLabel ? ` ${resetLabel}` : ""}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={goPremium} style={styles.outBtn} accessibilityRole="button">
+            <Text style={styles.premiumBtnText}>{translateUI("Sınırsız tanış")}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {!!current && (
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]} onPress={() => cardRef.current?.swipeLeft()}>
+          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]} onPress={() => cardRef.current?.swipeLeft()} accessibilityRole="button" accessibilityLabel={translateUI("Geç")}>
             <X size={22} color={c.danger} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionCircle, { backgroundColor: c.accent2 }]} onPress={() => cardRef.current?.swipeRight()}>
+          <TouchableOpacity
+            style={[styles.actionCircle, { backgroundColor: c.accent2 }, outOfRight && { opacity: 0.35 }]}
+            onPress={() => (outOfRight ? onRightBlocked() : cardRef.current?.swipeRight())}
+            accessibilityRole="button"
+            accessibilityLabel={translateUI("Tanış")}
+            accessibilityState={{ disabled: outOfRight }}
+          >
             <Heart size={22} color="#fff" fill="#fff" />
           </TouchableOpacity>
         </View>
@@ -267,12 +293,13 @@ function useMidnightCountdown(active) {
   useEffect(() => {
     if (!active) return;
     function tick() {
+      // Sunucu günlük hakkı UTC gece yarısı yeniliyor (Türkiye'de 03:00).
       const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
-      const diffMs = midnight - now;
+      const reset = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+      const diffMs = reset - now.getTime();
       const h = Math.floor(diffMs / 3600000);
       const m = Math.floor((diffMs % 3600000) / 60000);
-      setLabel(`${h} saat ${m} dakika sonra sıfırlanır`);
+      setLabel(translateUI("{0} sa {1} dk sonra yenilenir.", { 0: h, 1: m }));
     }
     tick();
     const id = setInterval(tick, 30000);
@@ -291,13 +318,16 @@ function makeStyles(c) {
     hakNotch: { position: "absolute", top: 10, width: 9, height: 9, borderRadius: 5, borderWidth: 1, borderColor: "#3a332b" },
     hakText: { fontFamily: FONTS.monoMedium, fontSize: 10.5, letterSpacing: 0.5, color: "#e2c171" },
     header: { fontSize: 11.5, lineHeight: 15, color: c.dim, textAlign: "center", marginTop: 4, marginBottom: 12, paddingHorizontal: 40 },
+    rule: { fontFamily: FONTS.mono, fontSize: 9.5, letterSpacing: 0.6, color: c.dim, textAlign: "center", marginTop: -8, marginBottom: 10, paddingHorizontal: 24 },
+    outBar: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginTop: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: "#3a332b", backgroundColor: "#0d0b0a" },
+    outTitle: { fontSize: 13, fontWeight: "700", color: "#f2ede2" },
+    outSub: { fontSize: 11.5, lineHeight: 15, color: "#a39684", marginTop: 2 },
+    outBtn: { backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 14, minHeight: 40, justifyContent: "center" },
     emptyTitle: { fontSize: 15, fontWeight: "700", color: c.text },
     emptySubtitle: { fontSize: 12, color: c.dim, textAlign: "center", marginTop: 8, lineHeight: 18 },
     restartBtn: { marginTop: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
     restartText: { color: c.text, fontSize: 12, fontWeight: "700" },
-    premiumBtn: { marginTop: 14, backgroundColor: c.accent, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 },
     premiumBtnText: { color: c.bg, fontSize: 12, fontWeight: "800" },
-    resetLabel: { fontSize: 11, color: c.dim, marginTop: 8, fontWeight: "600" },
     mutualOverlay: {
       ...StyleSheet.absoluteFillObject, zIndex: 50, backgroundColor: "rgba(10,9,14,0.94)",
       alignItems: "center", justifyContent: "center", paddingVertical: 28,

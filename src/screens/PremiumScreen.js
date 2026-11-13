@@ -15,7 +15,7 @@ import { getCurrentOffering, purchasePackage, restorePurchases, hasActivePremium
 const BENEFITS = [
   { icon: Sparkles, text: "Bu Akşamı Planla: platformlarına ve ortak beğenilerinize göre öneri" },
   { icon: Sparkles, text: "Sınırsız AI önerisi (Anlat-Bulalım, Bana Göre Öner, Fotoğraftan Bul)" },
-  { icon: Users, text: "TasteMate'te sınırsız kaydırma" },
+  { icon: Users, text: "TasteMate'te sınırsız tanışma" },
   { icon: Crown, text: "Profilinde altın Premium çerçevesi" },
   { icon: Palette, text: "Sana özel, AI ile üretilen profil arka planı" },
   { icon: Zap, text: "Yeni özelliklere öncelikli erişim" },
@@ -26,7 +26,7 @@ const BENEFITS = [
 const COMPARISON_ROWS = [
   { label: "Bu Akşamı Planla", free: false, premium: true },
   { label: "AI önerisi (günlük)", free: "Sınırlı", premium: "Sınırsız" },
-  { label: "TasteMate kaydırma", free: "Sınırlı", premium: "Sınırsız" },
+  { label: "TasteMate tanışma", free: "Günde 3", premium: "Sınırsız" },
   { label: "Profil çerçevesi", free: false, premium: true },
   { label: "AI profil arka planı", free: false, premium: true },
   { label: "Yeni özelliklere öncelik", free: false, premium: true },
@@ -37,7 +37,7 @@ const COMPARISON_ROWS = [
 const REASON_COPY = {
   tonight_planner: { title: "Bu akşamı Pellix planlasın", subtitle: "Platformlarını seç, istersen arkadaşlarının profillerini ekle. Ortak beğenilerinize göre bir ana öneri ve iki alternatif bulalım." },
   ai_limit: { title: "AI önerin bugünlük bitti", subtitle: "Premium ile Anlat-Bulalım, Bana Göre Öner ve Fotoğraftan Bul'u sınırsız kullan." },
-  tastemate_limit: { title: "TasteMate hakkın bugünlük bitti", subtitle: "Premium ile sınırsız kaydırıp sana en çok uyan kişileri keşfetmeye devam et." },
+  tastemate_limit: { title: "Bugünkü tanışma hakların bitti", subtitle: "Geçmek her zaman ücretsiz. Premium ile sana en çok uyan kişilerle sınırsız tanış." },
 };
 
 export default function PremiumScreen({ navigation, route }) {
@@ -178,7 +178,7 @@ export default function PremiumScreen({ navigation, route }) {
               <Text style={styles.limitValue}>{status?.ai?.remaining ?? 0}{translateUI(" / ")}{status?.ai?.limit}</Text>
             </View>
             <View style={styles.limitRow}>
-              <Text style={styles.limitLabel}>{translateUI("TasteMate (bugün)")}</Text>
+              <Text style={styles.limitLabel}>{translateUI("TasteMate tanışma (bugün)")}</Text>
               <Text style={styles.limitValue}>{status?.tastemate?.remaining ?? 0}{translateUI(" / ")}{status?.tastemate?.limit}</Text>
             </View>
             {status?.bonusAiUses > 0 && (
@@ -240,12 +240,12 @@ export default function PremiumScreen({ navigation, route }) {
                 <View style={styles.compareCell}>
                   {typeof row.free === "boolean" ? (
                     row.free ? <Check size={14} color={c.dim} /> : <Minus size={14} color={c.dim} />
-                  ) : <Text style={styles.compareCellText}>{row.free}</Text>}
+                  ) : <Text style={styles.compareCellText}>{translateUI(row.free)}</Text>}
                 </View>
                 <View style={styles.compareCell}>
                   {typeof row.premium === "boolean" ? (
                     row.premium ? <Check size={14} color={c.accent} /> : <Minus size={14} color={c.dim} />
-                  ) : <Text style={[styles.compareCellText, { color: c.accent, fontWeight: "800" }]}>{row.premium}</Text>}
+                  ) : <Text style={[styles.compareCellText, { color: c.accent, fontWeight: "800" }]}>{translateUI(row.premium)}</Text>}
                 </View>
               </View>
             ))}
