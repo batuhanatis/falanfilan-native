@@ -23,12 +23,25 @@ const SWIPE_THRESHOLD = 110;
 // rightExitTarget (isteğe bağlı): sağa atılan kartın ekrandan çıkmak yerine uçacağı noktayı
 // ({ x, y, scale? }, kartın merkezine göre) döndüren fonksiyon. Keşfet'te beğenilen kart sol üstteki
 // "duvar"a küçülerek uçuyor; vermeyen ekranlar (MatchParty, TasteMate) eskisi gibi çalışır.
-const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRight, rightExitTarget, style, children }, ref) {
+//
+// canSwipe (isteğe bağlı): (direction) => boolean. false dönerse kart atılmaz, yerine yaylanarak
+// geri döner ve onBlocked(direction) çağrılır (TasteMate'te sağa kaydırma hakkı bitince).
+const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRight, rightExitTarget, canSwipe, onBlocked, style, children }, ref) {
   const pan = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(1)).current;
   const crossedRef = useRef(false);
 
+  function springBack() {
+    Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false, friction: 6 }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: false, friction: 6 }).start();
+  }
+
   function animateOff(direction) {
+    if (canSwipe && !canSwipe(direction)) {
+      springBack();
+      onBlocked?.(direction);
+      return;
+    }
     const target = direction === "right" ? rightExitTarget?.() : null;
     if (target) {
       const { scale: endScale = 0.08, ...to } = target;
@@ -106,10 +119,7 @@ const SwipeableCard = forwardRef(function SwipeableCard({ onSwipeLeft, onSwipeRi
     onPanResponderRelease: (_, g) => {
       if (g.dx > SWIPE_THRESHOLD) { hapticMedium(); animateOff("right"); }
       else if (g.dx < -SWIPE_THRESHOLD) { hapticMedium(); animateOff("left"); }
-      else {
-        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false, friction: 6 }).start();
-        Animated.spring(scale, { toValue: 1, useNativeDriver: false, friction: 6 }).start();
-      }
+      else springBack();
     },
   });
 
