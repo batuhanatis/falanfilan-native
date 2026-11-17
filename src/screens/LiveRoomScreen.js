@@ -19,6 +19,7 @@ import RetryImage from "../components/RetryImage";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import LiveDot from "../components/salon/LiveDot";
 import SendToFriendModal from "../components/SendToFriendModal";
+import useAndroidKeyboardPad from "../hooks/useAndroidKeyboardPad";
 
 // Canlı sohbet odası: bir bölüm yayındayken herkesin aynı odada konuştuğu, admin panelinden açılıp
 // kapatılan geçici sohbet. Mesajlar REST ile gidiyor, canlı akış /ws üzerinden: ekran açılınca
@@ -91,6 +92,8 @@ export default function LiveRoomScreen({ route, navigation }) {
   const wsRef = useRef(ws);
   wsRef.current = ws;
   const insets = useSafeAreaInsets();
+  // Android (SDK 54, edge-to-edge): pencere klavyeyle küçülmüyor; yazma kutusunu klavyenin üstüne biz itiyoruz.
+  const kb = useAndroidKeyboardPad();
   const styles = useMemo(() => makeStyles(c), [c]);
 
   const [room, setRoom] = useState(null);
@@ -465,6 +468,7 @@ export default function LiveRoomScreen({ route, navigation }) {
   const sheetCanModerate = sheet && isModerator && !sheetOwn && !sheet.user.isModerator;
 
   return (
+    <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={[styles.root, { paddingBottom: kb.pad }]}>
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel={translateUI("Geri")}>
@@ -523,7 +527,7 @@ export default function LiveRoomScreen({ route, navigation }) {
 
       {!!notice && <Text style={[styles.notice, notice.tone === "info" && { color: c.dim }]} accessibilityLiveRegion="polite">{notice.text}</Text>}
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <View style={[styles.footer, { paddingBottom: kb.visible ? 10 : Math.max(insets.bottom, 10) }]}>
         {status === "live" && !restriction ? (
           <View style={styles.composer}>
             <TextInput
@@ -635,6 +639,7 @@ export default function LiveRoomScreen({ route, navigation }) {
         />
       )}
     </KeyboardAvoidingView>
+    </View>
   );
 }
 

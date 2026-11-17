@@ -6,7 +6,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Image, P
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import useAndroidKeyboardPad from "../hooks/useAndroidKeyboardPad";
 import {
   ChevronLeft, Send, Film, MessageCircle, Camera, Image as ImageIcon, X, Timer,
   Infinity as InfinityIcon, Download, Check, Reply, Trash2, Pencil, CheckSquare, Sparkles, BarChart2,
@@ -95,20 +96,10 @@ export default function ChatConversationScreen({ route, navigation }) {
   const { refresh: refreshUnread } = useUnread();
   const insets = useSafeAreaInsets();
 
-  // ÖNEMLİ (klavye boşluğu düzeltmesi): Android'de KeyboardAvoidingView'in "height" davranışı,
-  // giriş kutusunun KENDİ sabit alt boşluğuyla (Android sistem çubuğu için eklediğimiz
-  // insets.bottom) aynı anda uygulanınca çift boşluğa yol açıyordu — klavye açıkken bir boşluk
-  // oluşuyor, klavye kapanınca da bazen düzgün sıfırlanmıyordu (bilinen bir Android/RN sorunu).
-  // Android'de bunu KeyboardAvoidingView'e bırakmak yerine, klavye olaylarını kendimiz dinleyip
-  // tam kontrolü elimize alıyoruz — klavye açıkken input'u TAM klavyenin üstüne, kapalıyken TAM
-  // sistem çubuğunun üstüne (insets.bottom) oturtuyoruz, ara boşluk kalmıyor.
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
+  // Android klavyesi (Expo SDK 54, edge-to-edge): pencere artık klavyeyle küçülmüyor, giriş kutusu
+  // klavyenin arkasında kalıyordu. useAndroidKeyboardPad kapsayıcının klavyeyle çakışan kısmını ölçüp
+  // o kadar alt boşluk veriyor; pencere yine küçülürse çakışma 0 olur, çift boşluk olmaz.
+  const kb = useAndroidKeyboardPad();
   // ÖNEMLİ (performans): makeStyles her render'da YENİ bir StyleSheet objesi üretiyordu — bu,
   // ChatMessageRow'a prop olarak geçtiğimizde React.memo'yu (styles "değişti" sanıp) her seferinde
   // kırardı. useSafeAreaInsets()'in her render'da YENİ bir obje döndürebileceğini varsayıp,
@@ -764,16 +755,29 @@ export default function ChatConversationScreen({ route, navigation }) {
     if (!viewerImage?.uri || downloading) return;
     setDownloading(true);
     try {
-      const perm = Platform.OS === "ios" ? await MediaLibrary.requestPermissionsAsync(true) : { granted: true };
-      if (!perm.granted) { Alert.alert("İzin gerekli", "Fotoğrafı kaydetmek için galeri izni vermelisin."); setDownloading(false); return; }
-      const fileUri = FileSystem.cacheDirectory + `falanfilan-${Date.now()}.jpg`;
-      const base64Data = viewerImage.uri.split(",")[1];
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+      // Yalnızca ekleme izni (iOS "fotoğraf ekle"; Android 12 ve altında WRITE_EXTERNAL_STORAGE, 13+ izin gerekmez).
+      // Eskiden Android'de izin hiç istenmiyordu, Android 12 ve altında kayıt izin hatasıyla düşüyordu.
+      const perm = await MediaLibrary.requestPermissionsAsync(true, ["photo"]);
+      if (!perm.granted) { Alert.alert(translateUI("İzin gerekli"), translateUI("Fotoğrafı kaydetmek için galeri izni vermelisin.")); setDownloading(false); return; }
+      // Sohbet fotoğrafları sunucuda R2'ye yüklenip bağlantı (https) olarak geliyor; yalnızca henüz
+      // gönderilmekte olan kendi fotoğrafın base64 (data:) olabilir. İkisini de önce önbelleğe dosya
+      // olarak yazıp galeriye ekliyoruz. (SDK 54'te bu fonksiyonlar "expo-file-system/legacy"de.)
+      const src = String(viewerImage.uri);
+      const ext = (src.match(/^data:image\/(\w+)/i)?.[1] || src.split("?")[0].match(/\.(jpe?g|png|webp|heic)$/i)?.[1] || "jpg").toLowerCase().replace("jpeg", "jpg");
+      let fileUri = `${FileSystem.cacheDirectory}pellix-${Date.now()}.${ext}`;
+      if (src.startsWith("data:")) {
+        await FileSystem.writeAsStringAsync(fileUri, src.slice(src.indexOf(",") + 1), { encoding: FileSystem.EncodingType.Base64 });
+      } else if (/^https?:\/\//i.test(src)) {
+        const res = await FileSystem.downloadAsync(src, fileUri);
+        if (res.status < 200 || res.status >= 300) throw new Error(`indirme ${res.status}`);
+      } else {
+        fileUri = src; // zaten yerel bir dosya (file://)
+      }
       await MediaLibrary.saveToLibraryAsync(fileUri);
       setDownloaded(true);
       setTimeout(() => setDownloaded(false), 2000);
     } catch {
-      Alert.alert("Olmadı", "Fotoğraf kaydedilemedi, tekrar dener misin?");
+      Alert.alert(translateUI("Olmadı"), translateUI("Fotoğraf kaydedilemedi, tekrar dener misin?"));
     }
     setDownloading(false);
   }
@@ -998,13 +1002,10 @@ export default function ChatConversationScreen({ route, navigation }) {
         <ReportUserModal userId={friendId} userName={friendName} onClose={() => setShowReportModal(false)} />
       )}
 
-      {/* ÖNEMLİ DÜZELTME: "behavior" burada Android için hâlâ "height" idi — bu, Android'in
-          zaten varsayılan olarak (windowSoftInputMode: resize) kendi native yeniden-boyutlandırmasıyla
-          ÇAKIŞIYORDU: ikisi de aynı anda alan açmaya çalışınca çift boşluk/klavye kapanınca geç
-          sıfırlanma oluyordu — üstteki yorumun anlattığı "Android'de kendi kontrolümüzü alıyoruz"
-          niyeti koddaki bu satırla tam örtüşmüyordu. Android'de artık "undefined" (no-op)
-          veriyoruz, tüm yeniden boyutlandırmayı native'e + keyboardHeight'a bağlı manuel
-          paddingBottom'a bırakıyoruz. */}
+      {/* Android'de KeyboardAvoidingView kapalı ("height" eskiden pencerenin kendi küçülmesiyle
+          çakışıp çift boşluk açıyordu). Klavye boşluğunu dıştaki View veriyor: useAndroidKeyboardPad
+          klavyeyle çakışan yüksekliği ölçüyor (edge-to-edge'de klavye kadar, pencere küçülürse 0). */}
+      <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={{ flex: 1, paddingBottom: kb.pad }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <FlatList
           ref={listRef}
@@ -1161,7 +1162,7 @@ export default function ChatConversationScreen({ route, navigation }) {
             <TouchableOpacity onPress={cancelEdit}><X size={16} color={c.dim} /></TouchableOpacity>
           </View>
         )}
-        <View style={[styles.inputRow, Platform.OS === "android" && keyboardHeight > 0 && { paddingBottom: 14 }]}>
+        <View style={[styles.inputRow, kb.visible && { paddingBottom: 14 }]}>
           <TouchableOpacity style={styles.photoBtn} onPress={() => { Keyboard.dismiss(); setShowPhotoChooser(true); }} disabled={!!editingMessage}>
             <Camera size={19} color={editingMessage ? c.dim : c.text} />
           </TouchableOpacity>
@@ -1184,6 +1185,7 @@ export default function ChatConversationScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      </View>
 
       {/* CH2 — bir reaksiyon eklendiğinde ekranın alt yarısında küçük, kısa bir konfeti
           sıçraması (reaksiyon sayfasının kapandığı tam o an tetikleniyor). */}
