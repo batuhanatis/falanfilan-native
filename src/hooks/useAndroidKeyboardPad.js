@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Platform } from "react-native";
+import { Keyboard, Platform, StatusBar } from "react-native";
 
 // Android'de (Expo SDK 54, edge-to-edge) pencere klavye açılınca artık küçülmüyor; içerik klavyenin
 // arkasında kalıyor. Bu kanca, kapsayıcının alt kenarı ile klavyenin üst kenarı arasındaki çakışmayı
@@ -23,7 +23,11 @@ export default function useAndroidKeyboardPad() {
     if (top == null || !ref.current?.measureInWindow) { setPad(0); return; }
     ref.current.measureInWindow((x, y, w, h) => {
       if (keyboardTop.current == null) return;
-      const overlap = Math.round(y + h - top);
+      // measureInWindow'un y'si görünür alanın üstüne (durum çubuğunun altına) göre, klavyenin
+      // screenY'si ise ekranın en üstüne göre geliyor. Aynı ölçeğe çekmek için durum çubuğu
+      // yüksekliğini ekliyoruz; eksik kalınca kutu durum çubuğu kadar (yarısı) klavyenin altında kalıyordu.
+      const statusBar = StatusBar.currentHeight || 0;
+      const overlap = Math.round(y + statusBar + h - top);
       const next = overlap >= MIN_OVERLAP ? overlap : 0;
       setPad((prev) => (Math.abs(prev - next) > 1 ? next : prev));
     });
