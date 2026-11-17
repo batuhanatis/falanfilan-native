@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system/legacy";
 import useAndroidKeyboardPad from "../hooks/useAndroidKeyboardPad";
+import { reportHandledError } from "../utils/crashReporter";
 import {
   ChevronLeft, Send, Film, MessageCircle, Camera, Image as ImageIcon, X, Timer,
   Infinity as InfinityIcon, Download, Check, Reply, Trash2, Pencil, CheckSquare, Sparkles, BarChart2,
@@ -776,7 +777,9 @@ export default function ChatConversationScreen({ route, navigation }) {
       await MediaLibrary.saveToLibraryAsync(fileUri);
       setDownloaded(true);
       setTimeout(() => setDownloaded(false), 2000);
-    } catch {
+    } catch (e) {
+      // Hata sürüm bilgisiyle sunucu kayıtlarına düşsün (hangi adımda ve hangi pakette kaldığını görmek için).
+      reportHandledError(e, "chat-photo-save", `kaynak: ${String(viewerImage?.uri || "").slice(0, 40)}`);
       Alert.alert(translateUI("Olmadı"), translateUI("Fotoğraf kaydedilemedi, tekrar dener misin?"));
     }
     setDownloading(false);
