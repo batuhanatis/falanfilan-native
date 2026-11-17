@@ -1008,8 +1008,10 @@ export default function ChatConversationScreen({ route, navigation }) {
       {/* Android'de KeyboardAvoidingView kapalı ("height" eskiden pencerenin kendi küçülmesiyle
           çakışıp çift boşluk açıyordu). Klavye boşluğunu dıştaki View veriyor: useAndroidKeyboardPad
           klavyeyle çakışan yüksekliği ölçüyor (edge-to-edge'de klavye kadar, pencere küçülürse 0). */}
-      <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={{ flex: 1, paddingBottom: kb.pad }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* Android klavye boşluğu bu iç View'da. KeyboardAvoidingView'in İÇİNDE olmalı: dışına sarınca iOS'ta
+          KAV boşluğu yeni kapsayıcıya göre hesaplayıp başlık yüksekliğini kaçırıyor, kutu klavyenin altında kalıyordu. */}
+      <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={{ flex: 1, paddingBottom: kb.pad }}>
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
@@ -1187,8 +1189,8 @@ export default function ChatConversationScreen({ route, navigation }) {
             <Send size={16} color={c.bg} />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
       </View>
+      </KeyboardAvoidingView>
 
       {/* CH2 — bir reaksiyon eklendiğinde ekranın alt yarısında küçük, kısa bir konfeti
           sıçraması (reaksiyon sayfasının kapandığı tam o an tetikleniyor). */}

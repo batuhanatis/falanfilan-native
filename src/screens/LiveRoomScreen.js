@@ -468,8 +468,9 @@ export default function LiveRoomScreen({ route, navigation }) {
   const sheetCanModerate = sheet && isModerator && !sheetOwn && !sheet.user.isModerator;
 
   return (
-    <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={[styles.root, { paddingBottom: kb.pad }]}>
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    {/* Android klavye boşluğu iç View'da (KAV'ın içinde kalmalı, yoksa iOS'ta KAV hesabı kayıyor). */}
+    <View ref={kb.ref} onLayout={kb.onLayout} collapsable={false} style={{ flex: 1, paddingBottom: kb.pad }}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()} accessibilityLabel={translateUI("Geri")}>
           <ChevronLeft size={22} color={c.text} />
@@ -638,8 +639,8 @@ export default function LiveRoomScreen({ route, navigation }) {
           onClose={() => setSendOpen(false)}
         />
       )}
-    </KeyboardAvoidingView>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
