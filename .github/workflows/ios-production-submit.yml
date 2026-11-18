@@ -45,7 +45,6 @@ jobs:
         # Widget gibi yeni bir hedefe dağıtım sertifikası atanmamışsa, etkileşimli moddaki gibi
         # hesaptaki geçerli sertifikayı yeniden kullan (.github/scripts/eas-reuse-dist-cert.cjs).
         run: |
-          export EAS_CLI_DIR="$(npm root -g)/eas-cli"
           export NODE_OPTIONS="--require $GITHUB_WORKSPACE/.github/scripts/eas-reuse-dist-cert.cjs"
           eas build --platform ios --profile production --local --non-interactive --output ./pellix.ipa
         env:
