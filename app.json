@@ -2,7 +2,7 @@
   "expo": {
     "name": "pellix",
     "slug": "falanfilan-native",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -37,7 +37,8 @@
           "autoVerify": true,
           "data": [
             { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/u" },
-            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/blend" }
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/blend" },
+            { "scheme": "https", "host": "open.pellix.app", "pathPrefix": "/oda" }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
