@@ -15,6 +15,7 @@ import ShareCardModal from "../components/ShareCardModal";
 import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import BlendShareCard from "../components/BlendShareCard";
 import { publishBlend } from "../widgets/homeWidgets";
+import { reviewMoment } from "../utils/reviewPrompt";
 
 export default function BlendScreen({ route, navigation }) {
   const { friendId, friendName, friendAvatar } = route.params;
@@ -41,6 +42,8 @@ export default function BlendScreen({ route, navigation }) {
       .then((result) => {
         setData(result);
         publishBlend({ friendId, friendName, myName: auth.name, data: result });
+        // Yüksek uyum olumlu bir an: sayaç (1,1 sn) bitip kutlama haptiği geldikten sonra puan iste.
+        if ((result?.matchPercent ?? 0) >= 60) reviewMoment("blend", { delayMs: 2500 });
       })
       .catch((e) => setError(e.message || "Blend oluşturulamadı."))
       .finally(() => setLoading(false));

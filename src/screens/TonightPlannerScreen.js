@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import ScreenHeader from '../components/ScreenHeader';
 import ListPickerModal from '../components/ListPickerModal';
+import { reviewMoment } from '../utils/reviewPrompt';
 
 const INITIAL = { company: 'solo', participantIds: [], type: 'Film', mood: 'gripping', maxMinutes: 120,
   pace: 'any', avoidGenres: [], origin: 'any', platformMode: 'selected', providerIds: [] };
@@ -97,6 +98,7 @@ export default function TonightPlannerScreen({ navigation }) {
       const data = await api.tonightPlan(auth.token, { ...answers, excludeIds: excluded.current });
       if (!mounted.current) return;
       setResult(data); scroll.current?.scrollTo({ y: 0, animated: false });
+      reviewMoment('plan', { delayMs: 2500 });
       AsyncStorage.setItem(storageKey, JSON.stringify({ providerIds: answers.providerIds, platformMode: answers.platformMode })).catch(() => {});
     } catch (e) {
       if (!mounted.current) return;

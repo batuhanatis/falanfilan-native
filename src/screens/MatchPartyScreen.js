@@ -25,6 +25,7 @@ import ShareFan, { shareOptions } from "../components/salon/ShareFan";
 import MatchShareCard from "../components/MatchShareCard";
 import MatchCelebration from "../components/MatchCelebration";
 import { getStoreLink } from "../utils/appLinks";
+import { reviewMoment } from "../utils/reviewPrompt";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const MATCH_SHARE_CARD_HEIGHT = 320 * 1.72;
@@ -572,8 +573,8 @@ export default function MatchPartyScreen({ route, navigation }) {
           partnerAvatar={members[0]?.avatarUrl || friend?.avatarUrl}
           partnerId={members[0]?.id || friend?.id}
           partnerName={displayName}
-          onContinue={() => setCelebration(null)}
-          onEndSession={() => { setCelebration(null); endSession(); }}
+          onContinue={() => { setCelebration(null); reviewMoment("match"); }}
+          onEndSession={() => { setCelebration(null); endSession(); reviewMoment("match"); }}
         />
       )}
 
