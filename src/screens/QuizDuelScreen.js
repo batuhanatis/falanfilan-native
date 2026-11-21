@@ -24,7 +24,7 @@ import { hapticLight, hapticSuccess, hapticWarning, hapticSelection } from "../u
 const PING_MS = 2500;
 const LEVEL_LABEL = { 1: "KOLAY", 2: "ORTA", 3: "ZOR" };
 const LETTERS = ["A", "B", "C", "D"];
-const PHASE_TOTAL = { invited: 60000, joining: 20000, picking: 10000, ready: 30000, question: 15000, reveal: 3000 };
+const PHASE_TOTAL = { invited: 60000, joining: 20000, ready: 30000, question: 15000, reveal: 3000 };
 
 export default function QuizDuelScreen({ navigation, route }) {
   const { c } = useAppTheme();
@@ -223,7 +223,7 @@ export default function QuizDuelScreen({ navigation, route }) {
   } else if (duel.phase === "invited" || duel.phase === "joining") {
     body = <Waiting styles={styles} c={c} duel={duel} opp={opp} offsetRef={offsetRef} iAmInvitee={iAmInvitee} onCancel={backOut} />;
   } else if (duel.phase === "picking") {
-    body = <Picking styles={styles} c={c} duel={duel} me={me} opp={opp} offsetRef={offsetRef} onPick={pick} />;
+    body = <Picking styles={styles} c={c} duel={duel} me={me} opp={opp} onPick={pick} />;
   } else if (duel.phase === "ready") {
     body = <Curtain styles={styles} c={c} duel={duel} me={me} opp={opp} offsetRef={offsetRef} onReady={ready} onBackOut={backOut} />;
   } else if (duel.phase === "question" || duel.phase === "reveal") {
@@ -410,10 +410,30 @@ function Waiting({ styles, c, duel, opp, offsetRef, iAmInvitee, onCancel }) {
 
 // ---------- başlık seçimi: bilet koçanları ----------
 
-function Picking({ styles, c, duel, me, opp, offsetRef, onPick }) {
+function Picking({ styles, c, duel, me, opp, onPick }) {
   const myTurn = duel.turnUserId === me;
   const pickedBy = Object.fromEntries((duel.picks || []).map((p) => [p.titleId, p.userId]));
   const nameOf = (id) => (id === me ? translateUI("Sen") : opp?.name || translateUI("Rakibin"));
+  // Seçimde süre yok; düellodaki bütün yapımlar listelenir, ortak beğeniler en üstte.
+  const all = duel.candidates || [];
+  const shared = all.filter((t) => t.shared);
+  const others = all.filter((t) => !t.shared);
+  const ticket = (t) => {
+    const by = pickedBy[t.titleId];
+    const disabled = !myTurn || !!by;
+    return (
+      <TouchableOpacity key={t.titleId} style={[styles.ticket, by && styles.ticketPicked, !myTurn && !by && { opacity: 0.7 }]} disabled={disabled} onPress={() => onPick(t.titleId)} activeOpacity={0.85} accessibilityLabel={t.title}>
+        {t.poster ? <Image source={{ uri: t.poster }} style={styles.ticketPoster} /> : <View style={[styles.ticketPoster, styles.center]}><Ticket size={18} color={c.dim} /></View>}
+        <View style={styles.ticketPerf} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.ticketKind}>{translateUI(t.series ? "FİLM SERİSİ" : t.type === "Film" ? "FİLM" : "DİZİ")}</Text>
+          <Text style={styles.ticketTitle} numberOfLines={2}>{t.title}</Text>
+          {t.shared && <Text style={styles.ticketTag}>{translateUI("ORTAK BEĞENİ")}</Text>}
+        </View>
+        {!!by && <Stamp styles={styles} text={translateUI("{0} SEÇTİ", { 0: nameOf(by) })} />}
+      </TouchableOpacity>
+    );
+  };
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.turnRow}>
@@ -421,26 +441,12 @@ function Picking({ styles, c, duel, me, opp, offsetRef, onPick }) {
           <Text style={styles.eyebrow}>{translateUI("{0}. SEÇİM", { 0: (duel.picks?.length || 0) + 1 })}</Text>
           <Text style={styles.turnTitle}>{myTurn ? translateUI("Sıra sende, birini seç") : translateUI("{0} seçiyor", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         </View>
-        <Seconds deadline={duel.deadline} offsetRef={offsetRef} styles={styles} />
       </View>
-      <Fitil deadline={duel.deadline} total={PHASE_TOTAL.picking} offsetRef={offsetRef} c={c} />
-      <Text style={styles.pickHint}>{translateUI("Her tur, seçilen yapımın sorularından oluşur. Süre dolarsa rastgele seçilir.")}</Text>
-      {(duel.candidates || []).map((t) => {
-        const by = pickedBy[t.titleId];
-        const disabled = !myTurn || !!by;
-        return (
-          <TouchableOpacity key={t.titleId} style={[styles.ticket, by && styles.ticketPicked, !myTurn && !by && { opacity: 0.7 }]} disabled={disabled} onPress={() => onPick(t.titleId)} activeOpacity={0.85} accessibilityLabel={t.title}>
-            {t.poster ? <Image source={{ uri: t.poster }} style={styles.ticketPoster} /> : <View style={[styles.ticketPoster, styles.center]}><Ticket size={18} color={c.dim} /></View>}
-            <View style={styles.ticketPerf} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.ticketKind}>{translateUI(t.series ? "FİLM SERİSİ" : t.type === "Film" ? "FİLM" : "DİZİ")}</Text>
-              <Text style={styles.ticketTitle} numberOfLines={2}>{t.title}</Text>
-              <Text style={[styles.ticketTag, !t.shared && { color: c.dim }]}>{t.shared ? translateUI("ORTAK BEĞENİ") : translateUI("Ortak beğeni değil")}</Text>
-            </View>
-            {!!by && <Stamp styles={styles} text={translateUI("{0} SEÇTİ", { 0: nameOf(by) })} />}
-          </TouchableOpacity>
-        );
-      })}
+      <Text style={styles.pickHint}>{translateUI("Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.")}</Text>
+      {shared.length > 0 && <Text style={styles.pickGroup}>{translateUI("ORTAK BEĞENİLERİNİZ")}</Text>}
+      {shared.map(ticket)}
+      {others.length > 0 && <Text style={styles.pickGroup}>{translateUI(shared.length ? "DÜELLODAKİ DİĞER YAPIMLAR" : "DÜELLODAKİ YAPIMLAR")}</Text>}
+      {others.map(ticket)}
     </ScrollView>
   );
 }
@@ -713,6 +719,7 @@ function makeStyles(c, insets) {
     turnTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24, marginTop: 2 },
     seconds: { color: c.text, fontFamily: FONTS.marquee, fontSize: 26, minWidth: 34, textAlign: "center" },
     pickHint: { color: c.dim, fontSize: 11, lineHeight: 16, marginTop: 8, marginBottom: 12 },
+    pickGroup: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3, marginTop: 10, marginBottom: 8 },
     ticket: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 10, marginBottom: 9, overflow: "hidden" },
     ticketPicked: { borderColor: SALON.goldLine, backgroundColor: c.surface2 },
     ticketPoster: { width: 46, height: 68, borderRadius: 8, backgroundColor: c.surface2 },
