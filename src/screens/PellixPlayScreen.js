@@ -165,9 +165,9 @@ export default function PellixPlayScreen({ navigation, route }) {
               c={c}
               icon={Swords}
               eyebrow={translateUI("ARKADAŞINLA · AYNI ANDA")}
-              title={translateUI("Dizi Düellosu")}
+              title={translateUI("Film & Dizi Düellosu")}
               badge={duelMeta.premium ? translateUI("PREMIUM · SINIRSIZ") : translateUI("BUGÜN {0} HAKKIN VAR", { 0: duelMeta.remaining ?? 0 })}
-              sub={translateUI("Birer dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.")}
+              sub={translateUI("Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.")}
               onPress={() => navigation.navigate("QuizDuel")}
             />
           </>}

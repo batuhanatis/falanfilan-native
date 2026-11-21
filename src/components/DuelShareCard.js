@@ -26,7 +26,7 @@ export default function DuelShareCard({ duel, me }) {
   return (
     <View style={styles.card}>
       <LinearGradient colors={["rgba(201,164,76,0.28)", "rgba(201,164,76,0)"]} style={styles.spot} />
-      <Text style={styles.kicker}>{translateUI("PELLIX · DİZİ DÜELLOSU")}</Text>
+      <Text style={styles.kicker}>{translateUI("PELLIX · DÜELLO")}</Text>
       <Text style={styles.headline} numberOfLines={2}>{upperTR(headline)}</Text>
 
       <View style={styles.faceoff}>
