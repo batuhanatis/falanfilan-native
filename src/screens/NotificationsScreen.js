@@ -54,6 +54,7 @@ function notificationText(n) {
       : `${p.by?.name} anketine oy verdi 🗳️`;
     case "friend_quiz_shared": return `${p.by?.name}, "Arkadaşını Tanıyor musun?" oyununda seni %${p.percent} tahmin etti 🎮`;
     case "friend_battle_invite": return `${p.from?.name || "Bir arkadaşın"} seni Friend Battle'a çağırdı 🎮`;
+    case "duel_invite": return translateUI("{0} seni dizi düellosuna çağırıyor", { 0: p.from?.name || translateUI("Bir arkadaşın") });
     case "friend_battle_turn": return `${p.by?.name || "Arkadaşın"} Friend Battle turunu tamamladı — sıra sende`;
     case "friend_battle_result": return `Friend Battle sonucunuz hazır: %${p.percent || 0} uyum 🔥`;
     case "rating_nudge": return p?.pendingCount
@@ -83,6 +84,7 @@ function notificationMeta(n) {
     case "social_poll_vote": return { person: p.by, icon: Vote, color: GOLD };
     case "friend_quiz_shared": return { person: p.by, icon: Users, color: GOLD };
     case "friend_battle_invite": return { person: p.from, icon: Swords, color: GOLD };
+    case "duel_invite": return { person: p.from, icon: Swords, color: GOLD };
     case "friend_battle_turn": return { person: p.by, icon: Swords, color: GOLD };
     case "friend_battle_result": return { person: p.by, icon: TrophyIconFallback, color: GOLD };
     case "rating_nudge": return { person: null, icon: Sparkles, color: GOLD };
@@ -139,6 +141,7 @@ export default function NotificationsScreen({ navigation }) {
     else if (n.type === "party_match" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
     else if (n.type === "party_link_joined" && p.session_id) navigation.navigate("MatchParty", { sessionId: p.session_id });
     else if (WATCHLIST_TYPES.includes(n.type) && p.watchlistId) navigation.navigate("WatchlistDetail", { watchlistId: p.watchlistId });
+    else if (n.type === "duel_invite" && p.duel_id) navigation.navigate("QuizDuel", { duelId: p.duel_id, invite: true });
     else if (FRIEND_BATTLE_TYPES.includes(n.type) && p.battleId) navigation.navigate("FriendBattle", { battleId: String(p.battleId) });
     else if (SHARED_ITEM_TYPES.includes(n.type)) navigation.navigate("SharedItem", { kind: p.targetKind, id: p.targetId });
     else if (n.type === "rating_nudge") navigation.navigate("RateTaste");
@@ -179,7 +182,7 @@ export default function NotificationsScreen({ navigation }) {
           ListHeaderComponent={notifications.length > 0 ? <View style={styles.listIntro}><Text style={styles.hint}>{translateUI("Bir bildirimi silmek için sola kaydır.")}</Text></View> : null}
           renderItem={({ item }) => {
             const isPartyInvite = item.type === "party_invite" && !busyIds.has(item.id);
-            const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "party_link_joined" || item.type === "rating_nudge" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type) || WATCHLIST_TYPES.includes(item.type);
+            const clickable = item.type === "party_accepted" || item.type === "party_match" || item.type === "party_link_joined" || item.type === "rating_nudge" || item.type === "duel_invite" || FRIEND_BATTLE_TYPES.includes(item.type) || SHARED_ITEM_TYPES.includes(item.type) || WATCHLIST_TYPES.includes(item.type);
             const meta = notificationMeta(item);
             const Icon = meta.icon;
             return (

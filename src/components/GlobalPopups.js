@@ -1,12 +1,15 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from "react-native";
-import { PartyPopper, MessageCircle, CheckCircle2, Award } from "lucide-react-native";
+import { PartyPopper, MessageCircle, CheckCircle2, Award, Swords } from "lucide-react-native";
 import { useWS } from "../context/WSContext";
 import { subscribeLocalEvents } from "../utils/localEvents";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { api } from "../api/client";
+import { duelApi } from "../api/duels";
+import { FONTS } from "../theme/fonts";
+import { SALON } from "./salon/SalonKit";
 import { navigationRef } from "../navigation/RootNavigator";
 import BadgeCelebrationOverlay from "./BadgeCelebrationOverlay";
 
@@ -35,6 +38,10 @@ export default function GlobalPopups() {
   // konfeti+kart anı alıyor (bkz. BadgeCelebrationOverlay) çünkü kalıcı bir başarı, geçip giden bir
   // mesaj bildirimiyle aynı ağırlıkta hissettirilmemeli.
   const [badgeCelebration, setBadgeCelebration] = useState(null); // { id, name, desc, icon }
+  // Dizi düellosu daveti: 60 saniye açık; süre dolunca ya da davet geri çekilince kendiliğinden kapanıyor.
+  const [duelInvite, setDuelInvite] = useState(null); // { duelId, from, expiresAt }
+  const [duelBusy, setDuelBusy] = useState(false);
+  const duelAnim = useRef(new Animated.Value(-220)).current;
 
   const inviteAnim = useRef(new Animated.Value(-220)).current;
   const bannerAnim = useRef(new Animated.Value(-120)).current;
@@ -66,6 +73,10 @@ export default function GlobalPopups() {
         else if (body.startsWith("__STORY_REPLY__")) return;
         else preview = body.length > 60 ? body.slice(0, 60) + "…" : body;
         setBanner({ senderName: msg.from?.name || "Yeni mesaj", preview, chatId: msg.chat_id });
+      } else if (msg.type === "duel_invite") {
+        setDuelInvite({ duelId: msg.duel_id, from: msg.from, expiresAt: msg.expires_at });
+      } else if (msg.type === "duel_state" && msg.duel && ["cancelled", "finished"].includes(msg.duel.phase)) {
+        setDuelInvite((cur) => (cur && cur.duelId === msg.duel.id ? null : cur));
       } else if (msg.type === "badge_unlocked") {
         setBadgeCelebration(msg.badge);
       } else if (msg.type === "quest_completed") {
@@ -86,6 +97,8 @@ export default function GlobalPopups() {
         setBanner({ senderName: event.title || "✅", preview: event.message, tappable: false });
       } else if (event.type === "party_invite") {
         setInvite({ sessionId: event.sessionId, fromName: event.fromUser?.name || "Bir arkadaşın", fromUser: event.fromUser });
+      } else if (event.type === "duel_invite") {
+        setDuelInvite({ duelId: event.duelId, from: event.fromUser, expiresAt: event.expiresAt });
       }
     });
     return unsub;
@@ -94,6 +107,32 @@ export default function GlobalPopups() {
   useEffect(() => {
     Animated.spring(inviteAnim, { toValue: invite ? 0 : -220, useNativeDriver: true, damping: 18, stiffness: 180 }).start();
   }, [invite]);
+
+  useEffect(() => {
+    Animated.spring(duelAnim, { toValue: duelInvite ? 0 : -220, useNativeDriver: true, damping: 18, stiffness: 180 }).start();
+    if (!duelInvite) return;
+    const left = duelInvite.expiresAt ? duelInvite.expiresAt - Date.now() : 60000;
+    const t = setTimeout(() => setDuelInvite(null), Math.max(1000, Math.min(65000, left + 1500)));
+    return () => clearTimeout(t);
+  }, [duelInvite]);
+
+  async function respondDuel(accept) {
+    if (!duelInvite || duelBusy) return;
+    const { duelId } = duelInvite;
+    setDuelBusy(true);
+    try {
+      if (accept) {
+        await duelApi.accept(auth.token, duelId);
+        if (navigationRef.isReady()) navigationRef.navigate("QuizDuel", { duelId });
+      } else {
+        await duelApi.decline(auth.token, duelId);
+      }
+    } catch (e) {
+      if (e.code === "DUEL_LIMIT" && navigationRef.isReady()) navigationRef.navigate("Premium", { reason: "duel_limit" });
+    }
+    setDuelBusy(false);
+    setDuelInvite(null);
+  }
 
   useEffect(() => {
     if (!banner) return;
@@ -160,6 +199,25 @@ export default function GlobalPopups() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.acceptBtn} onPress={() => respond(true)} disabled={responding}>
               <Text style={styles.acceptText}>{translateUI("Kabul Et")}</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+      {duelInvite && !invite && (
+        <Animated.View style={[styles.duelCard, { transform: [{ translateY: duelAnim }] }]}>
+          <View style={styles.inviteRow}>
+            <View style={styles.duelIcon}><Swords size={15} color={SALON.onGold} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.duelKicker}>{translateUI("DİZİ DÜELLOSU · 60 SANİYE")}</Text>
+              <Text style={styles.duelText} numberOfLines={2}>{translateUI("{0} seni düelloya çağırıyor", { 0: duelInvite.from?.name || translateUI("Bir arkadaşın") })}</Text>
+            </View>
+          </View>
+          <View style={styles.inviteActions}>
+            <TouchableOpacity style={styles.duelDecline} onPress={() => respondDuel(false)} disabled={duelBusy}>
+              <Text style={styles.duelDeclineText}>{translateUI("Reddet")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.duelAccept} onPress={() => respondDuel(true)} disabled={duelBusy}>
+              <Text style={styles.duelAcceptText}>{translateUI("Kabul Et")}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -243,6 +301,19 @@ function makeStyles(c) {
     declineText: { color: "#fff", fontWeight: "700", fontSize: 12.5 },
     acceptBtn: { flex: 1, backgroundColor: "#fff", borderRadius: 10, paddingVertical: 9, alignItems: "center" },
     acceptText: { color: "#7C3AED", fontWeight: "800", fontSize: 12.5 },
+
+    duelCard: {
+      position: "absolute", top: TOP_OFFSET, left: 14, right: 14, zIndex: 101,
+      backgroundColor: SALON.ink, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 18, padding: 14,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 12,
+    },
+    duelIcon: { width: 30, height: 30, borderRadius: 999, backgroundColor: SALON.gold, alignItems: "center", justifyContent: "center" },
+    duelKicker: { color: SALON.gold, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1.2 },
+    duelText: { color: SALON.cream, fontSize: 13, fontWeight: "700", marginTop: 2 },
+    duelDecline: { flex: 1, backgroundColor: "rgba(243,234,216,0.08)", borderRadius: 10, paddingVertical: 9, alignItems: "center" },
+    duelDeclineText: { color: SALON.cream, fontWeight: "700", fontSize: 12.5 },
+    duelAccept: { flex: 1, backgroundColor: SALON.gold, borderRadius: 10, paddingVertical: 9, alignItems: "center" },
+    duelAcceptText: { color: SALON.onGold, fontWeight: "800", fontSize: 12.5 },
 
     banner: {
       position: "absolute", top: TOP_OFFSET, left: 14, right: 14, zIndex: 100,
