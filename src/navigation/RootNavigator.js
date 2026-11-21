@@ -17,6 +17,7 @@ import WeeklyQuestsScreen from "../screens/WeeklyQuestsScreen";
 import PellixPlayScreen from "../screens/PellixPlayScreen";
 import DailyPosterPuzzleScreen from "../screens/DailyPosterPuzzleScreen";
 import FriendBattleScreen from "../screens/FriendBattleScreen";
+import QuizDuelScreen from "../screens/QuizDuelScreen";
 import PartyJoinScreen from "../screens/PartyJoinScreen";
 import DiaryScreen from "../screens/DiaryScreen";
 import RateTasteScreen from "../screens/RateTasteScreen";
@@ -109,6 +110,7 @@ export default function RootNavigator() {
         <Stack.Screen name="PellixPlay" component={PellixPlayScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="DailyPosterPuzzle" component={DailyPosterPuzzleScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="FriendBattle" component={FriendBattleScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="QuizDuel" component={QuizDuelScreen} options={{ presentation: "card", gestureEnabled: false }} />
         <Stack.Screen name="PartyJoin" component={PartyJoinScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="RateTaste" component={RateTasteScreen} options={{ presentation: "card" }} />

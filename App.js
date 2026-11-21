@@ -192,6 +192,13 @@ function Gate() {
         }
         return;
       }
+      // Düello daveti de aynı şekilde: önce Kabul Et/Reddet kartı (süresi dolmuşsa kart kendiliğinden kapanır).
+      if (data.type === "duel_invite" && (data.params?.duelId || data.duel_id)) {
+        if (await waitForNavReady()) {
+          emitLocalEvent({ type: "duel_invite", duelId: data.params?.duelId || data.duel_id, fromUser: data.from, expiresAt: data.expires_at });
+        }
+        return;
+      }
 
       // ÖNEMLİ DÜZELTME: Bir sohbet bildirimine tıklanınca doğrudan "ChatConversation"a
       // atlıyorduk — ama Sohbetler sekmesinin kendi geçmişinde önce "Tüm Sohbetler" listesi

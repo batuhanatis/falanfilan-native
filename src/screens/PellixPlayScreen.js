@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
+import { duelApi } from "../api/duels";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
@@ -94,6 +95,15 @@ export default function PellixPlayScreen({ navigation, route }) {
 
   const enabledKeys = features ? Object.keys(GAME_META).filter((k) => features[k]) : [];
 
+  // Dizi Düellosu: en az üç dizinin soru bankası hazır olunca görünüyor (bkz. quiz-duels.js).
+  const [duelMeta, setDuelMeta] = useState(null);
+  useEffect(() => {
+    const load = () => duelApi.meta(auth.token).then(setDuelMeta).catch(() => setDuelMeta(null));
+    load();
+    return navigation.addListener("focus", load);
+  }, [navigation, auth.token]);
+  const duelOpen = (duelMeta?.titles || 0) >= 3;
+
   // Poster Puzzle ayrı bir ekran (DailyPosterPuzzle) ve eskiden bu listede HİÇ yoktu — oyunlara
   // Keşfet'teki sabit girişten gelen kişi günün bulmacasını burada bulamıyordu.
   const [puzzleResult, setPuzzleResult] = useState(undefined);
@@ -147,6 +157,20 @@ export default function PellixPlayScreen({ navigation, route }) {
               : translateUI("Bulanık posterden filmi bul. Günde tek poster, 3 hata hakkı.")}
             onPress={() => navigation.navigate("DailyPosterPuzzle")}
           />
+
+          {duelOpen && <>
+            <Text style={styles.sectionLabel}>{translateUI("CANLI")}</Text>
+            <PlayCard
+              styles={styles}
+              c={c}
+              icon={Swords}
+              eyebrow={translateUI("ARKADAŞINLA · AYNI ANDA")}
+              title={translateUI("Dizi Düellosu")}
+              badge={duelMeta.premium ? translateUI("PREMIUM · SINIRSIZ") : translateUI("BUGÜN {0} HAKKIN VAR", { 0: duelMeta.remaining ?? 0 })}
+              sub={translateUI("Birer dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.")}
+              onPress={() => navigation.navigate("QuizDuel")}
+            />
+          </>}
 
           <Text style={styles.sectionLabel}>{translateUI("MİNİ OYUNLAR")}</Text>
           {enabledKeys.length === 0 ? (
