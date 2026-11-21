@@ -2088,5 +2088,9 @@
   "PELLIX · DÜELLO": "PELLIX · DUEL",
   "DÜELLO · 60 SANİYE": "DUEL · 60 SECONDS",
   "Film & Dizi Düellosu": "Film & Series Duel",
-  "Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.": "Each pick a film or series and answer the same questions at the same time. Right and fast wins."
+  "Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.": "Each pick a film or series and answer the same questions at the same time. Right and fast wins.",
+  "Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.": "Each round uses questions from the title picked. There's no time limit for picking.",
+  "ORTAK BEĞENİLERİNİZ": "YOU BOTH LIKED",
+  "DÜELLODAKİ DİĞER YAPIMLAR": "OTHER TITLES IN THE DUEL",
+  "DÜELLODAKİ YAPIMLAR": "TITLES IN THE DUEL"
 }
