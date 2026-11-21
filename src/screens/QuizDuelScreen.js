@@ -202,7 +202,7 @@ export default function QuizDuelScreen({ navigation, route }) {
 
   const opp = duel?.players?.find((p) => p.id !== me);
   const mine = duel?.players?.find((p) => p.id === me);
-  const header = <ScreenHeader title={translateUI("Dizi Düellosu")} subtitle={opp?.name ? translateUI("{0} ile", { 0: opp.name }) : translateUI("Canlı bilgi yarışması")} onBack={() => navigation.goBack()} />;
+  const header = <ScreenHeader title={translateUI("Düello")} subtitle={opp?.name ? translateUI("{0} ile", { 0: opp.name }) : translateUI("Canlı bilgi yarışması")} onBack={() => navigation.goBack()} />;
 
   if (loading) return <View style={[styles.root, styles.center]}><ActivityIndicator color={c.accent} /></View>;
 
@@ -241,7 +241,7 @@ export default function QuizDuelScreen({ navigation, route }) {
       {shareOpen && duel.phase === "finished" && (
         <ShareCardModal
           onClose={() => setShareOpen(false)}
-          shareMessage={translateUI("Pellix'te dizi düellosu yaptık: {0} - {1}. Sıra sende.", { 0: mine?.score ?? 0, 1: opp?.score ?? 0 })}
+          shareMessage={translateUI("Pellix'te düello yaptık: {0} - {1}. Sıra sende.", { 0: mine?.score ?? 0, 1: opp?.score ?? 0 })}
           shareUrl={getStoreLink("quiz_duel")}
           previewHeight={DUEL_CARD_HEIGHT}
           instagramStory={{ link: getStoreLink("quiz_duel") }}
@@ -320,7 +320,7 @@ function Lobby({ styles, c, token, onStart, error, onPremium }) {
         <View style={styles.heroIcon}><Swords size={22} color={c.accent} /></View>
         <Text style={styles.eyebrow}>{translateUI("CANLI · ARKADAŞLARINLA")}</Text>
         <Text style={styles.heroTitle}>{translateUI("Kim daha iyi biliyor?")}</Text>
-        <Text style={styles.heroSub}>{translateUI("İkiniz birer dizi seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
+        <Text style={styles.heroSub}>{translateUI("İkiniz birer film ya da dizi seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
         <View style={styles.ruleRow}>
           <Rule styles={styles} value="2" label={translateUI("TUR")} />
           <Rule styles={styles} value="8" label={translateUI("SORU")} />
@@ -329,7 +329,7 @@ function Lobby({ styles, c, token, onStart, error, onPremium }) {
       </View>
 
       {!ready ? (
-        <View style={styles.note}><Clapperboard size={18} color={c.accent} /><Text style={styles.noteText}>{translateUI("Soru bankası hazırlanıyor. İlk diziler eklendiğinde düello burada açılacak.")}</Text></View>
+        <View style={styles.note}><Clapperboard size={18} color={c.accent} /><Text style={styles.noteText}>{translateUI("Soru bankası hazırlanıyor. İlk yapımlar eklendiğinde düello burada açılacak.")}</Text></View>
       ) : (out || error === "limit") ? (
         <TouchableOpacity style={styles.note} onPress={onPremium} activeOpacity={0.85}>
           <Crown size={18} color={c.accent} />
@@ -373,7 +373,7 @@ function IncomingInvite({ styles, c, duel, opp, offsetRef, onAccept, onDecline, 
     <View style={styles.stage}>
       <Avatar player={opp} styles={styles} size={76} />
       <Text style={styles.stageTitle}>{translateUI("{0} seni düelloya çağırıyor", { 0: opp?.name || translateUI("Arkadaşın") })}</Text>
-      <Text style={styles.stageText}>{translateUI("Kabul edersen birer dizi seçip aynı soruları aynı anda cevaplayacaksınız.")}</Text>
+      <Text style={styles.stageText}>{translateUI("Kabul edersen birer film ya da dizi seçip aynı soruları aynı anda cevaplayacaksınız.")}</Text>
       <View style={styles.fitilWrap}><Fitil deadline={duel.deadline} total={PHASE_TOTAL.invited} offsetRef={offsetRef} c={c} /></View>
       {limit ? (
         <TouchableOpacity style={styles.primaryBtn} onPress={onPremium}><Crown size={16} color={SALON.onGold} /><Text style={styles.primaryText}>{translateUI("Hakların bitti · Premium")}</Text></TouchableOpacity>
@@ -400,7 +400,7 @@ function Waiting({ styles, c, duel, opp, offsetRef, iAmInvitee, onCancel }) {
       <Text style={styles.stageText}>
         {joining
           ? translateUI("İkiniz de ekrana gelince seçim başlıyor.")
-          : translateUI("Davet 60 saniye açık. Kabul ederse önce o bir dizi seçecek.")}
+          : translateUI("Davet 60 saniye açık. Kabul ederse ilk seçimi o yapacak.")}
       </Text>
       <View style={styles.fitilWrap}><Fitil deadline={duel.deadline} total={PHASE_TOTAL[duel.phase]} offsetRef={offsetRef} c={c} /></View>
       <TouchableOpacity style={styles.secondaryBtn} onPress={onCancel}><Text style={styles.secondaryText}>{iAmInvitee ? translateUI("Vazgeç") : translateUI("Daveti geri çek")}</Text></TouchableOpacity>
@@ -419,12 +419,12 @@ function Picking({ styles, c, duel, me, opp, offsetRef, onPick }) {
       <View style={styles.turnRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.eyebrow}>{translateUI("{0}. SEÇİM", { 0: (duel.picks?.length || 0) + 1 })}</Text>
-          <Text style={styles.turnTitle}>{myTurn ? translateUI("Sıra sende, bir dizi seç") : translateUI("{0} seçiyor", { 0: opp?.name || translateUI("Rakibin") })}</Text>
+          <Text style={styles.turnTitle}>{myTurn ? translateUI("Sıra sende, birini seç") : translateUI("{0} seçiyor", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         </View>
         <Seconds deadline={duel.deadline} offsetRef={offsetRef} styles={styles} />
       </View>
       <Fitil deadline={duel.deadline} total={PHASE_TOTAL.picking} offsetRef={offsetRef} c={c} />
-      <Text style={styles.pickHint}>{translateUI("Her tur seçilen dizinin sorularından. Süre dolarsa rastgele seçilir.")}</Text>
+      <Text style={styles.pickHint}>{translateUI("Her tur, seçilen yapımın sorularından oluşur. Süre dolarsa rastgele seçilir.")}</Text>
       {(duel.candidates || []).map((t) => {
         const by = pickedBy[t.titleId];
         const disabled = !myTurn || !!by;
@@ -433,6 +433,7 @@ function Picking({ styles, c, duel, me, opp, offsetRef, onPick }) {
             {t.poster ? <Image source={{ uri: t.poster }} style={styles.ticketPoster} /> : <View style={[styles.ticketPoster, styles.center]}><Ticket size={18} color={c.dim} /></View>}
             <View style={styles.ticketPerf} />
             <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.ticketKind}>{translateUI(t.series ? "FİLM SERİSİ" : t.type === "Film" ? "FİLM" : "DİZİ")}</Text>
               <Text style={styles.ticketTitle} numberOfLines={2}>{t.title}</Text>
               <Text style={[styles.ticketTag, !t.shared && { color: c.dim }]}>{t.shared ? translateUI("ORTAK BEĞENİ") : translateUI("Ortak beğeni değil")}</Text>
             </View>
@@ -472,7 +473,7 @@ function Curtain({ styles, c, duel, me, opp, offsetRef, onReady, onBackOut }) {
         <GoldWash height={150} />
         <Text style={[styles.eyebrow, { textAlign: "center" }]}>{translateUI("PERDE AÇILMADAN")}</Text>
         <Text style={[styles.heroTitle, { textAlign: "center" }]}>{translateUI("Spoiler uyarısı")}</Text>
-        <Text style={[styles.heroSub, { textAlign: "center" }]}>{translateUI("Sorular bu iki dizinin tüm sezonlarından gelebilir, finaller dahil. Bitirmediğin bir yer varsa küçük sürprizlere hazır ol.")}</Text>
+        <Text style={[styles.heroSub, { textAlign: "center" }]}>{translateUI("Sorular bu iki yapımın tamamından gelebilir, finaller ve son sahneler dahil. İzlemediğin bir yer varsa küçük sürprizlere hazır ol.")}</Text>
         <View style={styles.curtainTickets}>
           {titles.map((t, i) => (
             <View key={t.titleId} style={styles.miniTicket}>
@@ -661,7 +662,7 @@ function cancelText(duel, me, opp) {
     case "invitee_limit": return translateUI("{0} bugünkü düello haklarını kullanmış.", { 0: name });
     case "join_timeout": return translateUI("Rakibin düelloya gelmedi.");
     case "ready_timeout": return translateUI("Süre doldu, düello başlamadı.");
-    case "no_questions": return translateUI("Bu diziler için soru hazırlanamadı. Başka dizilerle yeniden dene.");
+    case "no_questions": return translateUI("Bu yapımlar için soru hazırlanamadı. Başka seçimlerle yeniden dene.");
     default: return translateUI("Bir oyuncu ayrıldığı için düello başlamadı. Puan yazılmadı.");
   }
 }
@@ -716,6 +717,7 @@ function makeStyles(c, insets) {
     ticketPicked: { borderColor: SALON.goldLine, backgroundColor: c.surface2 },
     ticketPoster: { width: 46, height: 68, borderRadius: 8, backgroundColor: c.surface2 },
     ticketPerf: { width: 0, height: 60, borderLeftWidth: 1.5, borderStyle: "dashed", borderColor: c.border },
+    ticketKind: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1, marginBottom: 3 },
     ticketTitle: { color: c.text, fontSize: 14, fontWeight: "800" },
     ticketTag: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1, marginTop: 5 },
     stamp: { position: "absolute", right: 12, top: 18, borderWidth: 2, borderColor: c.accent, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: `${c.bg}cc` },

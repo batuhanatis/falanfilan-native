@@ -2073,5 +2073,20 @@
   "ORTA": "MEDIUM",
   "ZOR": "HARD",
   "Düello işlemi tamamlanamadı.": "The duel action could not be completed.",
-  "Canlı bilgi yarışması": "Live quiz"
+  "Canlı bilgi yarışması": "Live quiz",
+  "Düello": "Duel",
+  "Pellix'te düello yaptık: {0} - {1}. Sıra sende.": "We had a duel on Pellix: {0} - {1}. Your turn.",
+  "İkiniz birer film ya da dizi seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.": "You each pick a film or series and answer the same questions at the same time. Right and fast wins.",
+  "Soru bankası hazırlanıyor. İlk yapımlar eklendiğinde düello burada açılacak.": "Question banks are on the way. Duels open here once the first titles are added.",
+  "Kabul edersen birer film ya da dizi seçip aynı soruları aynı anda cevaplayacaksınız.": "If you accept, you each pick a film or series and answer the same questions at the same time.",
+  "Davet 60 saniye açık. Kabul ederse ilk seçimi o yapacak.": "The invite is open for 60 seconds. If they accept, they pick first.",
+  "Sıra sende, birini seç": "Your turn, pick one",
+  "Her tur, seçilen yapımın sorularından oluşur. Süre dolarsa rastgele seçilir.": "Each round uses questions from the title picked. If time runs out, one is picked at random.",
+  "Sorular bu iki yapımın tamamından gelebilir, finaller ve son sahneler dahil. İzlemediğin bir yer varsa küçük sürprizlere hazır ol.": "Questions can come from anywhere in these two titles, finales and final scenes included. If you have not watched it all, expect a few surprises.",
+  "Bu yapımlar için soru hazırlanamadı. Başka seçimlerle yeniden dene.": "Questions for these titles could not be prepared. Try again with other picks.",
+  "FİLM SERİSİ": "FILM SERIES",
+  "PELLIX · DÜELLO": "PELLIX · DUEL",
+  "DÜELLO · 60 SANİYE": "DUEL · 60 SECONDS",
+  "Film & Dizi Düellosu": "Film & Series Duel",
+  "Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.": "Each pick a film or series and answer the same questions at the same time. Right and fast wins."
 }

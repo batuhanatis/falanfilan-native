@@ -208,7 +208,7 @@ export default function GlobalPopups() {
           <View style={styles.inviteRow}>
             <View style={styles.duelIcon}><Swords size={15} color={SALON.onGold} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.duelKicker}>{translateUI("DİZİ DÜELLOSU · 60 SANİYE")}</Text>
+              <Text style={styles.duelKicker}>{translateUI("DÜELLO · 60 SANİYE")}</Text>
               <Text style={styles.duelText} numberOfLines={2}>{translateUI("{0} seni düelloya çağırıyor", { 0: duelInvite.from?.name || translateUI("Bir arkadaşın") })}</Text>
             </View>
           </View>
