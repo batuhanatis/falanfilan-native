@@ -2,7 +2,7 @@ import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing, Alert, AppState, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swords, Users, Trophy, RotateCcw, Share2, AlertCircle, Check, X, Ticket, Clapperboard, Crown } from "lucide-react-native";
+import { Swords, Users, Trophy, RotateCcw, Share2, AlertCircle, Check, X, Ticket, Clapperboard, Crown, ChevronRight } from "lucide-react-native";
 import { GoldWash, SALON } from "../components/salon/SalonKit";
 import { FONTS } from "../theme/fonts";
 import { useAppTheme } from "../context/ThemeContext";
@@ -14,6 +14,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
 import DuelShareCard, { DUEL_CARD_HEIGHT } from "../components/DuelShareCard";
+import { Kocan, rivalLine } from "../components/duel/DuelRecord";
 import { avatarOr } from "../utils/avatar";
 import { getStoreLink } from "../utils/appLinks";
 import { hapticLight, hapticSuccess, hapticWarning, hapticSelection } from "../utils/haptics";
@@ -214,7 +215,7 @@ export default function QuizDuelScreen({ navigation, route }) {
     );
   }
 
-  if (!duel) return <View style={styles.root}>{header}<Lobby styles={styles} c={c} token={auth.token} onStart={startWith} error={error} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} /></View>;
+  if (!duel) return <View style={styles.root}>{header}<Lobby styles={styles} c={c} token={auth.token} navigation={navigation} onStart={startWith} error={error} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} /></View>;
 
   const iAmInvitee = duel.inviteeId === me;
   let body;
@@ -305,14 +306,23 @@ function Seconds({ deadline, offsetRef, styles }) {
 
 // ---------- lobi ----------
 
-function Lobby({ styles, c, token, onStart, error, onPremium }) {
+function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
   const [meta, setMeta] = useState(null);
   const [friends, setFriends] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [history, setHistory] = useState(null);
   useEffect(() => {
     duelApi.meta(token).then(setMeta).catch(() => setMeta({ titles: 0 }));
     api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => setFriends([]));
   }, [token]);
+  // Geçmiş ve karneler: lobiye her dönüşte tazelenir (düello bitince ya da karneden çıkınca).
+  useEffect(() => {
+    const refresh = () => duelApi.history(token, { limit: 3 }).then(setHistory).catch(() => {});
+    refresh();
+    return navigation?.addListener?.("focus", refresh);
+  }, [token, navigation]);
+  const recordOf = (id) => history?.rivals?.find((r) => r.opponent.id === id) || null;
+  const openRecord = (person) => { hapticSelection(); navigation.navigate("QuizDuelHistory", { friend: person }); };
   if (!meta || !friends) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
   const ready = (meta.titles || 0) >= 3;
   const out = !meta.premium && meta.remaining === 0;
@@ -346,10 +356,20 @@ function Lobby({ styles, c, token, onStart, error, onPremium }) {
       <Text style={styles.sectionLabel}>{translateUI("RAKİBİNİ SEÇ")}</Text>
       {friends.length === 0 ? (
         <View style={styles.emptyCard}><Users size={20} color={c.dim} /><Text style={styles.emptyText}>{translateUI("Düello için önce bir arkadaş ekle.")}</Text></View>
-      ) : friends.map((f) => (
+      ) : friends.map((f) => {
+        const rec = recordOf(f.id);
+        const person = { id: f.id, name: f.name, avatarUrl: f.avatar_url || f.avatarUrl || null };
+        return (
         <View key={f.id} style={styles.friendRow}>
-          <RetryImage source={{ uri: avatarOr(f.avatar_url || f.avatarUrl, f.id) }} style={styles.avatar} />
-          <Text style={[styles.rowTitle, { flex: 1 }]} numberOfLines={1}>{f.name}</Text>
+          <TouchableOpacity style={styles.friendInfo} onPress={() => openRecord(person)} activeOpacity={0.75} accessibilityLabel={translateUI("{0} ile karnen", { 0: f.name })}>
+            <RetryImage source={{ uri: avatarOr(f.avatar_url || f.avatarUrl, f.id) }} style={styles.avatar} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.rowTitle} numberOfLines={1}>{f.name}</Text>
+              {!!history && (
+                <Text style={[styles.rowRecord, rec && rec.wins > rec.losses && { color: c.accent }]} numberOfLines={1}>{rivalLine(rec)}</Text>
+              )}
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.callBtn, (!ready || out || !!busyId) && { opacity: 0.4 }]}
             disabled={!ready || out || !!busyId}
@@ -359,7 +379,21 @@ function Lobby({ styles, c, token, onStart, error, onPremium }) {
             {busyId === f.id ? <ActivityIndicator size="small" color={SALON.onGold} /> : <Text style={styles.callText}>{translateUI("Çağır")}</Text>}
           </TouchableOpacity>
         </View>
-      ))}
+        );
+      })}
+
+      {!!history?.duels?.length && (
+        <>
+          <View style={styles.sectionRow}>
+            <Text style={[styles.sectionLabel, { flex: 1 }]}>{translateUI("GEÇMİŞ DÜELLOLAR")}</Text>
+            <TouchableOpacity onPress={() => { hapticSelection(); navigation.navigate("QuizDuelHistory"); }} hitSlop={8} style={styles.allLink}>
+              <Text style={styles.allLinkText}>{translateUI("Tümü")}</Text>
+              <ChevronRight size={14} color={c.accent} />
+            </TouchableOpacity>
+          </View>
+          {history.duels.map((d) => <Kocan key={d.id} duel={d} c={c} onPress={() => openRecord(d.opponent)} />)}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -698,6 +732,11 @@ function makeStyles(c, insets) {
     friendRow: { flexDirection: "row", alignItems: "center", gap: 11, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 11, marginBottom: 8 },
     avatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: c.surface2 },
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
+    rowRecord: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.6, marginTop: 3 },
+    friendInfo: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11 },
+    sectionRow: { flexDirection: "row", alignItems: "center" },
+    allLink: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 13 },
+    allLinkText: { color: c.accent, fontSize: 11.5, fontWeight: "800" },
     callBtn: { minWidth: 72, height: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
     callText: { color: SALON.onGold, fontSize: 12, fontWeight: "900" },
     emptyCard: { alignItems: "center", gap: 8, backgroundColor: c.surface, borderRadius: 18, borderWidth: 1, borderColor: c.border, padding: 22 },

@@ -26,6 +26,15 @@ export const duelApi = {
   accept: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/accept`, token, { method: "POST" }),
   decline: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/decline`, token, { method: "POST" }),
   rematch: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/rematch`, token, { method: "POST" }),
+  // Bitmiş düellolar (yeniden eskiye) ve rakip başına karne. friendId: tek rakip; before: sonraki sayfa.
+  history: (token, { friendId, limit, before } = {}) => {
+    const q = new URLSearchParams();
+    if (friendId != null) q.set("friendId", String(friendId));
+    if (limit) q.set("limit", String(limit));
+    if (before) q.set("before", String(before));
+    const qs = q.toString();
+    return request(`/api/duels/history${qs ? `?${qs}` : ""}`, token);
+  },
 };
 
 // Bir düellonun sonuçlanmış olup olmadığı (ekrandan çıkarken "kaybedersin" uyarısı için).
