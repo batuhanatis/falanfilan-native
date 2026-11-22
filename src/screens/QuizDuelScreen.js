@@ -226,6 +226,7 @@ export default function QuizDuelScreen({ navigation, route }) {
       c={c}
       onClose={() => setShortfall(null)}
       onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
+      onRequest={(movieId) => duelApi.requestTitle(auth.token, { movieId })}
     />
   );
 
@@ -400,6 +401,15 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
         </View>
         );
       })}
+
+      <TouchableOpacity style={styles.suggestCard} onPress={() => { hapticSelection(); navigation.navigate("QuizDuelRequest"); }} activeOpacity={0.85} accessibilityRole="button">
+        <View style={styles.suggestIcon}><Clapperboard size={17} color={c.accent} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.suggestTitle}>{translateUI("Soru havuzuna yapım öner")}</Text>
+          <Text style={styles.suggestText}>{translateUI("Sevdiğin bir yapım düelloda yoksa eklenmesini iste. Eklenince sana haber veririz.")}</Text>
+        </View>
+        <ChevronRight size={16} color={c.dim} />
+      </TouchableOpacity>
 
       {!!history?.duels?.length && (
         <>
@@ -753,6 +763,10 @@ function makeStyles(c, insets) {
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     rowRecord: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.6, marginTop: 3 },
     friendInfo: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11 },
+    suggestCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 16, padding: 12 },
+    suggestIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.2, borderColor: c.accent, alignItems: "center", justifyContent: "center" },
+    suggestTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
+    suggestText: { color: c.dim, fontSize: 11.5, lineHeight: 16, marginTop: 2 },
     ruleNote: { flexDirection: "row", alignItems: "flex-start", gap: 9, borderWidth: 1, borderStyle: "dashed", borderColor: SALON.goldLine, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
     ruleNoteText: { flex: 1, color: c.dim, fontSize: 11.5, lineHeight: 16 },
     sectionRow: { flexDirection: "row", alignItems: "center" },
