@@ -16,6 +16,7 @@ import ShareCardModal from "../components/ShareCardModal";
 import DuelShareCard, { DUEL_CARD_HEIGHT } from "../components/DuelShareCard";
 import { Kocan, rivalLine } from "../components/duel/DuelRecord";
 import SharedShortfall from "../components/duel/SharedShortfall";
+import { getDuelSharedOnly, setDuelSharedOnly } from "../utils/duelPrefs";
 import { avatarOr } from "../utils/avatar";
 import { getStoreLink } from "../utils/appLinks";
 import { hapticLight, hapticSuccess, hapticWarning, hapticSelection } from "../utils/haptics";
@@ -128,10 +129,10 @@ export default function QuizDuelScreen({ navigation, route }) {
     });
   }, [navigation, ws, me]);
 
-  async function startWith(friend) {
+  async function startWith(friend, { sharedOnly } = {}) {
     setError("");
     try {
-      const data = await duelApi.invite(auth.token, friend.id);
+      const data = await duelApi.invite(auth.token, friend.id, { sharedOnly: sharedOnly ?? (await getDuelSharedOnly()) });
       hapticSuccess();
       leftRef.current = false;
       applyState(data.duel);
@@ -227,6 +228,7 @@ export default function QuizDuelScreen({ navigation, route }) {
       onClose={() => setShortfall(null)}
       onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
       onRequest={(movieId) => duelApi.requestTitle(auth.token, { movieId })}
+      onInviteAll={shortfall?.sharedOnly && shortfall?.friend ? () => { const f = shortfall.friend; setShortfall(null); startWith(f, { sharedOnly: false }); } : undefined}
     />
   );
 
@@ -327,6 +329,9 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
   const [friends, setFriends] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [history, setHistory] = useState(null);
+  const [sharedOnly, setSharedOnly] = useState(false);
+  useEffect(() => { getDuelSharedOnly().then(setSharedOnly); }, []);
+  const toggleSharedOnly = () => { hapticSelection(); setSharedOnly((v) => { setDuelSharedOnly(!v); return !v; }); };
   useEffect(() => {
     duelApi.meta(token).then(setMeta).catch(() => setMeta({ titles: 0 }));
     api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => setFriends([]));
@@ -349,7 +354,7 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
         <View style={styles.heroIcon}><Swords size={22} color={c.accent} /></View>
         <Text style={styles.eyebrow}>{translateUI("CANLI · ARKADAŞLARINLA")}</Text>
         <Text style={styles.heroTitle}>{translateUI("Kim daha iyi biliyor?")}</Text>
-        <Text style={styles.heroSub}>{translateUI("İkinizin de beğendiği yapımlardan birer tane seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
+        <Text style={styles.heroSub}>{translateUI("İkiniz soru havuzundan birer film ya da dizi seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
         <View style={styles.ruleRow}>
           <Rule styles={styles} value="2" label={translateUI("TUR")} />
           <Rule styles={styles} value="8" label={translateUI("SORU")} />
@@ -370,10 +375,24 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
       {!!error && error !== "limit" && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{translateUI(error)}</Text></View>}
 
       <Text style={styles.sectionLabel}>{translateUI("RAKİBİNİ SEÇ")}</Text>
-      <View style={styles.ruleNote}>
-        <Ticket size={15} color={c.accent} />
-        <Text style={styles.ruleNoteText}>{translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Bir arkadaşınla düello yapabilmek için en az 2 ortak beğeniniz olmalı.")}</Text>
-      </View>
+      <TouchableOpacity
+        style={[styles.ruleNote, sharedOnly && styles.ruleNoteOn]}
+        onPress={toggleSharedOnly}
+        activeOpacity={0.85}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: sharedOnly }}
+        accessibilityLabel={translateUI("Sadece ortak beğenilerimizden seçelim")}
+      >
+        <View style={[styles.checkbox, sharedOnly && styles.checkboxOn]}>{sharedOnly && <Check size={13} color={SALON.onGold} strokeWidth={3} />}</View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ruleNoteTitle}>{translateUI("Sadece ortak beğenilerimizden seçelim")}</Text>
+          <Text style={styles.ruleNoteText}>
+            {sharedOnly
+              ? translateUI("Seçim listesinde yalnızca ikinizin de beğendiği yapımlar çıkacak.")
+              : translateUI("Soru havuzundaki bütün yapımlar seçilebilir; ikinizin de beğendikleri en üstte ayrıca gösterilir.")}
+          </Text>
+        </View>
+      </TouchableOpacity>
       {friends.length === 0 ? (
         <View style={styles.emptyCard}><Users size={20} color={c.dim} /><Text style={styles.emptyText}>{translateUI("Düello için önce bir arkadaş ekle.")}</Text></View>
       ) : friends.map((f) => {
@@ -393,7 +412,7 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
           <TouchableOpacity
             style={[styles.callBtn, (!ready || out || !!busyId) && { opacity: 0.4 }]}
             disabled={!ready || out || !!busyId}
-            onPress={async () => { setBusyId(f.id); await onStart(f); setBusyId(null); }}
+            onPress={async () => { setBusyId(f.id); await onStart(f, { sharedOnly }); setBusyId(null); }}
             accessibilityLabel={translateUI("{0} ile düello", { 0: f.name })}
           >
             {busyId === f.id ? <ActivityIndicator size="small" color={SALON.onGold} /> : <Text style={styles.callText}>{translateUI("Çağır")}</Text>}
@@ -480,14 +499,16 @@ function Picking({ styles, c, duel, me, opp, onPick }) {
   const myTurn = duel.turnUserId === me;
   const pickedBy = Object.fromEntries((duel.picks || []).map((p) => [p.titleId, p.userId]));
   const nameOf = (id) => (id === me ? translateUI("Sen") : opp?.name || translateUI("Rakibin"));
-  // Seçimde süre yok. Yalnızca ikinizin de beğendiği yapımlar listelenir; rakibin izlemediği
-  // bir şey seçilemez. (Sunucu da yalnızca ortak beğenileri gönderir ve kabul eder.)
+  // Seçimde süre yok. Soru havuzundaki bütün yapımlar listelenir, ikinizin de beğendikleri ayrı
+  // grupta en üstte (davet eden "yalnızca ortak beğeniler" dediyse yalnızca onlar). Rakibin
+  // seçtiğini sen de seçebilirsin: o zaman 8 sorunun hepsi o yapımdan gelir.
   const all = duel.candidates || [];
   const shared = all.filter((t) => t.shared);
-  const list = shared.length >= 2 ? shared : all;
+  const others = duel.sharedOnly ? [] : all.filter((t) => !t.shared);
+  const myPick = (duel.picks || []).some((p) => p.userId === me);
   const ticket = (t) => {
     const by = pickedBy[t.titleId];
-    const disabled = !myTurn || !!by;
+    const disabled = !myTurn || myPick || by === me;
     return (
       <TouchableOpacity key={t.titleId} style={[styles.ticket, by && styles.ticketPicked, !myTurn && !by && { opacity: 0.7 }]} disabled={disabled} onPress={() => onPick(t.titleId)} activeOpacity={0.85} accessibilityLabel={t.title}>
         {t.poster ? <Image source={{ uri: t.poster }} style={styles.ticketPoster} /> : <View style={[styles.ticketPoster, styles.center]}><Ticket size={18} color={c.dim} /></View>}
@@ -508,9 +529,21 @@ function Picking({ styles, c, duel, me, opp, onPick }) {
           <Text style={styles.turnTitle}>{myTurn ? translateUI("Sıra sende, birini seç") : translateUI("{0} seçiyor", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         </View>
       </View>
-      <Text style={styles.pickHint}>{translateUI("Listede yalnızca ikinizin de beğendiği yapımlar var. Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.")}</Text>
-      <Text style={styles.pickGroup}>{translateUI("ORTAK BEĞENİLERİNİZ")}</Text>
-      {list.map(ticket)}
+      <Text style={styles.pickHint}>
+        {duel.sharedOnly
+          ? translateUI("Bu düelloda yalnızca ikinizin de beğendiği yapımlar var. Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.")
+          : translateUI("Her tur, seçilen yapımın sorularından oluşur. İkinizin de beğendikleri en üstte. Seçim için süre yok.")}
+      </Text>
+      {myTurn && (duel.picks?.length || 0) === 1 && (
+        <View style={styles.sameNote}>
+          <Ticket size={14} color={c.accent} />
+          <Text style={styles.sameNoteText}>{translateUI("Rakibinin seçtiği yapımı sen de seçersen 8 sorunun hepsi o yapımdan gelir.")}</Text>
+        </View>
+      )}
+      {shared.length > 0 && <Text style={styles.pickGroup}>{translateUI("ORTAK BEĞENİLERİNİZ")}</Text>}
+      {shared.map(ticket)}
+      {others.length > 0 && <Text style={styles.pickGroup}>{shared.length > 0 ? translateUI("DİĞER YAPIMLAR") : translateUI("SORU HAVUZUNDAKİ YAPIMLAR")}</Text>}
+      {others.map(ticket)}
     </ScrollView>
   );
 }
@@ -534,6 +567,7 @@ function Curtain({ styles, c, duel, me, opp, offsetRef, onReady, onBackOut }) {
   const iReady = (duel.ready || []).includes(me);
   const oppReady = opp && (duel.ready || []).includes(opp.id);
   const titles = (duel.picks || []).map((p) => duel.candidates?.find((x) => x.titleId === p.titleId)).filter(Boolean);
+  const sameTitle = titles.length === 2 && titles[0].titleId === titles[1].titleId;
   const drop = useRef(new Animated.Value(-40)).current;
   useEffect(() => { Animated.spring(drop, { toValue: 0, useNativeDriver: true, damping: 14, stiffness: 160 }).start(); }, []);
   return (
@@ -543,10 +577,19 @@ function Curtain({ styles, c, duel, me, opp, offsetRef, onReady, onBackOut }) {
         <GoldWash height={150} />
         <Text style={[styles.eyebrow, { textAlign: "center" }]}>{translateUI("PERDE AÇILMADAN")}</Text>
         <Text style={[styles.heroTitle, { textAlign: "center" }]}>{translateUI("Spoiler uyarısı")}</Text>
-        <Text style={[styles.heroSub, { textAlign: "center" }]}>{translateUI("Sorular bu iki yapımın tamamından gelebilir, finaller ve son sahneler dahil. İzlemediğin bir yer varsa küçük sürprizlere hazır ol.")}</Text>
+        <Text style={[styles.heroSub, { textAlign: "center" }]}>
+          {sameTitle
+            ? translateUI("İkiniz de aynı yapımı seçtiniz: 8 sorunun hepsi ondan, finaller ve son sahneler dahil. İzlemediğin bir yer varsa küçük sürprizlere hazır ol.")
+            : translateUI("Sorular bu iki yapımın tamamından gelebilir, finaller ve son sahneler dahil. İzlemediğin bir yer varsa küçük sürprizlere hazır ol.")}
+        </Text>
         <View style={styles.curtainTickets}>
-          {titles.map((t, i) => (
-            <View key={t.titleId} style={styles.miniTicket}>
+          {sameTitle ? (
+            <View style={styles.miniTicket}>
+              <Text style={styles.miniTicketRound}>{translateUI("İKİ TUR · 8 SORU")}</Text>
+              <Text style={styles.miniTicketTitle} numberOfLines={2}>{titles[0].title}</Text>
+            </View>
+          ) : titles.map((t, i) => (
+            <View key={`${t.titleId}-${i}`} style={styles.miniTicket}>
               <Text style={styles.miniTicketRound}>{translateUI("{0}. TUR", { 0: i + 1 })}</Text>
               <Text style={styles.miniTicketTitle} numberOfLines={2}>{t.title}</Text>
             </View>
@@ -767,8 +810,12 @@ function makeStyles(c, insets) {
     suggestIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.2, borderColor: c.accent, alignItems: "center", justifyContent: "center" },
     suggestTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     suggestText: { color: c.dim, fontSize: 11.5, lineHeight: 16, marginTop: 2 },
-    ruleNote: { flexDirection: "row", alignItems: "flex-start", gap: 9, borderWidth: 1, borderStyle: "dashed", borderColor: SALON.goldLine, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
-    ruleNoteText: { flex: 1, color: c.dim, fontSize: 11.5, lineHeight: 16 },
+    ruleNote: { flexDirection: "row", alignItems: "flex-start", gap: 11, borderWidth: 1, borderStyle: "dashed", borderColor: SALON.goldLine, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 10 },
+    ruleNoteOn: { borderStyle: "solid", backgroundColor: SALON.goldTint },
+    ruleNoteTitle: { color: c.text, fontSize: 12.5, fontWeight: "800", marginBottom: 2 },
+    ruleNoteText: { color: c.dim, fontSize: 11.5, lineHeight: 16 },
+    checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: c.accent, alignItems: "center", justifyContent: "center", marginTop: 1 },
+    checkboxOn: { backgroundColor: c.accent },
     sectionRow: { flexDirection: "row", alignItems: "center" },
     allLink: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 13 },
     allLinkText: { color: c.accent, fontSize: 11.5, fontWeight: "800" },
@@ -794,6 +841,8 @@ function makeStyles(c, insets) {
     turnTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24, marginTop: 2 },
     seconds: { color: c.text, fontFamily: FONTS.marquee, fontSize: 26, minWidth: 34, textAlign: "center" },
     pickHint: { color: c.dim, fontSize: 11, lineHeight: 16, marginTop: 8, marginBottom: 12 },
+    sameNote: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: SALON.goldTint, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 12, padding: 10, marginBottom: 6 },
+    sameNoteText: { flex: 1, color: c.text, fontSize: 11.5, lineHeight: 16 },
     pickGroup: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3, marginTop: 10, marginBottom: 8 },
     ticket: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 10, marginBottom: 9, overflow: "hidden" },
     ticketPicked: { borderColor: SALON.goldLine, backgroundColor: c.surface2 },

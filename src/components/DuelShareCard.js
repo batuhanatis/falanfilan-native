@@ -22,7 +22,8 @@ export default function DuelShareCard({ duel, me }) {
   const opp = players.find((p) => p.id !== me) || players[1];
   const winner = players.find((p) => p.id === duel.result?.winnerId);
   const headline = winner ? translateUI("{0} kazandı", { 0: winner.name }) : translateUI("Berabere");
-  const titles = (duel.picks || []).map((p) => duel.candidates?.find((c) => c.titleId === p.titleId)?.title).filter(Boolean);
+  // İki oyuncu aynı yapımı seçtiyse bir kez yazılır.
+  const titles = [...new Set((duel.picks || []).map((p) => duel.candidates?.find((c) => c.titleId === p.titleId)?.title).filter(Boolean))];
   return (
     <View style={styles.card}>
       <LinearGradient colors={["rgba(201,164,76,0.28)", "rgba(201,164,76,0)"]} style={styles.spot} />
