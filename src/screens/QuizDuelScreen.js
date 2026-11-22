@@ -2,7 +2,7 @@ import { t as translateUI } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing, Alert, AppState, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swords, Users, Trophy, RotateCcw, Share2, AlertCircle, Check, X, Ticket, Clapperboard, Crown, ChevronRight } from "lucide-react-native";
+import { Swords, Users, Trophy, RotateCcw, Share2, AlertCircle, Check, X, Ticket, Clapperboard, Crown, ChevronRight, CalendarDays } from "lucide-react-native";
 import { GoldWash, SALON } from "../components/salon/SalonKit";
 import { FONTS } from "../theme/fonts";
 import { useAppTheme } from "../context/ThemeContext";
@@ -16,6 +16,7 @@ import ShareCardModal from "../components/ShareCardModal";
 import DuelShareCard, { DUEL_CARD_HEIGHT } from "../components/DuelShareCard";
 import { Kocan, rivalLine } from "../components/duel/DuelRecord";
 import SharedShortfall from "../components/duel/SharedShortfall";
+import { GoldenBanner, JokerTray, TauntBar, TauntBubble, pointsLine, JOKER_META } from "../components/duel/DuelExtras";
 import { getDuelSharedOnly, setDuelSharedOnly } from "../utils/duelPrefs";
 import { avatarOr } from "../utils/avatar";
 import { getStoreLink } from "../utils/appLinks";
@@ -45,6 +46,8 @@ export default function QuizDuelScreen({ navigation, route }) {
   const [reveals, setReveals] = useState({});
   const [shareOpen, setShareOpen] = useState(false);
   const [shortfall, setShortfall] = useState(null); // ortak beğeni yetmediğinde açılan pencere
+  const [incomingTaunt, setIncomingTaunt] = useState(null); // rakibin laf atma balonu
+  const [myTaunt, setMyTaunt] = useState(null);
   const offsetRef = useRef(0);
   const duelRef = useRef(null);
   const leftRef = useRef(false);
@@ -86,6 +89,7 @@ export default function QuizDuelScreen({ navigation, route }) {
       if (msg.type === "duel_state" && msg.duel && (!cur || msg.duel.id === cur.id)) applyState(msg.duel);
       else if (msg.type === "duel_gone" && cur && msg.duelId === cur.id && DUEL_OPEN_PHASES.includes(cur.phase)) setGone(true);
       else if (msg.type === "ws_ready" && cur && DUEL_OPEN_PHASES.includes(cur.phase)) hello(cur.id);
+      else if (msg.type === "duel_taunt" && cur && msg.duelId === cur.id) { setIncomingTaunt({ key: msg.key, at: Date.now() }); hapticLight(); }
     });
   }, [ws, applyState, hello]);
 
@@ -200,6 +204,16 @@ export default function QuizDuelScreen({ navigation, route }) {
     setMyChoices((prev) => ({ ...prev, [idx]: choice }));
     ws?.send({ type: "duel_answer", duelId: duel.id, index: idx, choice });
   }
+  function applyJoker(type) {
+    const idx = duel?.question?.index;
+    if (idx == null) return;
+    ws?.send({ type: "duel_joker", duelId: duel.id, index: idx, joker: type });
+  }
+  function sendTaunt(key) {
+    if (!duel) return;
+    ws?.send({ type: "duel_taunt", duelId: duel.id, key });
+    setMyTaunt({ key, at: Date.now() });
+  }
   function backToLobby() {
     leftRef.current = true;
     setDuel(null); setMyChoices({}); setReveals({}); setGone(false); setError("");
@@ -245,9 +259,9 @@ export default function QuizDuelScreen({ navigation, route }) {
   } else if (duel.phase === "ready") {
     body = <Curtain styles={styles} c={c} duel={duel} me={me} opp={opp} offsetRef={offsetRef} onReady={ready} onBackOut={backOut} />;
   } else if (duel.phase === "question" || duel.phase === "reveal") {
-    body = <Question styles={styles} c={c} duel={duel} me={me} mine={mine} opp={opp} offsetRef={offsetRef} myChoice={myChoices[duel.question?.index]} onAnswer={answer} />;
+    body = <Question styles={styles} c={c} duel={duel} me={me} mine={mine} opp={opp} offsetRef={offsetRef} myChoice={myChoices[duel.question?.index]} onAnswer={answer} onJoker={applyJoker} onTaunt={sendTaunt} />;
   } else if (duel.phase === "finished") {
-    body = <Result styles={styles} c={c} duel={duel} me={me} mine={mine} opp={opp} reveals={reveals} onRematch={rematch} onShare={() => setShareOpen(true)} onLobby={backToLobby} limit={error === "limit"} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} />;
+    body = <Result styles={styles} c={c} duel={duel} me={me} mine={mine} opp={opp} reveals={reveals} onRematch={rematch} onShare={() => setShareOpen(true)} onLobby={backToLobby} limit={error === "limit"} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} onTaunt={sendTaunt} />;
   } else {
     body = <EndNote styles={styles} c={c} icon={Clapperboard} title={translateUI("Düello başlamadan bitti")} text={cancelText(duel, me, opp)} onPrimary={backToLobby} primary={translateUI("Yeni düello")} />;
   }
@@ -258,7 +272,11 @@ export default function QuizDuelScreen({ navigation, route }) {
   return (
     <View style={styles.root}>
       {header}
-      {body}
+      <View style={{ flex: 1 }}>
+        {body}
+        <TauntBubble taunt={incomingTaunt} side="right" name={(opp?.name || "").toLocaleUpperCase("tr-TR")} />
+        <TauntBubble taunt={myTaunt} side="left" name={translateUI("SEN")} />
+      </View>
       {shortfallSheet}
       {shareOpen && duel.phase === "finished" && (
         <ShareCardModal
@@ -336,9 +354,15 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
     duelApi.meta(token).then(setMeta).catch(() => setMeta({ titles: 0 }));
     api.friends(token).then((d) => setFriends(d.friends || [])).catch(() => setFriends([]));
   }, [token]);
-  // Geçmiş ve karneler: lobiye her dönüşte tazelenir (düello bitince ya da karneden çıkınca).
+  const [daily, setDaily] = useState(null);
+  const [league, setLeague] = useState(null);
+  // Geçmiş, karneler, günün düellosu ve lig: lobiye her dönüşte tazelenir.
   useEffect(() => {
-    const refresh = () => duelApi.history(token, { limit: 3 }).then(setHistory).catch(() => {});
+    const refresh = () => {
+      duelApi.history(token, { limit: 3 }).then(setHistory).catch(() => {});
+      duelApi.daily(token).then(setDaily).catch(() => {});
+      duelApi.league(token).then(setLeague).catch(() => {});
+    };
     refresh();
     return navigation?.addListener?.("focus", refresh);
   }, [token, navigation]);
@@ -374,6 +398,26 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
       )}
       {!!error && error !== "limit" && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{translateUI(error)}</Text></View>}
 
+      {!!daily?.available && (
+        <TouchableOpacity style={styles.dailyCard} onPress={() => { hapticSelection(); navigation.navigate("QuizDaily"); }} activeOpacity={0.85} accessibilityRole="button">
+          <View style={styles.dailyIcon}><CalendarDays size={18} color={c.accent} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.dailyEyebrow}>{translateUI("GÜNÜN DÜELLOSU")}</Text>
+            <Text style={styles.dailyTitle}>
+              {daily.run?.finished
+                ? translateUI("Bugünkü puanın: {0}", { 0: daily.run.score })
+                : daily.run?.index > 0 ? translateUI("Yarım kaldı, devam et") : translateUI("Bugünün 8 sorusu seni bekliyor")}
+            </Text>
+            <Text style={styles.dailySub} numberOfLines={1}>
+              {daily.friends?.length
+                ? translateUI("{0} arkadaşın bugün oynadı", { 0: daily.friends.filter((f) => !f.me).length })
+                : translateUI("Herkese aynı sorular, son soru altın")}
+            </Text>
+          </View>
+          <ChevronRight size={16} color={c.dim} />
+        </TouchableOpacity>
+      )}
+
       <Text style={styles.sectionLabel}>{translateUI("RAKİBİNİ SEÇ")}</Text>
       <TouchableOpacity
         style={[styles.ruleNote, sharedOnly && styles.ruleNoteOn]}
@@ -405,7 +449,11 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.rowTitle} numberOfLines={1}>{f.name}</Text>
               {!!history && (
-                <Text style={[styles.rowRecord, rec && rec.wins > rec.losses && { color: c.accent }]} numberOfLines={1}>{rivalLine(rec)}</Text>
+                rematchDue(rec) ? (
+                  <Text style={[styles.rowRecord, { color: c.danger }]} numberOfLines={1}>{translateUI("Rövanş borcun var · {0}", { 0: rivalLine(rec) })}</Text>
+                ) : (
+                  <Text style={[styles.rowRecord, rec && rec.wins > rec.losses && { color: c.accent }]} numberOfLines={1}>{rivalLine(rec)}</Text>
+                )
               )}
             </View>
           </TouchableOpacity>
@@ -420,6 +468,24 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
         </View>
         );
       })}
+
+      {!!league?.entries?.length && league.entries.length > 1 && (
+        <>
+          <Text style={styles.sectionLabel}>{translateUI("BU HAFTANIN LİGİ")}</Text>
+          <View style={styles.league}>
+            {leagueRows(league.entries).map((e) => (
+              <View key={e.user?.id ?? e.rank} style={[styles.leagueRow, e.me && styles.leagueMe]}>
+                <Text style={[styles.leagueRank, e.rank === 1 && { color: c.accent }]}>{e.rank}</Text>
+                <RetryImage source={{ uri: avatarOr(e.user?.avatarUrl, e.user?.id) }} style={styles.leagueAvatar} />
+                <Text style={styles.leagueName} numberOfLines={1}>{e.me ? translateUI("Sen") : e.user?.name}</Text>
+                <Text style={styles.leagueMeta}>{e.wins > 0 ? translateUI("{0} galibiyet", { 0: e.wins }) : ""}</Text>
+                <Text style={styles.leaguePoints}>{e.points}</Text>
+              </View>
+            ))}
+            <Text style={styles.leagueNote}>{translateUI("Pazartesi sıfırlanır. Puan: Günün Düellosu puanların + düello galibiyeti başına {0}.", { 0: league.winPoints })}</Text>
+          </View>
+        </>
+      )}
 
       <TouchableOpacity style={styles.suggestCard} onPress={() => { hapticSelection(); navigation.navigate("QuizDuelRequest"); }} activeOpacity={0.85} accessibilityRole="button">
         <View style={styles.suggestIcon}><Clapperboard size={17} color={c.accent} /></View>
@@ -444,6 +510,19 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
       )}
     </ScrollView>
   );
+}
+
+// Son düelloyu kaybettiysen ve üzerinden 7 günden az geçtiyse rövanş borcun var.
+function rematchDue(rec) {
+  if (!rec || rec.streak?.outcome !== "loss" || !rec.lastPlayedAt) return false;
+  return Date.now() - new Date(rec.lastPlayedAt).getTime() < 7 * 24 * 3600 * 1000;
+}
+
+// Ligde ilk 5, sen dışarıdaysan senin satırın da.
+function leagueRows(entries) {
+  const top = entries.slice(0, 5);
+  const me = entries.find((e) => e.me);
+  return me && !top.includes(me) ? [...top, me] : top;
 }
 
 function Rule({ styles, value, label }) {
@@ -609,8 +688,11 @@ function Curtain({ styles, c, duel, me, opp, offsetRef, onReady, onBackOut }) {
 
 // ---------- soru ----------
 
-function Question({ styles, c, duel, me, mine, opp, offsetRef, myChoice, onAnswer }) {
+function Question({ styles, c, duel, me, mine, opp, offsetRef, myChoice, onAnswer, onJoker, onTaunt }) {
   const q = duel.question;
+  const myJoker = duel.jokers?.[me] || null;
+  const oppJoker = opp ? duel.jokers?.[opp.id] : null;
+  const hidden = duel.myHidden || [];
   const reveal = duel.phase === "reveal" ? duel.reveal : null;
   const oppAnswered = opp && (duel.answered || []).includes(opp.id);
   const chosen = reveal ? reveal.choices?.[me] ?? myChoice : myChoice;
@@ -633,16 +715,21 @@ function Question({ styles, c, duel, me, mine, opp, offsetRef, myChoice, onAnswe
       </View>
       {duel.phase === "question" ? <Fitil deadline={duel.deadline} total={PHASE_TOTAL.question} offsetRef={offsetRef} c={c} /> : <View style={{ height: 14 }} />}
       <Text style={styles.qTag} numberOfLines={1}>{tag} · {q.title}</Text>
+      {!!q.golden && <GoldenBanner c={c} />}
+      {!!oppJoker && oppJoker.index === q.index && (
+        <Text style={styles.oppJoker}>{translateUI("{0} jokerini kullandı: {1}", { 0: opp?.name || translateUI("Rakibin"), 1: translateUI(JOKER_META[oppJoker.type]?.label || "") })}</Text>
+      )}
       <Text style={styles.qText}>{q.text}</Text>
       {q.options.map((o, i) => {
         const isMine = chosen === i;
         const isRight = reveal && reveal.correct === i;
         const isWrongMine = reveal && isMine && !isRight;
+        const isHidden = hidden.includes(i) && !isRight;
         return (
           <TouchableOpacity
             key={i}
-            style={[styles.option, isMine && !reveal && styles.optionMine, isRight && styles.optionRight, isWrongMine && styles.optionWrong, chosen != null && !isMine && !isRight && { opacity: 0.55 }]}
-            disabled={chosen != null || duel.phase !== "question"}
+            style={[styles.option, isMine && !reveal && styles.optionMine, isRight && styles.optionRight, isWrongMine && styles.optionWrong, chosen != null && !isMine && !isRight && { opacity: 0.55 }, isHidden && styles.optionHidden]}
+            disabled={chosen != null || duel.phase !== "question" || isHidden}
             onPress={() => onAnswer(i)}
             activeOpacity={0.85}
             accessibilityLabel={o}
@@ -651,20 +738,24 @@ function Question({ styles, c, duel, me, mine, opp, offsetRef, myChoice, onAnswe
             <View style={[styles.letter, isMine && !reveal && { backgroundColor: c.accent }, isRight && { backgroundColor: c.accent2 }, isWrongMine && { backgroundColor: c.danger }]}>
               {isRight ? <Check size={13} color="#fff" /> : isWrongMine ? <X size={13} color="#fff" /> : <Text style={[styles.letterText, isMine && { color: SALON.onGold }]}>{LETTERS[i]}</Text>}
             </View>
-            <Text style={styles.optionText}>{o}</Text>
+            <Text style={[styles.optionText, isHidden && styles.optionHiddenText]}>{o}</Text>
             {reveal && oppChoice === i && <RetryImage source={{ uri: avatarOr(opp?.avatarUrl, opp?.id) }} style={styles.oppMark} />}
           </TouchableOpacity>
         );
       })}
+      {!q.suddenDeath && duel.phase === "question" && (chosen == null || (myJoker && myJoker.index === q.index)) && (
+        <JokerTray c={c} mine={myJoker} index={q.index} canUse={chosen == null} onUse={onJoker} />
+      )}
       <View accessibilityLiveRegion="polite">
         {reveal ? (
-          <Text style={[styles.status, { color: gained ? c.accent : c.dim }]}>{gained ? translateUI("+{0} puan", { 0: gained }) : chosen == null ? translateUI("Süre doldu") : translateUI("Bu soru olmadı")}</Text>
+          <Text style={[styles.status, { color: gained ? c.accent : c.dim }]}>{gained ? pointsLine(gained, { golden: q.golden, joker: myJoker?.index === q.index ? myJoker.type : null }) : chosen == null ? translateUI("Süre doldu") : translateUI("Bu soru olmadı")}</Text>
         ) : chosen != null ? (
           <Text style={styles.status}>{oppAnswered ? translateUI("İkiniz de cevapladınız") : translateUI("Cevabın alındı. {0} düşünüyor.", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         ) : oppAnswered ? (
           <Text style={styles.status}>{translateUI("{0} cevapladı", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         ) : null}
       </View>
+      {(chosen != null || !!reveal) && <TauntBar c={c} onSend={onTaunt} />}
     </ScrollView>
   );
 }
@@ -693,7 +784,7 @@ function Avatar({ player, styles, size }) {
 
 // ---------- sonuç ----------
 
-function Result({ styles, c, duel, me, mine, opp, reveals, onRematch, onShare, onLobby, limit, onPremium }) {
+function Result({ styles, c, duel, me, mine, opp, reveals, onRematch, onShare, onLobby, limit, onPremium, onTaunt }) {
   const r = duel.result || {};
   const won = r.winnerId === me;
   const draw = r.winnerId == null;
@@ -710,6 +801,7 @@ function Result({ styles, c, duel, me, mine, opp, reveals, onRematch, onShare, o
         <Text style={styles.resultScore}>{mine?.score ?? 0}<Text style={{ color: c.dim }}>{"  -  "}</Text>{opp?.score ?? 0}</Text>
         <Text style={styles.resultSub}>{finishText(r, me, opp)}</Text>
       </Animated.View>
+      <TauntBar c={c} onSend={onTaunt} />
       {indexes.length > 0 && (
         <View style={styles.tally}>
           <TallyRow styles={styles} c={c} name={translateUI("Sen")} id={me} reveals={reveals} indexes={indexes} />
@@ -806,6 +898,20 @@ function makeStyles(c, insets) {
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     rowRecord: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.6, marginTop: 3 },
     friendInfo: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11 },
+    dailyCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 16, padding: 12 },
+    dailyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: SALON.goldTint, alignItems: "center", justifyContent: "center" },
+    dailyEyebrow: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1.2 },
+    dailyTitle: { color: c.text, fontSize: 14, fontWeight: "800", marginTop: 2 },
+    dailySub: { color: c.dim, fontSize: 11.5, marginTop: 2 },
+    league: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 8 },
+    leagueRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, paddingHorizontal: 6, borderRadius: 10 },
+    leagueMe: { backgroundColor: SALON.goldTint },
+    leagueRank: { width: 20, color: c.dim, fontFamily: FONTS.marquee, fontSize: 17, textAlign: "center" },
+    leagueAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.surface2 },
+    leagueName: { flex: 1, color: c.text, fontSize: 13, fontWeight: "800" },
+    leagueMeta: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10 },
+    leaguePoints: { minWidth: 52, textAlign: "right", color: c.text, fontFamily: FONTS.marquee, fontSize: 19 },
+    leagueNote: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6, paddingHorizontal: 6, paddingBottom: 4 },
     suggestCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 16, padding: 12 },
     suggestIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.2, borderColor: c.accent, alignItems: "center", justifyContent: "center" },
     suggestTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
@@ -879,6 +985,9 @@ function makeStyles(c, insets) {
     letterText: { color: c.text, fontFamily: FONTS.monoMedium, fontSize: 12 },
     optionText: { flex: 1, color: c.text, fontSize: 14, fontWeight: "700", lineHeight: 19 },
     oppMark: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: c.bg },
+    oppJoker: { color: c.accent, fontSize: 11.5, fontWeight: "700", marginTop: 8 },
+    optionHidden: { opacity: 0.22 },
+    optionHiddenText: { textDecorationLine: "line-through" },
     status: { color: c.dim, fontSize: 12, textAlign: "center", marginTop: 8, fontWeight: "700" },
 
     resultHero: { borderRadius: 18, padding: 26, alignItems: "center", overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine },

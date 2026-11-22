@@ -28,6 +28,12 @@ export const duelApi = {
   accept: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/accept`, token, { method: "POST" }),
   decline: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/decline`, token, { method: "POST" }),
   rematch: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/rematch`, token, { method: "POST" }),
+  // Günün Düellosu: durum + bugün oynayan arkadaşlar; sıradaki soru (saat sunucuda başlar); cevap.
+  daily: (token) => request("/api/daily-duel", token),
+  dailyNext: (token) => request("/api/daily-duel/next", token, { method: "POST" }),
+  dailyAnswer: (token, index, choice) => request("/api/daily-duel/answer", token, { method: "POST", body: { index, choice } }),
+  // Haftalık arkadaş ligi (pazartesi sıfırlanır).
+  league: (token) => request("/api/duels/league", token),
   // Yapım istekleri: soru havuzu, beğendiklerinden havuzda olmayanlar ve kendi isteklerin.
   requests: (token) => request("/api/duels/requests", token),
   // { movieId } ya da { title, note }. Yanıt: { requested, duplicate, requestCount } ya da { available: true }.
