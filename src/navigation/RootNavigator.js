@@ -57,6 +57,9 @@ export function appStateFromPath(path, options) {
     const initialGame = { karakter: "character_quiz", replik: "who_said_it", "arkadasini-taniyor-musun": "friend_quiz", "taste-battle": "taste_battle" }[gameMatch[1]];
     return { routes: [{ name: "MainTabs" }, { name: "PellixPlay", params: initialGame ? { initialGame } : {} }] };
   }
+  // Düello sonucu linki: open.pellix.app/u/duello/<imzalı kimlik> ya da pellix://duello → düello ekranı.
+  // Profil eşleşmesinden ÖNCE, yoksa "duello" kullanıcı adı sanılır.
+  if (/^\/?(?:u\/)?duello(?:[/?]|$)/.test(path)) return { routes: [{ name: "MainTabs" }, { name: "QuizDuel" }] };
   const partyAliasMatch = path.match(/^\/?u\/party\/([^/?]+)/);
   if (partyAliasMatch) return { routes: [{ name: "MainTabs" }, { name: "PartyJoin", params: { token: decodeURIComponent(partyAliasMatch[1]) } }] };
   const userMatch = path.match(/^\/?u\/([^/?]+)/);
