@@ -26,6 +26,7 @@ import SplashIntroAnim from "./src/components/SplashIntroAnim";
 import TasteSurveyStep from "./src/components/TasteSurveyStep";
 import NotificationPrimerModal from "./src/components/NotificationPrimerModal";
 import ErrorBoundary from "./src/components/ErrorBoundary";
+import UpdateGate from "./src/components/UpdateGate";
 import { api } from "./src/api/client";
 import { setAnalyticsToken, startSession, endSession } from "./src/utils/analytics";
 import { registerForPushNotifications, getPushPermissionStatus, clearDeliveredNotifications, setupNotificationTapHandling, registerNotificationCategories } from "./src/utils/pushNotifications";
@@ -311,6 +312,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <UpdateGate>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <ThemeProvider>
@@ -326,6 +328,7 @@ export default function App() {
           </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
+      </UpdateGate>
     </ErrorBoundary>
   );
 }
