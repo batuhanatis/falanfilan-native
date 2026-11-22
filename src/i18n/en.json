@@ -2128,5 +2128,18 @@
   "Bitirdiğin düellolar burada görünecek.": "Your finished duels will show up here.",
   "Daha eski düellolar": "Older duels",
   "GEÇMİŞ DÜELLOLAR": "PAST DUELS",
-  "Toplam puan: sen {0}, {1} {2}": "Total points: you {0}, {1} {2}"
+  "Toplam puan: sen {0}, {1} {2}": "Total points: you {0}, {1} {2}",
+  "ORTAK BEĞENİ GEREKİYOR": "SHARED LIKES NEEDED",
+  "{0} ile henüz düello yapamazsınız": "You can't duel {0} yet",
+  "Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an {1} tane var.": "Duels are played only with titles you both liked. You need at least {0} shared likes to start, and you have {1}.",
+  "Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an hiç yok.": "Duels are played only with titles you both liked. You need at least {0} shared likes to start, and you don't have any yet.",
+  "Ortak beğeni: {0} / {1}": "Shared likes: {0} / {1}",
+  "Boş koltuk": "Empty seat",
+  "{0} / {1} ORTAK BEĞENİ": "{0} / {1} SHARED LIKES",
+  "{0} BUNLARI BEĞENMİŞ": "{0} LIKED THESE",
+  "İzlediysen sen de beğen; ortak beğeni olur, düello açılır.": "If you've watched them, like them too. Each one becomes a shared like and unlocks the duel.",
+  "{0} sayfasını aç": "Open {0}",
+  "İzlediğin film ve dizileri beğendikçe ortak beğenileriniz artar. Arkadaşın da sevdiklerini beğenince düello açılır.": "Like the films and series you've watched to grow your shared likes. The duel unlocks once your friend likes their favorites too.",
+  "İkinizin de beğendiği yapımlardan birer tane seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.": "You each pick a title you both liked and answer the same questions at the same time. Right and fast wins.",
+  "Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Bir arkadaşınla düello yapabilmek için en az 2 ortak beğeniniz olmalı.": "Duels are played only with titles you both liked. You need at least 2 shared likes to duel a friend."
 }

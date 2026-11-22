@@ -15,6 +15,7 @@ import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
 import DuelShareCard, { DUEL_CARD_HEIGHT } from "../components/DuelShareCard";
 import { Kocan, rivalLine } from "../components/duel/DuelRecord";
+import SharedShortfall from "../components/duel/SharedShortfall";
 import { avatarOr } from "../utils/avatar";
 import { getStoreLink } from "../utils/appLinks";
 import { hapticLight, hapticSuccess, hapticWarning, hapticSelection } from "../utils/haptics";
@@ -42,6 +43,7 @@ export default function QuizDuelScreen({ navigation, route }) {
   const [myChoices, setMyChoices] = useState({});
   const [reveals, setReveals] = useState({});
   const [shareOpen, setShareOpen] = useState(false);
+  const [shortfall, setShortfall] = useState(null); // ortak beğeni yetmediğinde açılan pencere
   const offsetRef = useRef(0);
   const duelRef = useRef(null);
   const leftRef = useRef(false);
@@ -137,6 +139,7 @@ export default function QuizDuelScreen({ navigation, route }) {
     } catch (e) {
       hapticWarning();
       if (e.code === "DUEL_LIMIT") setError("limit");
+      else if (e.code === "NO_SHARED_TITLES") setShortfall({ friend, ...(e.data || {}) });
       else setError(e.message);
     }
   }
@@ -171,6 +174,7 @@ export default function QuizDuelScreen({ navigation, route }) {
     } catch (e) {
       hapticWarning();
       if (e.code === "DUEL_LIMIT") setError("limit");
+      else if (e.code === "NO_SHARED_TITLES") setShortfall({ friend: opp, ...(e.data || {}) });
       else setError(e.message);
     }
   }
@@ -215,7 +219,17 @@ export default function QuizDuelScreen({ navigation, route }) {
     );
   }
 
-  if (!duel) return <View style={styles.root}>{header}<Lobby styles={styles} c={c} token={auth.token} navigation={navigation} onStart={startWith} error={error} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} /></View>;
+  // Ortak beğeni uyarısı: önerilen yapıma dokununca detayına gidilir (beğenip geri dönülür).
+  const shortfallSheet = (
+    <SharedShortfall
+      data={shortfall}
+      c={c}
+      onClose={() => setShortfall(null)}
+      onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
+    />
+  );
+
+  if (!duel) return <View style={styles.root}>{header}<Lobby styles={styles} c={c} token={auth.token} navigation={navigation} onStart={startWith} error={error} onPremium={() => navigation.navigate("Premium", { reason: "duel_limit" })} />{shortfallSheet}</View>;
 
   const iAmInvitee = duel.inviteeId === me;
   let body;
@@ -242,6 +256,7 @@ export default function QuizDuelScreen({ navigation, route }) {
     <View style={styles.root}>
       {header}
       {body}
+      {shortfallSheet}
       {shareOpen && duel.phase === "finished" && (
         <ShareCardModal
           onClose={() => setShareOpen(false)}
@@ -333,7 +348,7 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
         <View style={styles.heroIcon}><Swords size={22} color={c.accent} /></View>
         <Text style={styles.eyebrow}>{translateUI("CANLI · ARKADAŞLARINLA")}</Text>
         <Text style={styles.heroTitle}>{translateUI("Kim daha iyi biliyor?")}</Text>
-        <Text style={styles.heroSub}>{translateUI("İkiniz birer film ya da dizi seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
+        <Text style={styles.heroSub}>{translateUI("İkinizin de beğendiği yapımlardan birer tane seçiyorsunuz, aynı soruları aynı anda cevaplıyorsunuz. Doğru ve hızlı olan kazanır.")}</Text>
         <View style={styles.ruleRow}>
           <Rule styles={styles} value="2" label={translateUI("TUR")} />
           <Rule styles={styles} value="8" label={translateUI("SORU")} />
@@ -354,6 +369,10 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
       {!!error && error !== "limit" && <View style={styles.errorBox}><AlertCircle size={14} color={c.danger} /><Text style={styles.errorText}>{translateUI(error)}</Text></View>}
 
       <Text style={styles.sectionLabel}>{translateUI("RAKİBİNİ SEÇ")}</Text>
+      <View style={styles.ruleNote}>
+        <Ticket size={15} color={c.accent} />
+        <Text style={styles.ruleNoteText}>{translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Bir arkadaşınla düello yapabilmek için en az 2 ortak beğeniniz olmalı.")}</Text>
+      </View>
       {friends.length === 0 ? (
         <View style={styles.emptyCard}><Users size={20} color={c.dim} /><Text style={styles.emptyText}>{translateUI("Düello için önce bir arkadaş ekle.")}</Text></View>
       ) : friends.map((f) => {
@@ -734,6 +753,8 @@ function makeStyles(c, insets) {
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     rowRecord: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.6, marginTop: 3 },
     friendInfo: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 11 },
+    ruleNote: { flexDirection: "row", alignItems: "flex-start", gap: 9, borderWidth: 1, borderStyle: "dashed", borderColor: SALON.goldLine, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+    ruleNoteText: { flex: 1, color: c.dim, fontSize: 11.5, lineHeight: 16 },
     sectionRow: { flexDirection: "row", alignItems: "center" },
     allLink: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 13 },
     allLinkText: { color: c.accent, fontSize: 11.5, fontWeight: "800" },

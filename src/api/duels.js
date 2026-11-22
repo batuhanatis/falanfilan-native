@@ -13,6 +13,7 @@ async function request(path, token, { method = "GET", body } = {}) {
     const err = new Error(data.error || "Düello işlemi tamamlanamadı.");
     err.status = res.status;
     err.code = data.code;
+    err.data = data; // ör. NO_SHARED_TITLES: ortak beğeni özeti ve öneriler
     throw err;
   }
   return data;
