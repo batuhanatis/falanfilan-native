@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView, Animated, Easing, AccessibilityInfo } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FONTS } from "../theme/fonts";
-import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle } from "lucide-react-native";
+import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle, CalendarDays } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -160,6 +160,15 @@ export default function PellixPlayScreen({ navigation, route }) {
 
           {duelOpen && <>
             <Text style={styles.sectionLabel}>{translateUI("CANLI")}</Text>
+            <PlayCard
+              styles={styles}
+              c={c}
+              icon={CalendarDays}
+              eyebrow={translateUI("HERKESE AYNI · GÜNDE BİR")}
+              title={translateUI("Günün Düellosu")}
+              sub={translateUI("Bugünün 8 sorusu: 8 farklı yapım, kolaydan zora, son soru altın. Arkadaşların arasında kaçıncısın?")}
+              onPress={() => navigation.navigate("QuizDaily")}
+            />
             <PlayCard
               styles={styles}
               c={c}
