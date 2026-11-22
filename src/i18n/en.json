@@ -2038,7 +2038,6 @@
   "Sıra sende, bir dizi seç": "Your turn, pick a series",
   "{0} seçiyor": "{0} is picking",
   "Her tur seçilen dizinin sorularından. Süre dolarsa rastgele seçilir.": "Each round uses questions from the series picked. If time runs out, one is picked at random.",
-  "ORTAK BEĞENİ": "YOU BOTH LIKED IT",
   "Ortak beğeni değil": "Not a shared like",
   "{0} SEÇTİ": "{0} PICKED",
   "PERDE AÇILMADAN": "BEFORE THE CURTAIN RISES",
@@ -2107,8 +2106,7 @@
   "DÜELLO · 60 SANİYE": "DUEL · 60 SECONDS",
   "Film & Dizi Düellosu": "Film & Series Duel",
   "Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.": "Each pick a film or series and answer the same questions at the same time. Right and fast wins.",
-  "Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.": "Each round uses questions from the title picked. There's no time limit for picking.",
   "ORTAK BEĞENİLERİNİZ": "YOU BOTH LIKED",
-  "DÜELLODAKİ DİĞER YAPIMLAR": "OTHER TITLES IN THE DUEL",
-  "DÜELLODAKİ YAPIMLAR": "TITLES IN THE DUEL"
+  "Listede yalnızca ikinizin de beğendiği yapımlar var. Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.": "Only titles you both liked are listed. Each round uses questions from the title picked. There's no time limit for picking.",
+  "Düello için ikinizin de beğendiği en az 2 yapım gerekiyor.": "A duel needs at least 2 titles you both liked."
 }

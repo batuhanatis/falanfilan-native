@@ -414,10 +414,11 @@ function Picking({ styles, c, duel, me, opp, onPick }) {
   const myTurn = duel.turnUserId === me;
   const pickedBy = Object.fromEntries((duel.picks || []).map((p) => [p.titleId, p.userId]));
   const nameOf = (id) => (id === me ? translateUI("Sen") : opp?.name || translateUI("Rakibin"));
-  // Seçimde süre yok; düellodaki bütün yapımlar listelenir, ortak beğeniler en üstte.
+  // Seçimde süre yok. Yalnızca ikinizin de beğendiği yapımlar listelenir; rakibin izlemediği
+  // bir şey seçilemez. (Sunucu da yalnızca ortak beğenileri gönderir ve kabul eder.)
   const all = duel.candidates || [];
   const shared = all.filter((t) => t.shared);
-  const others = all.filter((t) => !t.shared);
+  const list = shared.length >= 2 ? shared : all;
   const ticket = (t) => {
     const by = pickedBy[t.titleId];
     const disabled = !myTurn || !!by;
@@ -428,7 +429,6 @@ function Picking({ styles, c, duel, me, opp, onPick }) {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.ticketKind}>{translateUI(t.series ? "FİLM SERİSİ" : t.type === "Film" ? "FİLM" : "DİZİ")}</Text>
           <Text style={styles.ticketTitle} numberOfLines={2}>{t.title}</Text>
-          {t.shared && <Text style={styles.ticketTag}>{translateUI("ORTAK BEĞENİ")}</Text>}
         </View>
         {!!by && <Stamp styles={styles} text={translateUI("{0} SEÇTİ", { 0: nameOf(by) })} />}
       </TouchableOpacity>
@@ -442,11 +442,9 @@ function Picking({ styles, c, duel, me, opp, onPick }) {
           <Text style={styles.turnTitle}>{myTurn ? translateUI("Sıra sende, birini seç") : translateUI("{0} seçiyor", { 0: opp?.name || translateUI("Rakibin") })}</Text>
         </View>
       </View>
-      <Text style={styles.pickHint}>{translateUI("Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.")}</Text>
-      {shared.length > 0 && <Text style={styles.pickGroup}>{translateUI("ORTAK BEĞENİLERİNİZ")}</Text>}
-      {shared.map(ticket)}
-      {others.length > 0 && <Text style={styles.pickGroup}>{translateUI(shared.length ? "DÜELLODAKİ DİĞER YAPIMLAR" : "DÜELLODAKİ YAPIMLAR")}</Text>}
-      {others.map(ticket)}
+      <Text style={styles.pickHint}>{translateUI("Listede yalnızca ikinizin de beğendiği yapımlar var. Her tur, seçilen yapımın sorularından oluşur. Seçim için süre yok.")}</Text>
+      <Text style={styles.pickGroup}>{translateUI("ORTAK BEĞENİLERİNİZ")}</Text>
+      {list.map(ticket)}
     </ScrollView>
   );
 }
@@ -726,7 +724,6 @@ function makeStyles(c, insets) {
     ticketPerf: { width: 0, height: 60, borderLeftWidth: 1.5, borderStyle: "dashed", borderColor: c.border },
     ticketKind: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1, marginBottom: 3 },
     ticketTitle: { color: c.text, fontSize: 14, fontWeight: "800" },
-    ticketTag: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1, marginTop: 5 },
     stamp: { position: "absolute", right: 12, top: 18, borderWidth: 2, borderColor: c.accent, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: `${c.bg}cc` },
     stampText: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 10, letterSpacing: 1 },
 
