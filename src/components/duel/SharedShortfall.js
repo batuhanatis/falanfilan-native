@@ -5,13 +5,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Armchair, ChevronRight, Ticket } from "lucide-react-native";
 import { SALON } from "../salon/SalonKit";
 import { FONTS } from "../../theme/fonts";
+import { RequestRow } from "./TitleRequest";
 
 // Koltuk: ortak beğeni yetmediği için düello başlatılamayınca açılan pencere. Gereken ortak
 // beğeni sayısı kadar koltuk var; ikinizin de beğendiği her yapım bir koltuğa oturuyor, boş
 // koltuklar kesik çizgili bekliyor. Altında arkadaşının beğenip senin beğenmediğin düello
 // yapımları: izlediysen beğenirsin, koltuk dolar, düello açılır.
-// data: sunucunun NO_SHARED_TITLES yanıtı { friend, sharedCount, needed, shared, suggestions }.
-export default function SharedShortfall({ data, c, onClose, onOpenTitle }) {
+// Ortak beğeniniz olup da soru havuzunda olmayan yapımlar ayrıca listelenir ("Eklensin" isteği;
+// havuz gelince isteyene bildirim gider). Yoksa "ortak beğeniniz yok" sanılıp yanılınabiliyordu.
+// data: sunucunun NO_SHARED_TITLES yanıtı { friend, sharedCount, needed, shared, suggestions, outsideBank }.
+export default function SharedShortfall({ data, c, onClose, onOpenTitle, onRequest }) {
   const insets = useSafeAreaInsets();
   const s = styles(c);
   const rise = useRef(new Animated.Value(0)).current;
@@ -31,6 +34,19 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle }) {
   const seats = Array.from({ length: needed }, (_, i) => shared[i] || null);
   const have = Number(data.sharedCount) || 0;
   const suggestions = data.suggestions || [];
+  const outside = data.outsideBank || { count: 0, titles: [] };
+  const outsideCount = Number(outside.count) || 0;
+  const total = have + outsideCount;
+  let body;
+  if (outsideCount > 0) {
+    body = have > 0
+      ? translateUI("{0} ile {1} ortak beğeniniz var ama yalnızca {2} tanesi düello soru havuzunda. Düello için soru havuzunda en az {3} ortak yapımınız olmalı.", { 0: name, 1: total, 2: have, 3: needed })
+      : translateUI("{0} ile {1} ortak beğeniniz var ama hiçbiri henüz düello soru havuzunda değil. Düello için soru havuzunda en az {2} ortak yapımınız olmalı.", { 0: name, 1: total, 2: needed });
+  } else {
+    body = have > 0
+      ? translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an {1} tane var.", { 0: needed, 1: have })
+      : translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an hiç yok.", { 0: needed });
+  }
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -39,13 +55,9 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle }) {
         <View style={[s.sheet, { paddingBottom: Math.max(20, insets.bottom + 12) }]} accessibilityViewIsModal>
           <View style={s.grabber} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
-            <Text style={s.eyebrow}>{translateUI("ORTAK BEĞENİ GEREKİYOR")}</Text>
+            <Text style={s.eyebrow}>{outsideCount > 0 ? translateUI("SORU HAVUZUNDA ORTAK YAPIM GEREKİYOR") : translateUI("ORTAK BEĞENİ GEREKİYOR")}</Text>
             <Text style={s.title} accessibilityRole="header">{translateUI("{0} ile henüz düello yapamazsınız", { 0: name })}</Text>
-            <Text style={s.body}>
-              {have > 0
-                ? translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an {1} tane var.", { 0: needed, 1: have })
-                : translateUI("Düellolar yalnızca ikinizin de beğendiği yapımlarla oynanır. Başlamak için en az {0} ortak beğeniniz olmalı, şu an hiç yok.", { 0: needed })}
-            </Text>
+            <Text style={s.body}>{body}</Text>
 
             <View style={s.seats} accessibilityLabel={translateUI("Ortak beğeni: {0} / {1}", { 0: have, 1: needed })}>
               {seats.map((t, i) => {
@@ -58,7 +70,20 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle }) {
                 );
               })}
             </View>
-            <Text style={s.count}>{translateUI("{0} / {1} ORTAK BEĞENİ", { 0: have, 1: needed })}</Text>
+            <Text style={s.count}>{outsideCount > 0 ? translateUI("SORU HAVUZUNDA {0} / {1}", { 0: have, 1: needed }) : translateUI("{0} / {1} ORTAK BEĞENİ", { 0: have, 1: needed })}</Text>
+
+            {outsideCount > 0 && (
+              <>
+                <Text style={s.section}>{translateUI("SORU HAVUZUNDA OLMAYAN ORTAK BEĞENİLERİNİZ")}</Text>
+                <Text style={s.hint}>{translateUI("Eklenmesini istediklerine dokun. Soru havuzu hazır olunca sana bildirim göndereceğiz.")}</Text>
+                {(outside.titles || []).map((t) => (
+                  <RequestRow key={t.movieId} item={t} c={c} onRequest={() => onRequest?.(t.movieId)} onOpen={() => onOpenTitle?.(t)} />
+                ))}
+                {outsideCount > (outside.titles || []).length && (
+                  <Text style={s.more}>{translateUI("+{0} ortak beğeni daha", { 0: outsideCount - (outside.titles || []).length })}</Text>
+                )}
+              </>
+            )}
 
             {suggestions.length > 0 ? (
               <>
@@ -114,6 +139,7 @@ function styles(c) {
     count: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 1.1, textAlign: "center", marginTop: 8 },
     section: { color: c.dim, fontSize: 9.5, fontWeight: "900", letterSpacing: 1, marginTop: 20 },
     hint: { color: c.dim, fontSize: 12, lineHeight: 17, marginTop: 6, marginBottom: 10 },
+    more: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8, textAlign: "center", marginTop: 2 },
     row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.bg, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 9, marginBottom: 8 },
     poster: { width: 36, height: 54, borderRadius: 7, backgroundColor: c.surface2 },
     posterEmpty: { alignItems: "center", justifyContent: "center" },

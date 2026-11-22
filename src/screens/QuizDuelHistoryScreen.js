@@ -170,6 +170,7 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
           c={c}
           onClose={() => setShortfall(null)}
           onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
+          onRequest={(movieId) => duelApi.requestTitle(auth.token, { movieId })}
         />
         {!!data.nextBefore && (
           <TouchableOpacity style={styles.secondaryBtn} onPress={loadMore} disabled={more}>

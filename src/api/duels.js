@@ -27,6 +27,10 @@ export const duelApi = {
   accept: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/accept`, token, { method: "POST" }),
   decline: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/decline`, token, { method: "POST" }),
   rematch: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/rematch`, token, { method: "POST" }),
+  // Yapım istekleri: soru havuzu, beğendiklerinden havuzda olmayanlar ve kendi isteklerin.
+  requests: (token) => request("/api/duels/requests", token),
+  // { movieId } ya da { title, note }. Yanıt: { requested, duplicate, requestCount } ya da { available: true }.
+  requestTitle: (token, body) => request("/api/duels/requests", token, { method: "POST", body }),
   // Bitmiş düellolar (yeniden eskiye) ve rakip başına karne. friendId: tek rakip; before: sonraki sayfa.
   history: (token, { friendId, limit, before } = {}) => {
     const q = new URLSearchParams();
