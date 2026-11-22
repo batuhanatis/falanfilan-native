@@ -22,7 +22,8 @@ async function request(path, token, { method = "GET", body } = {}) {
 export const duelApi = {
   meta: (token) => request("/api/duels/meta", token),
   titles: (token, friendId) => request(`/api/duels/titles?friendId=${encodeURIComponent(friendId)}`, token),
-  invite: (token, friendId) => request("/api/duels", token, { method: "POST", body: { friendId } }),
+  // sharedOnly: seçim listesinde yalnızca ikisinin de beğendiği yapımlar (verilmezse bütün soru havuzu).
+  invite: (token, friendId, { sharedOnly } = {}) => request("/api/duels", token, { method: "POST", body: { friendId, ...(sharedOnly != null ? { sharedOnly: !!sharedOnly } : {}) } }),
   get: (token, id) => request(`/api/duels/${encodeURIComponent(id)}`, token),
   accept: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/accept`, token, { method: "POST" }),
   decline: (token, id) => request(`/api/duels/${encodeURIComponent(id)}/decline`, token, { method: "POST" }),

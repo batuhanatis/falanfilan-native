@@ -14,7 +14,7 @@ import { RequestRow } from "./TitleRequest";
 // Ortak beğeniniz olup da soru havuzunda olmayan yapımlar ayrıca listelenir ("Eklensin" isteği;
 // havuz gelince isteyene bildirim gider). Yoksa "ortak beğeniniz yok" sanılıp yanılınabiliyordu.
 // data: sunucunun NO_SHARED_TITLES yanıtı { friend, sharedCount, needed, shared, suggestions, outsideBank }.
-export default function SharedShortfall({ data, c, onClose, onOpenTitle, onRequest }) {
+export default function SharedShortfall({ data, c, onClose, onOpenTitle, onRequest, onInviteAll }) {
   const insets = useSafeAreaInsets();
   const s = styles(c);
   const rise = useRef(new Animated.Value(0)).current;
@@ -37,8 +37,14 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle, onReque
   const outside = data.outsideBank || { count: 0, titles: [] };
   const outsideCount = Number(outside.count) || 0;
   const total = have + outsideCount;
+  // "Yalnızca ortak beğeniler" seçiliyken: kutucuk kaldırılırsa bütün soru havuzuyla oynanabilir.
+  const onlyMode = !!data.sharedOnly;
   let body;
-  if (outsideCount > 0) {
+  if (onlyMode) {
+    body = outsideCount > 0
+      ? translateUI("{0} ile {1} ortak beğeniniz var ama hiçbiri henüz düello soru havuzunda değil. Kutucuğu kaldırırsan soru havuzundaki bütün yapımlarla oynayabilirsiniz.", { 0: name, 1: total })
+      : translateUI("İkinizin de beğendiği, soru havuzunda olan bir yapım yok. Kutucuğu kaldırırsan soru havuzundaki bütün yapımlarla oynayabilirsiniz.");
+  } else if (outsideCount > 0) {
     body = have > 0
       ? translateUI("{0} ile {1} ortak beğeniniz var ama yalnızca {2} tanesi düello soru havuzunda. Düello için soru havuzunda en az {3} ortak yapımınız olmalı.", { 0: name, 1: total, 2: have, 3: needed })
       : translateUI("{0} ile {1} ortak beğeniniz var ama hiçbiri henüz düello soru havuzunda değil. Düello için soru havuzunda en az {2} ortak yapımınız olmalı.", { 0: name, 1: total, 2: needed });
@@ -55,8 +61,8 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle, onReque
         <View style={[s.sheet, { paddingBottom: Math.max(20, insets.bottom + 12) }]} accessibilityViewIsModal>
           <View style={s.grabber} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
-            <Text style={s.eyebrow}>{outsideCount > 0 ? translateUI("SORU HAVUZUNDA ORTAK YAPIM GEREKİYOR") : translateUI("ORTAK BEĞENİ GEREKİYOR")}</Text>
-            <Text style={s.title} accessibilityRole="header">{translateUI("{0} ile henüz düello yapamazsınız", { 0: name })}</Text>
+            <Text style={s.eyebrow}>{onlyMode ? translateUI("YALNIZCA ORTAK BEĞENİLER SEÇİLİ") : outsideCount > 0 ? translateUI("SORU HAVUZUNDA ORTAK YAPIM GEREKİYOR") : translateUI("ORTAK BEĞENİ GEREKİYOR")}</Text>
+            <Text style={s.title} accessibilityRole="header">{onlyMode ? translateUI("{0} ile ortak yapımınız yok", { 0: name }) : translateUI("{0} ile henüz düello yapamazsınız", { 0: name })}</Text>
             <Text style={s.body}>{body}</Text>
 
             <View style={s.seats} accessibilityLabel={translateUI("Ortak beğeni: {0} / {1}", { 0: have, 1: needed })}>
@@ -111,8 +117,13 @@ export default function SharedShortfall({ data, c, onClose, onOpenTitle, onReque
               <Text style={s.hint}>{translateUI("İzlediğin film ve dizileri beğendikçe ortak beğenileriniz artar. Arkadaşın da sevdiklerini beğenince düello açılır.")}</Text>
             )}
           </ScrollView>
-          <TouchableOpacity style={s.button} onPress={onClose} accessibilityRole="button">
-            <Text style={s.buttonText}>{translateUI("Anladım")}</Text>
+          {!!onInviteAll && (
+            <TouchableOpacity style={s.button} onPress={onInviteAll} accessibilityRole="button">
+              <Text style={s.buttonText}>{translateUI("Bütün yapımlarla çağır")}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={onInviteAll ? s.ghost : s.button} onPress={onClose} accessibilityRole="button">
+            <Text style={onInviteAll ? s.ghostText : s.buttonText}>{onInviteAll ? translateUI("Vazgeç") : translateUI("Anladım")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -147,6 +158,8 @@ function styles(c) {
     rowTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
     button: { minHeight: 48, marginTop: 10, borderRadius: 14, backgroundColor: c.accent, alignItems: "center", justifyContent: "center" },
     buttonText: { color: SALON.onGold, fontSize: 13, fontWeight: "900" },
+    ghost: { minHeight: 44, marginTop: 8, borderRadius: 14, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+    ghostText: { color: c.text, fontSize: 12.5, fontWeight: "800" },
   });
   cache.set(key, s);
   return s;

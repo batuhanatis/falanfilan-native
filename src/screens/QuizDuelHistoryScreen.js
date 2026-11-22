@@ -12,6 +12,7 @@ import RetryImage from "../components/RetryImage";
 import { SALON } from "../components/salon/SalonKit";
 import { Tabela, Kocan, fmt } from "../components/duel/DuelRecord";
 import SharedShortfall from "../components/duel/SharedShortfall";
+import { getDuelSharedOnly } from "../utils/duelPrefs";
 import { FONTS } from "../theme/fonts";
 import { avatarOr } from "../utils/avatar";
 import { hapticSuccess, hapticWarning, hapticSelection } from "../utils/haptics";
@@ -60,11 +61,12 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
     setMore(false);
   }
 
-  async function call() {
+  async function call({ sharedOnly } = {}) {
     if (!friend || calling) return;
     setCallError(""); setCalling(true);
     try {
-      const res = await duelApi.invite(auth.token, friend.id);
+      // Lobideki "yalnızca ortak beğeniler" tercihi burada da geçerli.
+      const res = await duelApi.invite(auth.token, friend.id, { sharedOnly: sharedOnly ?? (await getDuelSharedOnly()) });
       hapticSuccess();
       navigation.navigate("QuizDuel", { duelId: res.duel.id });
     } catch (e) {
@@ -113,7 +115,7 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
         {friend ? (
           <>
             <Tabela me={meP} opp={record?.opponent || friend} record={record} />
-            <TouchableOpacity style={[styles.primaryBtn, calling && { opacity: 0.6 }]} onPress={call} disabled={calling} accessibilityLabel={translateUI("{0} ile düello", { 0: friend.name })}>
+            <TouchableOpacity style={[styles.primaryBtn, calling && { opacity: 0.6 }]} onPress={() => call()} disabled={calling} accessibilityLabel={translateUI("{0} ile düello", { 0: friend.name })}>
               {calling ? <ActivityIndicator color={SALON.onGold} /> : <><Swords size={16} color={SALON.onGold} /><Text style={styles.primaryText}>{record?.streak?.outcome === "loss" ? translateUI("Rövanş iste") : translateUI("Düelloya çağır")}</Text></>}
             </TouchableOpacity>
             {callError === "limit" ? (
@@ -171,6 +173,7 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
           onClose={() => setShortfall(null)}
           onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
           onRequest={(movieId) => duelApi.requestTitle(auth.token, { movieId })}
+          onInviteAll={shortfall?.sharedOnly ? () => { setShortfall(null); call({ sharedOnly: false }); } : undefined}
         />
         {!!data.nextBefore && (
           <TouchableOpacity style={styles.secondaryBtn} onPress={loadMore} disabled={more}>
