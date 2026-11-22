@@ -21,6 +21,7 @@ import QuizDuelScreen from "../screens/QuizDuelScreen";
 import QuizDuelHistoryScreen from "../screens/QuizDuelHistoryScreen";
 import QuizDuelRequestScreen from "../screens/QuizDuelRequestScreen";
 import QuizDailyScreen from "../screens/QuizDailyScreen";
+import QuizGroupScreen from "../screens/QuizGroupScreen";
 import PartyJoinScreen from "../screens/PartyJoinScreen";
 import DiaryScreen from "../screens/DiaryScreen";
 import RateTasteScreen from "../screens/RateTasteScreen";
@@ -120,6 +121,7 @@ export default function RootNavigator() {
         <Stack.Screen name="QuizDuelHistory" component={QuizDuelHistoryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="QuizDuelRequest" component={QuizDuelRequestScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="QuizDaily" component={QuizDailyScreen} options={{ presentation: "card" }} />
+        <Stack.Screen name="QuizGroup" component={QuizGroupScreen} options={{ presentation: "card", gestureEnabled: false }} />
         <Stack.Screen name="PartyJoin" component={PartyJoinScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="Diary" component={DiaryScreen} options={{ presentation: "card" }} />
         <Stack.Screen name="RateTaste" component={RateTasteScreen} options={{ presentation: "card" }} />

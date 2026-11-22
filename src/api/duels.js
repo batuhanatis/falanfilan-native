@@ -49,6 +49,19 @@ export const duelApi = {
   },
 };
 
+// Grup düellosu (sunucu: quiz-groups.js). Canlı akış /ws üzerinden "group_*" mesajlarıyla.
+export const groupApi = {
+  create: (token, friendIds) => request("/api/duel-groups", token, { method: "POST", body: { friendIds } }),
+  get: (token, id) => request(`/api/duel-groups/${encodeURIComponent(id)}`, token),
+  accept: (token, id) => request(`/api/duel-groups/${encodeURIComponent(id)}/accept`, token, { method: "POST" }),
+  decline: (token, id) => request(`/api/duel-groups/${encodeURIComponent(id)}/decline`, token, { method: "POST" }),
+  invite: (token, id, friendIds) => request(`/api/duel-groups/${encodeURIComponent(id)}/invite`, token, { method: "POST", body: { friendIds } }),
+  again: (token, id) => request(`/api/duel-groups/${encodeURIComponent(id)}/again`, token, { method: "POST" }),
+  history: (token) => request("/api/duel-groups/history", token),
+};
+export const GROUP_LIVE_PHASES = ["picking", "curtain", "question", "reveal"];
+export const GROUP_OPEN_PHASES = ["lobby", ...GROUP_LIVE_PHASES];
+
 // Bir düellonun sonuçlanmış olup olmadığı (ekrandan çıkarken "kaybedersin" uyarısı için).
 export const DUEL_LIVE_PHASES = ["question", "reveal"];
 export const DUEL_OPEN_PHASES = ["invited", "joining", "picking", "ready", "question", "reveal"];
