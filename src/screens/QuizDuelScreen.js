@@ -9,7 +9,7 @@ import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useWS } from "../context/WSContext";
 import { api } from "../api/client";
-import { duelApi, DUEL_LIVE_PHASES, DUEL_OPEN_PHASES } from "../api/duels";
+import { duelApi, groupApi, DUEL_LIVE_PHASES, DUEL_OPEN_PHASES } from "../api/duels";
 import ScreenHeader from "../components/ScreenHeader";
 import RetryImage from "../components/RetryImage";
 import ShareCardModal from "../components/ShareCardModal";
@@ -17,6 +17,7 @@ import DuelShareCard, { DUEL_CARD_HEIGHT } from "../components/DuelShareCard";
 import { Kocan, rivalLine } from "../components/duel/DuelRecord";
 import SharedShortfall from "../components/duel/SharedShortfall";
 import { GoldenBanner, JokerTray, TauntBar, TauntBubble, pointsLine, JOKER_META } from "../components/duel/DuelExtras";
+import { Fitil, useRemaining } from "../components/duel/Fitil";
 import { getDuelSharedOnly, setDuelSharedOnly } from "../utils/duelPrefs";
 import { avatarOr } from "../utils/avatar";
 import { getStoreLink } from "../utils/appLinks";
@@ -295,46 +296,6 @@ export default function QuizDuelScreen({ navigation, route }) {
 
 // ---------- süre ----------
 
-function useRemaining(deadline, offsetRef) {
-  const calc = () => (deadline ? Math.max(0, deadline - (Date.now() + offsetRef.current)) : 0);
-  const [left, setLeft] = useState(calc);
-  useEffect(() => {
-    setLeft(calc());
-    if (!deadline) return;
-    const t = setInterval(() => setLeft(calc()), 250);
-    return () => clearInterval(t);
-  }, [deadline]);
-  return left;
-}
-
-// Fitil: süre çubuğu yanan bir fitil gibi soldan sağa kısalıyor, ucunda bir kıvılcım; son
-// üçte birde kırmızıya dönüyor. Süreyi sunucunun son tarihinden hesaplıyor.
-function Fitil({ deadline, total, offsetRef, c }) {
-  const anim = useRef(new Animated.Value(1)).current;
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    if (!deadline) return;
-    const left = Math.max(0, deadline - (Date.now() + offsetRef.current));
-    anim.setValue(Math.min(1, left / total));
-    const a = Animated.timing(anim, { toValue: 0, duration: left, easing: Easing.linear, useNativeDriver: true });
-    a.start();
-    return () => a.stop();
-  }, [deadline, total]);
-  const danger = anim.interpolate({ inputRange: [0, 0.3, 0.31, 1], outputRange: [1, 1, 0, 0] });
-  const sparkX = anim.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(0, width - 10)] });
-  return (
-    <View style={{ height: 14, justifyContent: "center" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar">
-      <View style={{ height: 4, borderRadius: 2, backgroundColor: c.surface2, overflow: "hidden" }}>
-        <Animated.View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "100%", backgroundColor: c.accent, transformOrigin: "left", transform: [{ scaleX: anim }] }} />
-        <Animated.View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "100%", backgroundColor: c.danger, opacity: danger, transformOrigin: "left", transform: [{ scaleX: anim }] }} />
-      </View>
-      {width > 0 && (
-        <Animated.View style={{ position: "absolute", left: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#ffe7a8", shadowColor: c.accent, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 }, elevation: 4, transform: [{ translateX: sparkX }] }} />
-      )}
-    </View>
-  );
-}
-
 function Seconds({ deadline, offsetRef, styles }) {
   const left = useRemaining(deadline, offsetRef);
   return <Text style={styles.seconds}>{Math.ceil(left / 1000)}</Text>;
@@ -356,12 +317,14 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
   }, [token]);
   const [daily, setDaily] = useState(null);
   const [league, setLeague] = useState(null);
+  const [groups, setGroups] = useState(null);
   // Geçmiş, karneler, günün düellosu ve lig: lobiye her dönüşte tazelenir.
   useEffect(() => {
     const refresh = () => {
       duelApi.history(token, { limit: 3 }).then(setHistory).catch(() => {});
       duelApi.daily(token).then(setDaily).catch(() => {});
       duelApi.league(token).then(setLeague).catch(() => {});
+      groupApi.history(token).then((d) => setGroups(d.groups || [])).catch(() => {});
     };
     refresh();
     return navigation?.addListener?.("focus", refresh);
@@ -413,6 +376,18 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
                 ? translateUI("{0} arkadaşın bugün oynadı", { 0: daily.friends.filter((f) => !f.me).length })
                 : translateUI("Herkese aynı sorular, son soru altın")}
             </Text>
+          </View>
+          <ChevronRight size={16} color={c.dim} />
+        </TouchableOpacity>
+      )}
+
+      {ready && (
+        <TouchableOpacity style={styles.dailyCard} onPress={() => { hapticSelection(); navigation.navigate("QuizGroup"); }} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={translateUI("Grup düellosu kur")}>
+          <View style={styles.dailyIcon}><Users size={18} color={c.accent} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.dailyEyebrow}>{translateUI("GRUP DÜELLOSU · 3-6 KİŞİ")}</Text>
+            <Text style={styles.dailyTitle}>{translateUI("Arkadaşlarınla salonu doldur")}</Text>
+            <Text style={styles.dailySub} numberOfLines={1}>{translateUI("Herkes aynı anda, aynı sorular")}</Text>
           </View>
           <ChevronRight size={16} color={c.dim} />
         </TouchableOpacity>
@@ -506,6 +481,27 @@ function Lobby({ styles, c, token, navigation, onStart, error, onPremium }) {
             </TouchableOpacity>
           </View>
           {history.duels.map((d) => <Kocan key={d.id} duel={d} c={c} onPress={() => openRecord(d.opponent)} />)}
+        </>
+      )}
+
+      {!!groups?.length && (
+        <>
+          <Text style={styles.sectionLabel}>{translateUI("GRUP DÜELLOLARIN")}</Text>
+          {groups.slice(0, 3).map((g) => (
+            <TouchableOpacity key={g.id} style={styles.groupRow} onPress={() => { hapticSelection(); navigation.navigate("QuizGroup", { groupId: g.id }); }} activeOpacity={0.85} accessibilityRole="button">
+              <View style={[styles.groupPlace, g.myPlace === 1 && styles.groupPlaceFirst]}>
+                <Text style={[styles.groupPlaceText, g.myPlace === 1 && { color: SALON.onGold }]}>{g.myPlace ? `${g.myPlace}.` : "-"}</Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {g.ranking.slice(0, 5).map((x, i) => <RetryImage key={x.userId} source={{ uri: avatarOr(x.user?.avatarUrl, x.userId) }} style={[styles.groupAvatar, { marginLeft: i ? -7 : 0 }]} />)}
+                  <Text style={styles.groupMeta} numberOfLines={1}>{translateUI("{0} kişi · {1} puan", { 0: g.players, 1: g.myScore })}</Text>
+                </View>
+                {!!g.titles?.length && <Text style={styles.groupTitles} numberOfLines={1}>{g.titles.join(" · ")}</Text>}
+              </View>
+              <ChevronRight size={16} color={c.dim} />
+            </TouchableOpacity>
+          ))}
         </>
       )}
     </ScrollView>
@@ -912,6 +908,13 @@ function makeStyles(c, insets) {
     leagueMeta: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 10 },
     leaguePoints: { minWidth: 52, textAlign: "right", color: c.text, fontFamily: FONTS.marquee, fontSize: 19 },
     leagueNote: { color: c.dim, fontSize: 10.5, lineHeight: 15, marginTop: 6, paddingHorizontal: 6, paddingBottom: 4 },
+    groupRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 11, marginBottom: 8 },
+    groupPlace: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.2, borderColor: SALON.goldLine, alignItems: "center", justifyContent: "center" },
+    groupPlaceFirst: { backgroundColor: c.accent, borderColor: c.accent },
+    groupPlaceText: { color: c.text, fontFamily: FONTS.marquee, fontSize: 17 },
+    groupAvatar: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.surface, backgroundColor: c.surface2 },
+    groupMeta: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.5, marginLeft: 8, flexShrink: 1 },
+    groupTitles: { color: c.text, fontSize: 12, fontWeight: "700", marginTop: 5 },
     suggestCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: SALON.goldLine, borderRadius: 16, padding: 12 },
     suggestIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.2, borderColor: c.accent, alignItems: "center", justifyContent: "center" },
     suggestTitle: { color: c.text, fontSize: 13.5, fontWeight: "800" },
