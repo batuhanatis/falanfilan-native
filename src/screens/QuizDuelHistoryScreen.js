@@ -11,6 +11,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import RetryImage from "../components/RetryImage";
 import { SALON } from "../components/salon/SalonKit";
 import { Tabela, Kocan, fmt } from "../components/duel/DuelRecord";
+import SharedShortfall from "../components/duel/SharedShortfall";
 import { FONTS } from "../theme/fonts";
 import { avatarOr } from "../utils/avatar";
 import { hapticSuccess, hapticWarning, hapticSelection } from "../utils/haptics";
@@ -31,6 +32,7 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
   const [more, setMore] = useState(false);
   const [calling, setCalling] = useState(false);
   const [callError, setCallError] = useState("");
+  const [shortfall, setShortfall] = useState(null);
   // auth avatarı tutmuyor; tabelada kendi fotoğrafın için ayrıca (BlendScreen'deki gibi).
   const [myAvatarUrl, setMyAvatarUrl] = useState(null);
   useEffect(() => {
@@ -67,7 +69,8 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
       navigation.navigate("QuizDuel", { duelId: res.duel.id });
     } catch (e) {
       hapticWarning();
-      setCallError(e.code === "DUEL_LIMIT" ? "limit" : e.message);
+      if (e.code === "NO_SHARED_TITLES") setShortfall({ friend, ...(e.data || {}) });
+      else setCallError(e.code === "DUEL_LIMIT" ? "limit" : e.message);
     }
     setCalling(false);
   }
@@ -162,6 +165,12 @@ export default function QuizDuelHistoryScreen({ navigation, route }) {
             onShare={friend ? () => share(d) : undefined}
           />
         ))}
+        <SharedShortfall
+          data={shortfall}
+          c={c}
+          onClose={() => setShortfall(null)}
+          onOpenTitle={(t) => { setShortfall(null); navigation.navigate("Detail", { movie: { id: t.movieId } }); }}
+        />
         {!!data.nextBefore && (
           <TouchableOpacity style={styles.secondaryBtn} onPress={loadMore} disabled={more}>
             {more ? <ActivityIndicator color={c.accent} /> : <Text style={styles.secondaryText}>{translateUI("Daha eski düellolar")}</Text>}
