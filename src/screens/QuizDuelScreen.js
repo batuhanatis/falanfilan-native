@@ -234,6 +234,9 @@ export default function QuizDuelScreen({ navigation, route }) {
     body = <EndNote styles={styles} c={c} icon={Clapperboard} title={translateUI("Düello başlamadan bitti")} text={cancelText(duel, me, opp)} onPrimary={backToLobby} primary={translateUI("Yeni düello")} />;
   }
 
+  // Sonuç linki: open.pellix.app/u/duello/... WhatsApp/iMessage'da skorlu önizleme kartıyla gidiyor
+  // (sunucu her oyuncuya kendi linkini veriyor; kart paylaşanı solda gösteriyor). Eski sunucuda yoksa mağaza linki.
+  const duelShareUrl = duel?.shareUrls?.[me] || getStoreLink("quiz_duel");
   return (
     <View style={styles.root}>
       {header}
@@ -242,9 +245,9 @@ export default function QuizDuelScreen({ navigation, route }) {
         <ShareCardModal
           onClose={() => setShareOpen(false)}
           shareMessage={translateUI("Pellix'te düello yaptık: {0} - {1}. Sıra sende.", { 0: mine?.score ?? 0, 1: opp?.score ?? 0 })}
-          shareUrl={getStoreLink("quiz_duel")}
+          shareUrl={duelShareUrl}
           previewHeight={DUEL_CARD_HEIGHT}
-          instagramStory={{ link: getStoreLink("quiz_duel") }}
+          instagramStory={{ link: duelShareUrl }}
         >
           <DuelShareCard duel={duel} me={me} />
         </ShareCardModal>
