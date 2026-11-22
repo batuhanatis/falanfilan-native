@@ -6,9 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "locales": {
-      "tr": "./locales/tr.json"
-    },
     "scheme": "pellix",
     "ios": {
       "supportsTablet": true,
@@ -28,9 +25,7 @@
           "instagram-stories",
           "instagram"
         ],
-        "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleDevelopmentRegion": "tr",
-        "CFBundleLocalizations": ["tr"]
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

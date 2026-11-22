@@ -1,9 +1,0 @@
-{
-  "ios": {
-    "CFBundleDisplayName": "pellix",
-    "NSPhotoLibraryUsageDescription": "Profil fotoğrafı, kapak fotoğrafı ve sohbetlerde paylaşmak için fotoğraflarına erişim izni istiyoruz.",
-    "NSCameraUsageDescription": "Bir fotoğraf çekip o filmi/diziyi bulabilmen için kameranı kullanmamıza izin ver.",
-    "NSPhotoLibraryAddUsageDescription": "Oluşturduğun paylaşım kartlarını galerine kaydedebilmemiz için izin gerekiyor."
-  },
-  "android": {}
-}
