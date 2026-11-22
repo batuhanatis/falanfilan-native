@@ -179,6 +179,15 @@ export default function PellixPlayScreen({ navigation, route }) {
               sub={translateUI("Birer film ya da dizi seçin, aynı soruları aynı anda cevaplayın. Doğru ve hızlı olan kazanır.")}
               onPress={() => navigation.navigate("QuizDuel")}
             />
+            <PlayCard
+              styles={styles}
+              c={c}
+              icon={Users}
+              eyebrow={translateUI("3-6 KİŞİ · AYNI SALONDA")}
+              title={translateUI("Grup Düellosu")}
+              sub={translateUI("Arkadaşlarını salona çağır, herkes bir yapım seçsin. 8 soru, tek sıralama, kürsüye kim çıkacak?")}
+              onPress={() => navigation.navigate("QuizGroup")}
+            />
           </>}
 
           <Text style={styles.sectionLabel}>{translateUI("MİNİ OYUNLAR")}</Text>
