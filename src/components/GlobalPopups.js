@@ -1,13 +1,13 @@
 import { t as translateUI } from "../i18n/core";
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from "react-native";
-import { PartyPopper, MessageCircle, CheckCircle2, Award, Swords } from "lucide-react-native";
+import { PartyPopper, MessageCircle, CheckCircle2, Award, Swords, Users } from "lucide-react-native";
 import { useWS } from "../context/WSContext";
 import { subscribeLocalEvents } from "../utils/localEvents";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { api } from "../api/client";
-import { duelApi } from "../api/duels";
+import { duelApi, groupApi } from "../api/duels";
 import { FONTS } from "../theme/fonts";
 import { SALON } from "./salon/SalonKit";
 import { navigationRef } from "../navigation/RootNavigator";
@@ -39,7 +39,7 @@ export default function GlobalPopups() {
   // mesaj bildirimiyle aynı ağırlıkta hissettirilmemeli.
   const [badgeCelebration, setBadgeCelebration] = useState(null); // { id, name, desc, icon }
   // Dizi düellosu daveti: 60 saniye açık; süre dolunca ya da davet geri çekilince kendiliğinden kapanıyor.
-  const [duelInvite, setDuelInvite] = useState(null); // { duelId, from, expiresAt }
+  const [duelInvite, setDuelInvite] = useState(null); // { duelId, from, expiresAt } ya da grup için { kind: "group", groupId, from, count, expiresAt }
   const [duelBusy, setDuelBusy] = useState(false);
   const duelAnim = useRef(new Animated.Value(-220)).current;
 
@@ -77,6 +77,13 @@ export default function GlobalPopups() {
         setDuelInvite({ duelId: msg.duel_id, from: msg.from, expiresAt: msg.expires_at });
       } else if (msg.type === "duel_state" && msg.duel && ["cancelled", "finished"].includes(msg.duel.phase)) {
         setDuelInvite((cur) => (cur && cur.duelId === msg.duel.id ? null : cur));
+      } else if (msg.type === "group_invite") {
+        // Grup ekranındaysa (ör. sonuçta "aynı grupla tekrar") davet ekrandaki düğmeyle geliyor.
+        const route = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
+        if (route?.name === "QuizGroup" && route.params?.groupId) return;
+        setDuelInvite({ kind: "group", groupId: msg.group_id, from: msg.from, count: msg.count, expiresAt: msg.expires_at });
+      } else if (msg.type === "group_invite_gone") {
+        setDuelInvite((cur) => (cur && cur.kind === "group" && cur.groupId === msg.groupId ? null : cur));
       } else if (msg.type === "badge_unlocked") {
         setBadgeCelebration(msg.badge);
       } else if (msg.type === "quest_completed") {
@@ -121,7 +128,15 @@ export default function GlobalPopups() {
     const { duelId } = duelInvite;
     setDuelBusy(true);
     try {
-      if (accept) {
+      if (duelInvite.kind === "group") {
+        const { groupId } = duelInvite;
+        if (accept) {
+          await groupApi.accept(auth.token, groupId);
+          if (navigationRef.isReady()) navigationRef.navigate("QuizGroup", { groupId });
+        } else {
+          await groupApi.decline(auth.token, groupId);
+        }
+      } else if (accept) {
         await duelApi.accept(auth.token, duelId);
         if (navigationRef.isReady()) navigationRef.navigate("QuizDuel", { duelId });
       } else {
@@ -206,10 +221,12 @@ export default function GlobalPopups() {
       {duelInvite && !invite && (
         <Animated.View style={[styles.duelCard, { transform: [{ translateY: duelAnim }] }]}>
           <View style={styles.inviteRow}>
-            <View style={styles.duelIcon}><Swords size={15} color={SALON.onGold} /></View>
+            <View style={styles.duelIcon}>{duelInvite.kind === "group" ? <Users size={15} color={SALON.onGold} /> : <Swords size={15} color={SALON.onGold} />}</View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.duelKicker}>{translateUI("DÜELLO · 60 SANİYE")}</Text>
-              <Text style={styles.duelText} numberOfLines={2}>{translateUI("{0} seni düelloya çağırıyor", { 0: duelInvite.from?.name || translateUI("Bir arkadaşın") })}</Text>
+              <Text style={styles.duelKicker}>{duelInvite.kind === "group" ? translateUI("GRUP DÜELLOSU · {0} KİŞİ", { 0: duelInvite.count || 3 }) : translateUI("DÜELLO · 60 SANİYE")}</Text>
+              <Text style={styles.duelText} numberOfLines={2}>{duelInvite.kind === "group"
+                ? translateUI("{0} seni grup düellosuna çağırıyor", { 0: duelInvite.from?.name || translateUI("Bir arkadaşın") })
+                : translateUI("{0} seni düelloya çağırıyor", { 0: duelInvite.from?.name || translateUI("Bir arkadaşın") })}</Text>
             </View>
           </View>
           <View style={styles.inviteActions}>
