@@ -1,13 +1,16 @@
 import { t as translateUI, getLocale, getLanguage } from "../i18n/core";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView, Animated, Easing, AccessibilityInfo } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FONTS } from "../theme/fonts";
-import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle, CalendarDays } from "lucide-react-native";
+import { ChevronLeft, Swords, Users, EyeOff, Quote, RotateCcw, ArrowRight, Check, X, Sparkles, Share2, Trophy, LockKeyhole, Wand2, Puzzle, CalendarDays, Crown, Heart, ListPlus, MonitorPlay } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { playApi } from "../api/play";
+import { api } from "../api/client";
+import ListPickerModal from "../components/ListPickerModal";
+import { hapticLight, hapticSelection, hapticSuccess } from "../utils/haptics";
 import { duelApi } from "../api/duels";
 import { avatarOr } from "../utils/avatar";
 import RetryImage from "../components/RetryImage";
@@ -33,7 +36,7 @@ const ON_GOLD = "#1a150c";
 const GAME_META = {
   taste_battle: {
     title: "Taste Battle",
-    subtitle: "İki içerikten hangisini seçersin?",
+    subtitle: "Kazanan kalır: 10 turun sonunda senin şampiyonun hangisi?",
     icon: Swords,
     hall: "SALON 1",
     tag: "HIZLI SEÇİM",
@@ -130,7 +133,7 @@ export default function PellixPlayScreen({ navigation, route }) {
       {!features ? (
         <View style={styles.center}><ActivityIndicator color={c.accent} /></View>
       ) : activeGame === "taste_battle" ? (
-        <TasteBattle token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
+        <TasteBattle token={auth.token} styles={styles} c={c} navigation={navigation} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : activeGame === "friend_quiz" ? (
         <FriendQuiz token={auth.token} styles={styles} c={c} onDisabled={() => { setActiveGame(null); refreshFeatures(); }} />
       ) : activeGame === "blind_pick" ? (
@@ -214,117 +217,277 @@ export default function PellixPlayScreen({ navigation, route }) {
   );
 }
 
-function TasteBattle({ token, styles, c, onDisabled }) {
-  const [pairs, setPairs] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [done, setDone] = useState(false);
-  const [selections, setSelections] = useState([]);
-  const [showShare, setShowShare] = useState(false);
+// Taste Battle · "kazanan kalır": dizilimin ilk ikisi karşılaşır; seçilen KALAN olarak solda kalır,
+// diğeri sahneden düşer, sağdan yeni RAKİP girer. 10 turun sonunda kalan şampiyon taç töreniyle
+// açıklanır. Taht metaforu: kalanın üstünde taç ve galibiyet sayacı, her galibiyette sayaç zıplar.
+const TB_GAP = 10;
+function useReduceMotionFlag() {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => { AccessibilityInfo.isReduceMotionEnabled?.().then((r) => setReduce(!!r)).catch(() => {}); }, []);
+  return reduce;
+}
+// Eski sunucu yalnızca pairs döndürür: çiftleri sıraya dizip dizilim yap.
+function lineupFrom(data) {
+  if (Array.isArray(data?.contenders) && data.contenders.length >= 2) return data.contenders;
+  const flat = [];
+  for (const p of data?.pairs || []) { if (p?.left) flat.push(p.left); if (p?.right) flat.push(p.right); }
+  return flat.slice(0, 11);
+}
+
+function TasteBattle({ token, styles, c, onDisabled, navigation }) {
+  const [lineup, setLineup] = useState([]);
+  const [champ, setChamp] = useState(null);
+  const [challenger, setChallenger] = useState(null);
+  const [next, setNext] = useState(2);
+  const [round, setRound] = useState(1);
+  const [wins, setWins] = useState({});
+  const [log, setLog] = useState([]); // [{ round, winner, loser }]
+  const [phase, setPhase] = useState("loading"); // loading | play | crown | empty
+  const [rowW, setRowW] = useState(0);
+  const busy = useRef(false);
+  const reduce = useReduceMotionFlag();
+  const L = useRef({ p: new Animated.Value(1), x: new Animated.Value(0), pop: new Animated.Value(1) }).current;
+  const R = useRef({ p: new Animated.Value(1), x: new Animated.Value(0), pop: new Animated.Value(1) }).current;
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setDone(false);
-    setIndex(0);
-    setSelections([]);
-    setShowShare(false);
+    setPhase("loading");
     try {
-      const data = await playApi.tasteBattle(token);
-      setPairs(data.pairs || []);
+      const list = lineupFrom(await playApi.tasteBattle(token));
+      if (list.length < 2) { setPhase("empty"); return; }
+      setLineup(list); setChamp(list[0]); setChallenger(list[1]); setNext(2); setRound(1); setWins({}); setLog([]);
+      [L, R].forEach((s) => { s.p.setValue(1); s.x.setValue(0); s.pop.setValue(1); });
+      busy.current = false;
+      setPhase("play");
     } catch (e) {
       if (e.disabled) onDisabled();
-      setPairs([]);
-    } finally {
-      setLoading(false);
+      setPhase("empty");
     }
   }, [token, onDisabled]);
-
   useEffect(() => { load(); }, [load]);
 
-  function choose(winner, loser) {
+  const total = Math.max(1, lineup.length - 1);
+  function choose(side) {
+    if (busy.current || phase !== "play") return;
+    busy.current = true;
+    hapticSelection();
+    const winner = side === "left" ? champ : challenger;
+    const loser = side === "left" ? challenger : champ;
     playApi.chooseTasteBattle(token, winner.id, loser.id).catch((e) => { if (e.disabled) onDisabled(); });
-    const nextSelections = [...selections, winner];
-    setSelections(nextSelections);
-    if (index >= pairs.length - 1) setDone(true);
-    else setIndex((v) => v + 1);
+    const nextWins = { ...wins, [winner.id]: (wins[winner.id] || 0) + 1 };
+    const nextLog = [...log, { round, winner, loser }];
+    const W = side === "left" ? L : R;
+    const X = side === "left" ? R : L;
+    const after = () => {
+      setWins(nextWins); setLog(nextLog);
+      if (round >= total || next >= lineup.length) { setChamp(winner); setPhase("crown"); hapticSuccess(); return; }
+      setChamp(winner); setChallenger(lineup[next]); setNext(next + 1); setRound(round + 1);
+      const offset = rowW ? (rowW - TB_GAP) / 2 + TB_GAP : 180;
+      // kazanan sağdaysa tahta (sola) kayar; sağa yeni rakip girer
+      if (side === "right") L.x.setValue(offset); else L.x.setValue(0);
+      L.p.setValue(1); R.p.setValue(0); R.x.setValue(60);
+      if (reduce) { L.x.setValue(0); R.p.setValue(1); R.x.setValue(0); busy.current = false; return; }
+      Animated.parallel([
+        Animated.spring(L.x, { toValue: 0, useNativeDriver: true, damping: 16, stiffness: 170 }),
+        Animated.timing(R.p, { toValue: 1, duration: 260, delay: 90, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.spring(R.x, { toValue: 0, useNativeDriver: true, damping: 15, stiffness: 160, delay: 90 }),
+      ]).start();
+      L.pop.setValue(0.6);
+      Animated.spring(L.pop, { toValue: 1, useNativeDriver: true, damping: 7, stiffness: 260 }).start();
+      setTimeout(() => { busy.current = false; }, 300);
+    };
+    if (reduce) { after(); return; }
+    Animated.parallel([
+      Animated.timing(X.p, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(W.pop, { toValue: 1.06, duration: 110, useNativeDriver: true }),
+        Animated.timing(W.pop, { toValue: 1, duration: 130, useNativeDriver: true }),
+      ]),
+    ]).start(after);
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
-  if (done) {
-    const result = buildTasteResult(selections);
-    return (
-      <>
-        <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.resultHero}>
-            <LinearGradient colors={["rgba(201,164,76,0.16)", "rgba(201,164,76,0)"]} style={styles.resultSpot} pointerEvents="none" />
-            <View style={styles.resultIcon}><Swords size={26} color={c.accent} /></View>
-            <Text style={styles.resultEyebrow}>{translateUI("TASTE BATTLE SONUCUN")}</Text>
-            <Text style={styles.resultTitle}>{translateUI(result.topGenre || "Karışık")}</Text>
-            <Text style={styles.resultSummary}>{translateUI(result.summary)}</Text>
-          </View>
+  if (phase === "loading") return <View style={styles.center}><ActivityIndicator color={c.accent} /></View>;
+  if (phase === "empty" || !champ) return <GameDone styles={styles} title={translateUI("Eşleşme bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
+  if (phase === "crown") return <Coronation token={token} styles={styles} c={c} champ={champ} wins={wins} log={log} total={total} lineup={lineup} reduce={reduce} navigation={navigation} onAgain={load} />;
 
-          <View style={styles.resultStatsRow}>
-            <ResultStat value={String(selections.length)} label={translateUI("SEÇİM")} styles={styles} />
-            <ResultStat value={`%${result.moviePercent}`} label={translateUI("FİLM")} styles={styles} />
-            <ResultStat value={`%${100 - result.moviePercent}`} label={translateUI("DİZİ")} styles={styles} />
-          </View>
-
-          {result.posters.length > 0 && (
-            <View style={styles.resultPanel}>
-              <Text style={styles.resultPanelTitle}>{translateUI("Bu turdaki favori seçimlerin")}</Text>
-              <View style={styles.resultPosterRow}>
-                {result.posters.slice(0, 4).map((poster, i) => <Image key={`${poster}-${i}`} source={{ uri: poster }} style={styles.resultPoster} />)}
-              </View>
-            </View>
-          )}
-
-          <ShareFan
-            style={styles.shareResultBtn}
-            accessibilityLabel={translateUI("Sonucu paylaş")}
-            options={shareOptions({ message: translateUI("Taste Battle sonucum: {0}. Seninki ne? 🎮", { 0: translateUI(result.topGenre || "Karışık") }), url: playUrl("taste-battle"), copy: false, card: () => setShowShare(true) })}
-          >
-            <Share2 size={17} color={ON_GOLD} />
-            <Text style={styles.shareResultText}>{translateUI("Sonucu Paylaş")}</Text>
-          </ShareFan>
-          <TouchableOpacity style={styles.ghostBtn} onPress={load}>
-            <RotateCcw size={16} color={c.text} />
-            <Text style={styles.ghostBtnText}>{translateUI("Tekrar Oyna")}</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {showShare && (
-          <ShareCardModal
-            onClose={() => setShowShare(false)}
-            shareMessage={`Taste Battle sonucum: ${result.topGenre || "Karışık"}. Seninki ne? 🎮`}
-            shareUrl={playUrl("taste-battle")}
-          >
-            <PlayResultShareCard
-              mode="taste"
-              topGenre={result.topGenre}
-              moviePercent={result.moviePercent}
-              selectionCount={selections.length}
-              posters={result.posters}
-            />
-          </ShareCardModal>
-        )}
-      </>
-    );
-  }
-
-  const pair = pairs[index];
-  if (!pair) return <GameDone styles={styles} title={translateUI("Eşleşme bulunamadı")} text={translateUI("Biraz sonra tekrar dene.")} onAgain={load} />;
-
+  const slotStyle = (s, dir) => ({
+    opacity: s.p,
+    transform: [
+      { translateX: s.x },
+      { translateY: s.p.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) },
+      { rotate: s.p.interpolate({ inputRange: [0, 1], outputRange: [dir === "left" ? "-12deg" : "12deg", "0deg"] }) },
+      { scale: s.pop },
+    ],
+  });
   return (
     <ScrollView contentContainerStyle={styles.gameContent} showsVerticalScrollIndicator={false}>
-      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title={translateUI("Hızlı düşün, içinden geleni seç")} subtitle={translateUI("Doğru cevap yok. Her seçim önerilerini biraz daha netleştiriyor.")} />
-      <Text style={styles.progressText}>{index + 1}{translateUI(" / ")}{pairs.length}</Text>
-      <Text style={styles.questionTitle}>{translateUI("Hangisini seçersin?")}</Text>
-      <View style={styles.battleRow}>
-        <MovieChoice movie={pair.left} styles={styles} onPress={() => choose(pair.left, pair.right)} accent={c.accent} />
-        <View style={styles.vsBadge}><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
-        <MovieChoice movie={pair.right} styles={styles} onPress={() => choose(pair.right, pair.left)} accent={c.accent} />
+      <GameHero meta={GAME_META.taste_battle} styles={styles} icon={Swords} title={translateUI("Kazanan kalır")} subtitle={translateUI("Seçtiğin kalır, diğeri gider. 10 turun sonunda tek bir şampiyon kalacak.")} />
+      <View style={styles.tbRoundRow}>
+        <Text style={styles.progressText}>{translateUI("TUR {0} / {1}", { 0: round, 1: total })}</Text>
+        <View style={styles.tbNotches}>{Array.from({ length: total }).map((_, i) => <View key={i} style={[styles.tbNotch, i < round - 1 && styles.tbNotchDone, i === round - 1 && styles.tbNotchNow]} />)}</View>
       </View>
+      <Text style={styles.questionTitle}>{translateUI("Hangisi kalsın?")}</Text>
+      <View style={styles.battleRow} onLayout={(e) => setRowW(e.nativeEvent.layout.width)}>
+        <Animated.View style={[{ flex: 1 }, slotStyle(L, "left")]}>
+          <BattleCard movie={champ} role="champ" wins={wins[champ.id] || 0} styles={styles} c={c} onPress={() => choose("left")} />
+        </Animated.View>
+        <Animated.View style={[{ flex: 1 }, slotStyle(R, "right")]}>
+          <BattleCard movie={challenger} role="challenger" styles={styles} c={c} onPress={() => choose("right")} />
+        </Animated.View>
+        <View style={styles.vsBadge} pointerEvents="none"><Text style={styles.vsText}>{translateUI("VS")}</Text></View>
+      </View>
+      <Text style={styles.tbHint}>{wins[champ.id] ? translateUI("{0} üst üste {1} rakibi devirdi.", { 0: champ.title, 1: wins[champ.id] }) : translateUI("İlk seçimin tahta oturacak.")}</Text>
     </ScrollView>
+  );
+}
+
+function BattleCard({ movie, role, wins = 0, styles, c, onPress }) {
+  if (!movie) return null;
+  const champ = role === "champ";
+  return (
+    <TouchableOpacity style={[styles.movieChoice, champ ? styles.tbChampCard : { borderColor: `${c.accent}55` }]} onPress={onPress} activeOpacity={0.84} accessibilityRole="button"
+      accessibilityLabel={champ ? translateUI("{0}, kalan, {1} galibiyet", { 0: movie.title, 1: wins }) : translateUI("{0}, rakip", { 0: movie.title })}>
+      <View>
+        {!!movie.poster && <Image source={{ uri: movie.poster }} style={styles.choicePoster} />}
+        <View style={[styles.tbRole, champ && styles.tbRoleChamp]}>
+          {champ && <Crown size={11} color={ON_GOLD} />}
+          <Text style={[styles.tbRoleText, champ && { color: ON_GOLD }]}>{champ ? translateUI("KALAN") : translateUI("RAKİP")}</Text>
+        </View>
+        {champ && wins > 0 && <View style={styles.tbWins}><Text style={styles.tbWinsText}>{wins}</Text></View>}
+      </View>
+      <Text style={styles.choiceTitle} numberOfLines={2}>{movie.title}</Text>
+      <Text style={styles.choiceMeta}>{movie.year || ""}{movie.imdb ? translateUI(" · IMDb {0}", { 0: movie.imdb }) : ""}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// Taç töreni: spot yanar, şampiyonun afişi yükselir, taç üstüne düşer, altın kıvılcımlar dağılır.
+const SPARKS = Array.from({ length: 12 }, (_, i) => (Math.PI * 2 * i) / 12);
+function Coronation({ token, styles, c, champ, wins, log, total, lineup, reduce, navigation, onAgain }) {
+  const spot = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const rise = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const crown = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const spark = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const text = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const [stats, setStats] = useState(null);
+  const [liked, setLiked] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  useEffect(() => {
+    playApi.tasteBattleStats(token, champ.id).then(setStats).catch(() => {});
+    if (reduce) return;
+    // Süreler sabit (yaylar web'de geç duruyor): spot 0,35 sn → afiş 0,5 sn → taç 0,45 sn → kıvılcım ve yazı.
+    Animated.sequence([
+      Animated.timing(spot, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(rise, { toValue: 1, duration: 520, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
+      Animated.timing(crown, { toValue: 1, duration: 450, easing: Easing.bounce, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(spark, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(text, { toValue: 1, duration: 380, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+  const reign = log.filter((x) => x.winner.id === champ.id);
+  const crownedAt = reign.length ? reign[0].round : total;
+  const n = wins[champ.id] || 0;
+  const selections = log.map((x) => x.winner);
+  const result = buildTasteResult(selections);
+  const like = () => {
+    if (liked) return;
+    setLiked(true); hapticLight();
+    api.recordInteraction(token, champ.id, "like").catch(() => setLiked(false));
+  };
+  const shareMsg = translateUI("Taste Battle şampiyonum: {0}, {1} rakibi devirdi. Seninki ne?", { 0: champ.title, 1: n });
+  return (
+    <>
+      <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.tbStage}>
+          <Animated.View style={[styles.tbSpot, { opacity: spot }]} pointerEvents="none">
+            <LinearGradient colors={["rgba(255,231,168,0.34)", "rgba(201,164,76,0.10)", "rgba(201,164,76,0)"]} style={StyleSheet.absoluteFill} />
+          </Animated.View>
+          <Text style={styles.resultEyebrow}>{translateUI("TASTE BATTLE · ŞAMPİYONUN")}</Text>
+          <View style={styles.tbThrone}>
+            {SPARKS.map((a, i) => (
+              <Animated.View key={i} pointerEvents="none" style={[styles.tbSpark, {
+                opacity: spark.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 0] }),
+                transform: [
+                  { translateX: spark.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(a) * 120] }) },
+                  { translateY: spark.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(a) * 120] }) },
+                ],
+              }]} />
+            ))}
+            <Animated.View style={{ opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }, { scale: rise.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }}>
+              {champ.poster ? <Image source={{ uri: champ.poster }} style={styles.tbChampPoster} /> : <View style={styles.tbChampPoster} />}
+            </Animated.View>
+            <Animated.View style={[styles.tbCrown, { opacity: crown, transform: [{ translateY: crown.interpolate({ inputRange: [0, 1], outputRange: [-90, 0] }) }, { rotate: crown.interpolate({ inputRange: [0, 1], outputRange: ["-20deg", "-8deg"] }) }] }]}>
+              <Crown size={30} color={ON_GOLD} />
+            </Animated.View>
+          </View>
+          <Animated.View style={{ opacity: text, alignItems: "center" }}>
+            <Text style={styles.resultTitle} numberOfLines={3}>{champ.title}</Text>
+            <Text style={styles.resultMeta}>{[champ.year, champ.type, champ.imdb ? `IMDb ${champ.imdb}` : null].filter(Boolean).join(" · ")}</Text>
+            <View style={styles.tbChip}><Trophy size={12} color={c.accent} /><Text style={styles.tbChipText}>{n >= total ? translateUI("BAŞTAN SONA TAHTTA · {0}/{1}", { 0: n, 1: total }) : translateUI("{0} RAKİBİ DEVİRDİ · {1}. TURDA TAHTA OTURDU", { 0: n, 1: crownedAt })}</Text></View>
+            {stats?.winRate != null && (
+              <Text style={styles.tbCommunity}>{translateUI("Pellix'teki karşılaşmalarda kazanma oranı: %{0}", { 0: stats.winRate })}</Text>
+            )}
+          </Animated.View>
+        </View>
+
+        <View style={styles.tbActions}>
+          <TouchableOpacity style={styles.tbActionMain} onPress={() => navigation?.navigate("Detail", { movie: champ })} accessibilityRole="button">
+            <MonitorPlay size={16} color={ON_GOLD} /><Text style={styles.shareResultText}>{translateUI("Nerede izlenir?")}</Text>
+          </TouchableOpacity>
+          <View style={styles.choiceButtons}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setListOpen(true)} accessibilityRole="button">
+              <View style={styles.scoreInline}><ListPlus size={15} color={c.text} /><Text style={styles.secondaryBtnText}>{translateUI("Listeye ekle")}</Text></View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.secondaryBtn, liked && { borderColor: c.accent }]} onPress={like} disabled={liked} accessibilityRole="button" accessibilityState={{ selected: liked }}>
+              <View style={styles.scoreInline}><Heart size={15} color={liked ? c.accent : c.text} fill={liked ? c.accent : "transparent"} /><Text style={styles.secondaryBtnText}>{liked ? translateUI("Beğendin") : translateUI("Beğen")}</Text></View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {reign.length > 0 && (
+          <View style={styles.resultPanel}>
+            <Text style={styles.resultPanelTitle}>{translateUI("Devirdiği rakipler")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {reign.map((x) => (
+                <View key={`${x.round}-${x.loser.id}`} style={styles.tbBeaten}>
+                  {x.loser.poster ? <Image source={{ uri: x.loser.poster }} style={styles.tbBeatenPoster} /> : <View style={styles.tbBeatenPoster} />}
+                  <View style={styles.tbBeatenX}><X size={12} color="#fff" strokeWidth={3} /></View>
+                  <Text style={styles.tbBeatenRound}>{translateUI("{0}. TUR", { 0: x.round })}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.resultStatsRow}>
+          <ResultStat value={translateUI(result.topGenre || "Karışık")} label={translateUI("EN ÇOK SEÇTİĞİN TÜR")} styles={styles} />
+          <ResultStat value={`%${result.moviePercent}`} label={translateUI("FİLM")} styles={styles} />
+          <ResultStat value={`%${100 - result.moviePercent}`} label={translateUI("DİZİ")} styles={styles} />
+        </View>
+
+        <ShareFan
+          style={styles.shareResultBtn}
+          accessibilityLabel={translateUI("Sonucu paylaş")}
+          options={shareOptions({ message: shareMsg, url: playUrl("taste-battle"), copy: false, card: () => setShowShare(true) })}
+        >
+          <Share2 size={17} color={ON_GOLD} />
+          <Text style={styles.shareResultText}>{translateUI("Şampiyonunu paylaş")}</Text>
+        </ShareFan>
+        <TouchableOpacity style={styles.ghostBtn} onPress={onAgain}>
+          <RotateCcw size={16} color={c.text} />
+          <Text style={styles.ghostBtnText}>{translateUI("Yeni turnuva")}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {listOpen && <ListPickerModal movie={champ} onClose={() => setListOpen(false)} />}
+      {showShare && (
+        <ShareCardModal onClose={() => setShowShare(false)} shareMessage={shareMsg} shareUrl={playUrl("taste-battle")}>
+          <PlayResultShareCard mode="champion" champion={champ} wins={n} total={total} topGenre={result.topGenre} posters={reign.map((x) => x.loser.poster)} />
+        </ShareCardModal>
+      )}
+    </>
   );
 }
 
@@ -1143,6 +1306,34 @@ function makeStyles(c) {
     choiceMeta: { color: c.dim, fontSize: 10.5, marginTop: 3 },
     vsBadge: { position: "absolute", zIndex: 2, left: "50%", top: 115, marginLeft: -19, width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg, backgroundColor: c.accent },
     vsText: { color: ON_GOLD, fontFamily: FONTS.marquee, fontSize: 15 },
+    // Taste Battle: kazanan kalır
+    tbRoundRow: { alignItems: "center", marginBottom: 4 },
+    tbNotches: { flexDirection: "row", gap: 5, marginBottom: 10 },
+    tbNotch: { width: 16, height: 4, borderRadius: 2, backgroundColor: c.surface2 },
+    tbNotchDone: { backgroundColor: c.accent },
+    tbNotchNow: { backgroundColor: "rgba(201,164,76,0.45)" },
+    tbChampCard: { borderColor: c.accent, borderWidth: 2, backgroundColor: c.surface2 },
+    tbRole: { position: "absolute", left: 6, top: 6, flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "rgba(16,14,16,0.82)", borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+    tbRoleChamp: { backgroundColor: c.accent, borderColor: c.accent },
+    tbRoleText: { color: c.text, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 1 },
+    tbWins: { position: "absolute", right: 6, top: 6, minWidth: 26, height: 26, borderRadius: 13, paddingHorizontal: 6, alignItems: "center", justifyContent: "center", backgroundColor: c.bg, borderWidth: 1.5, borderColor: c.accent },
+    tbWinsText: { color: c.accent, fontFamily: FONTS.marquee, fontSize: 15 },
+    tbHint: { color: c.dim, fontSize: 11.5, lineHeight: 16, textAlign: "center", marginTop: 14 },
+    tbStage: { borderRadius: 20, alignItems: "center", paddingHorizontal: 20, paddingTop: 22, paddingBottom: 22, overflow: "hidden", backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.32)" },
+    tbSpot: { position: "absolute", left: 0, right: 0, top: 0, height: 320 },
+    tbThrone: { marginTop: 36, marginBottom: 8, alignItems: "center", justifyContent: "center" },
+    tbChampPoster: { width: 150, aspectRatio: 2 / 3, borderRadius: 12, backgroundColor: c.surface2, borderWidth: 2, borderColor: c.accent },
+    tbCrown: { position: "absolute", top: -26, left: -14, width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: c.accent, borderWidth: 3, borderColor: c.surface },
+    tbSpark: { position: "absolute", width: 7, height: 7, borderRadius: 4, backgroundColor: "#ffe7a8" },
+    tbChip: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
+    tbChipText: { color: c.accent, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8 },
+    tbCommunity: { color: c.dim, fontSize: 11.5, lineHeight: 16, textAlign: "center", marginTop: 10 },
+    tbActions: { marginTop: 14 },
+    tbActionMain: { minHeight: 48, borderRadius: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: c.accent },
+    tbBeaten: { width: 64, alignItems: "center" },
+    tbBeatenPoster: { width: 64, height: 96, borderRadius: 7, backgroundColor: c.surface2, opacity: 0.55 },
+    tbBeatenX: { position: "absolute", top: 36, width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: c.danger },
+    tbBeatenRound: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 8.5, letterSpacing: 0.6, marginTop: 4 },
     friendPickerTitle: { color: c.text, fontFamily: FONTS.marquee, fontSize: 24, marginTop: 4 },
     friendPickerSub: { color: c.dim, fontSize: 11.5, lineHeight: 17, marginTop: 4, marginBottom: 14 },
     friendPickerRow: { flexDirection: "row", alignItems: "center", gap: 11, minHeight: 70, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: "rgba(201,164,76,0.30)", marginBottom: 9 },

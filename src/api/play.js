@@ -23,6 +23,8 @@ export const playApi = {
   features: (token) => playRequest("/api/play/features", token),
   tasteBattle: (token) => playRequest("/api/play/taste-battle", token),
   chooseTasteBattle: (token, winnerId, loserId) => playRequest("/api/play/taste-battle/choose", token, { method: "POST", body: { winnerId, loserId } }),
+  // Şampiyonun bütün oyuncular arasındaki karnesi: { wins, battles, fans, winRate (5 karşılaşmadan azsa null) }
+  tasteBattleStats: (token, movieId) => playRequest(`/api/play/taste-battle/stats/${encodeURIComponent(movieId)}`, token),
   friendQuizFriends: (token) => playRequest("/api/play/friend-quiz/friends", token),
   friendQuiz: (token, friendId) => playRequest(`/api/play/friend-quiz${friendId ? `?friendId=${encodeURIComponent(friendId)}` : ""}`, token),
   answerFriendQuiz: (token, friendId, chosenMovieId, correctMovieId) => playRequest("/api/play/friend-quiz/answer", token, { method: "POST", body: { friendId, chosenMovieId, correctMovieId } }),
