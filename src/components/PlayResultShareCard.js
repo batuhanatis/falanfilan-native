@@ -1,7 +1,7 @@
 import { t as translateUI, getLocale } from "../i18n/core";
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Sparkles, Swords, Users, Trophy, Quote, Wand2 } from "lucide-react-native";
+import { Sparkles, Swords, Users, Trophy, Quote, Wand2, Crown } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FONTS } from "../theme/fonts";
 import RetryImage from "./RetryImage";
@@ -51,12 +51,15 @@ export default function PlayResultShareCard({
   isDaily = false,
   character,
   matchPercent = 0,
+  champion,
+  wins = 0,
 }) {
   const isFriend = mode === "friend";
   const isQuote = mode === "quote";
   const isCharacter = mode === "character";
+  const isChampion = mode === "champion";
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
-  const Icon = isFriend ? Users : isQuote ? Quote : isCharacter ? Wand2 : Swords;
+  const Icon = isFriend ? Users : isQuote ? Quote : isCharacter ? Wand2 : isChampion ? Crown : Swords;
 
   return (
     <View style={styles.card}>
@@ -67,9 +70,26 @@ export default function PlayResultShareCard({
       <View style={styles.iconBubble}>
         <Icon size={24} color={GOLD} />
       </View>
-      <Text style={styles.eyebrow}>{isFriend ? translateUI("ARKADAŞINI TANIYOR MUSUN?") : isQuote ? translateUI("SAHNEYİ HATIRLA") : isCharacter ? translateUI("HANGİ KARAKTERSİN?") : translateUI("TASTE BATTLE")}</Text>
+      <Text style={styles.eyebrow}>{isFriend ? translateUI("ARKADAŞINI TANIYOR MUSUN?") : isQuote ? translateUI("SAHNEYİ HATIRLA") : isCharacter ? translateUI("HANGİ KARAKTERSİN?") : isChampion ? translateUI("TASTE BATTLE · ŞAMPİYONUM") : translateUI("TASTE BATTLE")}</Text>
 
-      {isCharacter ? (
+      {isChampion ? (
+        <>
+          <View style={styles.champWrap}>
+            {champion?.poster ? <RetryImage source={{ uri: champion.poster }} style={styles.champPoster} /> : <View style={styles.champPoster} />}
+            <View style={styles.champCrown}><Crown size={20} color="#1a150c" /></View>
+          </View>
+          <Text style={[styles.resultTitle, { fontSize: 32, lineHeight: 35 }]} numberOfLines={3}>{champion?.title}</Text>
+          <Text style={styles.meta}>{[champion?.year, champion?.type].filter(Boolean).join(" · ")}</Text>
+          <View style={styles.chip}><Trophy size={12} color={GOLD} /><Text style={styles.chipText}>{translateUI("{0} RAKİBİ DEVİRDİ", { 0: wins })}</Text></View>
+          {posters.filter(Boolean).length > 0 && (
+            <View style={styles.postersRow}>
+              {posters.filter(Boolean).slice(0, 5).map((poster, index) => (
+                <RetryImage key={`${poster}-${index}`} source={{ uri: poster }} style={[styles.poster, { width: 44, height: 66, opacity: 0.55 }]} />
+              ))}
+            </View>
+          )}
+        </>
+      ) : isCharacter ? (
         <>
           {character?.actorPhoto ? (
             <View>
@@ -164,5 +184,8 @@ const styles = StyleSheet.create({
   bigLabel: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1.3 },
   chip: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 14, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(201,164,76,0.45)" },
   chipText: { color: GOLD, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8 },
+  champWrap: { marginTop: 18 },
+  champPoster: { width: 132, height: 198, borderRadius: 12, borderWidth: 2, borderColor: GOLD, backgroundColor: "#1c1a22" },
+  champCrown: { position: "absolute", top: -18, left: -14, width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: GOLD, borderWidth: 3, borderColor: "#14121a", transform: [{ rotate: "-8deg" }] },
   footer: { color: DIM, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 1, marginTop: 22 },
 });
