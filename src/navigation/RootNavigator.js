@@ -67,6 +67,7 @@ export function appStateFromPath(path, options) {
   const gameMatch = path.match(/^\/?(?:u\/)?oyun\/([a-z0-9-]+)/);
   if (gameMatch) {
     if (gameMatch[1] === "afis-bulmacasi") return { routes: [{ name: "MainTabs" }, { name: "DailyPosterPuzzle" }] };
+    if (gameMatch[1] === "gunun-duellosu") return { routes: [{ name: "MainTabs" }, { name: "QuizDaily" }] };
     const initialGame = { karakter: "character_quiz", replik: "who_said_it", "arkadasini-taniyor-musun": "friend_quiz", "taste-battle": "taste_battle" }[gameMatch[1]];
     return { routes: [{ name: "MainTabs" }, { name: "PellixPlay", params: initialGame ? { initialGame } : {} }] };
   }

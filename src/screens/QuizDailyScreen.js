@@ -1,6 +1,6 @@
 import { t as translateUI, getLocale } from "../i18n/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Easing } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CalendarDays, Check, X, Share2, Swords, AlertCircle, Trophy } from "lucide-react-native";
 import { useAppTheme } from "../context/ThemeContext";
@@ -12,7 +12,9 @@ import { GoldWash, SALON } from "../components/salon/SalonKit";
 import { GoldenBanner, pointsLine } from "../components/duel/DuelExtras";
 import { FONTS } from "../theme/fonts";
 import { avatarOr } from "../utils/avatar";
-import { getStoreLink } from "../utils/appLinks";
+import ShareFan, { shareOptions } from "../components/salon/ShareFan";
+import ShareCardModal from "../components/ShareCardModal";
+import DailyDuelShareCard, { DAILY_CARD_HEIGHT, dailyStanding } from "../components/DailyDuelShareCard";
 import { hapticSuccess, hapticWarning, hapticLight } from "../utils/haptics";
 
 // Günün Düellosu: o gün herkese aynı 8 soru (8 farklı yapım, kolaydan zora, son soru altın).
@@ -21,6 +23,9 @@ import { hapticSuccess, hapticWarning, hapticLight } from "../utils/haptics";
 const LEVEL_LABEL = { 1: "KOLAY", 2: "ORTA", 3: "ZOR" };
 const LETTERS = ["A", "B", "C", "D"];
 const REVEAL_MS = 1600;
+// Paylaşım linki: WhatsApp/iMessage'da "Günün Düellosu" önizlemesiyle gidiyor, dokununca uygulamada
+// bu ekran açılıyor (RootNavigator "u/oyun/gunun-duellosu"). Story'de Bağlantı çıkartmasına bu yapıştırılıyor.
+const DAILY_URL = "https://open.pellix.app/u/oyun/gunun-duellosu";
 
 export default function QuizDailyScreen({ navigation }) {
   const { c } = useAppTheme();
@@ -33,6 +38,7 @@ export default function QuizDailyScreen({ navigation }) {
   const [reveal, setReveal] = useState(null); // { choice, correctIndex, points, golden }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showShare, setShowShare] = useState(false);
   const answeredRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -97,11 +103,8 @@ export default function QuizDailyScreen({ navigation }) {
 
   const run = info.run;
   const finished = !!run?.finished;
-  const share = () => {
-    const msg = translateUI("Pellix Günün Düellosu: {0} puan, 8 sorudan {1} doğru. Sen kaç yaparsın?", { 0: run.score, 1: run.correct });
-    const url = getStoreLink("quiz_duel");
-    Share.share({ message: `${msg} ${url}`, url }).catch(() => {});
-  };
+  const shareMsg = finished ? translateUI("Pellix Günün Düellosu: {0} puan, 8 sorudan {1} doğru. Sen kaç yaparsın?", { 0: run.score, 1: run.correct }) : "";
+  const meOnBoard = info.friends.find((f) => f.me);
   return (
     <View style={styles.root}>{header}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -130,7 +133,13 @@ export default function QuizDailyScreen({ navigation }) {
 
         {finished ? (
           <>
-            <TouchableOpacity style={styles.primaryBtn} onPress={share}><Share2 size={16} color={SALON.onGold} /><Text style={styles.primaryText}>{translateUI("Skorunu paylaş")}</Text></TouchableOpacity>
+            <ShareFan
+              style={styles.primaryBtn}
+              accessibilityLabel={translateUI("Skorunu paylaş")}
+              options={shareOptions({ message: shareMsg, url: DAILY_URL, copy: false, card: () => setShowShare(true) })}
+            >
+              <Share2 size={16} color={SALON.onGold} /><Text style={styles.primaryText}>{translateUI("Skorunu paylaş")}</Text>
+            </ShareFan>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate("QuizDuel")}><Swords size={15} color={c.text} /><Text style={styles.secondaryText}>{translateUI("Bir arkadaşını düelloya çağır")}</Text></TouchableOpacity>
             <Text style={styles.foot}>{translateUI("Yarın yeni 8 soru gelecek.")}</Text>
           </>
@@ -156,6 +165,27 @@ export default function QuizDailyScreen({ navigation }) {
           </View>
         ))}
       </ScrollView>
+      {showShare && finished && (
+        <ShareCardModal
+          onClose={() => setShowShare(false)}
+          shareMessage={shareMsg}
+          shareUrl={DAILY_URL}
+          previewHeight={DAILY_CARD_HEIGHT}
+          instagramStory={{ link: DAILY_URL }}
+        >
+          <DailyDuelShareCard
+            dayLabel={formatDay(info.day)}
+            score={run.score}
+            correct={run.correct}
+            total={info.total || 8}
+            marks={run.marks || []}
+            percentile={info.percentile}
+            standing={info.standing}
+            friendRank={meOnBoard?.rank ?? null}
+            friendCount={info.friends.length}
+          />
+        </ShareCardModal>
+      )}
     </View>
   );
 }
@@ -231,13 +261,13 @@ function DailyQuestion({ styles, c, play, reveal, onAnswer }) {
   );
 }
 
-// Üst yarıdaysa yüzdelik dilim ("ilk %12"), değilse sıra ("40 kişi arasında 23. sıradasın").
+// Paylaşım kartıyla aynı kural (DailyDuelShareCard): az kişi oynadıysa ya da ilk üçteyse sıra
+// ("40 kişi arasında 2. sıradasın"), kalabalıkta üst yarıdaysa yüzdelik dilim ("ilk %12").
 function standingText(info) {
-  if (info.percentile == null) return null;
-  const top = Math.max(1, 100 - info.percentile);
-  if (top <= 50) return translateUI("Bugün oynayanların ilk %{0} dilimindesin", { 0: top });
-  if (info.standing) return translateUI("Bugün oynayan {1} kişi arasında {0}. sıradasın", { 0: info.standing.rank, 1: info.standing.players });
-  return null;
+  const s = dailyStanding(info.percentile, info.standing);
+  if (!s) return null;
+  if (s.kind === "top") return translateUI("Bugün oynayanların ilk %{0} dilimindesin", { 0: s.top });
+  return translateUI("Bugün oynayan {1} kişi arasında {0}. sıradasın", { 0: s.rank, 1: s.players });
 }
 
 function makeStyles(c, insets) {
