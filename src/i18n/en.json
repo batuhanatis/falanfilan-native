@@ -2376,5 +2376,9 @@
   "{0} kişi arasında {1}.": "#{1} of {0}",
   "Arkadaşlar arasında {0}.": "#{0} among friends",
   "Altın soru +{0}": "Golden question +{0}",
-  "PELLIX'TE HER GÜN YENİ 8 SORU": "8 NEW QUESTIONS EVERY DAY ON PELLIX"
+  "PELLIX'TE HER GÜN YENİ 8 SORU": "8 NEW QUESTIONS EVERY DAY ON PELLIX",
+  "BUGÜNÜN İLK 10'U": "TODAY'S TOP 10",
+  "{0} KİŞİ OYNADI": "{0} PLAYED",
+  "WEB": "WEB",
+  "Uygulaması olmayan arkadaşların da skorunu paylaştığın linkten webde oynayabilir.": "Friends without the app can play on the web from the link you share."
 }

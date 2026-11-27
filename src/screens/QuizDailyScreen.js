@@ -164,6 +164,28 @@ export default function QuizDailyScreen({ navigation }) {
             <Text style={styles.boardScore}>{f.score}</Text>
           </View>
         ))}
+
+        {/* Bugünün ilk 10'u: uygulama ve web (girişsiz) oyuncuları birlikte; adlar kısaltılmış ("Ayşe K."). */}
+        {(info.top || []).length > 0 && (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={[styles.section, { marginTop: 0, marginBottom: 0 }]}>{translateUI("BUGÜNÜN İLK 10'U")}</Text>
+              {!!info.players && <Text style={styles.sectionMeta}>{translateUI("{0} KİŞİ OYNADI", { 0: info.players })}</Text>}
+            </View>
+            {info.top.map((r) => (
+              <View key={`${r.rank}-${r.name}`} style={[styles.boardRow, styles.topRow, r.me && styles.boardMe]}>
+                <Text style={[styles.rank, r.rank === 1 && { color: c.accent }]}>{r.rank}</Text>
+                <Text style={styles.boardName} numberOfLines={1}>
+                  {r.me ? translateUI("Sen") : r.name}
+                  {r.web ? <Text style={styles.webTag}>{"  "}{translateUI("WEB")}</Text> : null}
+                </Text>
+                <Text style={styles.boardMeta}>{translateUI("{0}/8", { 0: r.correct })}</Text>
+                <Text style={styles.boardScore}>{r.score}</Text>
+              </View>
+            ))}
+            <Text style={styles.foot}>{translateUI("Uygulaması olmayan arkadaşların da skorunu paylaştığın linkten webde oynayabilir.")}</Text>
+          </>
+        )}
       </ScrollView>
       {showShare && finished && (
         <ShareCardModal
@@ -294,6 +316,10 @@ function makeStyles(c, insets) {
     foot: { color: c.dim, fontSize: 11, textAlign: "center", marginTop: 10 },
     dim: { color: c.dim, fontSize: 12, lineHeight: 17 },
     section: { color: c.dim, fontSize: 9.5, fontWeight: "900", letterSpacing: 1, marginTop: 22, marginBottom: 9 },
+    sectionRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 22, marginBottom: 9 },
+    sectionMeta: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9.5, letterSpacing: 0.8 },
+    topRow: { paddingVertical: 12 },
+    webTag: { color: c.dim, fontFamily: FONTS.monoMedium, fontSize: 9, letterSpacing: 0.8 },
     boardRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 10, marginBottom: 7 },
     boardMe: { borderColor: SALON.goldLine, backgroundColor: SALON.goldTint },
     rank: { width: 22, color: c.dim, fontFamily: FONTS.marquee, fontSize: 18, textAlign: "center" },
